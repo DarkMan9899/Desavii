@@ -17,6 +17,7 @@ import {
   PawPrint,
   ConciergeBell,
   Soup,
+  Tv,
   HelpCircle,
 } from 'lucide-react';
 
@@ -29,6 +30,10 @@ const ICONS_BY_GROUP_CODE = {
   FAMILY_PETS: PawPrint,
   FOOD_SERVICE: ConciergeBell,
   DINING: Soup,
+  // Sprint C-1's room-amenities catalog addition (Minibar/TV/Kettle/Desk/
+  // Safe/Kitchenette) — Sprint C-2 is the first surface to actually
+  // render this group publicly.
+  IN_ROOM: Tv,
 };
 
 export default function resolveAmenityGroupIcon(groupCode) {

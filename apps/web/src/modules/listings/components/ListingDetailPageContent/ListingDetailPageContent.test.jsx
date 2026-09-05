@@ -297,6 +297,65 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
     ).toBeInTheDocument();
   });
 
+  test('Sprint C-2: shows a Rooms section for a listing with real HOTEL_ROOM units, and never a whole-property listing', () => {
+    useListingQuery.mockReturnValue({
+      data: VILLA_LISTING,
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    useListingMetadataQuery.mockReturnValue({
+      data: VILLA_METADATA,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: [
+        {
+          id: 1,
+          bookable_unit_type: 'HOTEL_ROOM',
+          capacity: 3,
+          unit_label: 'Standard Room',
+          max_guests: 2,
+        },
+      ],
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderPage(3);
+
+    expect(
+      screen.getByRole('heading', { name: 'Սենյակներ', level: 2 }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Standard Room')).toBeInTheDocument();
+  });
+
+  test('does not render a Rooms section for a whole-property listing (no HOTEL_ROOM units)', () => {
+    useListingQuery.mockReturnValue({
+      data: VILLA_LISTING,
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    useListingMetadataQuery.mockReturnValue({
+      data: VILLA_METADATA,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    // Default beforeEach mock already returns a PROPERTY_UNIT — the
+    // Villa/Apartment/Guest House regression case.
+    renderPage(3);
+
+    expect(
+      screen.queryByRole('heading', { name: 'Սենյակներ', level: 2 }),
+    ).not.toBeInTheDocument();
+  });
+
   test("2026 SEO audit: sets a real og:image/twitter:image from the listing's own lowest-position photo", () => {
     useListingQuery.mockReturnValue({
       data: VILLA_LISTING,

@@ -2990,6 +2990,24 @@
         "holdError": "We couldn't hold these dates. Please try again.",
         "availabilityConflict": "These dates are no longer available. Please choose different dates."
       },
+      "rooms": {
+        "heading": "Rooms",
+        "subheading": "Choose your room",
+        "viewRoom": "View room",
+        "viewRoomAriaLabel": "View {{title}} details",
+        "selectRoom": "Select room",
+        "selectRoomAriaLabel": "Select {{title}}",
+        "selected": "Selected",
+        "selectedRoom": "Selected room",
+        "roomSize": "Room size",
+        "roomSizeValue": "{{size}} m²",
+        "bathroom": "Bathroom",
+        "view": "View",
+        "roomAmenitiesHeading": "Room amenities",
+        "moreAmenities": "+{{count}} more",
+        "noRoomPhotos": "No room photos available",
+        "closeRoomDetail": "Close room detail"
+      },
       "relatedListings": {
         "heading": "You might also like"
       },

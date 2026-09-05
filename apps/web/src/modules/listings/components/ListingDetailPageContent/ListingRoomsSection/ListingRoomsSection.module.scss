@@ -1,0 +1,27 @@
+// ListingRoomsSection — tokens only, consumed from @desavii/ui.
+// Plain responsive CSS grid, not the `Grid` layout primitive — same
+// precedent as RelatedListings.module.scss for WHY a card list gets its
+// own grid rather than the app's semantic 4/8/12-column one. The sizing
+// strategy differs from that file's fixed 1/2/3-column breakpoints,
+// though: RelatedListings renders full page width, but this section
+// lives inside `.main` — the narrower column beside `ListingReservation
+// Widget`'s 360px sticky sidebar (verified live: only ~465px available
+// at a 1024px viewport, not the ~900px a fixed 3-column breakpoint
+// assumes, which squeezed each card to ~139px). `auto-fill`/`minmax`
+// sizes columns off the space actually available in THIS column at any
+// viewport, never a screen-width guess that doesn't know a sidebar is
+// there.
+@use 'tokens' as tokens;
+
+$room-card-min-width: 260px;
+
+.subheading {
+  color: tokens.$color-gray-600;
+  margin-block: tokens.$space-1 tokens.$space-4;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax($room-card-min-width, 1fr));
+  gap: tokens.$space-6;
+}

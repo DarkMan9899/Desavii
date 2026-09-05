@@ -1,0 +1,94 @@
+// RoomCard — tokens only, consumed from @desavii/ui.
+@use 'tokens' as tokens;
+
+.card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+  transition: box-shadow tokens.$motion-transition tokens.$ease-out;
+}
+
+.card.selected {
+  outline: 2px solid tokens.$color-success;
+  outline-offset: -2px;
+}
+
+.media {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background-color: tokens.$color-gray-100;
+}
+
+.image,
+.imagePlaceholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.selectedBadge {
+  position: absolute;
+  inset-block-start: tokens.$space-3;
+  inset-inline-start: tokens.$space-3;
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-1;
+  padding: tokens.$space-1 tokens.$space-3;
+  border-radius: tokens.$radius-full;
+  background-color: tokens.$color-success;
+  color: tokens.$color-white;
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+}
+
+.body {
+  padding: tokens.$space-4;
+  flex: 1;
+}
+
+.title {
+  font-size: tokens.$font-size-h4;
+  font-weight: 700;
+  color: tokens.$color-gray-900;
+  margin: 0;
+}
+
+.description {
+  color: tokens.$color-gray-600;
+  font-size: tokens.$font-size-small;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.facts {
+  color: tokens.$color-gray-900;
+  font-size: tokens.$font-size-small;
+}
+
+.fact {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-1;
+}
+
+.subFacts {
+  color: tokens.$color-gray-600;
+  font-size: tokens.$font-size-small;
+  margin: 0;
+}
+
+.amenityChip {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-1;
+  padding: tokens.$space-1 tokens.$space-2;
+  border-radius: tokens.$radius-md;
+  background-color: tokens.$color-gray-100;
+  color: tokens.$color-gray-900;
+  font-size: tokens.$font-size-micro;
+}

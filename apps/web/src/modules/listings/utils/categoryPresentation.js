@@ -57,6 +57,11 @@ const SECTIONS = Object.freeze({
   LOCATION: 'location',
   REVIEWS: 'reviews',
   FAQ: 'faq',
+  // Sprint C-2 (Public Rooms / Choose Your Room) — only ever present for
+  // a HOTEL listing with real HOTEL_ROOM units (the caller filters it
+  // out otherwise), so it only needs a real position in the
+  // ACCOMMODATION order below.
+  ROOMS: 'rooms',
 });
 
 // The full generic order — what a GENERIC (dining/unclassified) listing
@@ -66,6 +71,7 @@ const SECTIONS = Object.freeze({
 // in here.
 const BASE_ORDER = [
   SECTIONS.ABOUT,
+  SECTIONS.ROOMS,
   SECTIONS.ITINERARY,
   SECTIONS.INCLUDED,
   SECTIONS.ATTRIBUTES,
@@ -81,8 +87,12 @@ const SECTION_ORDER_BY_GROUP = Object.freeze({
   // A guest deciding on a place to stay reads what's included in the
   // room and the house rules before a generic spec sheet or a duration/
   // group-size style "Details" block that barely applies to lodging.
+  // Sprint C-2: choosing a real room type is the actual booking decision
+  // for a Hotel — it comes right after the description, ahead of even
+  // the listing's own (house-wide) amenities.
   [PRESENTATION_GROUPS.ACCOMMODATION]: [
     SECTIONS.ABOUT,
+    SECTIONS.ROOMS,
     SECTIONS.AMENITIES,
     SECTIONS.POLICIES,
     SECTIONS.INCLUDED,

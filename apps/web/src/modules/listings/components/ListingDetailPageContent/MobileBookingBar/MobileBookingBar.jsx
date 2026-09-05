@@ -16,6 +16,11 @@
  * `respond()`-mixin convention for breakpoint-conditional chrome (e.g.
  * `ListingDetailPageContent.module.scss`'s own `.sidebar`), so there is
  * no client-side layout flash before hydration settles.
+ *
+ * Sprint C-2: forwards the same lifted `selectedUnitId`/`onSelectUnit`
+ * `ListingDetailPageContent` passes the desktop widget — a room picked
+ * in `ListingRoomsSection` on a mobile viewport must show up here too
+ * once this drawer opens, not just on desktop.
  */
 
 import { useState } from 'react';
@@ -37,6 +42,8 @@ export default function MobileBookingBar({
   pricing = null,
   bookingCtaKey,
   location = null,
+  selectedUnitId = undefined,
+  onSelectUnit = undefined,
 }) {
   const { t } = useTranslation();
   const { locale } = useParams();
@@ -79,6 +86,8 @@ export default function MobileBookingBar({
           pricing={pricing}
           bookingCtaKey={bookingCtaKey}
           location={location}
+          selectedUnitId={selectedUnitId}
+          onSelectUnit={onSelectUnit}
         />
       </Drawer>
     </>
@@ -97,4 +106,6 @@ MobileBookingBar.propTypes = {
     cityName: PropTypes.string,
     countryName: PropTypes.string,
   }),
+  selectedUnitId: PropTypes.number,
+  onSelectUnit: PropTypes.func,
 };

@@ -3020,6 +3020,24 @@
         "holdError": "Не удалось удержать эти даты. Пожалуйста, попробуйте ещё раз.",
         "availabilityConflict": "Эти даты больше недоступны. Пожалуйста, выберите другие даты."
       },
+      "rooms": {
+        "heading": "Номера",
+        "subheading": "Выберите свой номер",
+        "viewRoom": "Смотреть номер",
+        "viewRoomAriaLabel": "Смотреть детали номера {{title}}",
+        "selectRoom": "Выбрать номер",
+        "selectRoomAriaLabel": "Выбрать {{title}}",
+        "selected": "Выбрано",
+        "selectedRoom": "Выбранный номер",
+        "roomSize": "Площадь номера",
+        "roomSizeValue": "{{size}} м²",
+        "bathroom": "Ванная комната",
+        "view": "Вид",
+        "roomAmenitiesHeading": "Удобства номера",
+        "moreAmenities": "+{{count}} ещё",
+        "noRoomPhotos": "Фотографии номера отсутствуют",
+        "closeRoomDetail": "Закрыть детали номера"
+      },
       "relatedListings": {
         "heading": "Вам также может понравиться"
       },

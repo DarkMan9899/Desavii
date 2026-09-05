@@ -32,6 +32,16 @@
  * category; nothing downstream (hold creation, checkout hand-off, price
  * estimate) needed to change. Every other category's flow (unit-then-
  * date-range) is byte-for-byte unchanged.
+ *
+ * Sprint C-2 (Public Rooms / Choose Your Room): `selectedUnitId`/
+ * `onSelectUnit` are now optional CONTROLLED props — `ListingDetailPage
+ * Content` lifts the state and passes both so a room picked in the new
+ * `ListingRoomsSection` and a room picked from this widget's own `Select`
+ * stay the same canonical selection, never two parallel states. Omitting
+ * both (every existing render site/test that predates this sprint) falls
+ * back to the exact same internal `useState` this component always
+ * owned — a standard controlled/uncontrolled dual mode, not a behavior
+ * change for any caller that doesn't opt in.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -75,6 +85,8 @@ export default function ListingReservationWidget({
   pricing = null,
   bookingCtaKey = 'pages.listingDetail.reservation.requestToBook',
   location = null,
+  selectedUnitId: controlledSelectedUnitId = undefined,
+  onSelectUnit = undefined,
 }) {
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
@@ -94,7 +106,20 @@ export default function ListingReservationWidget({
   const [initialReservationState] = useState(() =>
     resolveInitialReservationState(searchParams, today),
   );
-  const [selectedUnitId, setSelectedUnitId] = useState(null);
+  const isUnitSelectionControlled = controlledSelectedUnitId !== undefined;
+  const [internalSelectedUnitId, setInternalSelectedUnitId] = useState(null);
+  const selectedUnitId = isUnitSelectionControlled
+    ? controlledSelectedUnitId
+    : internalSelectedUnitId;
+  // Every existing call site in this file (`handleSelectUnit`,
+  // `handleSelectTimeSlot`, `handleSelectDate`) keeps calling this one
+  // setter exactly as before — it now also notifies a controlling parent
+  // (`ListingRoomsSection`'s own selected-state) when one exists, instead
+  // of only ever updating local state.
+  function setSelectedUnitId(value) {
+    onSelectUnit?.(value);
+    if (!isUnitSelectionControlled) setInternalSelectedUnitId(value);
+  }
   const [dateRange, setDateRange] = useState(initialReservationState.dateRange);
   const [quantity, setQuantity] = useState(1);
   const [guestCount, setGuestCount] = useState(
@@ -771,4 +796,6 @@ ListingReservationWidget.propTypes = {
     city_name: PropTypes.string,
     country_name: PropTypes.string,
   }),
+  selectedUnitId: PropTypes.number,
+  onSelectUnit: PropTypes.func,
 };

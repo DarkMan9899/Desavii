@@ -17,7 +17,7 @@ import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { FeatureGrid } from '@desavii/ui/components/data-display';
 import { Section } from '@desavii/ui/components/layout';
-import resolveAmenityGroupIcon from '../../../utils/amenityGroupIcons.js';
+import { resolveAmenityFeatureGroups } from '../../../utils/resolveAmenityFeatureGroups.js';
 
 export default function ListingAmenitiesSection({
   amenityGroups = [],
@@ -28,20 +28,7 @@ export default function ListingAmenitiesSection({
 
   if (!amenityGroups || amenityGroups.length === 0) return null;
 
-  const idSet = new Set(amenityIds ?? []);
-  const groups = amenityGroups
-    .map((group) => ({
-      title: t(`partner.listingWizard.amenityGroups.${group.code}`, {
-        defaultValue: group.code,
-      }),
-      items: group.amenities
-        .filter((amenity) => idSet.has(amenity.value))
-        .map((amenity) => ({
-          label: amenity.code,
-          icon: resolveAmenityGroupIcon(group.code),
-        })),
-    }))
-    .filter((group) => group.items.length > 0);
+  const groups = resolveAmenityFeatureGroups(amenityGroups, amenityIds, t);
 
   if (groups.length === 0) return null;
 

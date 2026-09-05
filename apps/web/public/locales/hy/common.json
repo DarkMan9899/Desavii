@@ -2990,6 +2990,24 @@
         "holdError": "Չհաջողվեց պահել այս ամսաթվերը։ Խնդրում ենք կրկին փորձել։",
         "availabilityConflict": "Այս ամսաթվերն այլևս հասանելի չեն։ Խնդրում ենք ընտրել այլ ամսաթվեր։"
       },
+      "rooms": {
+        "heading": "Սենյակներ",
+        "subheading": "Ընտրեք ձեր սենյակը",
+        "viewRoom": "Դիտել սենյակը",
+        "viewRoomAriaLabel": "Դիտել {{title}} սենյակի մանրամասները",
+        "selectRoom": "Ընտրել սենյակը",
+        "selectRoomAriaLabel": "Ընտրել {{title}}",
+        "selected": "Ընտրված է",
+        "selectedRoom": "Ընտրված սենյակ",
+        "roomSize": "Սենյակի մակերես",
+        "roomSizeValue": "{{size}} մ²",
+        "bathroom": "Լոգարան",
+        "view": "Տեսարան",
+        "roomAmenitiesHeading": "Սենյակի հարմարություններ",
+        "moreAmenities": "+{{count}} ևս",
+        "noRoomPhotos": "Սենյակի լուսանկարներ չկան",
+        "closeRoomDetail": "Փակել սենյակի մանրամասները"
+      },
       "relatedListings": {
         "heading": "Ձեզ նաև կարող է հետաքրքրել"
       },

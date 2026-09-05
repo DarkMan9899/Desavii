@@ -1,0 +1,41 @@
+// RoomDetailModal — tokens only, consumed from @desavii/ui.
+@use 'tokens' as tokens;
+
+.noPhotos {
+  padding: tokens.$space-6;
+  text-align: center;
+  color: tokens.$color-gray-600;
+  background-color: tokens.$color-gray-100;
+  border-radius: tokens.$radius-md;
+  margin: 0;
+}
+
+.description {
+  color: tokens.$color-gray-900;
+  font-size: tokens.$font-size-body;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.keyFacts {
+  color: tokens.$color-gray-900;
+  font-size: tokens.$font-size-body;
+}
+
+.keyFact {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-2;
+}
+
+.amenitiesHeading {
+  font-size: tokens.$font-size-h4;
+  font-weight: 700;
+  color: tokens.$color-gray-900;
+  margin: 0;
+}
+
+.footer {
+  width: 100%;
+  align-items: center;
+}

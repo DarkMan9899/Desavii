@@ -224,6 +224,19 @@ describe('GET /availability/:listingId/units — public bookable units view (Pha
       bed_configuration: null,
       base_price_amount: null,
       base_price_currency: null,
+      // Sprint C-1/C-2: structured room fields, generic on every unit
+      // type and honestly null when never set (this fixture never
+      // authored them); translations/amenity_ids/media are always
+      // present (possibly empty) since Sprint C-2's `getPublicUnits`
+      // enriches every public unit the same way `listUnits` already does
+      // for owners.
+      room_size_sqm: null,
+      bathroom_type: null,
+      view_type: null,
+      smoking_policy: null,
+      translations: [],
+      amenity_ids: [],
+      media: [],
     });
     expect(res.body.data[0]).not.toHaveProperty('listing_id');
     expect(res.body.data[0]).not.toHaveProperty('created_at');

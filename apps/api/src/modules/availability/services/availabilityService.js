@@ -849,11 +849,21 @@ export class AvailabilityService {
    * always has — fully backward compatible with every existing caller
    * (Admin Inventory, the Partner listing-detail Bookable Units panel,
    * and this widget's own initial, date-less unit list).
+   *
+   * Sprint C-2 (Public Rooms / Choose Your Room): every unit is now run
+   * through the same `#enrichUnit` every owner-facing path already uses,
+   * attaching a HOTEL_ROOM's translations/amenityIds/media — small-N
+   * reads (a hotel's own room-type count), same precedent as `listUnits`
+   * above. `toPublicBookableUnitResponse` is still what decides which of
+   * these fields actually leave the server.
    */
   async getPublicUnits(principal, listingId, { date } = {}) {
     const listing = await this.#listingService.getListing(principal, listingId);
-    const units =
+    const rawUnits =
       await this.#bookableUnitService.listUnitsForListing(listingId);
+    const units = await Promise.all(
+      rawUnits.map((unit) => this.#enrichUnit(unit)),
+    );
     if (date === undefined) return units;
 
     const [dayStatusesByUnit, priceRowsByUnit] = await Promise.all([

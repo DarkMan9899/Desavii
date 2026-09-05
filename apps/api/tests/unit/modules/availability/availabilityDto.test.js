@@ -34,6 +34,13 @@ describe('toPublicBookableUnitResponse', () => {
       time_slot_start: null,
       time_slot_end: null,
       unit_label: null,
+      // Sprint C-2: structured room fields are unconditionally present
+      // (generic on every unit type), honestly null when this bare
+      // fixture never set them.
+      room_size_sqm: null,
+      bathroom_type: null,
+      view_type: null,
+      smoking_policy: null,
     });
   });
 

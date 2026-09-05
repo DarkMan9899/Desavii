@@ -20,7 +20,7 @@
  * gets the generic retryable `ErrorState`.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -41,11 +41,13 @@ import {
 import { useListingQuery } from '../../queries/useListingQuery.js';
 import { useListingMetadataQuery } from '../../queries/useListingMetadataQuery.js';
 import { useListingCategoriesQuery } from '../../queries/useListingCategoriesQuery.js';
+import { useListingBookableUnitsQuery } from '../../queries/useListingBookableUnitsQuery.js';
 import getLocalizedTranslation from '../../utils/getLocalizedTranslation.js';
 import getLocalizedItems from '../../utils/getLocalizedItems.js';
 import ListingHero from './ListingHero/ListingHero.jsx';
 import ListingSectionNav from './ListingSectionNav/ListingSectionNav.jsx';
 import ListingAboutSection from './ListingAboutSection/ListingAboutSection.jsx';
+import ListingRoomsSection from './ListingRoomsSection/ListingRoomsSection.jsx';
 import ListingReservationWidget from './ListingReservationWidget/ListingReservationWidget.jsx';
 import MobileBookingBar from './MobileBookingBar/MobileBookingBar.jsx';
 import ListingAttributesSection from './ListingAttributesSection/ListingAttributesSection.jsx';
@@ -68,6 +70,7 @@ import {
 import styles from './ListingDetailPageContent.module.scss';
 
 const SECTION_ABOUT = 'about';
+const SECTION_ROOMS = 'rooms';
 const SECTION_ITINERARY = 'itinerary';
 const SECTION_INCLUDED = 'included';
 const SECTION_ATTRIBUTES = 'attributes';
@@ -123,6 +126,21 @@ export default function ListingDetailPageContent() {
   const category = (categories ?? []).find(
     (candidate) => candidate.id === categoryId,
   );
+
+  // Sprint C-2 (Public Rooms / Choose Your Room): the SAME cache entry
+  // `ListingReservationWidget`/`ListingRoomsSection` each independently
+  // subscribe to via their own `useListingBookableUnitsQuery(listing.id)`
+  // call — one real network fetch, shared by every subscriber. Read here
+  // only to decide whether a Rooms section belongs in `sections` at all
+  // (a HOTEL with zero registered HOTEL_ROOM units gets none — never a
+  // fabricated section). `selectedUnitId` is the ONE canonical selection
+  // both components render against; lifting it here is what keeps
+  // picking a room in one from ever disagreeing with the other.
+  const { data: units } = useListingBookableUnitsQuery(listing?.id);
+  const hasHotelRooms = (units ?? []).some(
+    (unit) => unit.bookable_unit_type === 'HOTEL_ROOM',
+  );
+  const [selectedUnitId, setSelectedUnitId] = useState(null);
 
   const translation = listing
     ? getLocalizedTranslation(listing.translations, locale)
@@ -282,6 +300,10 @@ export default function ListingDetailPageContent() {
       id: SECTION_ABOUT,
       label: t('pages.listingDetail.about.heading'),
     },
+    hasHotelRooms && {
+      id: SECTION_ROOMS,
+      label: t('pages.listingDetail.rooms.heading'),
+    },
     itinerarySteps.length > 0 && {
       id: SECTION_ITINERARY,
       label: t('pages.listingDetail.itinerary.heading'),
@@ -331,6 +353,17 @@ export default function ListingDetailPageContent() {
       <ListingAboutSection
         description={description}
         sectionId={SECTION_ABOUT}
+      />
+    ),
+    [SECTION_ROOMS]: (
+      <ListingRoomsSection
+        listingId={listing.id}
+        amenityGroups={metadata?.amenity_groups}
+        pricing={listing.pricing}
+        locale={locale}
+        selectedUnitId={selectedUnitId}
+        onSelectUnit={setSelectedUnitId}
+        sectionId={SECTION_ROOMS}
       />
     ),
     [SECTION_ITINERARY]: (
@@ -468,6 +501,8 @@ export default function ListingDetailPageContent() {
             pricing={listing.pricing}
             bookingCtaKey={bookingCtaKey}
             location={listing.location}
+            selectedUnitId={selectedUnitId}
+            onSelectUnit={setSelectedUnitId}
           />
         </aside>
       </div>
@@ -478,6 +513,8 @@ export default function ListingDetailPageContent() {
         pricing={listing.pricing}
         bookingCtaKey={bookingCtaKey}
         location={listing.location}
+        selectedUnitId={selectedUnitId}
+        onSelectUnit={setSelectedUnitId}
       />
     </Stack>
   );

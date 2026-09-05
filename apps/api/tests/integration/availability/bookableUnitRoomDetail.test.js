@@ -442,3 +442,58 @@ describe('room media (POST/GET/DELETE /availability/units/:id/media)', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('GET /availability/:listingId/units — public room data exposure (Sprint C-2)', () => {
+  test('a customer can see a HOTEL_ROOM unit’s structured fields, description, amenities, and photo — with no owner-only fields leaked', async () => {
+    const unit = await registerUnit(listingId, {
+      unitLabel: 'Public Detail Room',
+      maxGuests: 2,
+      roomSizeSqm: 24,
+      bathroomType: 'ENSUITE',
+      viewType: 'GARDEN',
+      smokingPolicy: 'NON_SMOKING',
+    });
+    await request(app)
+      .patch(`/api/v1/availability/units/${unit.id}/description`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ languageCode: 'en', description: 'A quiet garden-view room.' });
+    const [[acRow]] = await pool.query(
+      "SELECT id FROM listing_amenities WHERE name = 'Air Conditioning'",
+    );
+    await request(app)
+      .patch(`/api/v1/availability/units/${unit.id}/amenities`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ amenityIds: [acRow.id] });
+    await request(app)
+      .post(`/api/v1/availability/units/${unit.id}/media`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Content-Type', 'image/png')
+      .send(ONE_PX_PNG);
+
+    // No Authorization header — this is the real, unauthenticated public
+    // read `ListingRoomsSection`/`ListingReservationWidget` both use.
+    const res = await request(app).get(
+      `/api/v1/availability/${listingId}/units`,
+    );
+    expect(res.status).toBe(200);
+    const publicUnit = res.body.data.find((u) => u.id === unit.id);
+    expect(publicUnit).toBeDefined();
+    expect(publicUnit.max_guests).toBe(2);
+    expect(publicUnit.room_size_sqm).toBe('24.00');
+    expect(publicUnit.bathroom_type).toBe('ENSUITE');
+    expect(publicUnit.view_type).toBe('GARDEN');
+    expect(publicUnit.smoking_policy).toBe('NON_SMOKING');
+    expect(publicUnit.translations).toEqual([
+      { language_code: 'en', description: 'A quiet garden-view room.' },
+    ]);
+    expect(publicUnit.amenity_ids).toEqual([acRow.id]);
+    expect(publicUnit.media).toHaveLength(1);
+    expect(publicUnit.media[0]).toMatchObject({
+      is_cover: true,
+      media_type: 'IMAGE',
+    });
+    expect(publicUnit).not.toHaveProperty('listing_id');
+    expect(publicUnit).not.toHaveProperty('created_at');
+    expect(publicUnit).not.toHaveProperty('updated_at');
+  });
+});

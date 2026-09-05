@@ -88,7 +88,28 @@ function resolveAvailabilityStatus(remaining) {
   return 'AVAILABLE';
 }
 
-/** Public: no `listing_id`/`created_at`/`updated_at` — a customer picking a unit to book needs its identity, type, capacity, occupancy/bed structure, base price, and (for a time-slot unit) its label/time window. */
+/**
+ * Public: no `listing_id`/`created_at`/`updated_at` — a customer picking a
+ * unit to book needs its identity, type, capacity, occupancy/bed
+ * structure, base price, and (for a time-slot unit) its label/time
+ * window.
+ *
+ * Sprint C-2 (Public Rooms / Choose Your Room) — adds the Sprint C-1
+ * room-level fields a customer needs to actually compare/choose a real
+ * HOTEL_ROOM: structured size/bathroom/view/smoking (generic on
+ * `bookable_units`, so always present — null on any non-room unit type,
+ * same as the owner-facing `toBookableUnitResponse`), plus the same
+ * enriched-only translations/amenity_ids/media this file's owner DTO
+ * already conditionally includes. No new fields invented: this mirrors
+ * `toBookableUnitResponse` above minus the owner-only `listing_id`/
+ * `created_at`/`updated_at`, never a parallel "public room" shape.
+ * `getPublicUnits` (`availabilityService.js`) is what actually attaches
+ * translations/amenityIds/media before this DTO runs — a caller that
+ * still passes a bare, unenriched unit (there are none left after that
+ * change, but the conditional spread costs nothing) simply omits them,
+ * exactly like the owner DTO already does for Sprint 10's internal
+ * `getUnitById`.
+ */
 export function toPublicBookableUnitResponse(unit) {
   return {
     id: unit.id,
@@ -101,6 +122,20 @@ export function toPublicBookableUnitResponse(unit) {
     bed_configuration: unit.bedConfiguration,
     base_price_amount: unit.basePriceAmount,
     base_price_currency: unit.basePriceCurrencyCode,
+    room_size_sqm: unit.roomSizeSqm ?? null,
+    bathroom_type: unit.bathroomType ?? null,
+    view_type: unit.viewType ?? null,
+    smoking_policy: unit.smokingPolicy ?? null,
+    ...(unit.translations !== undefined && {
+      translations: unit.translations.map((t) => ({
+        language_code: t.languageCode,
+        description: t.description,
+      })),
+    }),
+    ...(unit.amenityIds !== undefined && { amenity_ids: unit.amenityIds }),
+    ...(unit.media !== undefined && {
+      media: unit.media.map(toUnitMediaResponse),
+    }),
     // Sprint A (Time-Aware Booking Foundation) — only present when
     // `GET /:listingId/units` was called with `?date=`
     // (`availabilityService.js#getPublicUnits`). Same customer-safe
