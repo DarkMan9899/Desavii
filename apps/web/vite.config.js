@@ -50,6 +50,19 @@ export default defineConfig({
         target: 'http://localhost:4000',
         changeOrigin: true,
       },
+      // Dev-only compatibility for `LocalStorageProvider`'s root-relative
+      // `/uploads/...` media URLs — the API now actually serves that path
+      // itself (apps/api/src/app.js), this just forwards a same-shape
+      // request from the web dev server's own origin to it, mirroring the
+      // `/api` proxy above exactly. Never duplicates file serving here:
+      // the API remains the one real source for the bytes. Production
+      // never proxies (same as `/api`) — an S3-backed deployment's media
+      // URLs are already absolute (a different origin entirely), so
+      // there is nothing for this entry to intercept there.
+      '/uploads': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+      },
     },
   },
   build: {

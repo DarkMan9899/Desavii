@@ -26,6 +26,22 @@ export class LocalStorageProvider extends StorageProvider {
     this.#publicPathPrefix = publicPathPrefix;
   }
 
+  /**
+   * The real, resolved absolute directory this instance writes to and
+   * `getUrl()` builds URLs relative to — `app.js`'s static-serving route
+   * reads these two accessors instead of re-deriving/hardcoding the same
+   * `'uploads'`/`'/uploads'` defaults a second time, so the route it
+   * mounts always matches whatever this provider actually persists to,
+   * even if these constructor defaults ever change.
+   */
+  get rootDir() {
+    return this.#rootDir;
+  }
+
+  get publicPathPrefix() {
+    return this.#publicPathPrefix;
+  }
+
   /** Resolves a logical key to a real path, rejecting any attempt to escape rootDir. */
   #resolvePath(key) {
     if (typeof key !== 'string' || key.trim().length === 0) {

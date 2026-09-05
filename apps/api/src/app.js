@@ -49,6 +49,8 @@ import { PermissionResolver } from './core/domain/permissionResolver.js';
 import { MySqlPermissionRepository } from './infrastructure/database/repositories/permissionRepository.js';
 import { CachedPermissionRepository } from './infrastructure/cache/cachedPermissionRepository.js';
 import { isPartnerOwner } from './infrastructure/database/repositories/partnerEmployeeRepository.js';
+import { createStorageProvider } from './infrastructure/storage/createStorageProvider.js';
+import { LocalStorageProvider } from './infrastructure/storage/localStorageProvider.js';
 
 const app = express();
 
@@ -81,6 +83,31 @@ app.use(
     credentials: true,
   }),
 );
+
+// 1.5 Local media static serving — dev/local-storage compatibility only.
+// `LocalStorageProvider.getUrl()` (and every module's `attachMedia`-style
+// service method) returns a root-relative `/uploads/...` URL, but until
+// now nothing actually served that path over HTTP: a real Partner-
+// uploaded listing/room photo 404'd everywhere it was displayed. Only
+// mounted when `local` is the ACTIVE provider (`createStorageProvider()`
+// is the same composition function every module already uses to decide
+// this) — an S3-backed deployment already serves media from the
+// bucket's own public URL (`S3StorageProvider#getUrl` always returns an
+// absolute URL, never `/uploads/...`), so this route would never be
+// reached there anyway; skipping the mount entirely keeps this
+// unambiguously dev/local-only. `express.static`'s own `send`-based path
+// resolution is what actually prevents `..` traversal escaping
+// `rootDir` — never a hand-rolled file-read endpoint. Public, unauthenticated,
+// unrate-limited (mounted ahead of both) — the same category as a public
+// listing photo already is, and a page's own image requests should never
+// compete with the visitor's own JSON-API rate-limit budget.
+const storageProvider = createStorageProvider();
+if (storageProvider instanceof LocalStorageProvider) {
+  app.use(
+    storageProvider.publicPathPrefix,
+    express.static(storageProvider.rootDir),
+  );
+}
 
 // 2. Body parsing — cookieParser reads the httpOnly refresh-token cookie
 // web clients rely on (FRONTEND_ARCHITECTURE.md §34.1); setting a cookie
