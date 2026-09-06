@@ -155,6 +155,31 @@ export function toPublicBookableUnitResponse(unit) {
           price_currency_for_date: unit.priceForDateCurrencyCode ?? null,
         }
       : {}),
+    // Sprint C-3 (Date-Range Room Availability + Stay Pricing) — only
+    // present when `GET /:listingId/units` was called with
+    // `?checkIn=&checkOut=` (`availabilityService.js#getPublicUnits`'s
+    // `#getStayAvailabilityForUnit`). Same customer-safe bucketing/
+    // never-leak-a-comfortable-count convention as `_for_date` above —
+    // `remaining_count_for_stay` is only ever a real number once the
+    // stay is genuinely scarce (LOW/SOLD_OUT), never revealing a
+    // healthy stock count. `stay_total_amount`/`stay_total_currency`
+    // are the server-authoritative charge for ONE unit across the whole
+    // stay — null only when that specific room type's pricing is
+    // incomplete, never a fabricated fallback.
+    ...(unit.remainingForStay !== undefined
+      ? {
+          availability_status_for_stay: resolveAvailabilityStatus(
+            unit.remainingForStay,
+          ),
+          remaining_count_for_stay:
+            resolveAvailabilityStatus(unit.remainingForStay) === 'AVAILABLE'
+              ? null
+              : unit.remainingForStay,
+          night_count_for_stay: unit.nightCountForStay,
+          stay_total_amount: unit.stayTotalAmount ?? null,
+          stay_total_currency: unit.stayTotalCurrency ?? null,
+        }
+      : {}),
   };
 }
 

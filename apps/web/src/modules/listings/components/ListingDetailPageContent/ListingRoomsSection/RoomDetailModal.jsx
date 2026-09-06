@@ -14,12 +14,17 @@
  * features (bathroom/view/smoking), amenities, price, then the one
  * "Select Room" action — never internal inventory concepts like pooled
  * `capacity`.
+ *
+ * Sprint C-3 (Date-Range Room Availability): the footer's price/action row
+ * mirrors `RoomCard.jsx`'s own stay-total/sold-out treatment exactly — the
+ * same `unit` object (carrying the same additive fields once a stay range
+ * is chosen), so a room's detail view never disagrees with its own card.
  */
 
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '@desavii/ui/components/feedback-overlays';
-import { Button } from '@desavii/ui/components/primitives';
+import { Button, Badge } from '@desavii/ui/components/primitives';
 import { PriceTag, FeatureGrid } from '@desavii/ui/components/data-display';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import {
@@ -69,6 +74,10 @@ export default function RoomDetailModal({
     t,
   );
 
+  const stayStatus = unit.availability_status_for_stay;
+  const hasStayInfo = stayStatus !== undefined;
+  const isStaySoldOut = stayStatus === 'SOLD_OUT';
+
   return (
     <Modal
       isOpen={isOpen}
@@ -77,20 +86,47 @@ export default function RoomDetailModal({
       closeLabel={t('pages.listingDetail.rooms.closeRoomDetail')}
       size="lg"
       footer={
-        <Inline gap="2" justify="flex-end" className={styles.footer}>
-          {unit.base_price_amount != null && (
-            <PriceTag
-              amount={unit.base_price_amount}
-              currencyCode={unit.base_price_currency}
-              locale={locale}
-              suffix={pricingModelLabel}
-              size="md"
-            />
+        <Inline gap="3" justify="flex-end" wrap className={styles.footer}>
+          {hasStayInfo && unit.stay_total_amount != null ? (
+            <Stack gap="1">
+              <PriceTag
+                amount={unit.stay_total_amount}
+                currencyCode={unit.stay_total_currency}
+                locale={locale}
+                suffix={t('pages.listingDetail.rooms.stayTotalSuffix', {
+                  count: unit.night_count_for_stay,
+                })}
+                size="md"
+              />
+              {stayStatus !== 'AVAILABLE' && (
+                <Badge
+                  variant={isStaySoldOut ? 'danger' : 'warning'}
+                  size="sm"
+                  label={
+                    isStaySoldOut
+                      ? t('pages.listingDetail.rooms.soldOutForDates')
+                      : t('pages.listingDetail.rooms.fewRoomsLeftForStay', {
+                          count: unit.remaining_count_for_stay,
+                        })
+                  }
+                />
+              )}
+            </Stack>
+          ) : (
+            unit.base_price_amount != null && (
+              <PriceTag
+                amount={unit.base_price_amount}
+                currencyCode={unit.base_price_currency}
+                locale={locale}
+                suffix={pricingModelLabel}
+                size="md"
+              />
+            )
           )}
           <Button
             variant={isSelected ? 'ghost' : 'primary'}
             size="md"
-            disabled={isSelected}
+            disabled={isSelected || isStaySoldOut}
             onClick={() => onSelect(unit.id)}
           >
             {isSelected

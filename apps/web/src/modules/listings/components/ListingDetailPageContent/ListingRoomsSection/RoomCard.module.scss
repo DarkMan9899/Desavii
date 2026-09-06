@@ -20,6 +20,19 @@
   background-color: tokens.$color-gray-100;
 }
 
+// Sprint C-3 — sold out for the currently chosen stay is shown, never
+// removed (the room's photos/detail stay reachable via "View room"). The
+// dimming is scoped to the photo only (purely decorative) — it must never
+// touch the body's text/Badge/button, since a real live-browser axe scan
+// caught exactly that mistake on an earlier draft: fading the whole card
+// (including the danger Badge and the price suffix) via `opacity` pulled
+// both below WCAG AA's 4.5:1 contrast minimum. The disabled "Select room"
+// button and the danger Badge alone are already an unambiguous, non-
+// color-only cue.
+.card.soldOut .media {
+  opacity: 0.6;
+}
+
 .image,
 .imagePlaceholder {
   width: 100%;

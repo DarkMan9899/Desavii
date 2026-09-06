@@ -11,6 +11,18 @@
  * Content` (the one canonical selection also passed into
  * `ListingReservationWidget`) — picking "Select room" here IS picking a
  * unit in the reservation widget, never a second booking state.
+ *
+ * Sprint C-3 (Date-Range Room Availability): `dateRange` is the SAME
+ * lifted check-in/check-out state `ListingReservationWidget`'s own date
+ * picker writes to — once both are set, this re-fetches the identical
+ * `useListingBookableUnitsQuery` cache entry with `?checkIn=&checkOut=`
+ * instead of no date params at all, which additively augments every unit
+ * with a real whole-stay `availability_status_for_stay`/
+ * `remaining_count_for_stay`/`night_count_for_stay`/`stay_total_amount`
+ * (`toPublicBookableUnitResponse`'s own additive fields — see
+ * `availabilityDto.js`). Before a valid range exists, this fetches
+ * exactly what it always did (no date params, no stay claims on any
+ * card) — there is no separate "preview" request path to keep in sync.
  */
 
 import { useCallback, useState } from 'react';
@@ -33,6 +45,7 @@ export default function ListingRoomsSection({
   locale = undefined,
   selectedUnitId = null,
   onSelectUnit,
+  dateRange = null,
   sectionId = undefined,
 }) {
   const { t } = useTranslation();
@@ -55,7 +68,13 @@ export default function ListingRoomsSection({
   );
   const handleCloseDetail = useCallback(() => setOpenRoomId(null), []);
 
-  const { data: units, isPending } = useListingBookableUnitsQuery(listingId);
+  const hasValidStayRange = Boolean(dateRange?.start && dateRange?.end);
+  const { data: units, isPending } = useListingBookableUnitsQuery(
+    listingId,
+    hasValidStayRange
+      ? { checkIn: dateRange.start, checkOut: dateRange.end }
+      : {},
+  );
   const roomUnits = (units ?? []).filter(
     (unit) => unit.bookable_unit_type === HOTEL_ROOM_TYPE,
   );
@@ -82,6 +101,12 @@ export default function ListingRoomsSection({
       <p className={styles.subheading}>
         {t('pages.listingDetail.rooms.subheading')}
       </p>
+
+      {!hasValidStayRange && (
+        <p className={styles.datesHint}>
+          {t('pages.listingDetail.rooms.selectDatesHint')}
+        </p>
+      )}
 
       <div className={styles.grid}>
         {roomUnits.map((unit, index) => (
@@ -127,5 +152,9 @@ ListingRoomsSection.propTypes = {
   locale: PropTypes.string,
   selectedUnitId: PropTypes.number,
   onSelectUnit: PropTypes.func.isRequired,
+  dateRange: PropTypes.shape({
+    start: PropTypes.string,
+    end: PropTypes.string,
+  }),
   sectionId: PropTypes.string,
 };

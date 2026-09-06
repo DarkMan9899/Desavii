@@ -322,9 +322,58 @@ export const listingIdParamsSchema = z.object({
 // existing caller (Admin Inventory, the Partner Bookable Units panel, the
 // widget's own initial unit list) is unaffected; only the customer-facing
 // time-slot picker ever supplies it.
+//
+// Sprint C-3 (Date-Range Room Availability + Stay Pricing) addition:
+// `checkIn`/`checkOut` are the accommodation equivalent of `date` — a
+// multi-night stay range instead of one session date. Both optional
+// (every existing caller keeps working unchanged) but mutually exclusive
+// with `date` and with each other's absence: either neither is present,
+// or both are, since one alone can't describe a stay. `checkOut` must be
+// strictly after `checkIn` — a same-day request is zero nights, never a
+// valid stay (`resolveConsumedRange`'s own accommodation-vs-duration
+// branch already treats `dateFrom === dateTo` as a genuine one-day
+// booking for non-accommodation types, so this endpoint-level rule is
+// what actually keeps a customer from requesting a nonsensical 0-night
+// hotel stay in the first place — Layer 2 catching this before Layer 3
+// ever has to reason about it). Reuses `calendarQuerySchema`'s own span
+// cap so this can't be used to force an unbounded per-night fan-out.
 export const listPublicUnitsQuerySchema = z.object({
   params: listingIdParams,
-  query: z.object({ date: isoDateSchema.optional() }),
+  query: z
+    .object({
+      date: isoDateSchema.optional(),
+      checkIn: isoDateSchema.optional(),
+      checkOut: isoDateSchema.optional(),
+    })
+    .refine((data) => !(data.date && (data.checkIn || data.checkOut)), {
+      message: 'date and checkIn/checkOut are mutually exclusive.',
+      path: ['date'],
+    })
+    .refine((data) => Boolean(data.checkIn) === Boolean(data.checkOut), {
+      message: 'checkIn and checkOut must both be provided together.',
+      path: ['checkOut'],
+    })
+    .refine(
+      (data) => !data.checkIn || !data.checkOut || data.checkOut > data.checkIn,
+      {
+        message: 'checkOut must be strictly after checkIn.',
+        path: ['checkOut'],
+      },
+    )
+    .refine(
+      (data) => {
+        if (!data.checkIn || !data.checkOut) return true;
+        const spanDays =
+          (new Date(`${data.checkOut}T00:00:00Z`).getTime() -
+            new Date(`${data.checkIn}T00:00:00Z`).getTime()) /
+          86_400_000;
+        return spanDays <= MAX_CALENDAR_SPAN_DAYS;
+      },
+      {
+        message: `The stay cannot exceed ${MAX_CALENDAR_SPAN_DAYS} days.`,
+        path: ['checkOut'],
+      },
+    ),
   body: z.any(),
 });
 

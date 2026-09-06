@@ -21,6 +21,11 @@
  * `ListingDetailPageContent` passes the desktop widget — a room picked
  * in `ListingRoomsSection` on a mobile viewport must show up here too
  * once this drawer opens, not just on desktop.
+ *
+ * Sprint C-3: forwards the same lifted `dateRange`/`onChangeDateRange`
+ * pair too — a stay picked inside this drawer's widget must update
+ * `ListingRoomsSection`'s cards the moment the drawer closes, exactly
+ * like the desktop sidebar already does.
  */
 
 import { useState } from 'react';
@@ -44,6 +49,8 @@ export default function MobileBookingBar({
   location = null,
   selectedUnitId = undefined,
   onSelectUnit = undefined,
+  dateRange = undefined,
+  onChangeDateRange = undefined,
 }) {
   const { t } = useTranslation();
   const { locale } = useParams();
@@ -88,6 +95,8 @@ export default function MobileBookingBar({
           location={location}
           selectedUnitId={selectedUnitId}
           onSelectUnit={onSelectUnit}
+          dateRange={dateRange}
+          onChangeDateRange={onChangeDateRange}
         />
       </Drawer>
     </>
@@ -108,4 +117,9 @@ MobileBookingBar.propTypes = {
   }),
   selectedUnitId: PropTypes.number,
   onSelectUnit: PropTypes.func,
+  dateRange: PropTypes.shape({
+    start: PropTypes.string,
+    end: PropTypes.string,
+  }),
+  onChangeDateRange: PropTypes.func,
 };

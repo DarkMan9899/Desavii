@@ -30,12 +30,16 @@ const listingKeys = {
   // A, Time-Aware Booking Foundation) is optional and only ever supplied
   // by the customer-facing time-slot picker — every other caller (Admin
   // Inventory, the Partner Bookable Units panel) omits it and keeps the
-  // exact same cache key it always had.
-  bookableUnits: (listingId, date) => [
+  // exact same cache key it always had. Sprint C-3 adds `checkIn`/
+  // `checkOut` (the Rooms section/Reservation widget's stay-range read) as
+  // additional, independent key segments — a plain `date` query and a
+  // `checkIn`/`checkOut` query never collide since both are always present
+  // in the key (as `undefined` when unused).
+  bookableUnits: (listingId, date, checkIn, checkOut) => [
     ...listingKeys.details(),
     listingId,
     'bookableUnits',
-    { date },
+    { date, checkIn, checkOut },
   ],
   // Phase 7 (Booking Flow): the explicit-unit, price-aware calendar read
   // `ListingReservationWidget` uses to disable blocked days and estimate

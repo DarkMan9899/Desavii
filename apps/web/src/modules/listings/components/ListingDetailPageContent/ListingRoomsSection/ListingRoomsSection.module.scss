@@ -20,6 +20,16 @@ $room-card-min-width: 260px;
   margin-block: tokens.$space-1 tokens.$space-4;
 }
 
+// Sprint C-3 — shown only before a valid check-in/check-out range exists,
+// pointing at the reservation widget's own date picker (the one canonical
+// place dates are chosen; see ListingRoomsSection.jsx's own header for why
+// this section never duplicates that control).
+.datesHint {
+  color: tokens.$color-gray-600;
+  font-size: tokens.$font-size-small;
+  margin-block: 0 tokens.$space-4;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax($room-card-min-width, 1fr));

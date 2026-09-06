@@ -54,3 +54,16 @@
   font-size: tokens.$font-size-small;
   color: tokens.$color-danger;
 }
+
+// Sprint C-3 (Date-Range Room Availability) — the selected room's
+// server-derived night count/sold-out state for the exact chosen stay.
+.stayNights {
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+}
+
+.staySoldOut {
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-danger;
+  font-weight: 600;
+}

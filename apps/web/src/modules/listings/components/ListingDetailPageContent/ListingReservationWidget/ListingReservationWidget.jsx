@@ -42,6 +42,21 @@
  * back to the exact same internal `useState` this component always
  * owned — a standard controlled/uncontrolled dual mode, not a behavior
  * change for any caller that doesn't opt in.
+ *
+ * Sprint C-3 (Date-Range Room Availability): `dateRange`/
+ * `onChangeDateRange` get the exact same optional dual controlled/
+ * uncontrolled treatment as `selectedUnitId` above, for the same reason —
+ * `ListingRoomsSection`'s cards need to react to the check-in/check-out
+ * range picked here (or in the mobile drawer). A real HOTEL_ROOM unit
+ * additionally gets a server-authoritative stay total/availability
+ * (`?checkIn=&checkOut=`, mirroring the time-slot flow's own `unitsForDate`
+ * pattern) once both dates are chosen — this REPLACES the client-side
+ * `computeEstimatedTotal` estimate for that one category rather than
+ * running alongside it, since the brief is explicit that no frontend
+ * arithmetic may stand in as the source of truth for a Hotel stay. Every
+ * other category (Tour time-slots, Vehicle rentals, plain single-unit
+ * listings) is completely unaffected — `isAccommodationListing` gates all
+ * of this on a real `bookable_unit_type`, never an inferred category.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -87,6 +102,8 @@ export default function ListingReservationWidget({
   location = null,
   selectedUnitId: controlledSelectedUnitId = undefined,
   onSelectUnit = undefined,
+  dateRange: controlledDateRange = undefined,
+  onChangeDateRange = undefined,
 }) {
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
@@ -120,7 +137,21 @@ export default function ListingReservationWidget({
     onSelectUnit?.(value);
     if (!isUnitSelectionControlled) setInternalSelectedUnitId(value);
   }
-  const [dateRange, setDateRange] = useState(initialReservationState.dateRange);
+  const isDateRangeControlled = controlledDateRange !== undefined;
+  const [internalDateRange, setInternalDateRange] = useState(
+    initialReservationState.dateRange,
+  );
+  const dateRange = isDateRangeControlled
+    ? controlledDateRange
+    : internalDateRange;
+  // Every existing call site below (`setDateRange({...})`) keeps calling
+  // this one setter unchanged — it now also notifies a controlling parent
+  // (`ListingRoomsSection`'s own stay-range fetch) when one exists,
+  // exactly mirroring `setSelectedUnitId` above.
+  function setDateRange(value) {
+    onChangeDateRange?.(value);
+    if (!isDateRangeControlled) setInternalDateRange(value);
+  }
   const [quantity, setQuantity] = useState(1);
   const [guestCount, setGuestCount] = useState(
     initialReservationState.guestCount,
@@ -162,6 +193,18 @@ export default function ListingReservationWidget({
   // rule directly above.
   const isVehicleListing = useMemo(
     () => (units ?? []).some((unit) => unit.bookable_unit_type === 'VEHICLE'),
+    [units],
+  );
+
+  // Sprint C-3 (Date-Range Room Availability): a real per-unit
+  // `bookable_unit_type === 'HOTEL_ROOM'` gates the stay-range
+  // availability/pricing flow, mirroring `isVehicleListing` above exactly
+  // — never inferred from listing category, and never applied to a
+  // PROPERTY_UNIT listing (whose existing flow is explicitly out of this
+  // sprint's scope and stays byte-for-byte unchanged).
+  const isAccommodationListing = useMemo(
+    () =>
+      (units ?? []).some((unit) => unit.bookable_unit_type === 'HOTEL_ROOM'),
     [units],
   );
 
@@ -214,6 +257,31 @@ export default function ListingReservationWidget({
     }
     return map;
   }, [unitsForDate, isTimeSlotListing]);
+
+  // Sprint C-3: once BOTH check-in and check-out are chosen, re-fetch the
+  // same public units read augmented with a real whole-stay availability/
+  // price snapshot (`?checkIn=&checkOut=`) — the server-authoritative
+  // figure `handleRequestToBook` below hands off to checkout, never a
+  // client-computed one for this category. Mirrors `unitsForDate` above:
+  // one query, shared cache key with the plain unit list when the range
+  // isn't valid yet (both params simply come back `undefined`).
+  const hasValidStayRange = Boolean(
+    isAccommodationListing && dateRange.start && dateRange.end,
+  );
+  const { data: unitsForStay } = useListingBookableUnitsQuery(listingId, {
+    checkIn: hasValidStayRange ? dateRange.start : undefined,
+    checkOut: hasValidStayRange ? dateRange.end : undefined,
+  });
+  const unitsForStayById = useMemo(() => {
+    const map = new Map();
+    if (isAccommodationListing) {
+      (unitsForStay ?? []).forEach((unit) => map.set(unit.id, unit));
+    }
+    return map;
+  }, [unitsForStay, isAccommodationListing]);
+  const selectedUnitStayInfo = unitsForStayById.get(effectiveUnitId) ?? null;
+  const isStaySoldOut =
+    selectedUnitStayInfo?.availability_status_for_stay === 'SOLD_OUT';
 
   const timeSlotOptions = useMemo(
     () =>
@@ -289,7 +357,7 @@ export default function ListingReservationWidget({
     [dayStatuses],
   );
 
-  const estimatedTotal = useMemo(
+  const clientEstimatedTotal = useMemo(
     () =>
       computeEstimatedTotal(
         dateRange,
@@ -299,6 +367,23 @@ export default function ListingReservationWidget({
       ),
     [dateRange, priceByDate, quantity, selectedUnit],
   );
+  // Sprint C-3: a Hotel stay's total is the server-computed
+  // `stay_total_amount` (the exact `resolvePriceForDate`/`Money`-summed
+  // figure booking creation will charge), never the client's own
+  // day-by-day estimate — the one category this endpoint now serves
+  // authoritatively. `null` (pricing incomplete, or the range not valid
+  // yet) means genuinely "no total to show", not a stale/wrong number.
+  const hasServerStayTotal =
+    hasValidStayRange && selectedUnitStayInfo?.stay_total_amount != null;
+  let estimatedTotal = clientEstimatedTotal;
+  if (isAccommodationListing) {
+    estimatedTotal = hasServerStayTotal
+      ? {
+          amount: selectedUnitStayInfo.stay_total_amount,
+          currency: selectedUnitStayInfo.stay_total_currency,
+        }
+      : null;
+  }
 
   const pricingModelLabel = resolvePricingModelLabel(t, pricing);
 
@@ -325,6 +410,23 @@ export default function ListingReservationWidget({
       ? selectedUnit.max_guests * quantity
       : null;
 
+  // Sprint C-3: for the exact chosen stay, `remaining_count_for_stay`
+  // (only ever present once LOW/SOLD_OUT — see `resolveAvailabilityStatus`)
+  // is a tighter, real bound than the unit's pooled `capacity` — never
+  // looser, so `Math.min` is always safe. The server still re-checks this
+  // authoritatively at hold-creation time regardless of what this caps the
+  // input to.
+  const quantityMax =
+    hasValidStayRange && selectedUnitStayInfo?.remaining_count_for_stay != null
+      ? Math.max(
+          1,
+          Math.min(
+            selectedUnit?.capacity ?? Infinity,
+            selectedUnitStayInfo.remaining_count_for_stay,
+          ),
+        )
+      : selectedUnit?.capacity;
+
   // P2.2D: a `guestCount` seeded from the search page's own `guests`
   // param (see `initialReservationState` above) is only bounds-checked
   // generically (1..50) at that point — the unit-specific cap isn't
@@ -343,11 +445,18 @@ export default function ListingReservationWidget({
     : null;
 
   const createHoldMutation = useCreateBookingHoldMutation();
+  // Sprint C-3: a room already known SOLD_OUT for the exact chosen stay
+  // must never be submittable from here — this is a UX gate only, never
+  // the real safety check (that stays server-side, row-locked, inside
+  // `reserveCapacity` at hold-creation time; see `handleRequestToBook`'s
+  // own `AVAILABILITY_CONFLICT` handling below for when this client-side
+  // read has gone stale).
   const canSubmit =
     Boolean(effectiveUnitId) &&
     Boolean(dateRange.start) &&
     Boolean(dateRange.end) &&
-    rentalInterval.valid;
+    rentalInterval.valid &&
+    !isStaySoldOut;
 
   function handleSelectUnit(value) {
     // P2.2D: a multi-unit listing never auto-selects (see
@@ -389,10 +498,23 @@ export default function ListingReservationWidget({
     setSelectedUnitId(null);
   }
 
+  // Sprint C-3: a new stay range hasn't been checked against the
+  // previously-selected room yet — the same "date invalidates the prior
+  // selection" rule `handleSelectDate` above already applies to the
+  // time-slot flow, mirrored here for the room-then-dates flow. Every
+  // other category (Vehicle, plain generic) keeps the exact same
+  // `setDateRange` behavior it always had.
+  function handleChangeDateRange(nextRange) {
+    setDateRange(nextRange);
+    if (isAccommodationListing) {
+      setSelectedUnitId(null);
+    }
+  }
+
   function handleChangeQuantity(nextQuantity) {
     const clampedQuantity = Math.max(
       1,
-      Math.min(selectedUnit.capacity, nextQuantity || 1),
+      Math.min(quantityMax ?? selectedUnit.capacity, nextQuantity || 1),
     );
     setQuantity(clampedQuantity);
     // A shrinking quantity can shrink the allowed guest cap
@@ -613,6 +735,31 @@ export default function ListingReservationWidget({
     );
   }
 
+  // Sprint C-3: rendered in one of two positions below depending on
+  // `isAccommodationListing` — dates FIRST for a Hotel stay (the brief's
+  // own "select check-in -> select check-out -> ... -> select room"
+  // order), unit-then-dates for every other category exactly as before.
+  // A single shared element (never two independently-authored copies)
+  // since only one position ever actually renders it for a given listing.
+  const dateRangePicker = (
+    <DatePicker
+      mode="range"
+      label={t(
+        isVehicleListing
+          ? 'pages.listingDetail.reservation.pickupReturnDatesLabel'
+          : 'pages.listingDetail.reservation.datesLabel',
+      )}
+      value={dateRange}
+      onChange={isAccommodationListing ? handleChangeDateRange : setDateRange}
+      minDate={today}
+      disabledDates={disabledDates}
+      locale={i18n.language}
+      previousMonthLabel={t('partner.listingWizard.datePicker.previousMonth')}
+      nextMonthLabel={t('partner.listingWizard.datePicker.nextMonth')}
+      placeholder={t('partner.listingWizard.datePicker.selectDate')}
+    />
+  );
+
   return (
     <Section spacing="none" className={styles.widget}>
       <Stack gap="4">
@@ -646,6 +793,8 @@ export default function ListingReservationWidget({
           </>
         ) : (
           <>
+            {isAccommodationListing && dateRangePicker}
+
             {units.length > 1 && (
               <Select
                 label={t('pages.listingDetail.reservation.unitLabel')}
@@ -660,24 +809,23 @@ export default function ListingReservationWidget({
 
             {bedConfigurationSummary && <p>{bedConfigurationSummary}</p>}
 
-            <DatePicker
-              mode="range"
-              label={t(
-                isVehicleListing
-                  ? 'pages.listingDetail.reservation.pickupReturnDatesLabel'
-                  : 'pages.listingDetail.reservation.datesLabel',
-              )}
-              value={dateRange}
-              onChange={setDateRange}
-              minDate={today}
-              disabledDates={disabledDates}
-              locale={i18n.language}
-              previousMonthLabel={t(
-                'partner.listingWizard.datePicker.previousMonth',
-              )}
-              nextMonthLabel={t('partner.listingWizard.datePicker.nextMonth')}
-              placeholder={t('partner.listingWizard.datePicker.selectDate')}
-            />
+            {isAccommodationListing && hasValidStayRange && selectedUnit && (
+              <p
+                role={isStaySoldOut ? 'status' : undefined}
+                className={
+                  isStaySoldOut ? styles.staySoldOut : styles.stayNights
+                }
+              >
+                {isStaySoldOut
+                  ? t('pages.listingDetail.reservation.staySoldOut')
+                  : selectedUnitStayInfo?.night_count_for_stay != null &&
+                    t('pages.listingDetail.reservation.nightsCount', {
+                      count: selectedUnitStayInfo.night_count_for_stay,
+                    })}
+              </p>
+            )}
+
+            {!isAccommodationListing && dateRangePicker}
 
             {isVehicleListing && (
               <Stack gap="3">
@@ -734,7 +882,7 @@ export default function ListingReservationWidget({
             label={t('pages.listingDetail.reservation.quantityLabel')}
             value={quantity}
             min={1}
-            max={selectedUnit.capacity}
+            max={quantityMax}
             onChange={(event) =>
               handleChangeQuantity(Number(event.target.value))
             }
@@ -798,4 +946,9 @@ ListingReservationWidget.propTypes = {
   }),
   selectedUnitId: PropTypes.number,
   onSelectUnit: PropTypes.func,
+  dateRange: PropTypes.shape({
+    start: PropTypes.string,
+    end: PropTypes.string,
+  }),
+  onChangeDateRange: PropTypes.func,
 };

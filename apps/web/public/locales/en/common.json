@@ -2988,7 +2988,9 @@
         },
         "noUnitsAvailable": "This listing isn't bookable online yet.",
         "holdError": "We couldn't hold these dates. Please try again.",
-        "availabilityConflict": "These dates are no longer available. Please choose different dates."
+        "availabilityConflict": "These dates are no longer available. Please choose different dates.",
+        "staySoldOut": "This room is sold out for the selected dates.",
+        "nightsCount": "{{count}}-night stay"
       },
       "rooms": {
         "heading": "Rooms",
@@ -3006,7 +3008,11 @@
         "roomAmenitiesHeading": "Room amenities",
         "moreAmenities": "+{{count}} more",
         "noRoomPhotos": "No room photos available",
-        "closeRoomDetail": "Close room detail"
+        "closeRoomDetail": "Close room detail",
+        "selectDatesHint": "Select your dates in the reservation panel to see live availability and pricing for each room.",
+        "stayTotalSuffix": "{{count}}-night stay total",
+        "soldOutForDates": "Sold out for these dates",
+        "fewRoomsLeftForStay": "Only {{count}} left for these dates"
       },
       "relatedListings": {
         "heading": "You might also like"

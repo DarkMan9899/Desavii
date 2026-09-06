@@ -14,17 +14,29 @@
  * other caller (Admin Inventory, the Partner Bookable Units panel, and
  * this widget's own initial date-less unit list) omits it and keeps its
  * existing cache entry/behavior exactly as before.
+ *
+ * Sprint C-3 (Date-Range Room Availability): `checkIn`+`checkOut` (given
+ * together, mutually exclusive with `date`) instead re-fetch with a
+ * whole-stay snapshot per unit — the Rooms section/Reservation widget's
+ * read once a customer has picked a check-in and check-out date.
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { getListingBookableUnits } from '../../../api/availability.js';
 import listingKeys from '../constants/queryKeys.js';
 
-export function useListingBookableUnitsQuery(listingId, { date } = {}) {
+export function useListingBookableUnitsQuery(
+  listingId,
+  { date, checkIn, checkOut } = {},
+) {
   return useQuery({
-    queryKey: listingKeys.bookableUnits(listingId, date),
+    queryKey: listingKeys.bookableUnits(listingId, date, checkIn, checkOut),
     queryFn: async () => {
-      const { data } = await getListingBookableUnits(listingId, { date });
+      const { data } = await getListingBookableUnits(listingId, {
+        date,
+        checkIn,
+        checkOut,
+      });
       return data;
     },
     enabled: Boolean(listingId),

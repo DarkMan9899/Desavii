@@ -162,10 +162,23 @@ export function getListingCalendar(listingId, { from, to, unitId } = {}) {
  * time-slot picker's own read, once a date is chosen, of which sibling
  * departure/session units actually have capacity that day. Omitting it
  * (every other caller) returns the exact same shape this always has.
+ *
+ * Sprint C-3 (Date-Range Room Availability): `checkIn`+`checkOut` (given
+ * together, mutually exclusive with `date`) instead augment each unit
+ * with a whole-stay snapshot — `availability_status_for_stay`/
+ * `remaining_count_for_stay`/`night_count_for_stay`/`stay_total_amount`/
+ * `stay_total_currency` — the true minimum across every occupied night,
+ * never a per-day figure. This is what the Rooms section/Reservation
+ * widget use once the customer has picked a check-in and check-out date.
  */
-export function getListingBookableUnits(listingId, { date } = {}) {
+export function getListingBookableUnits(
+  listingId,
+  { date, checkIn, checkOut } = {},
+) {
   return apiClient
-    .get(`/availability/${listingId}/units`, { params: { date } })
+    .get(`/availability/${listingId}/units`, {
+      params: { date, checkIn, checkOut },
+    })
     .then((response) => response.data);
 }
 

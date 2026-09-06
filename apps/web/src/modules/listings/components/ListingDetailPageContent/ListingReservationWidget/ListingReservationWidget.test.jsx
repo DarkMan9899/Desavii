@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PropTypes from 'prop-types';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import i18n from 'i18next';
 import ToastProvider from '../../../../../providers/ToastProvider.jsx';
 import ListingReservationWidget from './ListingReservationWidget.jsx';
 import { useAuth } from '../../../../../contexts/AuthContext.jsx';
@@ -1252,5 +1253,161 @@ describe('ListingReservationWidget — Sprint B (Car Rental Pickup/Return Interv
     expect(screen.queryByText('Ստացում')).not.toBeInTheDocument();
     expect(screen.queryByText('Վերադարձ')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Ստացման ժամը')).not.toBeInTheDocument();
+  });
+});
+
+describe('ListingReservationWidget — Sprint C-3 (Date-Range Room Availability)', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+    mockNavigate.mockReset();
+    useAuth.mockReturnValue({ isAuthenticated: true });
+    useListingCalendarQuery.mockReturnValue({
+      data: CALENDAR_DAYS,
+      refetch: vi.fn(),
+    });
+    useListingDayStatusQuery.mockReturnValue({
+      data: DAY_STATUSES,
+      refetch: vi.fn(),
+    });
+    useCreateBookingHoldMutation.mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    });
+  });
+
+  test('a Hotel listing shows the date-range picker before the unit selector — dates first, then room', () => {
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: MULTI_UNIT_LABELED,
+      isPending: false,
+      isError: false,
+    });
+    renderWidget();
+
+    const body = document.body.innerHTML;
+    const datesIndex = body.indexOf('pick dates');
+    const unitIndex = body.indexOf('select-trigger');
+    expect(datesIndex).toBeGreaterThan(-1);
+    expect(unitIndex).toBeGreaterThan(-1);
+    expect(datesIndex).toBeLessThan(unitIndex);
+  });
+
+  test('once a room and a valid stay range are both chosen, the server-computed stay total is shown — never the client day-by-day estimate', async () => {
+    useListingBookableUnitsQuery.mockImplementation((_listingId, opts = {}) =>
+      opts.checkIn
+        ? {
+            data: [
+              {
+                ...MULTI_UNIT_LABELED[0],
+                availability_status_for_stay: 'AVAILABLE',
+                remaining_count_for_stay: null,
+                night_count_for_stay: 3,
+                // Deliberately NOT a multiple of the unit's own
+                // 50000.00/night base price — proves this is the real
+                // server total, not a recomputation of the base price.
+                stay_total_amount: '142500.00',
+                stay_total_currency: 'AMD',
+              },
+              MULTI_UNIT_LABELED[1],
+            ],
+            isPending: false,
+            isError: false,
+          }
+        : { data: MULTI_UNIT_LABELED, isPending: false, isError: false },
+    );
+    const user = userEvent.setup();
+    renderWidget();
+
+    // Dates first, then the room — picking a room does NOT itself count
+    // as a "date change", so it survives; the reverse order would
+    // immediately clear it (see the "changing the stay dates..." test
+    // below), which is the correct, deliberate invalidation rule.
+    await user.click(screen.getByRole('button', { name: 'pick dates' }));
+    await user.click(screen.getByTestId('select-trigger'));
+    await user.click(
+      screen.getByRole('option', {
+        name: 'Standard Room — Sleeps 2 — 50000.00 AMD / night — 2 available',
+      }),
+    );
+
+    // The server total (142,500.00), never the client's own per-day sum
+    // (which would compute 100 + 120 = 220 from CALENDAR_DAYS) nor a
+    // client-side multiplication of the unit's own base price.
+    expect(screen.getByText(/142,?500/)).toBeInTheDocument();
+    expect(screen.queryByText(/220/)).not.toBeInTheDocument();
+  });
+
+  test('a room already SOLD_OUT for the chosen stay disables Request to Book and shows an explicit sold-out message', async () => {
+    useListingBookableUnitsQuery.mockImplementation((_listingId, opts = {}) =>
+      opts.checkIn
+        ? {
+            data: [
+              {
+                ...MULTI_UNIT_LABELED[0],
+                availability_status_for_stay: 'SOLD_OUT',
+                remaining_count_for_stay: 0,
+                night_count_for_stay: 1,
+                stay_total_amount: null,
+                stay_total_currency: null,
+              },
+              MULTI_UNIT_LABELED[1],
+            ],
+            isPending: false,
+            isError: false,
+          }
+        : { data: MULTI_UNIT_LABELED, isPending: false, isError: false },
+    );
+    const user = userEvent.setup();
+    renderWidget();
+
+    await user.click(screen.getByRole('button', { name: 'pick dates' }));
+    await user.click(screen.getByTestId('select-trigger'));
+    await user.click(
+      screen.getByRole('option', {
+        name: 'Standard Room — Sleeps 2 — 50000.00 AMD / night — 2 available',
+      }),
+    );
+
+    expect(
+      screen.getByText('This room is sold out for the selected dates.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Request to book' }),
+    ).toBeDisabled();
+  });
+
+  test('changing the stay dates after picking a room clears the room selection — a new range has not been checked against it yet', async () => {
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: MULTI_UNIT_LABELED,
+      isPending: false,
+      isError: false,
+    });
+    const user = userEvent.setup();
+    renderWidget();
+
+    await user.click(screen.getByTestId('select-trigger'));
+    await user.click(
+      screen.getByRole('option', {
+        name: 'Standard Room — Sleeps 2 — 50000.00 AMD / night — 2 available',
+      }),
+    );
+    expect(screen.getByLabelText('Quantity')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'pick dates' }));
+
+    expect(screen.queryByLabelText('Quantity')).not.toBeInTheDocument();
+  });
+
+  test('a non-Hotel listing (Property) is entirely unaffected — no dates-first reorder, no stay query gating submit', () => {
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: SINGLE_UNIT,
+      isPending: false,
+      isError: false,
+    });
+    renderWidget();
+
+    expect(
+      screen.getByRole('button', { name: 'Request to book' }),
+    ).toBeDisabled();
+    expect(screen.queryByText(/sold out/i)).not.toBeInTheDocument();
   });
 });

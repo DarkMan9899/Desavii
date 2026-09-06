@@ -14,12 +14,25 @@
  * (already public, already used by `ListingReservationWidget`/the main
  * listing description) — no new resolution logic invented for data that
  * already has one.
+ *
+ * Sprint C-3 (Date-Range Room Availability): once the customer has picked
+ * a check-in/check-out range, `unit` additionally carries
+ * `availability_status_for_stay`/`remaining_count_for_stay`/
+ * `night_count_for_stay`/`stay_total_amount`/`stay_total_currency`
+ * (`toPublicBookableUnitResponse`'s additive Sprint C-3 fields — see
+ * `apps/api/.../availabilityDto.js`). When present, the stay total
+ * replaces the generic base-price display and a sold-out room is shown
+ * disabled (never removed — its "View room" detail stays reachable) so a
+ * customer can still see what a room looks like before changing dates.
+ * Before a valid range exists these fields are simply absent, and this
+ * card renders exactly as it did in Sprint C-2 — no availability or
+ * pricing claim is ever made ahead of a real server-checked stay.
  */
 
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Check, Maximize2, Users } from 'lucide-react';
-import { Card, Button } from '@desavii/ui/components/primitives';
+import { Card, Button, Badge } from '@desavii/ui/components/primitives';
 import { PriceTag } from '@desavii/ui/components/data-display';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import DestinationArt from '../../../../../components/DestinationArt/DestinationArt.jsx';
@@ -64,11 +77,19 @@ export default function RoomCard({
   const visibleAmenities = amenityItems.slice(0, CARD_AMENITY_LIMIT);
   const extraAmenityCount = amenityItems.length - visibleAmenities.length;
 
+  const stayStatus = unit.availability_status_for_stay;
+  const hasStayInfo = stayStatus !== undefined;
+  const isStaySoldOut = stayStatus === 'SOLD_OUT';
+
   return (
     <Card
       padding="none"
       elevated
-      className={[styles.card, isSelected && styles.selected]
+      className={[
+        styles.card,
+        isSelected && styles.selected,
+        isStaySoldOut && styles.soldOut,
+      ]
         .filter(Boolean)
         .join(' ')}
     >
@@ -147,14 +168,41 @@ export default function RoomCard({
           </Inline>
         )}
 
-        {unit.base_price_amount != null && (
-          <PriceTag
-            amount={unit.base_price_amount}
-            currencyCode={unit.base_price_currency}
-            locale={locale}
-            suffix={pricingModelLabel}
-            size="md"
-          />
+        {hasStayInfo && unit.stay_total_amount != null ? (
+          <Stack gap="2">
+            <PriceTag
+              amount={unit.stay_total_amount}
+              currencyCode={unit.stay_total_currency}
+              locale={locale}
+              suffix={t('pages.listingDetail.rooms.stayTotalSuffix', {
+                count: unit.night_count_for_stay,
+              })}
+              size="md"
+            />
+            {stayStatus !== 'AVAILABLE' && (
+              <Badge
+                variant={isStaySoldOut ? 'danger' : 'warning'}
+                size="sm"
+                label={
+                  isStaySoldOut
+                    ? t('pages.listingDetail.rooms.soldOutForDates')
+                    : t('pages.listingDetail.rooms.fewRoomsLeftForStay', {
+                        count: unit.remaining_count_for_stay,
+                      })
+                }
+              />
+            )}
+          </Stack>
+        ) : (
+          unit.base_price_amount != null && (
+            <PriceTag
+              amount={unit.base_price_amount}
+              currencyCode={unit.base_price_currency}
+              locale={locale}
+              suffix={pricingModelLabel}
+              size="md"
+            />
+          )
         )}
 
         <Inline gap="2">
@@ -171,11 +219,15 @@ export default function RoomCard({
           <Button
             variant={isSelected ? 'ghost' : 'primary'}
             size="sm"
-            disabled={isSelected}
+            disabled={isSelected || isStaySoldOut}
             onClick={() => onSelect(unit.id)}
-            ariaLabel={t('pages.listingDetail.rooms.selectRoomAriaLabel', {
-              title,
-            })}
+            ariaLabel={
+              isStaySoldOut
+                ? t('pages.listingDetail.rooms.soldOutForDates')
+                : t('pages.listingDetail.rooms.selectRoomAriaLabel', {
+                    title,
+                  })
+            }
           >
             {isSelected
               ? t('pages.listingDetail.rooms.selected')

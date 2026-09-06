@@ -22,7 +22,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Skeleton,
   ErrorState,
@@ -44,6 +44,8 @@ import { useListingCategoriesQuery } from '../../queries/useListingCategoriesQue
 import { useListingBookableUnitsQuery } from '../../queries/useListingBookableUnitsQuery.js';
 import getLocalizedTranslation from '../../utils/getLocalizedTranslation.js';
 import getLocalizedItems from '../../utils/getLocalizedItems.js';
+import { resolveInitialReservationState } from '../../utils/reservationSearchContext.js';
+import { toISODate } from '../../utils/reservationEstimate.js';
 import ListingHero from './ListingHero/ListingHero.jsx';
 import ListingSectionNav from './ListingSectionNav/ListingSectionNav.jsx';
 import ListingAboutSection from './ListingAboutSection/ListingAboutSection.jsx';
@@ -106,6 +108,7 @@ export default function ListingDetailPageContent() {
   // a slug isn't numeric.
   const { locale, id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const {
     data: listing,
@@ -141,6 +144,22 @@ export default function ListingDetailPageContent() {
     (unit) => unit.bookable_unit_type === 'HOTEL_ROOM',
   );
   const [selectedUnitId, setSelectedUnitId] = useState(null);
+
+  // Sprint C-3 (Date-Range Room Availability): the SAME canonical
+  // check-in/check-out state `ListingReservationWidget`'s own date picker
+  // writes to (via its dual controlled/uncontrolled `dateRange`/
+  // `onChangeDateRange` prop pair, mirroring `selectedUnitId` above)
+  // — lifted here so `ListingRoomsSection`'s cards can react to a stay
+  // range picked in the widget/mobile drawer without a second, parallel
+  // date state. Seeded from the search page's own dateFrom/dateTo hand-off
+  // exactly as the widget always seeded itself internally (see
+  // `resolveInitialReservationState`'s own header) — moved up here rather
+  // than duplicated, since the widget now takes this as a controlled prop.
+  const [dateRange, setDateRange] = useState(
+    () =>
+      resolveInitialReservationState(searchParams, toISODate(new Date()))
+        .dateRange,
+  );
 
   const translation = listing
     ? getLocalizedTranslation(listing.translations, locale)
@@ -363,6 +382,7 @@ export default function ListingDetailPageContent() {
         locale={locale}
         selectedUnitId={selectedUnitId}
         onSelectUnit={setSelectedUnitId}
+        dateRange={dateRange}
         sectionId={SECTION_ROOMS}
       />
     ),
@@ -503,6 +523,8 @@ export default function ListingDetailPageContent() {
             location={listing.location}
             selectedUnitId={selectedUnitId}
             onSelectUnit={setSelectedUnitId}
+            dateRange={dateRange}
+            onChangeDateRange={setDateRange}
           />
         </aside>
       </div>
@@ -515,6 +537,8 @@ export default function ListingDetailPageContent() {
         location={listing.location}
         selectedUnitId={selectedUnitId}
         onSelectUnit={setSelectedUnitId}
+        dateRange={dateRange}
+        onChangeDateRange={setDateRange}
       />
     </Stack>
   );

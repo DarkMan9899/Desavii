@@ -348,11 +348,11 @@ export function createAvailabilityController(availabilityService) {
     async listPublicUnits(req, res, next) {
       try {
         const { listingId } = req.validated.params;
-        const { date } = req.validated.query;
+        const { date, checkIn, checkOut } = req.validated.query;
         const units = await availabilityService.getPublicUnits(
           req.principal,
           listingId,
-          { date },
+          { date, checkIn, checkOut },
         );
         res.status(200).json({
           success: true,

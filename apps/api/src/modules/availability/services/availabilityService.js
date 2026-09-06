@@ -73,6 +73,7 @@ import {
 } from '../../../core/domain/partnerCapabilities.js';
 import { resolveConsumedRange } from '../../../core/domain/accommodationDateSemantics.js';
 import { resolvePriceForDate } from '../../../core/domain/accommodationPriceResolution.js';
+import { Money } from '../../../core/domain/money.js';
 import {
   isVehicleUnitType,
   validateRentalInterval,
@@ -856,14 +857,44 @@ export class AvailabilityService {
    * reads (a hotel's own room-type count), same precedent as `listUnits`
    * above. `toPublicBookableUnitResponse` is still what decides which of
    * these fields actually leave the server.
+   *
+   * Sprint C-3 (Date-Range Room Availability + Stay Pricing) addition: an
+   * optional `checkIn`/`checkOut` pair (mutually exclusive with `date` at
+   * the validator layer) augments each unit with real, stay-spanning
+   * availability + server-authoritative pricing — the single-date `date`
+   * pathway above exists for a TOUR_DEPARTURE-style session and is
+   * unaffected; this is the accommodation equivalent for a HOTEL_ROOM/
+   * PROPERTY_UNIT multi-night stay. Never a second availability engine:
+   * `#getStayAvailabilityForUnit` reuses exactly the same ingredients
+   * `getPublicDailyAvailabilityStatus` (per-day remaining) and
+   * `bookingService.js#resolveItem` (per-day price resolution, summed)
+   * already establish — `resolveConsumedRange` for the checkout-exclusive
+   * night span, `resolvePriceForDate`'s 3-rung precedence, and the same
+   * `availability_calendar`/blackout reads. `reserveCapacity`'s own
+   * row-locked, transactional revalidation at actual hold-creation time
+   * is untouched and remains the sole source of truth for whether a hold
+   * actually succeeds — this is a read-only preview.
    */
-  async getPublicUnits(principal, listingId, { date } = {}) {
+  async getPublicUnits(principal, listingId, { date, checkIn, checkOut } = {}) {
     const listing = await this.#listingService.getListing(principal, listingId);
     const rawUnits =
       await this.#bookableUnitService.listUnitsForListing(listingId);
     const units = await Promise.all(
       rawUnits.map((unit) => this.#enrichUnit(unit)),
     );
+
+    if (checkIn !== undefined && checkOut !== undefined) {
+      const stayInfoByUnit = await Promise.all(
+        units.map((unit) =>
+          this.#getStayAvailabilityForUnit(unit, listing, checkIn, checkOut),
+        ),
+      );
+      return units.map((unit, index) => ({
+        ...unit,
+        ...stayInfoByUnit[index],
+      }));
+    }
+
     if (date === undefined) return units;
 
     const [dayStatusesByUnit, priceRowsByUnit] = await Promise.all([
@@ -904,6 +935,110 @@ export class AvailabilityService {
         priceForDateCurrencyCode: resolvedPrice?.currencyCode ?? null,
       };
     });
+  }
+
+  /**
+   * Sprint C-3 — one unit's real availability + price for an entire
+   * `[checkIn, checkOut)` stay (checkout-exclusive for HOTEL_ROOM/
+   * PROPERTY_UNIT, see `resolveConsumedRange`). Returns RAW numbers only
+   * (`remainingForStay`, `nightCountForStay`, `stayTotalAmount`/
+   * `stayTotalCurrency`) — `toPublicBookableUnitResponse` is what buckets
+   * `remainingForStay` into the same customer-safe AVAILABLE/LOW/SOLD_OUT
+   * status (and above-threshold count suppression) every other public
+   * availability field already uses, matching `remainingForDate`'s own
+   * split between this Service (raw number) and the DTO (bucketing).
+   *
+   * Availability: the TRUE minimum remaining across every occupied night
+   * — never the min of only the non-zero nights (that would hide a
+   * genuinely sold-out night inside an otherwise-open stay). A room
+   * available 5/5/0/5 across 4 nights is unavailable for that stay,
+   * full stop.
+   *
+   * Pricing: mirrors `bookingService.js#resolveItem` exactly (same
+   * `getPricingForRange` read, same `resolvePriceForDate` 3-rung
+   * precedence, same per-night sum) but wrapped defensively — one unit
+   * with incomplete/mismatched-currency pricing returns a null stay
+   * total rather than throwing and failing every OTHER room type's
+   * availability in the same listing-wide query.
+   */
+  async #getStayAvailabilityForUnit(unit, listing, checkIn, checkOut) {
+    const consumedRange = resolveConsumedRange(
+      unit.bookableUnitTypeCode,
+      checkIn,
+      checkOut,
+    );
+    const dates = enumerateDates(consumedRange.dateFrom, consumedRange.dateTo);
+    const nightCountForStay = dates.length;
+
+    const [calendarRows, blockedRanges, priceRows] = await Promise.all([
+      this.#availabilityCalendarRepository.listForUnit(unit.id, {
+        from: consumedRange.dateFrom,
+        to: consumedRange.dateTo,
+      }),
+      this.#blackoutService.getActiveRangesForListing(unit.listingId, {
+        from: consumedRange.dateFrom,
+        to: consumedRange.dateTo,
+      }),
+      this.#availabilityCalendarRepository.listPricesForUnit(unit.id, {
+        from: consumedRange.dateFrom,
+        to: consumedRange.dateTo,
+      }),
+    ]);
+
+    const availableByDate = Object.fromEntries(
+      calendarRows.map((row) => [row.date, row.quantityAvailable]),
+    );
+    const perNightRemaining = dates.map((date) =>
+      isVetoedByBlackout(date, blockedRanges)
+        ? 0
+        : Math.max(0, availableByDate[date] ?? unit.capacity),
+    );
+    const remainingForStay =
+      perNightRemaining.length === 0 ? 0 : Math.min(...perNightRemaining);
+
+    const overrideByDate = new Map(priceRows.map((row) => [row.date, row]));
+    let stayTotalAmount = null;
+    let stayTotalCurrency = null;
+    try {
+      const resolvedPrices = dates.map((date) => {
+        const override = overrideByDate.get(date);
+        const resolved = resolvePriceForDate({
+          overrideAmount: override?.amount,
+          overrideCurrencyCode: override?.currencyCode,
+          unitBaseAmount: unit.basePriceAmount,
+          unitBaseCurrencyCode: unit.basePriceCurrencyCode,
+          listingBaseAmount: listing.pricing?.amount,
+          listingBaseCurrencyCode: listing.pricing?.currencyCode,
+        });
+        if (!resolved) throw new Error('PRICING_INCOMPLETE');
+        return resolved;
+      });
+      const { currencyCode } = resolvedPrices[0];
+      const currencyConsistent = resolvedPrices.every(
+        (price) => price.currencyCode === currencyCode,
+      );
+      if (currencyConsistent && resolvedPrices.length > 0) {
+        let total = Money.zero(currencyCode);
+        resolvedPrices.forEach((price) => {
+          total = total.add(
+            Money.fromDecimalString(String(price.amount), currencyCode),
+          );
+        });
+        stayTotalAmount = total.toDecimalString();
+        stayTotalCurrency = currencyCode;
+      }
+    } catch {
+      // Leave stayTotalAmount/stayTotalCurrency null — a single room
+      // type's incomplete pricing must never fail the whole listing's
+      // stay-availability query (other room types may price correctly).
+    }
+
+    return {
+      remainingForStay,
+      nightCountForStay,
+      stayTotalAmount,
+      stayTotalCurrency,
+    };
   }
 
   /**
