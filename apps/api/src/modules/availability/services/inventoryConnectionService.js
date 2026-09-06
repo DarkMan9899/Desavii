@@ -284,6 +284,21 @@ export class InventoryConnectionService {
     );
     const unit = await this.#bookableUnitService.findById(bookableUnitId);
     if (!unit) throw new NotFoundError('Bookable unit not found.');
+    // Sprint D-1 (P0-2): a connection may only ever be mapped to a
+    // bookable unit whose listing is controlled by the SAME partner that
+    // owns the connection — without this, any partner authorized to
+    // manage their own connection could point it at another partner's
+    // inventory, and a later sync would drive real capacity mutations
+    // against that partner's unit. Same "load the unit's listing, compare
+    // partner ownership" shape `AvailabilityService#loadUnitForCapability`
+    // already uses for every other cross-entity unit access.
+    const unitListing = await this.#listingService.getListing(
+      principal,
+      unit.listingId,
+    );
+    if (unitListing.partnerId !== connection.partnerId) {
+      throw new AuthorizationError();
+    }
     return this.#inventoryConnectionRepository.upsertMapping({
       connectionId: connection.id,
       externalResourceId: externalResourceId ?? DEFAULT_MAPPING_KEY,

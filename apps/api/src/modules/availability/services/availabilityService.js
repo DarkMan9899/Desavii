@@ -660,13 +660,32 @@ export class AvailabilityService {
       priceOverrideCurrency,
     );
 
-    const result = await this.#availabilityCalendarRepository.upsertRange({
-      bookableUnitId: unit.id,
-      dates,
-      statusId,
-      quantityAvailable,
-      priceOverrideAmount,
-      priceOverrideCurrencyId,
+    // Sprint D-1 (P0-1): each date goes through the same locked,
+    // ledger-aware path as every other capacity consumer — see
+    // `#writeCalendarRow` — instead of the old single bulk `upsertRange`
+    // INSERT, which blindly overwrote `quantity_available` (to `null`,
+    // i.e. full capacity) for every date whenever the caller omitted it,
+    // silently erasing real consumption from holds/bookings/blocks/
+    // external reservations on a routine price/status-only edit.
+    const result = await withTransaction(async (connection) => {
+      const rows = [];
+      for (const date of dates) {
+        // eslint-disable-next-line no-await-in-loop -- sequential lock+write per date, within one transaction (mirrors #consumeCapacityForRange).
+        const row = await this.#writeCalendarRow(
+          {
+            unit,
+            date,
+            statusId,
+            quantityAvailable,
+            priceOverrideAmount: priceOverrideAmount ?? null,
+            priceOverrideCurrencyId: priceOverrideCurrencyId ?? null,
+            actorUserId: principal.userId,
+          },
+          connection,
+        );
+        rows.push(row);
+      }
+      return rows;
     });
     // Targets the unit, not any single calendar row — this write spans a
     // whole date range, so there is no one row id to attribute it to.
@@ -692,6 +711,94 @@ export class AvailabilityService {
     return currency.id;
   }
 
+  /**
+   * Sprint D-1 (P0-1): the one locked, ledger-aware path `setAvailability`/
+   * `updateCalendarEntry` use to touch a single unit/date calendar row.
+   * Locks the row first (materializing it if it doesn't exist yet, exactly
+   * like every other capacity consumer). When `quantityAvailable` is
+   * explicitly supplied, it is reinterpreted as the desired TOTAL capacity
+   * for that date — mirroring `unit.capacity`'s own meaning — and the safe
+   * remaining count is computed under the lock as
+   * `quantityAvailable - alreadyConsumed`, rejecting the write if that
+   * would go negative (i.e. below what a hold/booking/manual block/
+   * external reservation has already consumed). When `quantityAvailable`
+   * is left `undefined`, the column is never touched at all. Must run
+   * inside the caller's transaction.
+   */
+  async #writeCalendarRow(
+    {
+      unit,
+      date,
+      statusId,
+      quantityAvailable,
+      priceOverrideAmount,
+      priceOverrideCurrencyId,
+      actorUserId,
+    },
+    connection,
+  ) {
+    const availableStatusId =
+      await this.#availabilityCalendarRepository.findStatusIdByCode(
+        'AVAILABLE',
+        connection,
+      );
+    const row = await this.#availabilityCalendarRepository.lockForCapacity(
+      {
+        bookableUnitId: unit.id,
+        date,
+        availableStatusId,
+        defaultCapacity: unit.capacity,
+      },
+      connection,
+    );
+
+    let quantityToWrite;
+    if (quantityAvailable !== undefined) {
+      const consumedSoFar = unit.capacity - row.quantityAvailable;
+      const newRemaining = quantityAvailable - consumedSoFar;
+      if (newRemaining < 0) {
+        throw new ConflictError(
+          'The requested capacity is below the amount already consumed for one or more requested dates.',
+          'CAPACITY_BELOW_CONSUMED',
+        );
+      }
+      quantityToWrite = newRemaining;
+    }
+
+    const updated = await this.#availabilityCalendarRepository.update(
+      row.id,
+      {
+        statusId,
+        quantityAvailable: quantityToWrite,
+        priceOverrideAmount,
+        priceOverrideCurrencyId,
+      },
+      connection,
+    );
+
+    if (
+      quantityToWrite !== undefined &&
+      quantityToWrite !== row.quantityAvailable
+    ) {
+      await this.#writeLedger(
+        {
+          bookableUnitId: unit.id,
+          date,
+          sourceType: LEDGER_SOURCE_TYPES.ADJUSTMENT,
+          sourceId: null,
+          delta: quantityToWrite - row.quantityAvailable,
+          quantityBefore: row.quantityAvailable,
+          quantityAfter: quantityToWrite,
+          actorUserId,
+          reason: null,
+        },
+        connection,
+      );
+    }
+
+    return updated;
+  }
+
   async updateCalendarEntry(principal, id, fields) {
     if (!principal) throw new AuthenticationError();
     const existing = await this.#availabilityCalendarRepository.findById(id);
@@ -713,12 +820,24 @@ export class AvailabilityService {
       fields.priceOverrideCurrency,
     );
 
-    const result = await this.#availabilityCalendarRepository.update(id, {
-      statusId,
-      quantityAvailable: fields.quantityAvailable,
-      priceOverrideAmount: fields.priceOverrideAmount,
-      priceOverrideCurrencyId,
-    });
+    // Sprint D-1 (P0-1): routed through the same locked path as
+    // `setAvailability` — see `#writeCalendarRow` — so an explicit
+    // `quantityAvailable` can no longer be written raw, unlocked, and
+    // unvalidated against already-consumed capacity.
+    const result = await withTransaction((connection) =>
+      this.#writeCalendarRow(
+        {
+          unit,
+          date: existing.date,
+          statusId,
+          quantityAvailable: fields.quantityAvailable,
+          priceOverrideAmount: fields.priceOverrideAmount,
+          priceOverrideCurrencyId,
+          actorUserId: principal.userId,
+        },
+        connection,
+      ),
+    );
     await this.#auditLogger.record({
       actorId: principal.userId,
       action: 'availability_calendar.updated',
@@ -2229,7 +2348,56 @@ export class AvailabilityService {
         externalEventUid,
         connection,
       );
-    if (existing) return { reservation: existing, created: false };
+    if (existing) {
+      const unchanged =
+        existing.bookableUnitId === unitId &&
+        existing.dateFrom === dateFrom &&
+        existing.dateTo === dateTo &&
+        existing.quantity === quantity;
+      if (unchanged) return { reservation: existing, created: false };
+
+      // Sprint D-1 (P0-4): the upstream event kept its UID but moved —
+      // different dates, mapped unit, and/or quantity. Previously this
+      // branch never ran at all (`if (existing) return ...` short-
+      // circuited unconditionally), so a re-synced, moved/extended
+      // upstream reservation left its OLD interval's nights consumed
+      // forever while the NEW interval sold as if untouched. Restoring
+      // the old interval before consuming the new one — both under the
+      // same lock/ledger path every other capacity mutation uses, in the
+      // caller's own transaction — means an unsafe new interval (e.g. it
+      // now conflicts with a real Desavii booking) rolls the restore back
+      // too, never leaving the reservation partially released.
+      await this.#restoreCapacityForRange(
+        {
+          bookableUnitId: existing.bookableUnitId,
+          dateFrom: existing.dateFrom,
+          dateTo: existing.dateTo,
+          restoreAmount: existing.quantity,
+          sourceType: LEDGER_SOURCE_TYPES.CONNECTOR_SYNC,
+          sourceId: existing.id,
+          reason: `Connector sync: ${externalEventUid} (superseded by an updated sync)`,
+        },
+        connection,
+      );
+      await this.#consumeCapacityForRange(
+        {
+          bookableUnitId: unitId,
+          dateFrom,
+          dateTo,
+          quantity,
+          sourceType: LEDGER_SOURCE_TYPES.CONNECTOR_SYNC,
+          sourceId: existing.id,
+          reason: `Connector sync: ${externalEventUid} (updated)`,
+        },
+        connection,
+      );
+      const updated = await this.#externalReservationRepository.update(
+        existing.id,
+        { bookableUnitId: unitId, dateFrom, dateTo, quantity },
+        connection,
+      );
+      return { reservation: updated, created: false, updated: true };
+    }
 
     const created = await this.#externalReservationRepository.create(
       {

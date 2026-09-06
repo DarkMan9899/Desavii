@@ -358,6 +358,109 @@ describe('Cross-partner isolation — Partner A cannot touch Partner B inventory
   });
 });
 
+/**
+ * Sprint D-1 (P0-2): `InventoryConnectionService#setMapping` authorized the
+ * caller against the CONNECTION's own partner but never checked that the
+ * target `bookableUnitId` actually belongs to that same partner — a
+ * partner authorized to manage their own connection could point it at
+ * another partner's bookable unit, and a later sync would drive real
+ * `quantity_available` mutations against that other partner's inventory.
+ */
+describe('Sprint D-1 (P0-2) — inventory connection mapping is partner-scoped', () => {
+  test('own connection -> own unit mapping is allowed', async () => {
+    const connRes = await request(app)
+      .post('/api/v1/inventory-connections')
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({
+        partnerId: partnerAId,
+        listingId: listingAId,
+        connectorType: 'MANUAL',
+        direction: 'IMPORT',
+        name: `P0-2 Own Mapping ${Date.now()}`,
+      });
+    expect(connRes.status).toBe(201);
+    const connectionId = connRes.body.data.id;
+
+    const res = await request(app)
+      .post(`/api/v1/inventory-connections/${connectionId}/mapping`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ bookableUnitId: unitAId, externalResourceId: 'own-unit' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.bookable_unit_id).toBe(unitAId);
+  });
+
+  test("Partner A's connection cannot be mapped to Partner B's unit", async () => {
+    const connRes = await request(app)
+      .post('/api/v1/inventory-connections')
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({
+        partnerId: partnerAId,
+        listingId: listingAId,
+        connectorType: 'MANUAL',
+        direction: 'IMPORT',
+        name: `P0-2 Cross-Partner Mapping ${Date.now()}`,
+      });
+    expect(connRes.status).toBe(201);
+    const connectionId = connRes.body.data.id;
+
+    const res = await request(app)
+      .post(`/api/v1/inventory-connections/${connectionId}/mapping`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ bookableUnitId: unitBId, externalResourceId: 'cross-partner' });
+    expect(res.status).toBe(403);
+
+    // The mapping must not have been persisted despite the rejection.
+    const [rows] = await pool.query(
+      'SELECT id FROM inventory_connection_mappings WHERE connection_id = ? AND bookable_unit_id = ?',
+      [connectionId, unitBId],
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  test('mapping to a nonexistent unit is rejected safely (404)', async () => {
+    const connRes = await request(app)
+      .post('/api/v1/inventory-connections')
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({
+        partnerId: partnerAId,
+        listingId: listingAId,
+        connectorType: 'MANUAL',
+        direction: 'IMPORT',
+        name: `P0-2 Nonexistent Unit Mapping ${Date.now()}`,
+      });
+    const connectionId = connRes.body.data.id;
+
+    const res = await request(app)
+      .post(`/api/v1/inventory-connections/${connectionId}/mapping`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ bookableUnitId: 9_999_999 });
+    expect(res.status).toBe(404);
+  });
+
+  test('a partner employee without MANAGE_CONNECTIONS still cannot set a mapping, own unit or not', async () => {
+    const connRes = await request(app)
+      .post('/api/v1/inventory-connections')
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({
+        partnerId: partnerAId,
+        listingId: listingAId,
+        connectorType: 'MANUAL',
+        direction: 'IMPORT',
+        name: `P0-2 Employee Permission Mapping ${Date.now()}`,
+      });
+    const connectionId = connRes.body.data.id;
+
+    const res = await request(app)
+      .post(`/api/v1/inventory-connections/${connectionId}/mapping`)
+      .set('Authorization', `Bearer ${bookingManagerA.accessToken}`)
+      .send({
+        bookableUnitId: unitAId,
+        externalResourceId: 'employee-attempt',
+      });
+    expect(res.status).toBe(403);
+  });
+});
+
 describe('Operational-staff permission scoping (Partner A employees, own partner)', () => {
   test('EDITOR (VIEW_AVAILABILITY only) can view own-partner breakdown', async () => {
     const res = await request(app)

@@ -120,6 +120,28 @@ export class MySqlExternalReservationRepository {
     return toDomain(rows[0]);
   }
 
+  /**
+   * Sprint D-1 (P0-4): moves an existing reservation to a new
+   * unit/date/quantity in place — the connector-sync counterpart to a
+   * connector re-importing the same `(connectionId, externalEventUid)`
+   * with different data. Callers move the actual capacity effect
+   * (restore old interval, consume new interval) themselves before
+   * calling this; this method only persists the row's new shape.
+   */
+  async update(
+    id,
+    { bookableUnitId, dateFrom, dateTo, quantity },
+    connection = this.#pool,
+  ) {
+    await connection.query(
+      `UPDATE external_reservations
+       SET bookable_unit_id = ?, date_from = ?, date_to = ?, quantity = ?
+       WHERE id = ?`,
+      [bookableUnitId, dateFrom, dateTo, quantity, id],
+    );
+    return this.findById(id, connection);
+  }
+
   async cancel(id, connection = this.#pool) {
     await connection.query(
       `UPDATE external_reservations SET cancelled_at = CURRENT_TIMESTAMP(3)
