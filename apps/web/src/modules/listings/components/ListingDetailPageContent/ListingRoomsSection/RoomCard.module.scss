@@ -50,7 +50,11 @@
   gap: tokens.$space-1;
   padding: tokens.$space-1 tokens.$space-3;
   border-radius: tokens.$radius-full;
-  background-color: tokens.$color-success;
+  // $color-success (the plain tone) is only 4.14:1 with white text, below
+  // WCAG AA's 4.5:1 — $color-success-strong exists in _colors.scss for
+  // exactly this "white text directly on the color" role (documented
+  // there alongside Badge's own filled variant) and clears it.
+  background-color: tokens.$color-success-strong;
   color: tokens.$color-white;
   font-size: tokens.$font-size-small;
   font-weight: 600;

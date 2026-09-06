@@ -386,26 +386,10 @@ test.describe('Public Rooms accessibility — Sprint C-3 (Date-Range Room Availa
     await expect(page.getByText('Selected').first()).toBeVisible();
     await expect(selectButton).toBeDisabled();
 
+    // `.selectedBadge` now uses `$color-success-strong` (RoomCard.module.scss)
+    // instead of the plain `$color-success` tone — the prior 4.14:1 white-
+    // on-green contrast is fixed, so this scan needs no exclusion anymore.
     const violations = await seriousOrCriticalViolations(page);
-    // `.selectedBadge` (white text on `$color-success`, 4.14:1) is a
-    // PRE-EXISTING Sprint C-2 contrast defect — confirmed byte-identical
-    // against origin/main's own RoomCard.module.scss, unrelated to any
-    // Sprint C-3 change. It was never caught before because neither
-    // existing Sprint C-2 accessibility test actually selects a room; this
-    // new C-3 test is the first to render it inside a scan. Fixing it is
-    // out of this sprint's scope (a color-token/legacy-debt change, not a
-    // Sprint C-3 regression) — filtered here, with the exclusion narrowly
-    // scoped to that one known node, so this test still fails on any OTHER
-    // real violation the C-3 stay-aware selection state might introduce.
-    const newViolations = violations.filter(
-      (violation) =>
-        !(
-          violation.id === 'color-contrast' &&
-          violation.nodes.every((node) =>
-            node.target.some((selector) => selector.includes('selectedBadge')),
-          )
-        ),
-    );
-    expect(newViolations, JSON.stringify(newViolations, null, 2)).toEqual([]);
+    expect(violations, JSON.stringify(violations, null, 2)).toEqual([]);
   });
 });

@@ -223,6 +223,15 @@ test.describe('P2.2B — HOTEL customer room selection, guest capacity, and chec
       page.getByRole('button', { name: 'Check availability' }),
     ).toBeVisible({ timeout: 15_000 });
 
+    // Sprint C-3 (Date-Range Room Availability): for a HOTEL_ROOM listing,
+    // dates come FIRST — picking a room, then changing dates, deliberately
+    // clears that room (its stay availability/price hasn't been checked
+    // against the new range yet). Reflects the real, current, correct
+    // contract this test previously predated — see
+    // `hotelStayAvailability.spec.js` for the sprint's own dedicated
+    // coverage of that invalidation rule.
+    await pickDateRange(page, checkIn, checkOut);
+
     // Real labels + known max guests, never a generic "Type #N" ordinal.
     await page.getByLabel('Unit').click();
     await expect(
@@ -234,9 +243,16 @@ test.describe('P2.2B — HOTEL customer room selection, guest capacity, and chec
     await page.getByRole('option', { name: 'Deluxe Suite — Sleeps 4' }).click();
 
     // The headline price switched to the SELECTED unit's own base price,
-    // not a static listing-level number.
-    await expect(page.getByText(/55,000/)).toBeVisible();
-    await expect(page.getByText(/1 × King/)).toBeVisible();
+    // not a static listing-level number. Scoped to the reservation
+    // widget (the sidebar's own "complementary" landmark) — Sprint C-2's
+    // Rooms section, added after this assertion was written, now ALSO
+    // shows this same unit's own price on its card, so a page-wide text
+    // match is ambiguous (a real Playwright strict-mode violation, not a
+    // product bug — see `getByRole('complementary')`'s established use
+    // for this same scoping in `publicRoomsAccessibility.spec.js`).
+    const sidebar = page.getByRole('complementary');
+    await expect(sidebar.getByText(/55,000/)).toBeVisible();
+    await expect(sidebar.getByText(/1 × King/)).toBeVisible();
 
     // Guest count is clamped to max_guests x quantity (Deluxe Suite:
     // capacity 1, so no quantity stepper — cap is 4 x 1 = 4).
@@ -244,11 +260,11 @@ test.describe('P2.2B — HOTEL customer room selection, guest capacity, and chec
     await guestsInput.fill('99');
     await expect(guestsInput).toHaveValue('4');
 
-    await pickDateRange(page, checkIn, checkOut);
-
-    // 3 nights at 55,000/night = 165,000 — checkout-exclusive, not 4
-    // nights (220,000), proving the estimate fix end to end.
-    await expect(page.getByText(/165,000/)).toBeVisible();
+    // 3 nights at 55,000/night = 165,000 — the server-computed stay total
+    // (Sprint C-3), checkout-exclusive not 4 nights (220,000). Scoped to
+    // the widget for the same reason as the headline price above — the
+    // Rooms section's own Deluxe Suite card shows this identical figure.
+    await expect(sidebar.getByText(/165,000/)).toBeVisible();
 
     await page.getByRole('button', { name: 'Check availability' }).click();
     await expect(page).toHaveURL(/\/en\/booking\/checkout$/);
