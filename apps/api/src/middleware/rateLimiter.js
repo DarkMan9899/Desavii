@@ -165,7 +165,7 @@ export function isTrustedInternalBuildRequest(req) {
   const token = config.prerenderInternalToken;
   if (!token) return false;
   if (req.get('X-Internal-Build-Token') !== token) return false;
-  return LOOPBACK_ADDRESSES.has(req.ip);
+  return LOOPBACK_ADDRESSES.has(req.socket.remoteAddress);
 }
 
 export default publicRateLimiter;
