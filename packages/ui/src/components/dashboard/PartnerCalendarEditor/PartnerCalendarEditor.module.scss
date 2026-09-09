@@ -54,7 +54,8 @@
 
 .legend {
   display: flex;
-  gap: spacing.$space-4;
+  flex-wrap: wrap;
+  gap: spacing.$space-2 spacing.$space-4;
   padding: 0;
   margin: 0;
   list-style: none;
@@ -139,6 +140,20 @@
   color: colors.$color-danger-strong;
 }
 
+// Sprint D-2: the authoritative 4-state vocabulary (available/partial/
+// full/blocked) TimeSlotBlock.jsx's Week/Day timeline already used —
+// unified here so Month reads the same real remaining-capacity signal
+// instead of the raw AVAILABLE/BLOCKED status flag alone.
+.day--partial {
+  background-color: rgba(colors.$color-warning, 0.14);
+  color: colors.$color-warning-strong;
+}
+
+.day--full {
+  background-color: rgba(colors.$color-danger, 0.12);
+  color: colors.$color-danger-strong;
+}
+
 .day--booked {
   background-color: rgba(colors.$color-royal-blue, 0.12);
   color: colors.$color-royal-blue;
@@ -147,4 +162,43 @@
 .day--selected {
   outline: 2px solid colors.$color-royal-blue;
   outline-offset: -2px;
+}
+
+.dayCellInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+// Sprint D-2: a compact per-source presence row (booking/hold/block/
+// external) — deliberately small dots, never per-event text, so Month
+// stays scannable at a glance (P0 brief's own compact-Month requirement).
+// Source identity is never color-only: each dot's meaning is also spelled
+// out in the cell's own `aria-label` (built by the caller).
+.sourceDots {
+  display: flex;
+  gap: 2px;
+}
+
+.sourceDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.sourceDot--booking {
+  background-color: colors.$color-royal-blue;
+}
+
+.sourceDot--hold {
+  background-color: colors.$color-warning;
+}
+
+.sourceDot--block {
+  background-color: colors.$color-gray-600;
+}
+
+.sourceDot--external {
+  background-color: colors.$color-danger;
 }

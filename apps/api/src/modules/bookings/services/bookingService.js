@@ -621,8 +621,16 @@ export class BookingService {
    */
   async listBookings(principal, filters = {}, paginationOpts = {}) {
     if (!principal) throw new AuthenticationError();
-    const { partnerId, viewAll, status, customerUserId, refundStatus } =
-      filters;
+    const {
+      partnerId,
+      viewAll,
+      status,
+      customerUserId,
+      refundStatus,
+      unitId,
+      from,
+      to,
+    } = filters;
 
     if (partnerId !== undefined) {
       await this.#assertOwnerOrPermission(
@@ -630,8 +638,20 @@ export class BookingService {
         partnerId,
         VIEW_ALL_PERMISSION,
       );
+      // Sprint D-2: `unitId`/`from`/`to` only ever narrow WITHIN this
+      // already-ownership-checked partner's own bookings (the repository
+      // still ANDs `b.partner_id = ?`) — never a way to discover another
+      // partner's bookings by guessing a unit id.
       return this.#bookingRepository.list(
-        { partnerId, statusCode: status, refundStatus, includeNames: true },
+        {
+          partnerId,
+          statusCode: status,
+          refundStatus,
+          includeNames: true,
+          unitId,
+          dateFrom: from,
+          dateTo: to,
+        },
         paginationOpts,
       );
     }

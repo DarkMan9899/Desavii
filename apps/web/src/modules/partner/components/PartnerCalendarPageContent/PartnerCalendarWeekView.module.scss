@@ -138,6 +138,17 @@
     border-color: tokens.$color-success;
   }
 
+  // Sprint D-2: the same authoritative 4-state vocabulary as Month
+  // (`resolveAuthoritativeDayStatus`) — partial/full are new here,
+  // available/blocked already existed.
+  &--partial {
+    border-color: tokens.$color-warning;
+  }
+
+  &--full {
+    border-color: tokens.$color-danger;
+  }
+
   &--blocked {
     background-color: tokens.$color-gray-100;
   }
@@ -153,4 +164,34 @@
   font-weight: 700;
   color: tokens.$color-gray-900;
   font-variant-numeric: tabular-nums;
+}
+
+// Sprint D-2: same compact per-source presence dots as Month
+// (PartnerCalendarEditor.module.scss) — source identity is never
+// color-only, the cell's own `aria-label` spells each one out.
+.sourceDots {
+  display: flex;
+  gap: 2px;
+}
+
+.sourceDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.sourceDot--booking {
+  background-color: tokens.$color-royal-blue;
+}
+
+.sourceDot--hold {
+  background-color: tokens.$color-warning;
+}
+
+.sourceDot--block {
+  background-color: tokens.$color-gray-600;
+}
+
+.sourceDot--external {
+  background-color: tokens.$color-danger;
 }

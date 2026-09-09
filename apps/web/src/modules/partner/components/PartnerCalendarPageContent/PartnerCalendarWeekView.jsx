@@ -30,14 +30,26 @@ import {
 import TimeSlotBlock, { HOUR_ROW_HEIGHT_PX } from './TimeSlotBlock.jsx';
 import styles from './PartnerCalendarWeekView.module.scss';
 
+const SOURCE_KEYS = ['booking', 'hold', 'block', 'external'];
+
 function DateOnlyDayCell({
   date,
   status = null,
   isSelected,
   statusLabels,
+  sources = null,
+  sourceLabels = null,
   onSelect,
   dayFormatter,
 }) {
+  const presentSourceKeys = sources
+    ? SOURCE_KEYS.filter((key) => sources[key])
+    : [];
+  const sourceLabelText = presentSourceKeys
+    .map((key) => sourceLabels?.[key])
+    .filter(Boolean)
+    .join(', ');
+
   return (
     <button
       type="button"
@@ -49,8 +61,15 @@ function DateOnlyDayCell({
         .filter(Boolean)
         .join(' ')}
       onClick={() => onSelect(date)}
+      aria-label={[
+        dayFormatter.format(new Date(`${date}T00:00:00Z`)),
+        status ? (statusLabels[status] ?? status) : null,
+        sourceLabelText || null,
+      ]
+        .filter(Boolean)
+        .join(', ')}
     >
-      <span className={styles.dayCellDate}>
+      <span className={styles.dayCellDate} aria-hidden="true">
         {dayFormatter.format(new Date(`${date}T00:00:00Z`))}
       </span>
       {status && (
@@ -59,6 +78,18 @@ function DateOnlyDayCell({
           variant="neutral"
           label={statusLabels[status] ?? status}
         />
+      )}
+      {presentSourceKeys.length > 0 && (
+        <span className={styles.sourceDots} aria-hidden="true">
+          {presentSourceKeys.map((key) => (
+            <span
+              key={key}
+              className={[styles.sourceDot, styles[`sourceDot--${key}`]].join(
+                ' ',
+              )}
+            />
+          ))}
+        </span>
       )}
     </button>
   );
@@ -70,6 +101,10 @@ DateOnlyDayCell.propTypes = {
   isSelected: PropTypes.bool.isRequired,
   // eslint-disable-next-line react/forbid-prop-types -- keys are caller-chosen status codes
   statusLabels: PropTypes.object.isRequired,
+  // eslint-disable-next-line react/forbid-prop-types -- caller-chosen source-presence flags, not a fixed shape
+  sources: PropTypes.object,
+  // eslint-disable-next-line react/forbid-prop-types -- keys are the caller's own source keys
+  sourceLabels: PropTypes.object,
   onSelect: PropTypes.func.isRequired,
   dayFormatter: PropTypes.instanceOf(Intl.DateTimeFormat).isRequired,
 };
@@ -82,6 +117,8 @@ export default function PartnerCalendarWeekView({
   isTimeSliced,
   statusByDate,
   statusLabels,
+  sourceIndicatorsByDate = null,
+  sourceLabels = null,
   selection = null,
   onSelectSlot,
   onSelectDate,
@@ -200,6 +237,8 @@ export default function PartnerCalendarWeekView({
               status={statusByDate[date]}
               isSelected={selection?.start === date}
               statusLabels={statusLabels}
+              sources={sourceIndicatorsByDate?.[date]}
+              sourceLabels={sourceLabels}
               onSelect={onSelectDate}
               dayFormatter={weekdayFormatter}
             />
@@ -222,6 +261,10 @@ PartnerCalendarWeekView.propTypes = {
   statusByDate: PropTypes.object.isRequired,
   // eslint-disable-next-line react/forbid-prop-types -- keys are caller-chosen status codes
   statusLabels: PropTypes.object.isRequired,
+  // eslint-disable-next-line react/forbid-prop-types -- date-keyed map of caller-chosen source-presence flags, not a fixed shape
+  sourceIndicatorsByDate: PropTypes.object,
+  // eslint-disable-next-line react/forbid-prop-types -- keys are the caller's own source keys
+  sourceLabels: PropTypes.object,
   selection: PropTypes.shape({
     start: PropTypes.string,
     end: PropTypes.string,

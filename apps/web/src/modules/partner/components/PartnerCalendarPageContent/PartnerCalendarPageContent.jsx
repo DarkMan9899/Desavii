@@ -25,7 +25,7 @@
 import { useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Section, Stack, Inline } from '@desavii/ui/components/layout';
 import { Select, Input, Textarea } from '@desavii/ui/components/form-controls';
 import { Button, Card, Badge } from '@desavii/ui/components/primitives';
@@ -38,11 +38,14 @@ import { PartnerCalendarEditor } from '@desavii/ui/components/dashboard';
 import { Tabs } from '@desavii/ui/components/navigation';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
+import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
 import { usePartnerContext } from '../../../../contexts/PartnerContext.jsx';
 import CsvImportWizard from './CsvImportWizard/CsvImportWizard.jsx';
 import PartnerCalendarWeekView from './PartnerCalendarWeekView.jsx';
 import PartnerCalendarDayView from './PartnerCalendarDayView.jsx';
 import { addDays, startOfWeek, todayIso } from './calendarDateGrid.js';
+import { buildDaySourceIndex, SOURCE_TYPES } from './calendarSourceIndex.js';
+import { resolveAuthoritativeDayStatus } from './resolveDayStatus.js';
 import {
   useMyListingsQuery,
   useListingCalendarQuery,
@@ -52,8 +55,10 @@ import {
   useBookableUnitsQuery,
   BOOKABLE_UNIT_TYPES,
   useUnitBreakdownQuery,
+  useUnitHoldsQuery,
   useInventoryBlocksQuery,
   useExternalReservationsQuery,
+  useInventoryConnectionsQuery,
   useCreateInventoryBlockMutation,
   useReleaseInventoryBlockMutation,
   useCreateExternalReservationMutation,
@@ -63,10 +68,10 @@ import {
   BLOCK_REASON_CODES,
   EXTERNAL_RESERVATION_SOURCE_CODES,
 } from '../../../availability/index.js';
+import { useUnitBookingsQuery } from '../../../bookings/index.js';
 
 const VIEW_MODES = ['month', 'week', 'day'];
 
-const STATUS_VARIANT_BY_CODE = { AVAILABLE: 'available', BLOCKED: 'blocked' };
 const WRITABLE_STATUSES = ['AVAILABLE', 'BLOCKED'];
 
 function pad2(value) {
@@ -106,7 +111,9 @@ function unitLabel(unit, t) {
 export default function PartnerCalendarPageContent() {
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
+  const navigate = useNavigate();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const { activePartnerId } = usePartnerContext();
 
   const canManageAvailability = usePartnerCapability(
@@ -192,16 +199,97 @@ export default function PartnerCalendarPageContent() {
     selection?.start,
     selection?.end ?? selection?.start,
   );
+  // Sprint D-2 (Partner Calendar source-aware UX): the SAME per-day
+  // breakdown TimeSlotBlock.jsx's timeline already used, now also fetched
+  // for the whole visible Month/Week/Day range so status can be derived
+  // from real remaining capacity instead of the raw AVAILABLE/BLOCKED
+  // flag alone (D-0's "Month/Week can visually disagree with authoritative
+  // capacity" finding). Reuses the existing `GET .../breakdown` endpoint —
+  // no new backend surface.
+  const viewBreakdownQuery = useUnitBreakdownQuery(effectiveUnitId, from, to);
+  // Active holds and Desavii bookings touching the visible range — the two
+  // source types the Calendar page never fetched before D-2 (manual
+  // blocks/external reservations were already fetched for the management
+  // tables below; this reuses those same listing-wide queries).
+  const viewHoldsQuery = useUnitHoldsQuery(effectiveUnitId, from, to);
+  const viewBookingsQuery = useUnitBookingsQuery(
+    activePartnerId,
+    effectiveUnitId,
+    from,
+    to,
+  );
+  const connectionsQuery = useInventoryConnectionsQuery(activePartnerId);
+
+  const breakdownByDate = useMemo(() => {
+    const entries = viewBreakdownQuery.data ?? [];
+    return Object.fromEntries(entries.map((day) => [day.date, day]));
+  }, [viewBreakdownQuery.data]);
 
   const statusByDate = useMemo(() => {
     const entries = calendarQuery.data ?? [];
     return Object.fromEntries(
       entries.map((day) => [
         day.date,
-        STATUS_VARIANT_BY_CODE[day.status] ?? null,
+        resolveAuthoritativeDayStatus(day.status, breakdownByDate[day.date]),
       ]),
     );
-  }, [calendarQuery.data]);
+  }, [calendarQuery.data, breakdownByDate]);
+
+  const dayStatusLabels = {
+    available: t('partner.calendar.timeline.status.available'),
+    partial: t('partner.calendar.timeline.status.partial'),
+    full: t('partner.calendar.timeline.status.full'),
+    blocked: t('partner.calendar.timeline.status.blocked'),
+  };
+
+  const sourceLabels = {
+    booking: t('partner.calendar.sources.booking'),
+    hold: t('partner.calendar.sources.hold'),
+    block: t('partner.calendar.sources.block'),
+    external: t('partner.calendar.sources.external'),
+  };
+
+  const daySourceIndex = useMemo(
+    () =>
+      buildDaySourceIndex(
+        {
+          bookings: viewBookingsQuery.data ?? [],
+          holds: viewHoldsQuery.data ?? [],
+          blocks: blocksQuery.data ?? [],
+          externalReservations: externalQuery.data ?? [],
+        },
+        effectiveUnitId,
+        { from, to },
+      ),
+    [
+      viewBookingsQuery.data,
+      viewHoldsQuery.data,
+      blocksQuery.data,
+      externalQuery.data,
+      effectiveUnitId,
+      from,
+      to,
+    ],
+  );
+
+  const sourceIndicatorsByDate = useMemo(() => {
+    const result = {};
+    daySourceIndex.forEach((events, date) => {
+      result[date] = {
+        booking: events.some((e) => e.sourceType === SOURCE_TYPES.BOOKING),
+        hold: events.some((e) => e.sourceType === SOURCE_TYPES.HOLD),
+        block: events.some((e) => e.sourceType === SOURCE_TYPES.BLOCK),
+        external: events.some((e) => e.sourceType === SOURCE_TYPES.EXTERNAL),
+      };
+    });
+    return result;
+  }, [daySourceIndex]);
+
+  const connectionsById = useMemo(
+    () =>
+      Object.fromEntries((connectionsQuery.data ?? []).map((c) => [c.id, c])),
+    [connectionsQuery.data],
+  );
 
   const listingOptions = listings.map((listing) => ({
     value: String(listing.id),
@@ -328,6 +416,18 @@ export default function PartnerCalendarPageContent() {
   }
 
   async function handleCancelExternal(id) {
+    // Sprint D-2 §12: cancelling here only removes Desavii's own local
+    // mirror of this reservation (`availabilityService.js
+    // #cancelExternalReservation` never calls any external provider) — the
+    // partner must still cancel it at the real source themselves.
+    const confirmed = await confirm({
+      title: t('partner.calendar.external.cancelConfirmTitle'),
+      description: t('partner.calendar.external.cancelConfirmDescription'),
+      confirmLabel: t('partner.calendar.external.cancelAction'),
+      cancelLabel: t('partner.calendar.external.cancelConfirmDismiss'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await cancelExternalMutation.mutateAsync({ id });
       showToast(t('partner.calendar.external.cancelSuccess'), {
@@ -569,10 +669,9 @@ export default function PartnerCalendarPageContent() {
           viewMonth={viewMonth}
           onViewMonthChange={setViewMonth}
           statusByDate={statusByDate}
-          statusLabels={{
-            available: t('partner.calendar.legend.available'),
-            blocked: t('partner.calendar.legend.blocked'),
-          }}
+          statusLabels={dayStatusLabels}
+          sourceIndicatorsByDate={sourceIndicatorsByDate}
+          sourceLabels={sourceLabels}
           selection={selection}
           onSelectionChange={setSelection}
           locale={i18n.language}
@@ -600,10 +699,9 @@ export default function PartnerCalendarPageContent() {
           effectiveUnit={selectedUnit}
           isTimeSliced={isTimeSliced}
           statusByDate={statusByDate}
-          statusLabels={{
-            available: t('partner.calendar.legend.available'),
-            blocked: t('partner.calendar.legend.blocked'),
-          }}
+          statusLabels={dayStatusLabels}
+          sourceIndicatorsByDate={sourceIndicatorsByDate}
+          sourceLabels={sourceLabels}
           selection={selection}
           onSelectSlot={(slotUnitId, date) =>
             handleSelectSlot(slotUnitId, date)
@@ -627,6 +725,15 @@ export default function PartnerCalendarPageContent() {
         selection={selection}
         onSelectSlot={(slotUnitId, date) => handleSelectSlot(slotUnitId, date)}
         locale={i18n.language}
+        daySourceIndex={daySourceIndex}
+        connectionsById={connectionsById}
+        onNavigateToBooking={(bookingId) =>
+          navigate(`/${locale}/partner/bookings/${bookingId}`)
+        }
+        onCancelExternal={
+          canManageExternal ? (id) => handleCancelExternal(id) : undefined
+        }
+        cancelExternalPending={cancelExternalMutation.isPending}
       />
     );
   }

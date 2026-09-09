@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import ToastProvider from '../../../../providers/ToastProvider.jsx';
+import ConfirmProvider from '../../../../providers/ConfirmProvider.jsx';
 import PartnerCalendarPageContent from './PartnerCalendarPageContent.jsx';
 import { usePartnerContext } from '../../../../contexts/PartnerContext.jsx';
 import {
@@ -13,13 +14,16 @@ import {
 import {
   useBookableUnitsQuery,
   useUnitBreakdownQuery,
+  useUnitHoldsQuery,
   useInventoryBlocksQuery,
   useExternalReservationsQuery,
+  useInventoryConnectionsQuery,
   useCreateInventoryBlockMutation,
   useReleaseInventoryBlockMutation,
   useCreateExternalReservationMutation,
   useCancelExternalReservationMutation,
 } from '../../../availability/index.js';
+import { useUnitBookingsQuery } from '../../../bookings/index.js';
 
 vi.mock('../../../../contexts/PartnerContext.jsx', () => ({
   usePartnerContext: vi.fn(),
@@ -41,8 +45,10 @@ vi.mock('../../../availability/index.js', async () => {
     ...actual,
     useBookableUnitsQuery: vi.fn(),
     useUnitBreakdownQuery: vi.fn(),
+    useUnitHoldsQuery: vi.fn(),
     useInventoryBlocksQuery: vi.fn(),
     useExternalReservationsQuery: vi.fn(),
+    useInventoryConnectionsQuery: vi.fn(),
     useCreateInventoryBlockMutation: vi.fn(),
     useReleaseInventoryBlockMutation: vi.fn(),
     useCreateExternalReservationMutation: vi.fn(),
@@ -50,16 +56,26 @@ vi.mock('../../../availability/index.js', async () => {
   };
 });
 
+vi.mock('../../../bookings/index.js', async () => {
+  const actual = await vi.importActual('../../../bookings/index.js');
+  return {
+    ...actual,
+    useUnitBookingsQuery: vi.fn(),
+  };
+});
+
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/hy/partner/calendar']}>
       <ToastProvider>
-        <Routes>
-          <Route
-            path="/:locale/partner/calendar"
-            element={<PartnerCalendarPageContent />}
-          />
-        </Routes>
+        <ConfirmProvider>
+          <Routes>
+            <Route
+              path="/:locale/partner/calendar"
+              element={<PartnerCalendarPageContent />}
+            />
+          </Routes>
+        </ConfirmProvider>
       </ToastProvider>
     </MemoryRouter>,
   );
@@ -86,6 +102,9 @@ describe('PartnerCalendarPageContent (apps/web/src/modules/partner)', () => {
       isPending: false,
     });
     useUnitBreakdownQuery.mockReturnValue(EMPTY_LIST_QUERY);
+    useUnitHoldsQuery.mockReturnValue(EMPTY_LIST_QUERY);
+    useUnitBookingsQuery.mockReturnValue(EMPTY_LIST_QUERY);
+    useInventoryConnectionsQuery.mockReturnValue(EMPTY_LIST_QUERY);
     useInventoryBlocksQuery.mockReturnValue(EMPTY_LIST_QUERY);
     useExternalReservationsQuery.mockReturnValue(EMPTY_LIST_QUERY);
     useCreateInventoryBlockMutation.mockReturnValue(NOOP_MUTATION);

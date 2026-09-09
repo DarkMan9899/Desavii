@@ -359,6 +359,31 @@ export class MySqlBookingRepository {
       conditions.push('b.refund_status = ?');
       params.push(filters.refundStatus);
     }
+    // Sprint D-2 (Partner Calendar source-aware UX): narrows to bookings
+    // with at least one `booking_items` row for this unit whose stay
+    // overlaps [dateFrom, dateTo] — an EXISTS subquery rather than a JOIN
+    // so a booking with several matching items still yields exactly one
+    // row, same "don't fan out the outer row set" convention as the
+    // `trip` subquery below.
+    if (filters.unitId !== undefined) {
+      const itemConditions = [
+        'bi.booking_id = b.id',
+        'bi.bookable_unit_id = ?',
+      ];
+      const itemParams = [filters.unitId];
+      if (filters.dateFrom !== undefined) {
+        itemConditions.push('bi.date_to >= ?');
+        itemParams.push(filters.dateFrom);
+      }
+      if (filters.dateTo !== undefined) {
+        itemConditions.push('bi.date_from <= ?');
+        itemParams.push(filters.dateTo);
+      }
+      conditions.push(
+        `EXISTS (SELECT 1 FROM booking_items bi WHERE ${itemConditions.join(' AND ')})`,
+      );
+      params.push(...itemParams);
+    }
 
     const decoded = decodeCursor(cursor);
     if (decoded?.id) {

@@ -923,7 +923,13 @@
         "previousDay": "Previous day",
         "nextDay": "Next day",
         "today": "Today",
-        "noData": "No availability data for this day yet."
+        "noData": "No availability data for this day yet.",
+        "noEvents": "No events on this day",
+        "noEventsDescription": "No bookings, holds, blocks, or external reservations touch this date.",
+        "activeHoldBadge": "Active hold",
+        "holdExpires": "Expires {{time}}",
+        "readOnlyBadge": "Read-only",
+        "viaConnection": "Via {{name}}"
       },
       "timeline": {
         "noSlots": "This resource has no time-based departures.",
@@ -947,6 +953,12 @@
       "legend": {
         "available": "Available",
         "blocked": "Blocked"
+      },
+      "sources": {
+        "booking": "Desavii booking",
+        "hold": "Active hold",
+        "block": "Manual block",
+        "external": "External reservation"
       },
       "selection": "Selected: {{start}} – {{end}}",
       "form": {
@@ -1012,6 +1024,10 @@
         "createError": "Could not record this reservation. Please try again.",
         "cancelSuccess": "Reservation cancelled.",
         "cancelError": "Could not cancel this reservation. Please try again.",
+        "cancelConfirmTitle": "Cancel this external reservation?",
+        "cancelConfirmDescription": "This only removes Desavii's own local record. It does NOT cancel the reservation at the original source (e.g. Airbnb, Booking.com) — cancel it there yourself if needed.",
+        "cancelConfirmDismiss": "Keep it",
+        "mirrorWarning": "Mirrored from an external source. Desavii cannot cancel it at the source — cancelling here only removes this local record.",
         "listTitle": "External reservations ({{count}})",
         "emptyTitle": "No external reservations recorded.",
         "sourceCodes": {

@@ -9,6 +9,7 @@
 import { z } from 'zod';
 import { BOOKING_STATUSES } from '../../../core/domain/bookingStatusTransitions.js';
 import { BOOKING_REFUND_STATUSES } from '../../../core/domain/bookingRefundStatuses.js';
+import { isoDateSchema } from '../../../validation/isoDate.js';
 
 const passthroughQuery = z.object({}).passthrough();
 const passthroughParams = z.object({}).passthrough();
@@ -102,6 +103,20 @@ export const listBookingsQuerySchema = z.object({
     // (see mysqlBookingRepository.js#list), not a client-side narrowing
     // of one already-paginated page.
     refundStatus: z.enum(BOOKING_REFUND_STATUSES).optional(),
+    // Sprint D-2 (Partner Calendar source-aware UX): lets the Partner
+    // Calendar's Week/Day views find which of a partner's bookings touch
+    // one `bookable_unit_id` within a date span, reusing this existing
+    // list endpoint (`booking_items.bookable_unit_id`/`date_from`/
+    // `date_to` already carry this — see
+    // `mysqlBookingRepository.js#list`) rather than a second bookings
+    // endpoint. Only meaningful alongside `partnerId` (or the plain
+    // caller-own-bookings branch) — `BookingService.listBookings` already
+    // gates every branch by ownership/permission before this narrows
+    // further, so this can never be used to discover another partner's
+    // bookings by guessing a unit id.
+    unitId: z.coerce.number().int().positive().optional(),
+    from: isoDateSchema.optional(),
+    to: isoDateSchema.optional(),
     cursor: z.string().optional(),
     limit: z.coerce.number().int().positive().max(100).optional(),
   }),

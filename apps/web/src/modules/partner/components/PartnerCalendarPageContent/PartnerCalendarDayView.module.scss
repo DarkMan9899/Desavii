@@ -102,3 +102,64 @@
   color: tokens.$color-gray-900;
   font-variant-numeric: tabular-nums;
 }
+
+// Sprint D-2 (Partner Calendar source-aware UX) — one row per individual
+// event (Desavii booking / active hold / manual block / external
+// reservation). Source identity is carried by the left border-color AND
+// by each card's own text labels — never color alone.
+.eventCard {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-1;
+  width: 100%;
+  padding: tokens.$space-3;
+  border: 1px solid tokens.$color-gray-200;
+  border-left: 3px solid tokens.$color-gray-600;
+  border-radius: tokens.$radius-md;
+  background-color: tokens.$color-white;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  @include focus.focus-ring;
+}
+
+button.eventCard {
+  cursor: pointer;
+
+  &:hover {
+    border-color: tokens.$color-royal-blue;
+  }
+}
+
+.eventCard--booking {
+  border-left-color: tokens.$color-royal-blue;
+}
+
+.eventCard--hold {
+  border-left-color: tokens.$color-warning;
+}
+
+.eventCard--block {
+  border-left-color: tokens.$color-gray-600;
+  background-color: tokens.$color-gray-100;
+}
+
+.eventCard--external {
+  border-left-color: tokens.$color-danger;
+}
+
+.eventLabel {
+  font-size: tokens.$font-size-small;
+  font-weight: 700;
+  color: tokens.$color-gray-900;
+}
+
+.eventMeta {
+  font-size: tokens.$font-size-micro;
+  color: tokens.$color-gray-600;
+}
+
+.eventWarning {
+  font-size: tokens.$font-size-micro;
+  color: tokens.$color-warning-strong;
+}

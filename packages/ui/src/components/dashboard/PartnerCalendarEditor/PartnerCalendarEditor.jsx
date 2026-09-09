@@ -59,6 +59,8 @@ function chunkIntoWeeks(cells) {
   return weeks;
 }
 
+const SOURCE_KEYS = ['booking', 'hold', 'block', 'external'];
+
 export default function PartnerCalendarEditor({
   viewMonth,
   onViewMonthChange,
@@ -71,6 +73,12 @@ export default function PartnerCalendarEditor({
   nextMonthLabel,
   disabled = false,
   isLoading = false,
+  // Sprint D-2: `{ [isoDate]: { booking, hold, block, external } }` —
+  // which of the four calendar source types touch that date, for a
+  // compact per-day dot row. Entirely optional/additive: omitted, the
+  // grid renders exactly as it always did.
+  sourceIndicatorsByDate = null,
+  sourceLabels = null,
 }) {
   const weeks = useMemo(
     () => chunkIntoWeeks(buildMonthGrid(viewMonth)),
@@ -167,6 +175,14 @@ export default function PartnerCalendarEditor({
                     (selection.end &&
                       iso >= selection.start &&
                       iso <= selection.end));
+                const sources = sourceIndicatorsByDate?.[iso];
+                const presentSourceKeys = sources
+                  ? SOURCE_KEYS.filter((key) => sources[key])
+                  : [];
+                const sourceLabelText = presentSourceKeys
+                  .map((key) => sourceLabels?.[key])
+                  .filter(Boolean)
+                  .join(', ');
 
                 return (
                   <button
@@ -174,7 +190,13 @@ export default function PartnerCalendarEditor({
                     type="button"
                     role="gridcell"
                     disabled={disabled}
-                    aria-label={`${dayFormatter.format(day)}${status ? `, ${statusLabels[status] ?? status}` : ''}`}
+                    aria-label={[
+                      dayFormatter.format(day),
+                      status ? (statusLabels[status] ?? status) : null,
+                      sourceLabelText || null,
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}
                     aria-selected={isSelected || undefined}
                     className={[
                       styles.day,
@@ -185,7 +207,22 @@ export default function PartnerCalendarEditor({
                       .join(' ')}
                     onClick={() => handleDayClick(day)}
                   >
-                    {day.getDate()}
+                    <span className={styles.dayCellInner}>
+                      {day.getDate()}
+                      {presentSourceKeys.length > 0 && (
+                        <span className={styles.sourceDots} aria-hidden="true">
+                          {presentSourceKeys.map((key) => (
+                            <span
+                              key={key}
+                              className={[
+                                styles.sourceDot,
+                                styles[`sourceDot--${key}`],
+                              ].join(' ')}
+                            />
+                          ))}
+                        </span>
+                      )}
+                    </span>
                   </button>
                 );
               })}
@@ -217,4 +254,8 @@ PartnerCalendarEditor.propTypes = {
   nextMonthLabel: PropTypes.string.isRequired,
   disabled: PropTypes.bool,
   isLoading: PropTypes.bool,
+  // eslint-disable-next-line react/forbid-prop-types -- date-keyed map of caller-chosen source-presence flags, not a fixed shape
+  sourceIndicatorsByDate: PropTypes.object,
+  // eslint-disable-next-line react/forbid-prop-types -- keys are the caller's own source keys (booking/hold/block/external)
+  sourceLabels: PropTypes.object,
 };

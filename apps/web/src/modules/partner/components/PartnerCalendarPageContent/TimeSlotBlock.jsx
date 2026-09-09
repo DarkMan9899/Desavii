@@ -16,23 +16,16 @@ import PropTypes from 'prop-types';
 import { Skeleton } from '@desavii/ui/components/feedback-overlays';
 import { useUnitBreakdownQuery } from '../../../availability/index.js';
 import { timeToRowOffset, HOUR_ROWS } from './calendarDateGrid.js';
+import { resolveBreakdownStatus } from './resolveDayStatus.js';
 import styles from './TimeSlotBlock.module.scss';
 
 const HOUR_ROW_HEIGHT_PX = 56;
-
-function resolveStatus(day) {
-  if (!day) return null;
-  if (day.total > 0 && day.manual >= day.total) return 'blocked';
-  if (day.available <= 0) return 'full';
-  if (day.available < day.total) return 'partial';
-  return 'available';
-}
 
 export default function TimeSlotBlock({ unit, date, isSelected, onSelect }) {
   const { t } = useTranslation();
   const breakdownQuery = useUnitBreakdownQuery(unit.id, date, date);
   const day = breakdownQuery.data?.[0];
-  const status = resolveStatus(day);
+  const status = resolveBreakdownStatus(day);
 
   const start = unit.time_slot_start.slice(0, 5);
   const end = unit.time_slot_end.slice(0, 5);

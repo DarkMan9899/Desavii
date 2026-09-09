@@ -19,6 +19,8 @@ export { useMyBookingsQuery } from './queries/useMyBookingsQuery.js';
 // Phase 9 (Partner Dashboard).
 export { default as useBookingQuery } from './queries/useBookingQuery.js';
 export { default as usePartnerBookingsQuery } from './queries/usePartnerBookingsQuery.js';
+// Sprint D-2 (Partner Calendar source-aware UX).
+export { default as useUnitBookingsQuery } from './queries/useUnitBookingsQuery.js';
 export { default as useConfirmBookingMutation } from './mutations/useConfirmBookingMutation.js';
 export { default as useRejectBookingMutation } from './mutations/useRejectBookingMutation.js';
 export { default as useCancelBookingMutation } from './mutations/useCancelBookingMutation.js';

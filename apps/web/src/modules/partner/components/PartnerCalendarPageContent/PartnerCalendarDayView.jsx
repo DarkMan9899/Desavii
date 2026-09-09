@@ -24,13 +24,208 @@
 import { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { Icon, Button } from '@desavii/ui/components/primitives';
+import { Icon, Button, Badge } from '@desavii/ui/components/primitives';
+import { Stack, Inline } from '@desavii/ui/components/layout';
 import { EmptyState, Skeleton } from '@desavii/ui/components/feedback-overlays';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useUnitBreakdownQuery } from '../../../availability/index.js';
+import { BookingStatusBadge } from '../../../bookings/index.js';
 import { addDays, todayIso, HOUR_ROWS } from './calendarDateGrid.js';
+import { SOURCE_TYPES, getDaySources } from './calendarSourceIndex.js';
 import TimeSlotBlock, { HOUR_ROW_HEIGHT_PX } from './TimeSlotBlock.jsx';
 import styles from './PartnerCalendarDayView.module.scss';
+
+/**
+ * Sprint D-2 (Partner Calendar source-aware UX, §11-12) — one row per
+ * individual event touching this date, for a date-only unit
+ * (`isTimeSliced` units keep their existing per-slot `TimeSlotBlock`
+ * breakdown treatment; this list is never rendered there). Each source
+ * type gets exactly the fields that type's backend row actually carries —
+ * never an invented detail. A Desavii booking drills through to the
+ * EXISTING `/partner/bookings/:id` detail page (`onNavigateToBooking`),
+ * never a second booking-details UI.
+ */
+function SourceEventCard({
+  event,
+  t,
+  locale,
+  onNavigateToBooking,
+  onCancelExternal = undefined,
+  cancelExternalPending = false,
+  connectionsById = null,
+}) {
+  if (event.sourceType === SOURCE_TYPES.BOOKING) {
+    return (
+      <button
+        type="button"
+        className={[styles.eventCard, styles['eventCard--booking']].join(' ')}
+        onClick={() => onNavigateToBooking(event.id)}
+      >
+        <Inline gap="2" align="center" justify="space-between">
+          <span className={styles.eventLabel}>
+            {t('partner.calendar.sources.booking')}
+            {event.customerDisplayName ? ` · ${event.customerDisplayName}` : ''}
+          </span>
+          <BookingStatusBadge status={event.status} audience="partner" />
+        </Inline>
+        {event.bookingReference && (
+          <span className={styles.eventMeta}>{event.bookingReference}</span>
+        )}
+      </button>
+    );
+  }
+
+  if (event.sourceType === SOURCE_TYPES.HOLD) {
+    return (
+      <div className={[styles.eventCard, styles['eventCard--hold']].join(' ')}>
+        <Inline gap="2" align="center" justify="space-between">
+          <span className={styles.eventLabel}>
+            {t('partner.calendar.sources.hold')}
+          </span>
+          <Badge
+            size="sm"
+            variant="warning"
+            label={t('partner.calendar.day.activeHoldBadge')}
+          />
+        </Inline>
+        {event.expiresAt && (
+          <span className={styles.eventMeta}>
+            {t('partner.calendar.day.holdExpires', {
+              time: new Date(event.expiresAt).toLocaleString(locale),
+            })}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  if (event.sourceType === SOURCE_TYPES.BLOCK) {
+    return (
+      <div className={[styles.eventCard, styles['eventCard--block']].join(' ')}>
+        <Inline gap="2" align="center" justify="space-between">
+          <span className={styles.eventLabel}>
+            {t('partner.calendar.sources.block')}
+          </span>
+          <Badge
+            size="sm"
+            variant="neutral"
+            label={t(`partner.calendar.blocks.reasonCodes.${event.reasonCode}`)}
+          />
+        </Inline>
+        <span className={styles.eventMeta}>
+          {t('partner.calendar.breakdown.manual', { count: event.quantity })}
+        </span>
+        {event.notes && <span className={styles.eventMeta}>{event.notes}</span>}
+      </div>
+    );
+  }
+
+  // EXTERNAL — never rendered as a native Desavii booking (§12): a
+  // dedicated read-only badge and the mirror-warning caption are always
+  // shown, not only at cancel-time.
+  const connection = event.connectionId
+    ? connectionsById?.[event.connectionId]
+    : null;
+  return (
+    <div
+      className={[styles.eventCard, styles['eventCard--external']].join(' ')}
+    >
+      <Inline gap="2" align="center" justify="space-between">
+        <span className={styles.eventLabel}>
+          {t(`partner.calendar.external.sourceCodes.${event.sourceCode}`)}
+          {event.guestName ? ` · ${event.guestName}` : ''}
+        </span>
+        <Badge
+          size="sm"
+          variant="neutral"
+          label={t('partner.calendar.day.readOnlyBadge')}
+        />
+      </Inline>
+      {connection && (
+        <span className={styles.eventMeta}>
+          {t('partner.calendar.day.viaConnection', { name: connection.name })}
+        </span>
+      )}
+      {event.externalReference && (
+        <span className={styles.eventMeta}>{event.externalReference}</span>
+      )}
+      <span className={styles.eventWarning}>
+        {t('partner.calendar.external.mirrorWarning')}
+      </span>
+      {onCancelExternal && (
+        <Inline justify="flex-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onCancelExternal(event.id)}
+            loading={cancelExternalPending}
+          >
+            {t('partner.calendar.external.cancelAction')}
+          </Button>
+        </Inline>
+      )}
+    </div>
+  );
+}
+
+SourceEventCard.propTypes = {
+  // eslint-disable-next-line react/forbid-prop-types -- normalized event shape varies per sourceType (see calendarSourceIndex.js)
+  event: PropTypes.object.isRequired,
+  t: PropTypes.func.isRequired,
+  locale: PropTypes.string.isRequired,
+  onNavigateToBooking: PropTypes.func.isRequired,
+  onCancelExternal: PropTypes.func,
+  cancelExternalPending: PropTypes.bool,
+  // eslint-disable-next-line react/forbid-prop-types -- keyed by connection id, real GET /inventory-connections row shape
+  connectionsById: PropTypes.object,
+};
+
+function DaySourceEventList({
+  events,
+  t,
+  locale,
+  onNavigateToBooking,
+  onCancelExternal = undefined,
+  cancelExternalPending = false,
+  connectionsById = null,
+}) {
+  if (events.length === 0) {
+    return (
+      <EmptyState
+        title={t('partner.calendar.day.noEvents')}
+        description={t('partner.calendar.day.noEventsDescription')}
+      />
+    );
+  }
+  return (
+    <Stack gap="2">
+      {events.map((event) => (
+        <SourceEventCard
+          key={`${event.sourceType}-${event.id}`}
+          event={event}
+          t={t}
+          locale={locale}
+          onNavigateToBooking={onNavigateToBooking}
+          onCancelExternal={onCancelExternal}
+          cancelExternalPending={cancelExternalPending}
+          connectionsById={connectionsById}
+        />
+      ))}
+    </Stack>
+  );
+}
+
+DaySourceEventList.propTypes = {
+  // eslint-disable-next-line react/forbid-prop-types -- array of normalized events, see SourceEventCard
+  events: PropTypes.arrayOf(PropTypes.object).isRequired,
+  t: PropTypes.func.isRequired,
+  locale: PropTypes.string.isRequired,
+  onNavigateToBooking: PropTypes.func.isRequired,
+  onCancelExternal: PropTypes.func,
+  cancelExternalPending: PropTypes.bool,
+  // eslint-disable-next-line react/forbid-prop-types -- keyed by connection id
+  connectionsById: PropTypes.object,
+};
 
 function DateOnlySummary({ unit, date, isSelected, onSelect }) {
   const { t } = useTranslation();
@@ -82,6 +277,11 @@ export default function PartnerCalendarDayView({
   selection = null,
   onSelectSlot,
   locale,
+  daySourceIndex = null,
+  connectionsById = null,
+  onNavigateToBooking = undefined,
+  onCancelExternal = undefined,
+  cancelExternalPending = false,
 }) {
   const { t } = useTranslation();
   const timeSlicedUnits = useMemo(
@@ -177,12 +377,25 @@ export default function PartnerCalendarDayView({
       )}
 
       {!isTimeSliced && effectiveUnit && (
-        <DateOnlySummary
-          unit={effectiveUnit}
-          date={date}
-          isSelected={selection?.start === date}
-          onSelect={onSelectSlot}
-        />
+        <Stack gap="3">
+          <DateOnlySummary
+            unit={effectiveUnit}
+            date={date}
+            isSelected={selection?.start === date}
+            onSelect={onSelectSlot}
+          />
+          {daySourceIndex && onNavigateToBooking && (
+            <DaySourceEventList
+              events={getDaySources(daySourceIndex, date)}
+              t={t}
+              locale={locale}
+              onNavigateToBooking={onNavigateToBooking}
+              onCancelExternal={onCancelExternal}
+              cancelExternalPending={cancelExternalPending}
+              connectionsById={connectionsById}
+            />
+          )}
+        </Stack>
       )}
     </div>
   );
@@ -202,4 +415,11 @@ PartnerCalendarDayView.propTypes = {
   }),
   onSelectSlot: PropTypes.func.isRequired,
   locale: PropTypes.string.isRequired,
+  // eslint-disable-next-line react/forbid-prop-types -- a Map, not a plain-object shape
+  daySourceIndex: PropTypes.instanceOf(Map),
+  // eslint-disable-next-line react/forbid-prop-types -- keyed by connection id, real GET /inventory-connections row shape
+  connectionsById: PropTypes.object,
+  onNavigateToBooking: PropTypes.func,
+  onCancelExternal: PropTypes.func,
+  cancelExternalPending: PropTypes.bool,
 };

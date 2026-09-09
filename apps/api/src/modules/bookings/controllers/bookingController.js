@@ -71,6 +71,9 @@ export function createBookingController(bookingService) {
           status,
           customerId,
           refundStatus,
+          unitId,
+          from,
+          to,
           cursor,
           limit,
         } = req.validated.query;
@@ -82,6 +85,9 @@ export function createBookingController(bookingService) {
             status,
             customerUserId: customerId,
             refundStatus,
+            unitId,
+            from,
+            to,
           },
           { cursor, limit },
         );

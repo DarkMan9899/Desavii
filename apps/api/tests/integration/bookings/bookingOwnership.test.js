@@ -34,6 +34,9 @@ let languageId;
 let bookingId;
 let listingId;
 let vendorUserId;
+let unitId;
+const BOOKING_DATE_FROM = '2027-07-01';
+const BOOKING_DATE_TO = '2027-07-02';
 
 async function login(email, password) {
   const res = await request(app)
@@ -149,12 +152,12 @@ async function registerUnit(id) {
   return res.body.data.id;
 }
 
-async function setPrice(unitId, dateFrom, dateTo, amount) {
+async function setPrice(targetUnitId, dateFrom, dateTo, amount) {
   await request(app)
     .post('/api/v1/availability')
     .set('Authorization', `Bearer ${vendor.accessToken}`)
     .send({
-      unitId,
+      unitId: targetUnitId,
       dateFrom,
       dateTo,
       status: 'AVAILABLE',
@@ -201,9 +204,9 @@ beforeAll(async () => {
   vendorUserId = vendorRow.id;
 
   listingId = await createListing(`Ownership Test ${Date.now()}`);
-  const unitId = await registerUnit(listingId);
-  const dateFrom = '2027-07-01';
-  const dateTo = '2027-07-02';
+  unitId = await registerUnit(listingId);
+  const dateFrom = BOOKING_DATE_FROM;
+  const dateTo = BOOKING_DATE_TO;
   await setPrice(unitId, dateFrom, dateTo, 6_000);
 
   const holdRes = await request(app)
@@ -383,5 +386,65 @@ describe('GET /bookings — list visibility', () => {
   test('requires authentication', async () => {
     const res = await request(app).get('/api/v1/bookings');
     expect(res.status).toBe(401);
+  });
+});
+
+// Sprint D-2 (Partner Calendar source-aware UX): `?partnerId=&unitId=&from=&to=`
+// is what the Partner Calendar's Week/Day views use to find which bookings
+// touch one bookable unit within a date span — proves the new filter
+// actually narrows via `booking_items`, not just that it's accepted.
+describe('GET /bookings — unitId/from/to narrowing (Sprint D-2)', () => {
+  test('?partnerId=&unitId= (this unit) includes the booking', async () => {
+    const res = await request(app)
+      .get(`/api/v1/bookings?partnerId=${partnerId}&unitId=${unitId}`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.some((b) => b.id === bookingId)).toBe(true);
+  });
+
+  test('?partnerId=&unitId= (a different, unrelated unit) excludes the booking', async () => {
+    const otherListingId = await createListing(
+      `Ownership Test Other ${Date.now()}`,
+    );
+    const otherUnitId = await registerUnit(otherListingId);
+    const res = await request(app)
+      .get(`/api/v1/bookings?partnerId=${partnerId}&unitId=${otherUnitId}`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.some((b) => b.id === bookingId)).toBe(false);
+  });
+
+  test('?partnerId=&unitId=&from=&to= overlapping the stay includes the booking', async () => {
+    const res = await request(app)
+      .get(
+        `/api/v1/bookings?partnerId=${partnerId}&unitId=${unitId}&from=${BOOKING_DATE_FROM}&to=${BOOKING_DATE_TO}`,
+      )
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.some((b) => b.id === bookingId)).toBe(true);
+  });
+
+  test('?partnerId=&unitId=&from=&to= entirely outside the stay excludes the booking', async () => {
+    const res = await request(app)
+      .get(
+        `/api/v1/bookings?partnerId=${partnerId}&unitId=${unitId}&from=2027-08-01&to=2027-08-02`,
+      )
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.some((b) => b.id === bookingId)).toBe(false);
+  });
+
+  test('an unrelated customer cannot use unitId to discover this booking via a partnerId they do not own (403)', async () => {
+    const res = await request(app)
+      .get(`/api/v1/bookings?partnerId=${partnerId}&unitId=${unitId}`)
+      .set('Authorization', `Bearer ${otherCustomer.accessToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  test('a genuinely distinct partner owner never sees this booking via unitId, even guessing the real unit id (403 — ownership gate runs first)', async () => {
+    const res = await request(app)
+      .get(`/api/v1/bookings?partnerId=${partnerId}&unitId=${unitId}`)
+      .set('Authorization', `Bearer ${otherVendor.accessToken}`);
+    expect(res.status).toBe(403);
   });
 });
