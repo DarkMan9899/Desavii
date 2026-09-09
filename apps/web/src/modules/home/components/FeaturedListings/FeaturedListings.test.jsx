@@ -2,14 +2,15 @@ import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import FeaturedListings from './FeaturedListings.jsx';
-import { useSearchListingsQuery } from '../../../search/index.js';
+import { usePublicHomeFeaturedQuery } from '../../../advertising/index.js';
 
 // Only the data-fetching hook is mocked (FRONTEND_ARCHITECTURE.md §14 is a
 // React Query concern) — `SearchResultCard` renders for real, so this also
-// exercises the actual cross-module `search` public-export wiring (§6.3).
-vi.mock('../../../search/index.js', async (importOriginal) => {
+// exercises the actual cross-module `search`/`advertising` public-export
+// wiring (§6.3).
+vi.mock('../../../advertising/index.js', async (importOriginal) => {
   const actual = await importOriginal();
-  return { ...actual, useSearchListingsQuery: vi.fn() };
+  return { ...actual, usePublicHomeFeaturedQuery: vi.fn() };
 });
 vi.mock(
   '../../../favorites/components/FavoriteButton/FavoriteButton.jsx',
@@ -38,9 +39,9 @@ function renderFeaturedListings() {
   );
 }
 
-describe('FeaturedListings (apps/web/src/modules/home)', () => {
+describe('FeaturedListings (apps/web/src/modules/home) — Sprint E Promotion Engine', () => {
   test('renders a skeleton while pending', () => {
-    useSearchListingsQuery.mockReturnValue({
+    usePublicHomeFeaturedQuery.mockReturnValue({
       data: undefined,
       isPending: true,
       isError: false,
@@ -50,7 +51,7 @@ describe('FeaturedListings (apps/web/src/modules/home)', () => {
   });
 
   test('renders an error alert on failure', () => {
-    useSearchListingsQuery.mockReturnValue({
+    usePublicHomeFeaturedQuery.mockReturnValue({
       data: undefined,
       isPending: false,
       isError: true,
@@ -59,9 +60,9 @@ describe('FeaturedListings (apps/web/src/modules/home)', () => {
     expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
-  test('renders an empty state when there are no published listings', () => {
-    useSearchListingsQuery.mockReturnValue({
-      data: { pages: [{ results: [] }] },
+  test('renders an empty state when there is no active Home promotion — never fake TOP content', () => {
+    usePublicHomeFeaturedQuery.mockReturnValue({
+      data: [],
       isPending: false,
       isError: false,
     });
@@ -73,9 +74,9 @@ describe('FeaturedListings (apps/web/src/modules/home)', () => {
     ).toBeInTheDocument();
   });
 
-  test('renders a SearchResultCard per result on success, linked to its detail route', () => {
-    useSearchListingsQuery.mockReturnValue({
-      data: { pages: [{ results: [LISTING] }] },
+  test('renders a SearchResultCard with the TOP badge per promoted listing, linked to its detail route', () => {
+    usePublicHomeFeaturedQuery.mockReturnValue({
+      data: [LISTING],
       isPending: false,
       isError: false,
     });
@@ -89,8 +90,8 @@ describe('FeaturedListings (apps/web/src/modules/home)', () => {
   });
 
   test('renders a "view all" link to the search route regardless of query state', () => {
-    useSearchListingsQuery.mockReturnValue({
-      data: { pages: [{ results: [] }] },
+    usePublicHomeFeaturedQuery.mockReturnValue({
+      data: [],
       isPending: false,
       isError: false,
     });

@@ -57,6 +57,21 @@ describe('Advertisement status transitions (Sprint 5 §11 manual-payment workflo
     ).toBe(true);
   });
 
+  test('Sprint E: admin may cancel an already-paid, approved, scheduled, or active promotion, not only one still awaiting payment', () => {
+    expect(
+      isValidAdvertisementStatusTransition('PAID_MANUAL', 'CANCELLED'),
+    ).toBe(true);
+    expect(isValidAdvertisementStatusTransition('APPROVED', 'CANCELLED')).toBe(
+      true,
+    );
+    expect(isValidAdvertisementStatusTransition('SCHEDULED', 'CANCELLED')).toBe(
+      true,
+    );
+    expect(isValidAdvertisementStatusTransition('ACTIVE', 'CANCELLED')).toBe(
+      true,
+    );
+  });
+
   test('a request cannot skip payment and jump straight to APPROVED', () => {
     expect(
       isValidAdvertisementStatusTransition('REQUEST_SUBMITTED', 'APPROVED'),

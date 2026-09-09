@@ -8,6 +8,7 @@ import {
   useSuggestionsQuery,
   useSearchListingsQuery,
 } from '../modules/search/index.js';
+import { usePublicHomeFeaturedQuery } from '../modules/advertising/index.js';
 
 // Only the data-fetching hooks are mocked, same as
 // FeaturedListings.test.jsx/Categories.test.jsx/FeaturedDestinations.test.jsx
@@ -21,6 +22,17 @@ vi.mock('../modules/search/index.js', async (importOriginal) => {
     useDestinationsQuery: vi.fn(),
     useSuggestionsQuery: vi.fn(),
     useSearchListingsQuery: vi.fn(),
+  };
+});
+
+// Sprint E: FeaturedListings now sources its cards from the Promotion
+// Engine's public Home-featured endpoint rather than a plain listings
+// search, same as every other data-fetching hook above.
+vi.mock('../modules/advertising/index.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    usePublicHomeFeaturedQuery: vi.fn(),
   };
 });
 
@@ -52,6 +64,7 @@ describe('HomePage (apps/web/src/pages)', () => {
       isError: false,
     });
     useSuggestionsQuery.mockReturnValue({ data: [], isPending: false });
+    usePublicHomeFeaturedQuery.mockReturnValue({ data: [], isPending: false });
 
     renderHomePage();
 

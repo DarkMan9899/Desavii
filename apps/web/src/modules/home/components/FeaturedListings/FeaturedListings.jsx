@@ -1,22 +1,18 @@
 /**
- * FeaturedListings — the `home` module's real content (FRONTEND_ARCHITECTURE.md
- * §6): fetches published listings via the `search` module's public export
- * (§6.3's cross-module rule), and renders all three required states
- * (§1.4) — loading, empty, error — before content. Presented as a premium
- * showcase carousel (`Showcase`) rather than a static grid.
+ * FeaturedListings — the `home` module's real Featured/TOP section
+ * (FRONTEND_ARCHITECTURE.md §6). Sprint E (Promotion Engine): now sourced
+ * from `GET /advertising/public/home-featured` — genuinely, currently
+ * ACTIVE Home-placement promotions — never a generic "most recent
+ * listings" query wearing a "Featured" label. Reuses `SearchResultCard`
+ * unmodified (the endpoint returns the exact same card DTO shape
+ * `search` already produces, hydrated via `SearchService#getListingsByIds`
+ * server-side — see `AdvertisementService`'s own header) with its new
+ * `topBadgeLabel` prop, so this section needs no bespoke card component.
  *
- * Uses `useSearchListingsQuery`/`SearchResultCard` (`GET /search`'s flat,
- * already-localized DTO), not `listings`' `useListingsQuery`/`ListingCard`
- * — the same "no per-row follow-up call" reasoning `RelatedListings`
- * already documents. This section used to fetch this same data via
- * `useListingsQuery`, which followed up `GET /listings`' bare summary
- * list with one `GET /listings/:id` call per row: a real N+1 (8 extra
- * requests for 8 featured listings) that could exhaust the public rate
- * limit on its own and render this section with a heading but zero
- * cards. `GET /search` already returns everything a card needs — title,
- * cover image, price, rating — in the one list call, with anonymous
- * callers implicitly scoped to published listings server-side, so no
- * explicit status filter is needed here either.
+ * Renders all three required states (§1.4) — loading, empty (no active
+ * promotion right now — never fake/placeholder cards), error — before
+ * content. Presented as a premium showcase carousel (`Showcase`) rather
+ * than a static grid, same visual treatment this section already had.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -27,10 +23,8 @@ import {
   EmptyState,
   Alert,
 } from '@desavii/ui/components/feedback-overlays';
-import {
-  useSearchListingsQuery,
-  SearchResultCard,
-} from '../../../search/index.js';
+import { SearchResultCard } from '../../../search/index.js';
+import { usePublicHomeFeaturedQuery } from '../../../advertising/index.js';
 import SectionHeader from '../SectionHeader/SectionHeader.jsx';
 import Showcase from '../Showcase/Showcase.jsx';
 import ScrollReveal from '../ScrollReveal/ScrollReveal.jsx';
@@ -41,8 +35,8 @@ const HEADING_ID = 'featured-listings-heading';
 export default function FeaturedListings() {
   const { t } = useTranslation();
   const { locale } = useParams();
-  const { data, isPending, isError } = useSearchListingsQuery({}, { locale });
-  const listings = data?.pages[0]?.results ?? [];
+  const { data, isPending, isError } = usePublicHomeFeaturedQuery({ locale });
+  const listings = data ?? [];
 
   return (
     <Section aria-labelledby={HEADING_ID} className={styles.section}>
@@ -100,7 +94,11 @@ export default function FeaturedListings() {
             slideClassName={styles.slide}
           >
             {listings.map((listing) => (
-              <SearchResultCard key={listing.id} result={listing} />
+              <SearchResultCard
+                key={listing.id}
+                result={listing}
+                topBadgeLabel={t('advertising.topBadge')}
+              />
             ))}
           </Showcase>
         </ScrollReveal>

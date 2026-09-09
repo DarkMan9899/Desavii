@@ -33,7 +33,8 @@
       "errorTitle": "Что-то пошло не так",
       "retry": "Повторить",
       "emptyTitle": "Пока нет объявлений",
-      "emptyDescription": "В этой категории пока нет опубликованных объявлений — загляните позже."
+      "emptyDescription": "В этой категории пока нет опубликованных объявлений — загляните позже.",
+      "topHeading": "Топ: {{category}}"
     },
     "destination": {
       "loading": "Загрузка направления",
@@ -41,6 +42,24 @@
       "retry": "Повторить",
       "emptyTitle": "Пока нет объявлений",
       "emptyDescription": "В этом направлении пока нет опубликованных объявлений — загляните позже."
+    }
+  },
+  "advertising": {
+    "topBadge": "ТОП",
+    "placements": {
+      "HOMEPAGE_SECTION": "Главная",
+      "CATEGORY_TOP": "Категория"
+    },
+    "statuses": {
+      "REQUEST_SUBMITTED": "Запрос отправлен",
+      "AWAITING_OFFLINE_PAYMENT": "Ожидает оплаты",
+      "PAID_MANUAL": "Оплачено",
+      "APPROVED": "Одобрено",
+      "SCHEDULED": "Запланировано",
+      "ACTIVE": "Активно",
+      "EXPIRED": "Истекло",
+      "REJECTED": "Отклонено",
+      "CANCELLED": "Отменено"
     }
   },
   "common": {
@@ -1749,6 +1768,7 @@
       "aiModeration": "ИИ-модерация",
       "aiUsage": "Использование ИИ",
       "inventory": "Инвентарь",
+      "promotions": "Продвижение",
       "groups": {
         "marketplace": "Маркетплейс",
         "users": "Пользователи",
@@ -2036,7 +2056,73 @@
         "empty": "История модерации пока пуста.",
         "notesPrefix": "Примечание:"
       },
-      "viewInventoryAction": "Открыть склад"
+      "viewInventoryAction": "Открыть склад",
+      "managePromotionAction": "Управлять продвижением"
+    },
+    "promotions": {
+      "heading": "Продвижение",
+      "description": "Активируйте, продлевайте или завершайте продвижение объявления на Главной или в Категории.",
+      "errorTitle": "Не удалось загрузить продвижения",
+      "errorRetry": "Повторить",
+      "emptyTitle": "Пока нет продвижений",
+      "emptyDescription": "Создайте продвижение, чтобы показать объявление на Главной странице или в верхней части его категории.",
+      "filters": {
+        "listingIdLabel": "ID объявления",
+        "listingIdPlaceholder": "например, 42",
+        "placementLabel": "Размещение",
+        "allPlacements": "Все размещения",
+        "statusLabel": "Статус",
+        "allStatuses": "Все статусы"
+      },
+      "columns": {
+        "listing": "Объявление",
+        "placement": "Размещение",
+        "status": "Статус",
+        "dates": "Даты",
+        "payment": "Оплата"
+      },
+      "payment": {
+        "confirmed": "Оплата подтверждена",
+        "pending": "Оплата ожидается"
+      },
+      "create": {
+        "openAction": "Продвинуть объявление",
+        "title": "Создать продвижение",
+        "listingIdLabel": "ID объявления",
+        "placementLabel": "Размещение",
+        "categoryLabel": "Категория",
+        "productLabel": "Срок / цена",
+        "productDurationLabel": "{{days}} дн. — {{amount}} {{currency}}",
+        "productCustomLabel": "Произвольный срок — {{amount}} {{currency}} в день",
+        "startDateLabel": "Дата начала",
+        "endDateLabel": "Дата окончания",
+        "markPaidNowLabel": "Оплата уже получена — активировать сразу",
+        "noteLabel": "Примечание (необязательно)",
+        "submitAction": "Создать продвижение",
+        "success": "Продвижение создано.",
+        "error": "Не удалось создать продвижение. Попробуйте ещё раз."
+      },
+      "actions": {
+        "markPaidAction": "Отметить оплаченным",
+        "markPaidSuccess": "Отмечено как оплаченное.",
+        "approveAction": "Одобрить",
+        "approveSuccess": "Продвижение одобрено.",
+        "rejectAction": "Отклонить",
+        "rejectConfirmTitle": "Отклонить этот запрос на продвижение?",
+        "rejectConfirmDescription": "Это действие нельзя отменить.",
+        "rejectSuccess": "Продвижение отклонено.",
+        "cancelAction": "Завершить продвижение",
+        "cancelConfirmTitle": "Завершить продвижение сейчас?",
+        "cancelConfirmDescription": "Оно сразу перестанет отображаться публично. Это действие нельзя отменить.",
+        "cancelSuccess": "Продвижение завершено.",
+        "extendAction": "Продлить",
+        "extendTitle": "Продлить продвижение",
+        "extendCurrentEnd": "Сейчас заканчивается {{date}}.",
+        "extendNewEndDateLabel": "Новая дата окончания",
+        "extendSuccess": "Продвижение продлено.",
+        "extendError": "Не удалось продлить продвижение. Попробуйте ещё раз.",
+        "actionError": "Что-то пошло не так. Попробуйте ещё раз."
+      }
     },
     "reviewModeration": {
       "heading": "Модерация отзывов",
@@ -3532,6 +3618,16 @@
       "partnerStaffAdded": "Вы присоединились к {{partnerName}}",
       "reviewReported": "Отзыв отправлен на модерацию",
       "refundReviewRequired": "Возврат по бронированию {{reference}} требует проверки",
+      "advertisementActivatedHome": "Продвижение вашего объявления на Главной теперь активно — до {{endDate}}.",
+      "advertisementActivatedCategory": "Продвижение вашего объявления в Категории теперь активно — до {{endDate}}.",
+      "advertisementExpiringSoonHome": "Продвижение вашего объявления на Главной заканчивается {{endDate}} (напоминание за {{thresholdDays}} дн.). Свяжитесь с нами, чтобы продлить.",
+      "advertisementExpiringSoonCategory": "Продвижение вашего объявления в Категории заканчивается {{endDate}} (напоминание за {{thresholdDays}} дн.). Свяжитесь с нами, чтобы продлить.",
+      "advertisementExpiredHome": "Продвижение вашего объявления на Главной завершилось.",
+      "advertisementExpiredCategory": "Продвижение вашего объявления в Категории завершилось.",
+      "advertisementCancelledHome": "Продвижение вашего объявления на Главной было завершено.",
+      "advertisementCancelledCategory": "Продвижение вашего объявления в Категории было завершено.",
+      "advertisementRejectedHome": "Запрос на продвижение вашего объявления на Главной не был одобрен.",
+      "advertisementRejectedCategory": "Запрос на продвижение вашего объявления в Категории не был одобрен.",
       "generic": "У вас новое уведомление"
     }
   },

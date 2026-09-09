@@ -235,6 +235,27 @@ export class SearchService {
     });
   }
 
+  /**
+   * Sprint E (Promotion Engine): hydrates an explicit, small set of
+   * listing ids into the exact same card shape `searchListings` already
+   * produces — `AdvertisementService`'s public Home/Category-TOP
+   * endpoints call this rather than duplicating this module's join/
+   * price/rating logic in a second repository (BACKEND_ARCHITECTURE.md
+   * §4's cross-module rule: a Service's public interface, never a second
+   * Repository over `search`'s own tables). Order is the CALLER's to
+   * decide (promotion priority, not this method) — see
+   * `mysqlSearchRepository.js#searchListingsByIds` for why.
+   */
+  async getListingsByIds(listingIds, { locale } = {}) {
+    if (!listingIds || listingIds.length === 0) return [];
+    const { localeId, defaultLocaleId } =
+      await this.#searchRepository.resolveLocaleIds(locale);
+    return this.#searchRepository.searchListingsByIds(listingIds, {
+      localeId,
+      defaultLocaleId,
+    });
+  }
+
   async searchCategories(locale) {
     const { localeId, defaultLocaleId } =
       await this.#searchRepository.resolveLocaleIds(locale);

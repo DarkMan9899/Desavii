@@ -20,6 +20,7 @@ import {
   useSearchListingsQuery,
 } from '../modules/search/index.js';
 import { useSearchFilters } from '../modules/search/hooks/useSearchFilters.js';
+import { usePublicCategoryTopQuery } from '../modules/advertising/index.js';
 import { getSiteOrigin } from './seoConfig.js';
 
 vi.mock('../modules/search/index.js', () => ({
@@ -27,6 +28,13 @@ vi.mock('../modules/search/index.js', () => ({
   useSearchListingsQuery: vi.fn(),
   // eslint-disable-next-line react/prop-types -- trivial test double
   SearchResultCard: ({ result }) => <div>{result.title}</div>,
+}));
+
+// Sprint E: CategoryPageContent now also queries the Promotion Engine's
+// public Category-TOP endpoint alongside the normal search-results query
+// mocked above.
+vi.mock('../modules/advertising/index.js', () => ({
+  usePublicCategoryTopQuery: vi.fn(),
 }));
 
 vi.mock('../modules/search/hooks/useSearchFilters.js', () => ({
@@ -75,6 +83,8 @@ describe('Real page-level canonical output stays clean under dirty query strings
     useCategoriesQuery.mockReset();
     useSearchListingsQuery.mockReset();
     useSearchFilters.mockReset();
+    usePublicCategoryTopQuery.mockReset();
+    usePublicCategoryTopQuery.mockReturnValue({ data: [], isPending: false });
   });
 
   test('Category page: canonical ignores sort/utm/tracking noise on the visited URL', () => {

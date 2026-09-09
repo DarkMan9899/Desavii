@@ -6,18 +6,24 @@ import {
   useCategoriesQuery,
   useSearchListingsQuery,
 } from '../../../search/index.js';
+import { usePublicCategoryTopQuery } from '../../../advertising/index.js';
 
 vi.mock('../../../search/index.js', () => ({
   useCategoriesQuery: vi.fn(),
   useSearchListingsQuery: vi.fn(),
   // eslint-disable-next-line react/prop-types -- trivial test double
-  SearchResultCard: ({ result, hideTypeBadge }) => (
+  SearchResultCard: ({ result, hideTypeBadge, topBadgeLabel }) => (
     <div>
       {/* eslint-disable-next-line react/prop-types -- trivial test double */}
       {result.title}
       {hideTypeBadge ? ' (badge hidden)' : ''}
+      {topBadgeLabel ? ` (${topBadgeLabel})` : ''}
     </div>
   ),
+}));
+
+vi.mock('../../../advertising/index.js', () => ({
+  usePublicCategoryTopQuery: vi.fn(),
 }));
 
 vi.mock('../../../../seo/useSeo.js', () => ({ default: vi.fn() }));
@@ -46,6 +52,12 @@ describe('CategoryPageContent (apps/web/src/modules/discovery)', () => {
   beforeEach(() => {
     useCategoriesQuery.mockReset();
     useSearchListingsQuery.mockReset();
+    usePublicCategoryTopQuery.mockReset();
+    // Sprint E: every existing test in this file predates the Category
+    // TOP section — default it to "no active promotion" so those tests'
+    // assertions (which never mention the TOP section) stay valid
+    // without each one re-stating this mock.
+    usePublicCategoryTopQuery.mockReturnValue({ data: [], isPending: false });
   });
 
   test('shows a not-found state when no category matches the slug', () => {
@@ -157,6 +169,51 @@ describe('CategoryPageContent (apps/web/src/modules/discovery)', () => {
     expect(
       screen.getByText('Առայժմ հայտարարություններ չկան'),
     ).toBeInTheDocument();
+  });
+
+  test('Sprint E: renders the Category TOP section, badged, ABOVE the normal grid when an active promotion exists', () => {
+    useCategoriesQuery.mockReturnValue({
+      data: [CATEGORY],
+      isPending: false,
+      isError: false,
+    });
+    useSearchListingsQuery.mockReturnValue({
+      data: { pages: [{ results: [{ id: 2, title: 'Regular Listing' }] }] },
+      isPending: false,
+    });
+    usePublicCategoryTopQuery.mockReturnValue({
+      data: [{ id: 1, title: 'Promoted Fleet' }],
+      isPending: false,
+    });
+    renderPage();
+
+    expect(
+      screen.getByText('Promoted Fleet (badge hidden) (ԹՈՓ)'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Regular Listing (badge hidden)'),
+    ).toBeInTheDocument();
+
+    const heading = screen.getByRole('heading', {
+      name: /Car Rentals/,
+      level: 2,
+    });
+    expect(heading).toBeInTheDocument();
+  });
+
+  test('Sprint E: renders no TOP section at all when there is no active Category promotion', () => {
+    useCategoriesQuery.mockReturnValue({
+      data: [CATEGORY],
+      isPending: false,
+      isError: false,
+    });
+    useSearchListingsQuery.mockReturnValue({
+      data: { pages: [{ results: [] }] },
+      isPending: false,
+    });
+    renderPage();
+
+    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
   });
 
   test('shows a retryable error state when the categories query fails', () => {

@@ -46,6 +46,7 @@ import {
   useSearchListingsQuery,
   SearchResultCard,
 } from '../../../search/index.js';
+import { usePublicCategoryTopQuery } from '../../../advertising/index.js';
 import styles from './CategoryPageContent.module.scss';
 
 export default function CategoryPageContent() {
@@ -80,6 +81,16 @@ export default function CategoryPageContent() {
       { locale, enabled: Boolean(category?.id) },
     );
   const listings = listingsData?.pages[0]?.results ?? [];
+  // Sprint E (Promotion Engine, spec §19): active CATEGORY_TOP listings
+  // for this category, shown in their own section before the normal
+  // grid above. The backend already excludes any listing shown here from
+  // `listings` (see `mysqlSearchRepository.js`'s CATEGORY_TOP exclusion)
+  // — never duplicated between the two sections.
+  const { data: topListings, isPending: isTopPending } =
+    usePublicCategoryTopQuery(category?.id, {
+      locale,
+      enabled: Boolean(category?.id),
+    });
 
   const canonicalPath = `categories/${categorySlug}`;
   const breadcrumbItems = category
@@ -173,6 +184,27 @@ export default function CategoryPageContent() {
           )}
         </div>
       </section>
+
+      {!isTopPending && topListings?.length > 0 && (
+        <section
+          className={styles.topSection}
+          aria-labelledby="category-top-heading"
+        >
+          <h2 id="category-top-heading" className={styles.topSectionHeading}>
+            {t('discovery.category.topHeading', { category: category.name })}
+          </h2>
+          <ListingGrid>
+            {topListings.map((listing) => (
+              <SearchResultCard
+                key={listing.id}
+                result={listing}
+                hideTypeBadge
+                topBadgeLabel={t('advertising.topBadge')}
+              />
+            ))}
+          </ListingGrid>
+        </section>
+      )}
 
       {isListingsPending && (
         <ListingGrid>

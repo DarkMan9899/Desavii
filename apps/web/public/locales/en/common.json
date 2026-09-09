@@ -43,7 +43,8 @@
       "errorTitle": "Something went wrong",
       "retry": "Try again",
       "emptyTitle": "No listings yet",
-      "emptyDescription": "There are no published listings in this category yet — check back soon."
+      "emptyDescription": "There are no published listings in this category yet — check back soon.",
+      "topHeading": "Top {{category}}"
     },
     "destination": {
       "loading": "Loading destination",
@@ -51,6 +52,24 @@
       "retry": "Try again",
       "emptyTitle": "No listings yet",
       "emptyDescription": "There are no published listings in this destination yet — check back soon."
+    }
+  },
+  "advertising": {
+    "topBadge": "TOP",
+    "placements": {
+      "HOMEPAGE_SECTION": "Home",
+      "CATEGORY_TOP": "Category"
+    },
+    "statuses": {
+      "REQUEST_SUBMITTED": "Requested",
+      "AWAITING_OFFLINE_PAYMENT": "Awaiting payment",
+      "PAID_MANUAL": "Paid",
+      "APPROVED": "Approved",
+      "SCHEDULED": "Scheduled",
+      "ACTIVE": "Active",
+      "EXPIRED": "Expired",
+      "REJECTED": "Rejected",
+      "CANCELLED": "Cancelled"
     }
   },
   "nav": {
@@ -1729,6 +1748,7 @@
       "aiModeration": "AI Moderation",
       "aiUsage": "AI Usage",
       "inventory": "Inventory",
+      "promotions": "Promotions",
       "groups": {
         "marketplace": "Marketplace",
         "users": "Users",
@@ -2016,7 +2036,73 @@
         "empty": "No moderation history yet.",
         "notesPrefix": "Note:"
       },
-      "viewInventoryAction": "View inventory"
+      "viewInventoryAction": "View inventory",
+      "managePromotionAction": "Manage Promotion"
+    },
+    "promotions": {
+      "heading": "Promotions",
+      "description": "Activate, extend, or end a listing's Home or Category promotion.",
+      "errorTitle": "Could not load promotions",
+      "errorRetry": "Retry",
+      "emptyTitle": "No promotions yet",
+      "emptyDescription": "Create one to feature a listing on the Home page or at the top of its category.",
+      "filters": {
+        "listingIdLabel": "Listing ID",
+        "listingIdPlaceholder": "e.g. 42",
+        "placementLabel": "Placement",
+        "allPlacements": "All placements",
+        "statusLabel": "Status",
+        "allStatuses": "All statuses"
+      },
+      "columns": {
+        "listing": "Listing",
+        "placement": "Placement",
+        "status": "Status",
+        "dates": "Dates",
+        "payment": "Payment"
+      },
+      "payment": {
+        "confirmed": "Payment confirmed",
+        "pending": "Payment pending"
+      },
+      "create": {
+        "openAction": "Promote a listing",
+        "title": "Create promotion",
+        "listingIdLabel": "Listing ID",
+        "placementLabel": "Placement",
+        "categoryLabel": "Category",
+        "productLabel": "Duration / price",
+        "productDurationLabel": "{{days}} days — {{amount}} {{currency}}",
+        "productCustomLabel": "Custom period — {{amount}} {{currency}} per day",
+        "startDateLabel": "Start date",
+        "endDateLabel": "End date",
+        "markPaidNowLabel": "Payment already received — activate immediately",
+        "noteLabel": "Note (optional)",
+        "submitAction": "Create promotion",
+        "success": "Promotion created.",
+        "error": "Could not create this promotion. Please try again."
+      },
+      "actions": {
+        "markPaidAction": "Mark paid",
+        "markPaidSuccess": "Marked as paid.",
+        "approveAction": "Approve",
+        "approveSuccess": "Promotion approved.",
+        "rejectAction": "Reject",
+        "rejectConfirmTitle": "Reject this promotion request?",
+        "rejectConfirmDescription": "This cannot be undone.",
+        "rejectSuccess": "Promotion rejected.",
+        "cancelAction": "End promotion",
+        "cancelConfirmTitle": "End this promotion now?",
+        "cancelConfirmDescription": "It stops appearing publicly immediately. This cannot be undone.",
+        "cancelSuccess": "Promotion ended.",
+        "extendAction": "Extend",
+        "extendTitle": "Extend promotion",
+        "extendCurrentEnd": "Currently ends {{date}}.",
+        "extendNewEndDateLabel": "New end date",
+        "extendSuccess": "Promotion extended.",
+        "extendError": "Could not extend this promotion. Please try again.",
+        "actionError": "Something went wrong. Please try again."
+      }
     },
     "reviewModeration": {
       "heading": "Review Moderation",
@@ -3502,6 +3588,16 @@
       "partnerStaffAdded": "You joined {{partnerName}}",
       "reviewReported": "A review was reported for moderation",
       "refundReviewRequired": "Refund for booking {{reference}} needs review",
+      "advertisementActivatedHome": "Your listing's Home promotion is now live, through {{endDate}}.",
+      "advertisementActivatedCategory": "Your listing's Category Top promotion is now live, through {{endDate}}.",
+      "advertisementExpiringSoonHome": "Your listing's Home promotion expires on {{endDate}} ({{thresholdDays}}-day reminder). Contact us to extend it.",
+      "advertisementExpiringSoonCategory": "Your listing's Category Top promotion expires on {{endDate}} ({{thresholdDays}}-day reminder). Contact us to extend it.",
+      "advertisementExpiredHome": "Your listing's Home promotion has expired.",
+      "advertisementExpiredCategory": "Your listing's Category Top promotion has expired.",
+      "advertisementCancelledHome": "Your listing's Home promotion was ended.",
+      "advertisementCancelledCategory": "Your listing's Category Top promotion was ended.",
+      "advertisementRejectedHome": "Your listing's Home promotion request was not approved.",
+      "advertisementRejectedCategory": "Your listing's Category Top promotion request was not approved.",
       "generic": "You have a new notification"
     }
   },

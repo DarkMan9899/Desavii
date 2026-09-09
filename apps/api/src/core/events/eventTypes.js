@@ -87,6 +87,17 @@ export const EVENT_TYPES = Object.freeze({
   // Notifies moderators/admins, not the review's author — see
   // `notificationListener.js`'s own subscription.
   REVIEW_REPORTED: 'review.reported',
+  // Sprint E (TOP/Featured Listings + Promotion Engine) — the partner
+  // owner is notified on the outcomes that change what they can see
+  // publicly: their promotion going live, an upcoming expiry (payload
+  // carries `thresholdDays: 7 | 2` — one event type, not two, since the
+  // recipient/copy/dedup logic is identical, only the threshold differs),
+  // and the terminal states (expired/cancelled/rejected).
+  ADVERTISEMENT_ACTIVATED: 'advertisement.activated',
+  ADVERTISEMENT_EXPIRING_SOON: 'advertisement.expiring_soon',
+  ADVERTISEMENT_EXPIRED: 'advertisement.expired',
+  ADVERTISEMENT_CANCELLED: 'advertisement.cancelled',
+  ADVERTISEMENT_REJECTED: 'advertisement.rejected',
 });
 
 export default EVENT_TYPES;

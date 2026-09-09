@@ -60,6 +60,12 @@ export default function ListingCardBase({
   locale = undefined,
   artSeed = undefined,
   priorityImage = false,
+  // Sprint E (Promotion Engine): an active Home/Category promotion's
+  // card gets this label — bottom-left, the one media-block corner
+  // `typeBadge`/`favoriteButton`/`galleryBadge` don't already use. Text-
+  // labeled (never a bare color swatch), so it reads correctly without
+  // relying on color alone.
+  topBadgeLabel = undefined,
 }) {
   const [imageFailed, setImageFailed] = useState(false);
 
@@ -112,6 +118,11 @@ export default function ListingCardBase({
             {galleryCount}
           </span>
         )}
+        {topBadgeLabel && (
+          <span className={styles.topBadge}>
+            <Badge variant="warning" label={topBadgeLabel} size="sm" />
+          </span>
+        )}
       </div>
       <div className={styles.body}>
         <h3 className={styles.title}>{title}</h3>
@@ -162,4 +173,5 @@ ListingCardBase.propTypes = {
   locale: PropTypes.string,
   artSeed: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   priorityImage: PropTypes.bool,
+  topBadgeLabel: PropTypes.string,
 };

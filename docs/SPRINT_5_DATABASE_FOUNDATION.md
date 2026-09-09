@@ -227,14 +227,26 @@ stateDiagram-v2
   AWAITING_OFFLINE_PAYMENT --> PAID_MANUAL: admin marks paid
   AWAITING_OFFLINE_PAYMENT --> CANCELLED: vendor/admin cancels
   PAID_MANUAL --> APPROVED: admin approves
+  PAID_MANUAL --> CANCELLED: admin cancels
   APPROVED --> SCHEDULED: start_date is in the future
   APPROVED --> ACTIVE: start_date has arrived
+  APPROVED --> CANCELLED: admin cancels
   SCHEDULED --> ACTIVE: start_date arrives
+  SCHEDULED --> CANCELLED: admin cancels
   ACTIVE --> EXPIRED: end_date passes
+  ACTIVE --> CANCELLED: admin ends it early
   REJECTED --> [*]
   CANCELLED --> [*]
   EXPIRED --> [*]
 ```
+
+Sprint E (TOP/Featured Listings + Promotion Engine) added the four
+`-> CANCELLED` edges from PAID_MANUAL/APPROVED/SCHEDULED/ACTIVE — the
+original diagram only reached CANCELLED from AWAITING_OFFLINE_PAYMENT,
+since no feature had yet needed to stop an already-paid or already-live
+promotion early. `AdvertisementService` (`apps/api/src/modules/
+advertising/`) is the module that activates this whole state machine —
+scaffold-only until this sprint, per §11 below.
 
 ## 6. Migration Workflow
 

@@ -19,6 +19,7 @@ import { registerInventoryReconciliationSweepJob } from './modules/availability/
 import { registerPendingVendorSlaSweepJob } from './modules/bookings/jobs/pendingVendorSlaSweep.js';
 import { registerNotificationDeliveryWorker } from './modules/notifications/jobs/notificationDeliveryQueue.js';
 import { registerLocalProviderSettlementWorker } from './modules/payments/jobs/localProviderSettlementQueue.js';
+import { registerAdvertisementLifecycleSweepJob } from './modules/advertising/jobs/advertisementLifecycleSweep.js';
 
 const server = app.listen(config.port, () => {
   logger.info({ port: config.port, env: config.env }, 'desavii-api started');
@@ -86,6 +87,12 @@ const notificationDelivery = registerNotificationDeliveryWorker({
 const localProviderSettlement = registerLocalProviderSettlementWorker({
   paymentService: services.paymentService,
 });
+// Sprint E: hourly convenience status sync + 7-day/2-day expiry
+// reminders (spec §14/§15) — never the sole authority on public
+// visibility, see advertisementService.js's own header.
+const advertisementLifecycleSweep = registerAdvertisementLifecycleSweepJob({
+  advertisementService: services.advertisementService,
+});
 
 async function shutdown(signal) {
   logger.info({ signal }, 'Shutting down gracefully');
@@ -101,6 +108,8 @@ async function shutdown(signal) {
       notificationDelivery.queue.close(),
       localProviderSettlement.worker.close(),
       localProviderSettlement.queue.close(),
+      advertisementLifecycleSweep.worker.close(),
+      advertisementLifecycleSweep.queue.close(),
     ]);
     await closeMysqlPool();
     await closeRedisConnection();

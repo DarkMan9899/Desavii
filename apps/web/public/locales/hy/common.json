@@ -33,7 +33,8 @@
       "errorTitle": "Ինչ-որ բան սխալ գնաց",
       "retry": "Կրկին փորձել",
       "emptyTitle": "Առայժմ հայտարարություններ չկան",
-      "emptyDescription": "Այս կատեգորիայում դեռ հրապարակված հայտարարություններ չկան․ ստուգեք ավելի ուշ։"
+      "emptyDescription": "Այս կատեգորիայում դեռ հրապարակված հայտարարություններ չկան․ ստուգեք ավելի ուշ։",
+      "topHeading": "Առաջատար {{category}}"
     },
     "destination": {
       "loading": "Ուղղությունը բեռնվում է",
@@ -41,6 +42,24 @@
       "retry": "Կրկին փորձել",
       "emptyTitle": "Առայժմ հայտարարություններ չկան",
       "emptyDescription": "Այս ուղղությունում դեռ հրապարակված հայտարարություններ չկան․ ստուգեք ավելի ուշ։"
+    }
+  },
+  "advertising": {
+    "topBadge": "ԹՈՓ",
+    "placements": {
+      "HOMEPAGE_SECTION": "Գլխավոր էջ",
+      "CATEGORY_TOP": "Կատեգորիա"
+    },
+    "statuses": {
+      "REQUEST_SUBMITTED": "Հայտ ուղարկված",
+      "AWAITING_OFFLINE_PAYMENT": "Սպասվում է վճարում",
+      "PAID_MANUAL": "Վճարված",
+      "APPROVED": "Հաստատված",
+      "SCHEDULED": "Պլանավորված",
+      "ACTIVE": "Ակտիվ",
+      "EXPIRED": "Ժամկետանց",
+      "REJECTED": "Մերժված",
+      "CANCELLED": "Չեղարկված"
     }
   },
   "common": {
@@ -1729,6 +1748,7 @@
       "aiModeration": "AI մոդերացիա",
       "aiUsage": "AI օգտագործում",
       "inventory": "Գույքագրում",
+      "promotions": "Առաջխաղացումներ",
       "groups": {
         "marketplace": "Շուկա",
         "users": "Օգտատերեր",
@@ -2016,7 +2036,73 @@
         "empty": "Մոդերացիայի պատմություն դեռ չկա։",
         "notesPrefix": "Նշում՝"
       },
-      "viewInventoryAction": "Դիտել գույքագրումը"
+      "viewInventoryAction": "Դիտել գույքագրումը",
+      "managePromotionAction": "Կառավարել առաջխաղացումը"
+    },
+    "promotions": {
+      "heading": "Առաջխաղացումներ",
+      "description": "Ակտիվացրեք, երկարացրեք կամ դադարեցրեք հայտարարության Գլխավոր էջի կամ Կատեգորիայի առաջխաղացումը։",
+      "errorTitle": "Չհաջողվեց բեռնել առաջխաղացումները",
+      "errorRetry": "Կրկին փորձել",
+      "emptyTitle": "Առաջխաղացումներ դեռ չկան",
+      "emptyDescription": "Ստեղծեք մեկը՝ հայտարարությունը Գլխավոր էջում կամ իր կատեգորիայի սկզբում ցուցադրելու համար։",
+      "filters": {
+        "listingIdLabel": "Հայտարարության ID",
+        "listingIdPlaceholder": "օր.՝ 42",
+        "placementLabel": "Տեղաբաշխում",
+        "allPlacements": "Բոլոր տեղաբաշխումները",
+        "statusLabel": "Կարգավիճակ",
+        "allStatuses": "Բոլոր կարգավիճակները"
+      },
+      "columns": {
+        "listing": "Հայտարարություն",
+        "placement": "Տեղաբաշխում",
+        "status": "Կարգավիճակ",
+        "dates": "Ամսաթվեր",
+        "payment": "Վճարում"
+      },
+      "payment": {
+        "confirmed": "Վճարումը հաստատված է",
+        "pending": "Վճարումը սպասման մեջ է"
+      },
+      "create": {
+        "openAction": "Առաջխաղացնել հայտարարություն",
+        "title": "Ստեղծել առաջխաղացում",
+        "listingIdLabel": "Հայտարարության ID",
+        "placementLabel": "Տեղաբաշխում",
+        "categoryLabel": "Կատեգորիա",
+        "productLabel": "Տևողություն / գին",
+        "productDurationLabel": "{{days}} օր — {{amount}} {{currency}}",
+        "productCustomLabel": "Հատուկ ժամկետ — {{amount}} {{currency}} / օր",
+        "startDateLabel": "Սկզբի ամսաթիվ",
+        "endDateLabel": "Ավարտի ամսաթիվ",
+        "markPaidNowLabel": "Վճարումն արդեն ստացվել է — ակտիվացնել անմիջապես",
+        "noteLabel": "Նշում (ընտրովի)",
+        "submitAction": "Ստեղծել առաջխաղացում",
+        "success": "Առաջխաղացումը ստեղծվեց։",
+        "error": "Չհաջողվեց ստեղծել այս առաջխաղացումը։ Խնդրում ենք կրկին փորձել։"
+      },
+      "actions": {
+        "markPaidAction": "Նշել որպես վճարված",
+        "markPaidSuccess": "Նշվեց որպես վճարված։",
+        "approveAction": "Հաստատել",
+        "approveSuccess": "Առաջխաղացումը հաստատվեց։",
+        "rejectAction": "Մերժել",
+        "rejectConfirmTitle": "Մերժե՞լ այս առաջխաղացման հայտը",
+        "rejectConfirmDescription": "Այս գործողությունը հնարավոր չէ հետարկել։",
+        "rejectSuccess": "Առաջխաղացումը մերժվեց։",
+        "cancelAction": "Դադարեցնել առաջխաղացումը",
+        "cancelConfirmTitle": "Դադարեցնե՞լ այս առաջխաղացումն այժմ",
+        "cancelConfirmDescription": "Այն անմիջապես կդադարի հրապարակայնորեն երևալուց։ Այս գործողությունը հնարավոր չէ հետարկել։",
+        "cancelSuccess": "Առաջխաղացումը դադարեցվեց։",
+        "extendAction": "Երկարացնել",
+        "extendTitle": "Երկարացնել առաջխաղացումը",
+        "extendCurrentEnd": "Ներկայումս ավարտվում է {{date}}։",
+        "extendNewEndDateLabel": "Նոր ավարտի ամսաթիվ",
+        "extendSuccess": "Առաջխաղացումը երկարացվեց։",
+        "extendError": "Չհաջողվեց երկարացնել այս առաջխաղացումը։ Խնդրում ենք կրկին փորձել։",
+        "actionError": "Ինչ-որ բան սխալ գնաց։ Խնդրում ենք կրկին փորձել։"
+      }
     },
     "reviewModeration": {
       "heading": "Կարծիքների մոդերացիա",
@@ -3502,6 +3588,16 @@
       "partnerStaffAdded": "Դուք միացել եք {{partnerName}}-ին",
       "reviewReported": "Կարծիք է հայտնվել մոդերացիայի համար",
       "refundReviewRequired": "{{reference}} ամրագրման վերադարձը վերանայում է պահանջում",
+      "advertisementActivatedHome": "Ձեր հայտարարության Գլխավոր էջի առաջխաղացումն այժմ ակտիվ է՝ մինչև {{endDate}}։",
+      "advertisementActivatedCategory": "Ձեր հայտարարության Կատեգորիայի առաջխաղացումն այժմ ակտիվ է՝ մինչև {{endDate}}։",
+      "advertisementExpiringSoonHome": "Ձեր հայտարարության Գլխավոր էջի առաջխաղացումն ավարտվում է {{endDate}}-ին ({{thresholdDays}}-օրյա հիշեցում)։ Երկարացնելու համար կապվեք մեզ հետ։",
+      "advertisementExpiringSoonCategory": "Ձեր հայտարարության Կատեգորիայի առաջխաղացումն ավարտվում է {{endDate}}-ին ({{thresholdDays}}-օրյա հիշեցում)։ Երկարացնելու համար կապվեք մեզ հետ։",
+      "advertisementExpiredHome": "Ձեր հայտարարության Գլխավոր էջի առաջխաղացումն ավարտվել է։",
+      "advertisementExpiredCategory": "Ձեր հայտարարության Կատեգորիայի առաջխաղացումն ավարտվել է։",
+      "advertisementCancelledHome": "Ձեր հայտարարության Գլխավոր էջի առաջխաղացումը դադարեցվել է։",
+      "advertisementCancelledCategory": "Ձեր հայտարարության Կատեգորիայի առաջխաղացումը դադարեցվել է։",
+      "advertisementRejectedHome": "Ձեր հայտարարության Գլխավոր էջի առաջխաղացման հայտը չի հաստատվել։",
+      "advertisementRejectedCategory": "Ձեր հայտարարության Կատեգորիայի առաջխաղացման հայտը չի հաստատվել։",
       "generic": "Դուք ունեք նոր ծանուցում"
     }
   },

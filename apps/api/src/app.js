@@ -215,6 +215,8 @@ export const services = {
   notificationDeliveryQueue: v1.notificationDeliveryQueue,
   // Phase 16: registers the local-provider settlement worker.
   paymentService: v1.paymentService,
+  // Sprint E: registers the advertisement lifecycle sweep.
+  advertisementService: v1.advertisementService,
 };
 
 // 7. 404 — no matching route

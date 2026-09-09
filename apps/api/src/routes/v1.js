@@ -48,6 +48,8 @@ import createAiRoutes from '../modules/ai/module.routes.js';
 import { registerAiListeners } from '../modules/ai/events/aiListener.js';
 import createPaymentsContainer from '../modules/payments/module.container.js';
 import createPaymentRoutes from '../modules/payments/module.routes.js';
+import createAdvertisingContainer from '../modules/advertising/module.container.js';
+import createAdvertisingRoutes from '../modules/advertising/module.routes.js';
 
 export default function createV1Router({
   guards,
@@ -74,6 +76,17 @@ export default function createV1Router({
     eventBus,
   });
   const searchContainer = createSearchContainer({ permissionResolver });
+  // Sprint E (Promotion Engine): depends on Listings' (`getListingAdminDetail`,
+  // listing existence + category membership) and Search's
+  // (`getListingsByIds`, public card hydration) public Service
+  // interfaces only — never a second Repository over either module's own
+  // tables (BACKEND_ARCHITECTURE.md §4).
+  const advertisingContainer = createAdvertisingContainer({
+    listingService: listingsContainer.listingService,
+    searchService: searchContainer.searchService,
+    auditLogger,
+    eventBus,
+  });
   // Availability depends on Listings' public Service interface, never its
   // Repository directly (BACKEND_ARCHITECTURE.md §4's cross-module rule).
   const availabilityContainer = createAvailabilityContainer({
@@ -314,6 +327,13 @@ export default function createV1Router({
     }),
   );
   router.use(
+    '/advertising',
+    createAdvertisingRoutes({
+      advertisementController: advertisingContainer.advertisementController,
+      guards,
+    }),
+  );
+  router.use(
     '/ai',
     createAiRoutes({
       aiMemoryController: aiContainer.aiMemoryController,
@@ -350,5 +370,8 @@ export default function createV1Router({
     // settlement worker (and close its Queue/Worker on shutdown) — same
     // "app.js/tests never read this" rule as the others above.
     paymentService: paymentsContainer.paymentService,
+    // Sprint E: server.js needs this to register the advertisement
+    // lifecycle sweep — same "app.js/tests never read this" rule.
+    advertisementService: advertisingContainer.advertisementService,
   };
 }

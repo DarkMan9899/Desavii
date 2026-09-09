@@ -126,6 +126,52 @@ const REGISTRY = {
     key: 'notifications.copy.refundReviewRequired',
     params: { reference: payload.bookingReference },
   }),
+  // Sprint E (TOP/Featured Listings + Promotion Engine) — always sent to
+  // the listing's partner owner (notificationListener.js's
+  // `notifyPartnerOwner`). The placement (Home vs. Category) picks a
+  // DIFFERENT i18n key per event rather than interpolating a translated
+  // placement name into one shared string — simpler and more naturally
+  // localizable than nesting a second translation lookup inside the
+  // first (HY/RU grammar can differ per placement with no interpolation
+  // gymnastics needed).
+  'advertisement.activated': (payload) => ({
+    key:
+      payload.placementCode === 'HOMEPAGE_SECTION'
+        ? 'notifications.copy.advertisementActivatedHome'
+        : 'notifications.copy.advertisementActivatedCategory',
+    params: { endDate: payload.endDate },
+  }),
+  // Covers BOTH the 7-day and 2-day reminder — `payload.thresholdDays`
+  // picks the exact wording (spec §15/§16: wording must never claim
+  // online renewal/payment is available, since payments stay manual).
+  'advertisement.expiring_soon': (payload) => ({
+    key:
+      payload.placementCode === 'HOMEPAGE_SECTION'
+        ? 'notifications.copy.advertisementExpiringSoonHome'
+        : 'notifications.copy.advertisementExpiringSoonCategory',
+    params: { endDate: payload.endDate, thresholdDays: payload.thresholdDays },
+  }),
+  'advertisement.expired': (payload) => ({
+    key:
+      payload.placementCode === 'HOMEPAGE_SECTION'
+        ? 'notifications.copy.advertisementExpiredHome'
+        : 'notifications.copy.advertisementExpiredCategory',
+    params: {},
+  }),
+  'advertisement.cancelled': (payload) => ({
+    key:
+      payload.placementCode === 'HOMEPAGE_SECTION'
+        ? 'notifications.copy.advertisementCancelledHome'
+        : 'notifications.copy.advertisementCancelledCategory',
+    params: {},
+  }),
+  'advertisement.rejected': (payload) => ({
+    key:
+      payload.placementCode === 'HOMEPAGE_SECTION'
+        ? 'notifications.copy.advertisementRejectedHome'
+        : 'notifications.copy.advertisementRejectedCategory',
+    params: {},
+  }),
 };
 
 /** @returns {{ isAnnouncement: true, title: string, body: string } | { isAnnouncement: false, key: string, params: object }} */

@@ -274,6 +274,34 @@ export function buildSearchListingsQuery(
   if (categoryId !== undefined) {
     innerConditions.push('lcl.category_id = ?');
     innerParams.push(categoryId);
+    // Sprint E (Promotion Engine, spec §19): a listing with an active
+    // CATEGORY_TOP promotion is shown in the category page's dedicated
+    // TOP section (`AdvertisementService#getPublicCategoryTop`) — it
+    // must never ALSO appear in this normal grid, or it would be
+    // duplicated on the page. Deliberately gated on `categoryId` alone
+    // (present whenever a category page is being browsed, keyword or
+    // not) rather than threading a new filter flag through `SearchService`
+    // — general keyword Search with no category filter is completely
+    // unaffected, matching spec §21's "do not broaden into sponsored
+    // search ranking." A direct read of `advertisements`/
+    // `ad_placement_types`/`advertisement_statuses` here, not a second
+    // Repository call — the same "Search reads other modules' tables
+    // directly for read-only query composition" precedent this file's
+    // `rating_average`/`review_count` subqueries over `reviews` already
+    // establish (BACKEND_ARCHITECTURE.md §4 governs Service-layer
+    // business-logic reuse, not a read-only SQL join like this one).
+    innerConditions.push(`
+      NOT EXISTS (
+        SELECT 1 FROM advertisements ad
+        JOIN ad_placement_types apt ON apt.id = ad.ad_placement_type_id
+        JOIN advertisement_statuses ads ON ads.id = ad.status_id
+        WHERE ad.listing_id = l.id
+          AND apt.code = 'CATEGORY_TOP'
+          AND ads.code IN ('APPROVED', 'SCHEDULED', 'ACTIVE')
+          AND ad.start_date <= CURDATE() AND ad.end_date >= CURDATE()
+          AND ad.deleted_at IS NULL
+      )
+    `);
   }
   if (amenityIds && amenityIds.length > 0) {
     // One EXISTS per id (not a single IN), so multiple ids require the
@@ -647,6 +675,94 @@ export class MySqlSearchRepository {
       id: row.id,
     }));
     return { rows: pageRows.map(toSearchResultDomain), meta };
+  }
+
+  /**
+   * Sprint E (Promotion Engine): the same card shape `searchListings`
+   * already produces (title/cover/price/rating/review_count), for an
+   * explicit small set of ids — `SearchService#getListingsByIds`'s only
+   * caller is `AdvertisementService`'s public Home/Category-TOP
+   * endpoints. Deliberately NOT a slice of `buildSearchListingsQuery`
+   * (no keyword/attribute/availability filtering, no cursor pagination
+   * needed for a handful of promoted listings) — a smaller, standalone
+   * query reusing the identical join/column shape instead. Always scoped
+   * to published + not-soft-deleted, matching `onlyPublished`'s existing
+   * anonymous-visibility rule elsewhere in this repository. Returns rows
+   * in NO particular order — the caller re-sorts to its own priority
+   * order (an `IN (...)` list guarantees nothing about row order).
+   */
+  async searchListingsByIds(listingIds, { localeId, defaultLocaleId }) {
+    if (listingIds.length === 0) return [];
+    const placeholders = listingIds.map(() => '?').join(', ');
+    const [rows] = await this.#pool.query(
+      `
+      SELECT
+        l.id, l.partner_id, l.created_at,
+        ltype.code AS listing_type_code,
+        ls.code AS status_code,
+        l.slug,
+        COALESCE(lt.title, lt2.title, '') AS title,
+        COALESCE(lt.summary, lt2.summary) AS summary,
+        loc.city_id, c.name AS city_name, r.country_id,
+        m.url AS cover_image_url,
+        COALESCE(
+          (SELECT MIN(bu_price.base_price_amount)
+             FROM bookable_units bu_price
+             WHERE bu_price.listing_id = l.id AND bu_price.deleted_at IS NULL
+               AND bu_price.base_price_amount IS NOT NULL
+             HAVING COUNT(DISTINCT bu_price.base_price_currency_id) = 1
+          ),
+          CASE
+            WHEN NOT EXISTS (
+              SELECT 1 FROM bookable_units bu_any_price
+              WHERE bu_any_price.listing_id = l.id AND bu_any_price.deleted_at IS NULL
+                AND bu_any_price.base_price_amount IS NOT NULL
+            ) THEN lp.amount
+          END
+        ) AS price_amount,
+        COALESCE(
+          (SELECT MAX(cur_price.code)
+             FROM bookable_units bu_price
+             JOIN currencies cur_price ON cur_price.id = bu_price.base_price_currency_id
+             WHERE bu_price.listing_id = l.id AND bu_price.deleted_at IS NULL
+               AND bu_price.base_price_amount IS NOT NULL
+             HAVING COUNT(DISTINCT bu_price.base_price_currency_id) = 1
+          ),
+          CASE
+            WHEN NOT EXISTS (
+              SELECT 1 FROM bookable_units bu_any_price2
+              WHERE bu_any_price2.listing_id = l.id AND bu_any_price2.deleted_at IS NULL
+                AND bu_any_price2.base_price_amount IS NOT NULL
+            ) THEN cur.code
+          END
+        ) AS price_currency_code,
+        (SELECT COUNT(*) FROM media gm
+           WHERE gm.mediable_type = 'listing' AND gm.mediable_id = l.id AND gm.deleted_at IS NULL
+        ) AS media_count,
+        (SELECT AVG(rv.rating) FROM reviews rv
+           JOIN moderation_statuses rs ON rs.id = rv.status_id
+           WHERE rv.listing_id = l.id AND rs.code = 'APPROVED' AND rv.deleted_at IS NULL
+        ) AS rating_average,
+        (SELECT COUNT(*) FROM reviews rv
+           JOIN moderation_statuses rs ON rs.id = rv.status_id
+           WHERE rv.listing_id = l.id AND rs.code = 'APPROVED' AND rv.deleted_at IS NULL
+        ) AS review_count
+      FROM listings l
+      JOIN listing_types ltype ON ltype.id = l.listing_type_id
+      JOIN listing_statuses ls ON ls.id = l.status_id
+      LEFT JOIN listing_locations loc ON loc.listing_id = l.id
+      LEFT JOIN cities c ON c.id = loc.city_id
+      LEFT JOIN regions r ON r.id = c.region_id
+      LEFT JOIN listing_translations lt ON lt.listing_id = l.id AND lt.language_id = ?
+      LEFT JOIN listing_translations lt2 ON lt2.listing_id = l.id AND lt2.language_id = ?
+      LEFT JOIN media m ON m.mediable_type = 'listing' AND m.mediable_id = l.id AND m.is_cover = 1 AND m.deleted_at IS NULL
+      LEFT JOIN listing_pricing lp ON lp.listing_id = l.id
+      LEFT JOIN currencies cur ON cur.id = lp.currency_id
+      WHERE ${scopeActive('l')} AND ls.code = 'PUBLISHED' AND l.id IN (${placeholders})
+      `,
+      [localeId, defaultLocaleId, ...listingIds],
+    );
+    return rows.map(toSearchResultDomain);
   }
 
   /** Bounded, ungrouped taxonomy (a few dozen rows) — no pagination needed. */

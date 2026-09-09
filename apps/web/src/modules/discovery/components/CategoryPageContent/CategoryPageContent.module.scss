@@ -18,6 +18,21 @@
   border-radius: tokens.$radius-xl;
 }
 
+// Sprint E (Promotion Engine) — a distinct, but not shouty, heading for
+// the Category TOP section above the normal grid.
+.topSection {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-3;
+}
+
+.topSectionHeading {
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-h4;
+  font-weight: 700;
+  color: tokens.$color-gray-900;
+}
+
 .hero {
   position: relative;
   overflow: hidden;

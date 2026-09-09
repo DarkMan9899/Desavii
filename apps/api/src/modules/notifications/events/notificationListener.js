@@ -409,6 +409,68 @@ export function registerNotificationListeners({
       ),
     );
   });
+
+  // Sprint E (TOP/Featured Listings + Promotion Engine) — the listing's
+  // partner owner, resolved the same `partnerService.getOwnerUserId` way
+  // every other partner-facing notification above already is.
+  // `ADVERTISEMENT_EXPIRING_SOON` covers BOTH the 7-day and 2-day
+  // reminders (`payload.thresholdDays`) — one subscription, since the
+  // recipient/category/dedup logic is identical for both; only the copy
+  // (rendered client-side from `thresholdDays`) differs.
+  eventBus.subscribe(EVENT_TYPES.ADVERTISEMENT_ACTIVATED, (event) =>
+    notifyPartnerOwner(event, {
+      categoryCode: 'PROMOTION',
+      priorityCode: PRIORITY.NORMAL,
+      payload: {
+        listingId: event.payload.listingId,
+        placementCode: event.payload.placementCode,
+        endDate: event.payload.endDate,
+      },
+    }),
+  );
+  eventBus.subscribe(EVENT_TYPES.ADVERTISEMENT_EXPIRING_SOON, (event) =>
+    notifyPartnerOwner(event, {
+      categoryCode: 'PROMOTION',
+      priorityCode: PRIORITY.HIGH,
+      payload: {
+        listingId: event.payload.listingId,
+        placementCode: event.payload.placementCode,
+        endDate: event.payload.endDate,
+        thresholdDays: event.payload.thresholdDays,
+      },
+    }),
+  );
+  eventBus.subscribe(EVENT_TYPES.ADVERTISEMENT_EXPIRED, (event) =>
+    notifyPartnerOwner(event, {
+      categoryCode: 'PROMOTION',
+      priorityCode: PRIORITY.NORMAL,
+      payload: {
+        listingId: event.payload.listingId,
+        placementCode: event.payload.placementCode,
+        endDate: event.payload.endDate,
+      },
+    }),
+  );
+  eventBus.subscribe(EVENT_TYPES.ADVERTISEMENT_CANCELLED, (event) =>
+    notifyPartnerOwner(event, {
+      categoryCode: 'PROMOTION',
+      priorityCode: PRIORITY.NORMAL,
+      payload: {
+        listingId: event.payload.listingId,
+        placementCode: event.payload.placementCode,
+      },
+    }),
+  );
+  eventBus.subscribe(EVENT_TYPES.ADVERTISEMENT_REJECTED, (event) =>
+    notifyPartnerOwner(event, {
+      categoryCode: 'PROMOTION',
+      priorityCode: PRIORITY.NORMAL,
+      payload: {
+        listingId: event.payload.listingId,
+        placementCode: event.payload.placementCode,
+      },
+    }),
+  );
 }
 
 export default registerNotificationListeners;

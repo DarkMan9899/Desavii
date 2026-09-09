@@ -52,6 +52,11 @@ export default function SearchResultCard({
   result,
   hideTypeBadge = false,
   priorityImage = false,
+  // Sprint E: set by a caller rendering a Home Featured/Category TOP
+  // section — those endpoints only ever return actively promoted
+  // listings, so the caller already knows the context; no per-row
+  // "is promoted" field is needed from the backend for this.
+  topBadgeLabel = undefined,
 }) {
   const { t } = useTranslation();
   const { locale } = useParams();
@@ -92,6 +97,7 @@ export default function SearchResultCard({
       pricePrefix={t('search.card.fromPrice')}
       locale={locale}
       priorityImage={priorityImage}
+      topBadgeLabel={topBadgeLabel}
     />
   );
 }
@@ -103,4 +109,5 @@ SearchResultCard.propTypes = {
   result: PropTypes.object.isRequired,
   hideTypeBadge: PropTypes.bool,
   priorityImage: PropTypes.bool,
+  topBadgeLabel: PropTypes.string,
 };

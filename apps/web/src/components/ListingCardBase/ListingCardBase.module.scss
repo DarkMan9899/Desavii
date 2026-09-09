@@ -69,6 +69,14 @@
   z-index: 1;
 }
 
+// Sprint E (Promotion Engine) — the one media-block corner left free.
+.topBadge {
+  position: absolute;
+  bottom: tokens.$space-3;
+  left: tokens.$space-3;
+  z-index: 1;
+}
+
 .galleryBadge {
   position: absolute;
   bottom: tokens.$space-3;

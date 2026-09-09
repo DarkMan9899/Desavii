@@ -396,13 +396,21 @@ export default function AdminListingDetailContent() {
             <Stack gap="4">
               <Inline justify="space-between" align="center" wrap>
                 <h2>{t('admin.listingDetail.sections.commercial')}</h2>
-                {permissions.includes('inventory.view_all') && (
+                <Inline gap="3" wrap>
+                  {permissions.includes('inventory.view_all') && (
+                    <RouterLink
+                      href={`/${locale}/admin/inventory?listingId=${listing.id}`}
+                    >
+                      {t('admin.listingDetail.viewInventoryAction')}
+                    </RouterLink>
+                  )}
+                  {/* Sprint E (Promotion Engine) — Admin-only surface (route-gated on the promotions page itself), so no extra permission check is needed here beyond the page-level ADMIN/SUPER_ADMIN role guard every other admin route already applies. */}
                   <RouterLink
-                    href={`/${locale}/admin/inventory?listingId=${listing.id}`}
+                    href={`/${locale}/admin/promotions?listingId=${listing.id}`}
                   >
-                    {t('admin.listingDetail.viewInventoryAction')}
+                    {t('admin.listingDetail.managePromotionAction')}
                   </RouterLink>
-                )}
+                </Inline>
               </Inline>
               <Stack gap="2">
                 <h3>{t('admin.listingDetail.pricing.heading')}</h3>

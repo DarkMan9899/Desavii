@@ -63,6 +63,7 @@ import {
   Sparkles,
   MessageCircle,
   Bell,
+  Megaphone,
 } from 'lucide-react';
 import { Sidebar } from '@desavii/ui/components/navigation';
 import { Container } from '@desavii/ui/components/layout';
@@ -154,6 +155,22 @@ export default function AdminLayout() {
       label: t('admin.nav.marketplaceConfig'),
       href: `/${locale}/admin/marketplace-config`,
       icon: <SlidersHorizontal aria-hidden="true" focusable="false" />,
+    },
+    {
+      id: 'promotions',
+      groupId: 'marketplace',
+      label: t('admin.nav.promotions'),
+      href: `/${locale}/admin/promotions`,
+      icon: <Megaphone aria-hidden="true" focusable="false" />,
+      // Sprint E: the page itself is ADMIN/SUPER_ADMIN-only
+      // (`requireRole`, no MODERATOR/SUPPORT access at all) — unlike
+      // every `requiredPermission` item above, which still loads a
+      // real read-only view for a role missing just the mutation
+      // permission. `promotion.mark_paid` is held by exactly ADMIN/
+      // SUPER_ADMIN (MODERATOR only has `promotion.approve`,
+      // `004_roles_and_permissions.js`), so reusing it here hides this
+      // link from any role that would otherwise hit a dead-end 403.
+      requiredPermission: 'promotion.mark_paid',
     },
     {
       id: 'inventory',

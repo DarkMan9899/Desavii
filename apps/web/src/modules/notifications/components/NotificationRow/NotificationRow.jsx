@@ -58,6 +58,8 @@ const CATEGORY_ICONS = {
   MESSAGE: MessageSquare,
   PAYMENT: CreditCard,
   ADMIN: Megaphone,
+  // Sprint E (TOP/Featured Listings + Promotion Engine).
+  PROMOTION: Megaphone,
 };
 
 const BOOKING_HREF_BASE = {
