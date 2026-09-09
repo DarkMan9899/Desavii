@@ -64,6 +64,7 @@ import {
   MessageCircle,
   Bell,
   Megaphone,
+  UserCog,
 } from 'lucide-react';
 import { Sidebar } from '@desavii/ui/components/navigation';
 import { Container } from '@desavii/ui/components/layout';
@@ -116,6 +117,18 @@ export default function AdminLayout() {
       label: t('admin.nav.partners'),
       href: `/${locale}/admin/partners`,
       icon: <Building2 aria-hidden="true" focusable="false" />,
+    },
+    {
+      id: 'managers',
+      groupId: 'partners',
+      label: t('admin.nav.managers'),
+      href: `/${locale}/admin/managers`,
+      icon: <UserCog aria-hidden="true" focusable="false" />,
+      // Sprint F: the whole /admin/managers route tree requires the real
+      // `manager.assign` permission server-side — same
+      // "hides a dead-end 403" reasoning the Promotions nav item's own
+      // comment documents (`promotion.mark_paid`, above).
+      requiredPermission: 'manager.assign',
     },
     {
       id: 'listings',

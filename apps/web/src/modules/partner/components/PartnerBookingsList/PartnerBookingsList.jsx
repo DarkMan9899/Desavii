@@ -30,6 +30,12 @@ export default function PartnerBookingsList({
   hasNextPage,
   isFetchingNextPage,
   onLoadMore,
+  // Sprint F (Manager Workspace): reused unmodified by
+  // `ManagerBookingsPageContent` — only the card's destination route
+  // differs (`manager/bookings` vs `partner/bookings`). Defaults preserve
+  // every existing Partner caller's behavior exactly.
+  hrefBase = 'partner/bookings',
+  audience = 'partner',
 }) {
   const { t } = useTranslation();
 
@@ -69,8 +75,8 @@ export default function PartnerBookingsList({
         <BookingCard
           key={booking.id}
           booking={booking}
-          hrefBase="partner/bookings"
-          audience="partner"
+          hrefBase={hrefBase}
+          audience={audience}
         />
       ))}
       {hasNextPage && (
@@ -97,4 +103,6 @@ PartnerBookingsList.propTypes = {
   hasNextPage: PropTypes.bool.isRequired,
   isFetchingNextPage: PropTypes.bool.isRequired,
   onLoadMore: PropTypes.func.isRequired,
+  hrefBase: PropTypes.string,
+  audience: PropTypes.oneOf(['customer', 'partner']),
 };

@@ -28,6 +28,8 @@ export { default as AdminAiModerationPageContent } from './components/AdminAiMod
 export { default as AdminAiUsagePageContent } from './components/AdminAiUsagePageContent/AdminAiUsagePageContent.jsx';
 export { default as AdminPaymentsPageContent } from './components/AdminPaymentsPageContent/AdminPaymentsPageContent.jsx';
 export { default as AdminPromotionsPageContent } from './components/AdminPromotionsPageContent/AdminPromotionsPageContent.jsx';
+export { default as AdminManagersPageContent } from './components/AdminManagersPageContent/AdminManagersPageContent.jsx';
+export { default as AdminManagerDetailContent } from './components/AdminManagerDetailContent/AdminManagerDetailContent.jsx';
 export { default as AdminPaymentDetailContent } from './components/AdminPaymentDetailContent/AdminPaymentDetailContent.jsx';
 export { default as AdminReviewModerationPageContent } from './components/AdminReviewModerationPageContent/AdminReviewModerationPageContent.jsx';
 export { default as AdminReviewDetailContent } from './components/AdminReviewDetailContent/AdminReviewDetailContent.jsx';

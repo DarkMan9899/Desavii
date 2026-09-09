@@ -47,6 +47,14 @@ export default function PartnerListingsList({
   hasNextPage,
   isFetchingNextPage,
   onLoadMore,
+  // Sprint F (Manager Workspace): this list is reused unmodified by
+  // `ManagerListingsPageContent` — only the Edit/Manage-rooms navigation
+  // targets differ (`/manager/...` vs `/partner/...`), and whether the
+  // destructive Delete action is offered at all (Manager never gets it,
+  // see `PartnerListingRowActions`'s own `canDelete` doc comment).
+  // Defaults preserve every existing Partner caller's behavior exactly.
+  basePath = 'partner',
+  canDelete = true,
 }) {
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
@@ -202,16 +210,19 @@ export default function PartnerListingsList({
                 }
                 onEdit={() =>
                   navigate(
-                    `/${locale}/partner/listings/new?listingId=${listing.id}`,
+                    `/${locale}/${basePath}/listings/new?listingId=${listing.id}`,
                   )
                 }
                 onManageRooms={() =>
-                  navigate(`/${locale}/partner/listings/${listing.id}/rooms`)
+                  navigate(
+                    `/${locale}/${basePath}/listings/${listing.id}/rooms`,
+                  )
                 }
                 onPublish={(row) => handlePublish(row)}
                 onUnpublish={(row) => handleUnpublish(row)}
                 onArchive={(row) => handleArchive(row)}
                 onDelete={(row) => handleDelete(row)}
+                canDelete={canDelete}
               />
             }
           />
@@ -241,4 +252,6 @@ PartnerListingsList.propTypes = {
   hasNextPage: PropTypes.bool.isRequired,
   isFetchingNextPage: PropTypes.bool.isRequired,
   onLoadMore: PropTypes.func.isRequired,
+  basePath: PropTypes.string,
+  canDelete: PropTypes.bool,
 };

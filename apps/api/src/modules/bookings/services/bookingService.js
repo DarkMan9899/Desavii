@@ -34,6 +34,7 @@ import {
   NotFoundError,
 } from '../../../errors/AppError.js';
 import { isPartnerOwner } from '../../../infrastructure/database/repositories/partnerEmployeeRepository.js';
+import { isManagerAssignedToPartner } from '../../../infrastructure/database/repositories/managerAssignmentRepository.js';
 import { findCurrencyByCode } from '../../../infrastructure/database/repositories/currencyRepository.js';
 import { withTransaction } from '../../../infrastructure/database/transaction.js';
 import { Money } from '../../../core/domain/money.js';
@@ -142,6 +143,20 @@ export class BookingService {
     if (!principal) return false;
     const isOwner = await isPartnerOwner(principal.userId, partnerId);
     if (isOwner) return true;
+    // Sprint F: a Manager assigned to this company gets read-only booking
+    // VISIBILITY only (`VIEW_ALL_PERMISSION`) — never confirm/reject/
+    // cancel_any, which stay owner/admin-only. Checked fresh, per request,
+    // against `manager_companies`, never trusted from the JWT.
+    if (
+      permissionKey === VIEW_ALL_PERMISSION &&
+      principal.roles.includes('MANAGER')
+    ) {
+      const isAssignedManager = await isManagerAssignedToPartner(
+        principal.userId,
+        partnerId,
+      );
+      if (isAssignedManager) return true;
+    }
     return this.#permissionResolver.hasPermission(
       principal.roles,
       permissionKey,

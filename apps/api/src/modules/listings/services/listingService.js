@@ -31,6 +31,7 @@ import {
   NotFoundError,
 } from '../../../errors/AppError.js';
 import { isPartnerOwner } from '../../../infrastructure/database/repositories/partnerEmployeeRepository.js';
+import { isManagerAssignedToPartner } from '../../../infrastructure/database/repositories/managerAssignmentRepository.js';
 import { findCurrencyByCode } from '../../../infrastructure/database/repositories/currencyRepository.js';
 import { resolveLocaleIds } from '../../../infrastructure/database/repositories/languageRepository.js';
 import { withTransaction } from '../../../infrastructure/database/transaction.js';
@@ -54,6 +55,20 @@ import {
 function ensureNonNumericSlug(slug) {
   return /^\d+$/.test(slug) ? `listing-${slug}` : slug;
 }
+
+// Sprint F (Manager Workspace): the permission keys a company-assigned
+// Manager may act on without holding the matching GLOBAL permission —
+// deliberately excludes `listing.delete` (destructive, stays owner/admin-
+// only) and `listing.moderate` (Stage 11.3's own `#assertPermission`
+// already has no owner fallback at all, so Manager is naturally excluded
+// there too). Covers create/update/publish/unpublish/archive plus every
+// media/highlights/itinerary/FAQ/completeness method below, since they
+// all gate on 'listing.update'.
+const MANAGER_ALLOWED_PERMISSION_KEYS = new Set([
+  'listing.create',
+  'listing.update',
+  'listing.publish',
+]);
 
 const ENUM_ATTRIBUTE_DATA_TYPES = ['ENUM', 'MULTI_ENUM'];
 // Stage 11.3 (Admin Platform — Listing Moderation): this schema's shared
@@ -114,6 +129,21 @@ export class ListingService {
     if (!principal) return false;
     const isOwner = await isPartnerOwner(principal.userId, partnerId);
     if (isOwner) return true;
+    // Sprint F: a Manager assigned to this specific company may act on it
+    // exactly as its owner could, but only for the allow-listed keys above
+    // — never a blanket bypass, and never for a company they aren't
+    // assigned to (checked fresh, per request, against `manager_companies`,
+    // never trusted from the JWT).
+    if (
+      MANAGER_ALLOWED_PERMISSION_KEYS.has(permissionKey) &&
+      principal.roles.includes('MANAGER')
+    ) {
+      const isAssignedManager = await isManagerAssignedToPartner(
+        principal.userId,
+        partnerId,
+      );
+      if (isAssignedManager) return true;
+    }
     return this.#permissionResolver.hasPermission(
       principal.roles,
       permissionKey,

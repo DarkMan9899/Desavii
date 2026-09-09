@@ -39,11 +39,14 @@ import AuthLayout from '../layouts/AuthLayout.jsx';
 import CustomerAccountLayout from '../layouts/CustomerAccountLayout.jsx';
 import PartnerLayout from '../layouts/PartnerLayout.jsx';
 import AdminLayout from '../layouts/AdminLayout.jsx';
+import ManagerLayout from '../layouts/ManagerLayout.jsx';
 import ErrorLayout from '../layouts/ErrorLayout.jsx';
 import RequireAuth from '../guards/RequireAuth.jsx';
 import RequirePartner from '../guards/RequirePartner.jsx';
 import RequireRole from '../guards/RequireRole.jsx';
+import RequireManager from '../guards/RequireManager.jsx';
 import PartnerProvider from '../providers/PartnerProvider.jsx';
+import ManagerProvider from '../providers/ManagerProvider.jsx';
 import PageLoader from '../components/PageLoader/PageLoader.jsx';
 import ScrollRestoration from './ScrollRestoration.jsx';
 import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from '../translations/i18n.js';
@@ -135,6 +138,30 @@ const PartnerMessagesPage = lazy(
 const PartnerAiUsagePage = lazy(
   () => import('../pages/partner/PartnerAiUsagePage.jsx'),
 );
+const ManagerDashboardPage = lazy(
+  () => import('../pages/manager/ManagerDashboardPage.jsx'),
+);
+const ManagerCompaniesPage = lazy(
+  () => import('../pages/manager/ManagerCompaniesPage.jsx'),
+);
+const ManagerListingsPage = lazy(
+  () => import('../pages/manager/ManagerListingsPage.jsx'),
+);
+const ManagerListingWizardPage = lazy(
+  () => import('../pages/manager/ManagerListingWizardPage.jsx'),
+);
+const ManagerListingRoomsPage = lazy(
+  () => import('../pages/manager/ManagerListingRoomsPage.jsx'),
+);
+const ManagerBookingsPage = lazy(
+  () => import('../pages/manager/ManagerBookingsPage.jsx'),
+);
+const ManagerBookingDetailPage = lazy(
+  () => import('../pages/manager/ManagerBookingDetailPage.jsx'),
+);
+const ManagerAnalyticsPage = lazy(
+  () => import('../pages/manager/ManagerAnalyticsPage.jsx'),
+);
 const AdminDashboardPage = lazy(
   () => import('../pages/admin/AdminDashboardPage.jsx'),
 );
@@ -165,6 +192,12 @@ const AdminInventoryPage = lazy(
 );
 const AdminPromotionsPage = lazy(
   () => import('../pages/admin/AdminPromotionsPage.jsx'),
+);
+const AdminManagersPage = lazy(
+  () => import('../pages/admin/AdminManagersPage.jsx'),
+);
+const AdminManagerDetailPage = lazy(
+  () => import('../pages/admin/AdminManagerDetailPage.jsx'),
 );
 const AdminBookingsPage = lazy(
   () => import('../pages/admin/AdminBookingsPage.jsx'),
@@ -455,6 +488,53 @@ export default function AppRoutes() {
               <Route path="partner/ai/usage" element={<PartnerAiUsagePage />} />
             </Route>
 
+            {/* Manager Workspace (Sprint F) — RequireAuth + RequireManager
+              (a global-role check, not RequirePartner: Manager-company
+              assignment is `manager_companies`, not `partner_employees`).
+              `ManagerProvider` is mounted here, inside `RequireManager`,
+              same placement rule `PartnerProvider` documents above. */}
+            <Route
+              element={
+                <RequireAuth>
+                  <RequireManager>
+                    <ManagerProvider>
+                      <ManagerLayout />
+                    </ManagerProvider>
+                  </RequireManager>
+                </RequireAuth>
+              }
+            >
+              <Route path="manager" element={<ManagerDashboardPage />} />
+              <Route
+                path="manager/companies"
+                element={<ManagerCompaniesPage />}
+              />
+              <Route
+                path="manager/listings"
+                element={<ManagerListingsPage />}
+              />
+              <Route
+                path="manager/listings/new"
+                element={<ManagerListingWizardPage />}
+              />
+              <Route
+                path="manager/listings/:id/rooms"
+                element={<ManagerListingRoomsPage />}
+              />
+              <Route
+                path="manager/bookings"
+                element={<ManagerBookingsPage />}
+              />
+              <Route
+                path="manager/bookings/:id"
+                element={<ManagerBookingDetailPage />}
+              />
+              <Route
+                path="manager/analytics"
+                element={<ManagerAnalyticsPage />}
+              />
+            </Route>
+
             {/* Admin (Phase 11) — RequireAuth + RequireRole (not
               RequirePartner: admin access is a global role, not a
               partner-membership relationship). Ships in stages — only
@@ -497,6 +577,11 @@ export default function AppRoutes() {
               <Route
                 path="admin/promotions"
                 element={<AdminPromotionsPage />}
+              />
+              <Route path="admin/managers" element={<AdminManagersPage />} />
+              <Route
+                path="admin/managers/:id"
+                element={<AdminManagerDetailPage />}
               />
               <Route path="admin/bookings" element={<AdminBookingsPage />} />
               <Route

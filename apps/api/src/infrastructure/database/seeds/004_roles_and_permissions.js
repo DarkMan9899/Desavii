@@ -19,6 +19,17 @@
  * support agent needs to look up users/bookings/audit history to help a
  * customer, but has none of MODERATOR's moderation rights or ADMIN's
  * write access — see ROLE_PERMISSIONS.SUPPORT below.
+ *
+ * MANAGER (Sprint F, Manager Workspace) is a sixth global role, distinct
+ * from the existing `partner_employee_roles.MANAGER` code (a per-company
+ * staff role a partner OWNER invites — see 001_lookups.js). This global
+ * MANAGER is Admin-assigned to zero or more companies at once
+ * (`manager_companies`, migration 0042) and, like CUSTOMER, intentionally
+ * holds zero permission_role rows here: a Manager's access to an assigned
+ * company's listings/bookings is an assignment check
+ * (`isManagerAssignedToPartner`), not an RBAC permission flag. Only the
+ * ADMIN-side mutation that creates/removes an assignment
+ * (`manager.assign`, below) is a real permission.
  */
 
 import { upsertByCode, getIdsByCode } from './helpers.js';
@@ -29,6 +40,7 @@ const ROLES = [
   { code: 'ADMIN', name: 'Admin' },
   { code: 'SUPER_ADMIN', name: 'Super Admin' },
   { code: 'SUPPORT', name: 'Support' },
+  { code: 'MANAGER', name: 'Manager' },
 ];
 
 const PERMISSIONS = [
@@ -204,6 +216,12 @@ const PERMISSIONS = [
     description:
       "Create/resolve inventory adjustments and sync conflicts on any partner's inventory (Admin intervention, always audit-logged, Phase 17 spec §40)",
   },
+  {
+    key: 'manager.assign',
+    module: 'admin',
+    description:
+      'Grant/revoke the Manager role and assign/unassign companies to a Manager',
+  },
 ];
 
 const ROLE_PERMISSIONS = {
@@ -236,6 +254,9 @@ const ROLE_PERMISSIONS = {
     'inventory.view_all',
   ],
   CUSTOMER: [],
+  // Assignment-based access, not RBAC — see the MANAGER header comment
+  // above.
+  MANAGER: [],
 };
 
 async function upsertPermissions(connection) {

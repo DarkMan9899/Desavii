@@ -86,7 +86,8 @@
     "login": "Войти",
     "register": "Регистрация",
     "logout": "Выйти",
-    "workspace": "Рабочее пространство"
+    "workspace": "Рабочее пространство",
+    "manager": "Менеджер"
   },
   "status": {
     "loading": "Загрузка...",
@@ -1780,7 +1781,8 @@
         "content": "Контент",
         "ai": "ИИ",
         "system": "Система"
-      }
+      },
+      "managers": "Менеджеры"
     },
     "dashboard": {
       "heading": "Обзор маркетплейса",
@@ -2965,6 +2967,57 @@
         "heading": "Жалобы",
         "empty": "На этот отзыв жалоб нет."
       }
+    },
+    "managers": {
+      "heading": "Менеджеры",
+      "description": "Назначайте роль Менеджера и закрепляйте за ним компании для сопровождения и повседневного управления.",
+      "promoteHeading": "Назначить пользователя Менеджером",
+      "promoteUserIdLabel": "ID пользователя",
+      "promoteUserIdPlaceholder": "напр. 42",
+      "promoteAction": "Назначить",
+      "promoteSuccess": "Пользователь назначен Менеджером.",
+      "promoteError": "Не удалось назначить этого пользователя.",
+      "error": {
+        "title": "Что-то пошло не так",
+        "retry": "Повторить"
+      },
+      "empty": {
+        "title": "Менеджеров пока нет",
+        "description": "Назначьте пользователя выше, чтобы выдать роль Менеджера."
+      },
+      "columns": {
+        "name": "Имя",
+        "email": "Эл. почта",
+        "assignedCompanies": "Назначенные компании"
+      },
+      "viewAction": "Открыть"
+    },
+    "managerDetail": {
+      "loading": "Загрузка…",
+      "error": {
+        "title": "Что-то пошло не так",
+        "retry": "Повторить"
+      },
+      "stats": {
+        "companies": "Назначенные компании",
+        "bookings": "Бронирования",
+        "listingsCreated": "Созданные объявления"
+      },
+      "assignHeading": "Назначить компанию",
+      "assignPartnerIdLabel": "ID компании",
+      "assignPartnerIdPlaceholder": "напр. 7",
+      "assignAction": "Назначить",
+      "assignSuccess": "Компания назначена.",
+      "assignError": "Не удалось назначить эту компанию.",
+      "assignmentsHeading": "Назначенные компании",
+      "assignments": {
+        "empty": "Компании пока не назначены."
+      },
+      "unassignConfirmTitle": "Отменить назначение {{name}} этому менеджеру?",
+      "unassignConfirmDescription": "Он немедленно потеряет доступ к объявлениям и бронированиям этой компании.",
+      "unassignAction": "Отменить назначение",
+      "unassignSuccess": "Назначение компании отменено.",
+      "unassignError": "Не удалось отменить назначение этой компании."
     }
   },
   "pages": {
@@ -3698,6 +3751,91 @@
     },
     "page": {
       "heading": "Сообщения"
+    }
+  },
+  "manager": {
+    "nav": {
+      "dashboard": "Обзор",
+      "companies": "Компании",
+      "listings": "Объявления",
+      "bookings": "Бронирования",
+      "analytics": "Аналитика"
+    },
+    "companySwitcher": {
+      "label": "Компания"
+    },
+    "dashboard": {
+      "heading": "Обзор",
+      "description": "Сводка по объявлениям и бронированиям назначенных вам компаний.",
+      "error": {
+        "title": "Что-то пошло не так",
+        "retry": "Повторить"
+      },
+      "noCompanies": {
+        "title": "Компании ещё не назначены",
+        "description": "Администратор ещё не назначил вам ни одной компании."
+      },
+      "stats": {
+        "companies": "Назначенные компании",
+        "listings": "Объявления",
+        "publishedListings": "Активные объявления",
+        "bookings": "Бронирования",
+        "cancelledBookings": "Отмены",
+        "listingsCreated": "Созданные вами объявления"
+      },
+      "chart": {
+        "heading": "Бронирования за последние 14 дней"
+      },
+      "bookingValue": {
+        "heading": "Стоимость бронирований",
+        "empty": "Пока нет данных о стоимости.",
+        "note": "Показано по валютам — суммы никогда не складываются между валютами."
+      },
+      "byCompany": {
+        "heading": "По компаниям",
+        "empty": "Пока нет компаний для отображения.",
+        "bookingCount": "{{count}} бронирование",
+        "bookingCount_other": "{{count}} бронирований"
+      }
+    },
+    "companies": {
+      "heading": "Компании",
+      "description": "Компании, назначенные вам администратором.",
+      "empty": {
+        "title": "Компании ещё не назначены",
+        "description": "Администратор ещё не назначил вам ни одной компании."
+      },
+      "openAction": "Открыть"
+    },
+    "listings": {
+      "heading": "Объявления"
+    },
+    "bookings": {
+      "heading": "Бронирования"
+    },
+    "analytics": {
+      "heading": "Аналитика",
+      "description": "Фильтруемая разбивка бронирований назначенных вам компаний.",
+      "error": {
+        "title": "Что-то пошло не так",
+        "retry": "Повторить"
+      },
+      "noData": "Пока нет данных для этого фильтра.",
+      "filters": {
+        "dateFrom": "Дата с",
+        "dateTo": "Дата по"
+      },
+      "byStatus": {
+        "heading": "Бронирования по статусу"
+      },
+      "averageValue": {
+        "heading": "Средняя стоимость бронирования"
+      },
+      "byListing": {
+        "heading": "По объявлениям",
+        "bookingCount": "{{count}} бронирование",
+        "bookingCount_other": "{{count}} бронирований"
+      }
     }
   }
 }

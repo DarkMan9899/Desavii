@@ -86,7 +86,8 @@
     "login": "Log in",
     "register": "Sign up",
     "logout": "Log out",
-    "workspace": "Workspace"
+    "workspace": "Workspace",
+    "manager": "Manager"
   },
   "status": {
     "loading": "Loading...",
@@ -1760,7 +1761,8 @@
         "content": "Content",
         "ai": "AI",
         "system": "System"
-      }
+      },
+      "managers": "Managers"
     },
     "dashboard": {
       "heading": "Marketplace overview",
@@ -2945,6 +2947,57 @@
         "heading": "Reports",
         "empty": "No reports on this review."
       }
+    },
+    "managers": {
+      "heading": "Managers",
+      "description": "Grant the Manager role and assign companies for onboarding and day-to-day management.",
+      "promoteHeading": "Promote a user to Manager",
+      "promoteUserIdLabel": "User ID",
+      "promoteUserIdPlaceholder": "e.g. 42",
+      "promoteAction": "Promote",
+      "promoteSuccess": "User promoted to Manager.",
+      "promoteError": "Could not promote this user.",
+      "error": {
+        "title": "Something went wrong",
+        "retry": "Try again"
+      },
+      "empty": {
+        "title": "No managers yet",
+        "description": "Promote a user above to grant the Manager role."
+      },
+      "columns": {
+        "name": "Name",
+        "email": "Email",
+        "assignedCompanies": "Assigned companies"
+      },
+      "viewAction": "View"
+    },
+    "managerDetail": {
+      "loading": "Loading…",
+      "error": {
+        "title": "Something went wrong",
+        "retry": "Try again"
+      },
+      "stats": {
+        "companies": "Assigned companies",
+        "bookings": "Bookings",
+        "listingsCreated": "Listings created"
+      },
+      "assignHeading": "Assign a company",
+      "assignPartnerIdLabel": "Company ID",
+      "assignPartnerIdPlaceholder": "e.g. 7",
+      "assignAction": "Assign",
+      "assignSuccess": "Company assigned.",
+      "assignError": "Could not assign this company.",
+      "assignmentsHeading": "Assigned companies",
+      "assignments": {
+        "empty": "No companies assigned yet."
+      },
+      "unassignConfirmTitle": "Unassign {{name}} from this manager?",
+      "unassignConfirmDescription": "They will immediately lose access to this company’s listings and bookings.",
+      "unassignAction": "Unassign",
+      "unassignSuccess": "Company unassigned.",
+      "unassignError": "Could not unassign this company."
     }
   },
   "pages": {
@@ -3668,6 +3721,91 @@
     },
     "page": {
       "heading": "Messages"
+    }
+  },
+  "manager": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "companies": "Companies",
+      "listings": "Listings",
+      "bookings": "Bookings",
+      "analytics": "Analytics"
+    },
+    "companySwitcher": {
+      "label": "Company"
+    },
+    "dashboard": {
+      "heading": "Dashboard",
+      "description": "A summary of your assigned companies’ listings and bookings.",
+      "error": {
+        "title": "Something went wrong",
+        "retry": "Try again"
+      },
+      "noCompanies": {
+        "title": "No companies assigned yet",
+        "description": "An admin hasn’t assigned you to any company yet. Check back soon."
+      },
+      "stats": {
+        "companies": "Assigned companies",
+        "listings": "Listings",
+        "publishedListings": "Active listings",
+        "bookings": "Bookings",
+        "cancelledBookings": "Cancellations",
+        "listingsCreated": "Listings you created"
+      },
+      "chart": {
+        "heading": "Bookings, last 14 days"
+      },
+      "bookingValue": {
+        "heading": "Booking value",
+        "empty": "No booking value yet.",
+        "note": "Shown per currency — amounts are never combined across currencies."
+      },
+      "byCompany": {
+        "heading": "By company",
+        "empty": "No companies to show yet.",
+        "bookingCount": "{{count}} booking",
+        "bookingCount_other": "{{count}} bookings"
+      }
+    },
+    "companies": {
+      "heading": "Companies",
+      "description": "The companies an admin has assigned to you.",
+      "empty": {
+        "title": "No companies assigned yet",
+        "description": "An admin hasn’t assigned you to any company yet."
+      },
+      "openAction": "Open"
+    },
+    "listings": {
+      "heading": "Listings"
+    },
+    "bookings": {
+      "heading": "Bookings"
+    },
+    "analytics": {
+      "heading": "Analytics",
+      "description": "A filtered breakdown of your assigned companies’ bookings.",
+      "error": {
+        "title": "Something went wrong",
+        "retry": "Try again"
+      },
+      "noData": "No data for this filter yet.",
+      "filters": {
+        "dateFrom": "From date",
+        "dateTo": "To date"
+      },
+      "byStatus": {
+        "heading": "Bookings by status"
+      },
+      "averageValue": {
+        "heading": "Average booking value"
+      },
+      "byListing": {
+        "heading": "By listing",
+        "bookingCount": "{{count}} booking",
+        "bookingCount_other": "{{count}} bookings"
+      }
     }
   }
 }

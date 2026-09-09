@@ -46,6 +46,13 @@ export default function PartnerListingRowActions({
   onUnpublish,
   onArchive,
   onDelete,
+  // Sprint F (Manager Workspace): a company-assigned Manager may
+  // create/edit/publish a listing but never hard-delete one (that stays
+  // owner/admin-only server-side, `listingService.js`'s
+  // `MANAGER_ALLOWED_PERMISSION_KEYS`) — offering a button that always
+  // 403s is worse than not offering it. Defaults to `true` so every
+  // existing Partner caller is unaffected.
+  canDelete = true,
 }) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
@@ -132,15 +139,19 @@ export default function PartnerListingRowActions({
               {t('partner.listings.actions.archive')}
             </button>
           )}
-          <button
-            type="button"
-            role="menuitem"
-            className={[styles.menuItem, styles['menuItem--danger']].join(' ')}
-            disabled={isDeleting}
-            onClick={() => runAndClose(onDelete)}
-          >
-            {t('partner.listings.actions.delete')}
-          </button>
+          {canDelete && (
+            <button
+              type="button"
+              role="menuitem"
+              className={[styles.menuItem, styles['menuItem--danger']].join(
+                ' ',
+              )}
+              disabled={isDeleting}
+              onClick={() => runAndClose(onDelete)}
+            >
+              {t('partner.listings.actions.delete')}
+            </button>
+          )}
         </div>
       </Popover>
     </div>
@@ -162,4 +173,5 @@ PartnerListingRowActions.propTypes = {
   onUnpublish: PropTypes.func.isRequired,
   onArchive: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
+  canDelete: PropTypes.bool,
 };

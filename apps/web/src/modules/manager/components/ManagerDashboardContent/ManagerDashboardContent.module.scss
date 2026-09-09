@@ -1,0 +1,14 @@
+// ManagerDashboardContent — tokens only. Composes shared primitives
+// (StatCard/Card/Chart) with no page-local styling beyond section
+// headings, same convention AdminDashboardOverviewContent.module.scss
+// establishes.
+
+@use 'tokens' as tokens;
+
+.sectionHeading {
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-small;
+  font-weight: 700;
+  color: tokens.$color-gray-900;
+}

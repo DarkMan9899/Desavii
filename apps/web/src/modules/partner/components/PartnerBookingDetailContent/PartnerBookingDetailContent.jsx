@@ -21,6 +21,7 @@
  * page previously rendered them as bare, unstyled `Stack`s.
  */
 
+import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Section, Stack, Inline } from '@desavii/ui/components/layout';
@@ -57,7 +58,18 @@ const TIMELINE_FIELDS = [
   { field: 'completed_at', labelKey: 'completed' },
 ];
 
-export default function PartnerBookingDetailContent() {
+export default function PartnerBookingDetailContent({
+  // Sprint F (Manager Workspace): reused unmodified for
+  // `/manager/bookings/:id` — `basePath` redirects every internal link
+  // (breadcrumbs, not-found back-link) to `/manager/...` instead of
+  // `/partner/...`, and `readOnly` hides Confirm/Reject/Cancel/Complete/
+  // No-show (Manager gets booking VISIBILITY only, spec §17 — those
+  // mutations stay owner/admin-only server-side regardless, this just
+  // avoids offering a button that would always 403). Defaults preserve
+  // the existing Partner route's exact behavior.
+  basePath = 'partner',
+  readOnly = false,
+} = {}) {
   const { t, i18n } = useTranslation();
   const { locale, id } = useParams();
   const navigate = useNavigate();
@@ -94,7 +106,7 @@ export default function PartnerBookingDetailContent() {
           title={t('errors.notFound.title')}
           description={t('errors.notFound.description')}
           actionLabel={t('errors.notFound.action')}
-          onAction={() => navigate(`/${locale}/partner/bookings`)}
+          onAction={() => navigate(`/${locale}/${basePath}/bookings`)}
         />
       );
     }
@@ -119,9 +131,9 @@ export default function PartnerBookingDetailContent() {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
-  const canConfirmOrReject = booking.status === 'PENDING_VENDOR';
-  const canCancel = CANCELLABLE_STATUSES.includes(booking.status);
-  const canCompleteOrNoShow = booking.status === 'CONFIRMED';
+  const canConfirmOrReject = !readOnly && booking.status === 'PENDING_VENDOR';
+  const canCancel = !readOnly && CANCELLABLE_STATUSES.includes(booking.status);
+  const canCompleteOrNoShow = !readOnly && booking.status === 'CONFIRMED';
   const timeline = TIMELINE_FIELDS.filter(({ field }) => booking[field]);
 
   async function handleConfirm() {
@@ -247,14 +259,17 @@ export default function PartnerBookingDetailContent() {
         title={heading}
         breadcrumbs={[
           { label: t('nav.home'), href: `/${locale}` },
-          { label: t('partner.nav.dashboard'), href: `/${locale}/partner` },
+          {
+            label: t(`${basePath}.nav.dashboard`),
+            href: `/${locale}/${basePath}`,
+          },
           {
             label: t('partner.bookings.heading'),
-            href: `/${locale}/partner/bookings`,
+            href: `/${locale}/${basePath}/bookings`,
           },
           {
             label: heading,
-            href: `/${locale}/partner/bookings/${booking.id}`,
+            href: `/${locale}/${basePath}/bookings/${booking.id}`,
           },
         ]}
       />
@@ -440,3 +455,8 @@ export default function PartnerBookingDetailContent() {
     </Section>
   );
 }
+
+PartnerBookingDetailContent.propTypes = {
+  basePath: PropTypes.string,
+  readOnly: PropTypes.bool,
+};

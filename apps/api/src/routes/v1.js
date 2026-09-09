@@ -50,6 +50,8 @@ import createPaymentsContainer from '../modules/payments/module.container.js';
 import createPaymentRoutes from '../modules/payments/module.routes.js';
 import createAdvertisingContainer from '../modules/advertising/module.container.js';
 import createAdvertisingRoutes from '../modules/advertising/module.routes.js';
+import createManagersContainer from '../modules/managers/module.container.js';
+import createManagerRoutes from '../modules/managers/module.routes.js';
 
 export default function createV1Router({
   guards,
@@ -123,6 +125,20 @@ export default function createV1Router({
     auditLogger,
     eventBus,
     userService: usersContainer.userService,
+  });
+  // Sprint F (Manager Workspace + Analytics): depends on Partners' and
+  // Users' public Service interfaces only (existence/role validation on
+  // assignment) — never a second Repository over either module's own
+  // tables (BACKEND_ARCHITECTURE.md §4). The actual authorization
+  // boundary Managers rely on (ListingService's/BookingService's
+  // `isManagerAssignedToPartner` check) lives directly in those two
+  // services, not here — this container only wires the Admin-management
+  // and Manager-self-service HTTP surface.
+  const managersContainer = createManagersContainer({
+    partnerService: partnersContainer.partnerService,
+    userService: usersContainer.userService,
+    permissionResolver,
+    auditLogger,
   });
   const bookingsContainer = createBookingsContainer({
     availabilityService: availabilityContainer.availabilityService,
@@ -330,6 +346,13 @@ export default function createV1Router({
     '/advertising',
     createAdvertisingRoutes({
       advertisementController: advertisingContainer.advertisementController,
+      guards,
+    }),
+  );
+  router.use(
+    '/managers',
+    createManagerRoutes({
+      managerController: managersContainer.managerController,
       guards,
     }),
   );
