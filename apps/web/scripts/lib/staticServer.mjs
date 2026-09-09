@@ -61,7 +61,10 @@ export function startStaticServer(root, { port = 0 } = {}) {
     const filePath =
       resolveFile(root, req.url) ?? path.join(root, 'index.html');
     const ext = path.extname(filePath);
-    res.setHeader('Content-Type', MIME_TYPES[ext] ?? 'application/octet-stream');
+    res.setHeader(
+      'Content-Type',
+      MIME_TYPES[ext] ?? 'application/octet-stream',
+    );
     fs.createReadStream(filePath)
       .on('error', () => {
         res.statusCode = 404;

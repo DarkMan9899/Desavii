@@ -19,10 +19,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUTPUT_ROOT = path.resolve(
-  __dirname,
-  '../public/assets/images/demo',
-);
+const OUTPUT_ROOT = path.resolve(__dirname, '../public/assets/images/demo');
 
 const PALETTE = {
   navy: '#0f2a4a',
@@ -150,7 +147,9 @@ function main() {
   });
 
   // eslint-disable-next-line no-console -- one-off CLI script, not app runtime code
-  console.log(`Generated ${written} demo placeholder SVGs under ${OUTPUT_ROOT}`);
+  console.log(
+    `Generated ${written} demo placeholder SVGs under ${OUTPUT_ROOT}`,
+  );
 }
 
 main();
