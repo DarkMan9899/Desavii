@@ -1,0 +1,89 @@
+@use 'tokens' as tokens;
+
+.bodyLabel {
+  font-weight: 600;
+}
+
+.previewBox {
+  min-height: 200px;
+  padding: tokens.$space-4;
+  border: 1px solid tokens.$color-gray-200;
+  border-radius: tokens.$radius-md;
+  background-color: tokens.$color-gray-100;
+}
+
+.seoHint {
+  margin: 0;
+  color: tokens.$color-gray-400;
+  font-size: tokens.$font-size-small;
+}
+
+.coverLabel {
+  margin: 0 0 tokens.$space-2;
+  font-weight: 600;
+}
+
+.scheduledMeta {
+  color: tokens.$color-gray-400;
+  font-size: tokens.$font-size-small;
+}
+
+.scheduleModal {
+  padding: tokens.$space-2 tokens.$space-6 tokens.$space-6;
+}
+
+.tagsEditor {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+}
+
+.tagsList,
+.tagSuggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-2;
+}
+
+.tagChip {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-1;
+  padding: tokens.$space-1 tokens.$space-2;
+  border-radius: tokens.$radius-full;
+  background-color: tokens.$color-gray-100;
+  color: tokens.$color-gray-900;
+  font-size: tokens.$font-size-small;
+}
+
+.tagRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: tokens.$color-gray-600;
+  font-size: tokens.$font-size-body;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    color: tokens.$color-gray-900;
+  }
+}
+
+.tagSuggestion {
+  padding: tokens.$space-1 tokens.$space-2;
+  border: 1px dashed tokens.$color-gray-200;
+  border-radius: tokens.$radius-full;
+  background: none;
+  color: tokens.$color-gray-600;
+  font-size: tokens.$font-size-small;
+  cursor: pointer;
+
+  &:hover {
+    border-color: tokens.$color-royal-blue;
+    color: tokens.$color-royal-blue;
+  }
+}

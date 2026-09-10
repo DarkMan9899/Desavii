@@ -1,5 +1,5 @@
 import { Container } from '@desavii/ui/components/layout';
-import { BlogPageContent } from '../modules/cms/index.js';
+import { BlogPageContent } from '../modules/blog/index.js';
 
 export default function BlogPage() {
   return (

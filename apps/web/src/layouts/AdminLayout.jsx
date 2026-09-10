@@ -66,6 +66,7 @@ import {
   Megaphone,
   UserCog,
   Mail,
+  Newspaper,
 } from 'lucide-react';
 import { Sidebar } from '@desavii/ui/components/navigation';
 import { Container } from '@desavii/ui/components/layout';
@@ -215,6 +216,17 @@ export default function AdminLayout() {
       label: t('admin.nav.cms'),
       href: `/${locale}/admin/cms`,
       icon: <FileText aria-hidden="true" focusable="false" />,
+    },
+    {
+      id: 'blog',
+      groupId: 'content',
+      label: t('admin.nav.blog'),
+      href: `/${locale}/admin/blog`,
+      icon: <Newspaper aria-hidden="true" focusable="false" />,
+      // Sprint H: the /admin/blog route tree requires `blog.manage`
+      // server-side — same "hides a dead-end 403" reasoning as the
+      // Managers/Promotions/Contact Inquiries nav items above.
+      requiredPermission: 'blog.manage',
     },
     {
       id: 'contact-inquiries',

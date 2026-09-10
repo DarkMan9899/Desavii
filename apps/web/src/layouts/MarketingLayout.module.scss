@@ -1,0 +1,32 @@
+// MarketingLayout — tokens only, consumed from @desavii/ui. Identical to
+// ManagerLayout.module.scss/AdminLayout.module.scss (same layout
+// paradigm, deliberately — no identity-card sidebar column, unlike
+// PartnerLayout).
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-8;
+  padding-block: tokens.$space-8;
+
+  @include respond.respond(tablet) {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}
+
+.sidebar {
+  flex-shrink: 0;
+
+  @include respond.respond(tablet) {
+    width: 260px;
+  }
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}

@@ -40,7 +40,10 @@
     "react-hook-form": "^7.53.1",
     "react-i18next": "^15.1.0",
     "react-leaflet": "^4.2.1",
-    "react-router-dom": "^6.27.0"
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^6.27.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",

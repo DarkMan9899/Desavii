@@ -217,6 +217,8 @@ export const services = {
   paymentService: v1.paymentService,
   // Sprint E: registers the advertisement lifecycle sweep.
   advertisementService: v1.advertisementService,
+  // Sprint H: registers the blog scheduled-publish sweep.
+  blogService: v1.blogService,
 };
 
 // 7. 404 — no matching route

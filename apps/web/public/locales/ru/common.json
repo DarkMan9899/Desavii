@@ -87,7 +87,8 @@
     "register": "Регистрация",
     "logout": "Выйти",
     "workspace": "Рабочее пространство",
-    "manager": "Менеджер"
+    "manager": "Менеджер",
+    "marketing": "Маркетинг"
   },
   "status": {
     "loading": "Загрузка...",
@@ -1783,7 +1784,8 @@
         "system": "Система"
       },
       "managers": "Менеджеры",
-      "contactInquiries": "Обращения"
+      "contactInquiries": "Обращения",
+      "blog": "Блог"
     },
     "dashboard": {
       "heading": "Обзор маркетплейса",
@@ -3052,6 +3054,19 @@
         "receivedLabel": "Получено",
         "closeAction": "Закрыть"
       }
+    },
+    "blog": {
+      "heading": "Блог",
+      "description": "Управляйте всеми записями блога или предоставьте роль маркетинга пользователю.",
+      "marketingRoleHeading": "Роль маркетинга",
+      "marketingRoleDescription": "Предоставьте или отзовите доступ Marketing/SMM для существующего пользователя.",
+      "grantUserIdLabel": "ID пользователя",
+      "grantUserIdPlaceholder": "например, 42",
+      "grantAction": "Предоставить роль маркетинга",
+      "revokeAction": "Отозвать роль маркетинга",
+      "grantSuccess": "Роль маркетинга предоставлена.",
+      "revokeSuccess": "Роль маркетинга отозвана.",
+      "roleError": "Не удалось обновить роль пользователя."
     }
   },
   "pages": {
@@ -3956,6 +3971,130 @@
       "placeholder": "Поиск направлений, отелей, туров…",
       "submitAction": "Искать",
       "closeAction": "Закрыть поиск"
+    }
+  },
+  "blog": {
+    "title": "Блог",
+    "description": "Путеводители, истории партнёров и вдохновение для путешествий по Армении.",
+    "filters": {
+      "allCategories": "Все категории",
+      "category": "Категория",
+      "tag": "Тег"
+    },
+    "readMore": "Читать далее",
+    "by": "Автор: {{author}}",
+    "relatedPosts": "Похожие статьи",
+    "loadMore": "Показать ещё",
+    "empty": {
+      "title": "Пока нет статей",
+      "description": "Скоро здесь появятся путеводители и истории об Армении."
+    },
+    "error": {
+      "title": "Что-то пошло не так",
+      "retry": "Попробовать снова"
+    },
+    "statuses": {
+      "DRAFT": "Черновик",
+      "SCHEDULED": "Запланировано",
+      "PUBLISHED": "Опубликовано",
+      "ARCHIVED": "Снято с публикации"
+    }
+  },
+  "marketing": {
+    "nav": {
+      "dashboard": "Панель",
+      "posts": "Записи блога"
+    },
+    "dashboard": {
+      "heading": "Панель маркетинга",
+      "description": "Обзор контента вашего блога.",
+      "draftCount": "Черновики",
+      "scheduledCount": "Запланировано",
+      "publishedCount": "Опубликовано",
+      "recentlyUpdated": "Недавно обновлённые",
+      "noRecentPosts": "Нет недавно обновлённых записей."
+    },
+    "posts": {
+      "heading": "Записи блога",
+      "description": "Создавайте, редактируйте и публикуйте статьи для публичного блога.",
+      "createAction": "Новая запись",
+      "createModalTitle": "Новая запись блога",
+      "titleLabel": "Заголовок",
+      "titleRequired": "Пожалуйста, укажите заголовок.",
+      "columns": {
+        "title": "Заголовок",
+        "status": "Статус",
+        "author": "Автор",
+        "category": "Категория",
+        "updated": "Обновлено",
+        "published": "Опубликовано",
+        "scheduled": "Запланировано на"
+      },
+      "filters": {
+        "status": "Статус",
+        "allStatuses": "Все статусы",
+        "search": "Поиск по заголовку"
+      },
+      "empty": {
+        "title": "Пока нет записей",
+        "description": "Создайте свою первую запись блога."
+      },
+      "error": {
+        "title": "Что-то пошло не так",
+        "retry": "Попробовать снова"
+      },
+      "createSuccess": "Черновик создан.",
+      "createError": "Не удалось создать черновик."
+    },
+    "editor": {
+      "backAction": "Назад к записям",
+      "noCategory": "Без категории",
+      "settingsHeading": "Настройки",
+      "slugLabel": "URL-адрес",
+      "categoryLabel": "Категория",
+      "categoryNone": "Без категории",
+      "tagsLabel": "Теги",
+      "tagsPlaceholder": "Введите тег и нажмите Enter",
+      "tagRemoveAction": "Удалить тег {{tag}}",
+      "tagAddAction": "Добавить тег {{tag}}",
+      "coverHeading": "Обложка",
+      "coverUploadAction": "Загрузить обложку",
+      "coverReplaceAction": "Заменить обложку",
+      "coverRemoveAction": "Удалить",
+      "coverHint": "JPEG, PNG или WebP, до 10 МБ.",
+      "coverErrorType": "Пожалуйста, выберите изображение JPEG, PNG или WebP.",
+      "coverErrorSize": "Это изображение больше 10 МБ.",
+      "translationsHeading": "Содержание",
+      "titleLabel": "Заголовок",
+      "excerptLabel": "Краткое описание",
+      "excerptHint": "Краткое описание, отображаемое в списке блога и в результатах поиска.",
+      "bodyLabel": "Текст статьи",
+      "bodyHint": "Поддерживается Markdown: # заголовки, **жирный**, *курсив*, [ссылки](url), - списки, ![alt](url-изображения).",
+      "seoHeading": "SEO",
+      "seoTitleLabel": "SEO-заголовок",
+      "seoDescriptionLabel": "SEO-описание",
+      "seoHint": "Необязательно — если оставить пустым, будут использованы заголовок и краткое описание выше.",
+      "localeTabMissingLabel": "{{code}} (ещё не написано)",
+      "saveAction": "Сохранить",
+      "saveSuccess": "Сохранено.",
+      "saveError": "Не удалось сохранить изменения.",
+      "previewAction": "Предпросмотр",
+      "previewBadge": "Предпросмотр — эта страница не видна публично.",
+      "openPreviewAction": "Открыть предпросмотр",
+      "publishAction": "Опубликовать",
+      "publishSuccess": "Запись опубликована.",
+      "publishError": "Не удалось опубликовать — нужны заголовок и текст хотя бы на одном языке.",
+      "unpublishAction": "Снять с публикации",
+      "unpublishSuccess": "Запись снята с публикации.",
+      "unpublishError": "Не удалось снять запись с публикации.",
+      "scheduleAction": "Запланировать",
+      "scheduleModalTitle": "Запланировать публикацию",
+      "scheduleDateLabel": "Дата и время публикации",
+      "scheduleConfirm": "Подтвердить расписание",
+      "scheduleSuccess": "Запись запланирована.",
+      "scheduleError": "Не удалось запланировать — проверьте дату и содержание.",
+      "unscheduleAction": "Отменить расписание",
+      "unscheduleSuccess": "Расписание отменено — запись возвращена в черновики."
     }
   }
 }

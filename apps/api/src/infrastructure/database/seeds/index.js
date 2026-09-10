@@ -28,6 +28,7 @@ import seedCmsPages from './008_cms_pages.js';
 import seedSettingsAndFeatureFlags from './009_settings_and_feature_flags.js';
 import seedNotificationLookups from './010_notification_lookups.js';
 import seedPaymentLookups from './011_payment_lookups.js';
+import seedBlogContent from './012_blog_content.js';
 
 const log = getModuleLogger('infrastructure:seed');
 
@@ -45,6 +46,7 @@ export async function seedAll() {
       await seedSettingsAndFeatureFlags(connection);
       await seedNotificationLookups(connection);
       await seedPaymentLookups(connection);
+      await seedBlogContent(connection);
       return seedDevAccounts(connection);
     },
     { pool },

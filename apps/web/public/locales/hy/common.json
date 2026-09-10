@@ -87,7 +87,8 @@
     "register": "Գրանցվել",
     "logout": "Ելք",
     "workspace": "Աշխատանքային տարածք",
-    "manager": "Մենեջեր"
+    "manager": "Մենեջեր",
+    "marketing": "Մարքեթինգ"
   },
   "status": {
     "loading": "Բեռնվում է...",
@@ -1763,7 +1764,8 @@
         "system": "Համակարգ"
       },
       "managers": "Մենեջերներ",
-      "contactInquiries": "Հետադարձ կապի հարցումներ"
+      "contactInquiries": "Հետադարձ կապի հարցումներ",
+      "blog": "Բլոգ"
     },
     "dashboard": {
       "heading": "Շուկայի ընդհանուր տեսք",
@@ -3032,6 +3034,19 @@
         "receivedLabel": "Ստացվել է",
         "closeAction": "Փակել"
       }
+    },
+    "blog": {
+      "heading": "Բլոգ",
+      "description": "Կառավարեք բլոգի բոլոր գրառումները կամ տրամադրեք Մարքեթինգի դեր օգտատիրոջը։",
+      "marketingRoleHeading": "Մարքեթինգի դեր",
+      "marketingRoleDescription": "Տրամադրեք կամ հետ վերցրեք Մարքեթինգի/SMM հասանելիությունը գոյություն ունեցող օգտատիրոջ համար։",
+      "grantUserIdLabel": "Օգտատիրոջ ID",
+      "grantUserIdPlaceholder": "օր.՝ 42",
+      "grantAction": "Տրամադրել Մարքեթինգի դեր",
+      "revokeAction": "Հետ վերցնել Մարքեթինգի դերը",
+      "grantSuccess": "Մարքեթինգի դերը տրամադրված է։",
+      "revokeSuccess": "Մարքեթինգի դերը հետ վերցված է։",
+      "roleError": "Չհաջողվեց թարմացնել այս օգտատիրոջ դերը։"
     }
   },
   "pages": {
@@ -3926,6 +3941,130 @@
       "placeholder": "Որոնեք ուղղություններ, հյուրանոցներ, տուրեր…",
       "submitAction": "Որոնել",
       "closeAction": "Փակել որոնումը"
+    }
+  },
+  "blog": {
+    "title": "Բլոգ",
+    "description": "Ճանապարհորդական ուղեցույցներ, գործընկերների պատմություններ և ոգեշնչում Հայաստանի տարբեր ուղղություններից։",
+    "filters": {
+      "allCategories": "Բոլոր կատեգորիաները",
+      "category": "Կատեգորիա",
+      "tag": "Պիտակ"
+    },
+    "readMore": "Կարդալ ավելին",
+    "by": "Հեղինակ՝ {{author}}",
+    "relatedPosts": "Առնչվող հոդվածներ",
+    "loadMore": "Ցույց տալ ավելին",
+    "empty": {
+      "title": "Դեռ հոդվածներ չկան",
+      "description": "Շուտով կլինեն ճանապարհորդական ուղեցույցներ և պատմություններ Հայաստանից։"
+    },
+    "error": {
+      "title": "Ինչ-որ բան սխալ գնաց",
+      "retry": "Կրկին փորձել"
+    },
+    "statuses": {
+      "DRAFT": "Սևագիր",
+      "SCHEDULED": "Պլանավորված",
+      "PUBLISHED": "Հրապարակված",
+      "ARCHIVED": "Չհրապարակված"
+    }
+  },
+  "marketing": {
+    "nav": {
+      "dashboard": "Վահանակ",
+      "posts": "Բլոգի գրառումներ"
+    },
+    "dashboard": {
+      "heading": "Մարքեթինգի վահանակ",
+      "description": "Ձեր բլոգի բովանդակության ընդհանուր պատկերը։",
+      "draftCount": "Սևագրեր",
+      "scheduledCount": "Պլանավորված",
+      "publishedCount": "Հրապարակված",
+      "recentlyUpdated": "Վերջերս թարմացված",
+      "noRecentPosts": "Վերջերս թարմացված գրառումներ չկան։"
+    },
+    "posts": {
+      "heading": "Բլոգի գրառումներ",
+      "description": "Ստեղծեք, խմբագրեք և հրապարակեք հոդվածներ հանրային Բլոգի համար։",
+      "createAction": "Նոր գրառում",
+      "createModalTitle": "Նոր բլոգ գրառում",
+      "titleLabel": "Վերնագիր",
+      "titleRequired": "Խնդրում ենք նշել վերնագիր։",
+      "columns": {
+        "title": "Վերնագիր",
+        "status": "Կարգավիճակ",
+        "author": "Հեղինակ",
+        "category": "Կատեգորիա",
+        "updated": "Թարմացվել է",
+        "published": "Հրապարակվել է",
+        "scheduled": "Պլանավորված է"
+      },
+      "filters": {
+        "status": "Կարգավիճակ",
+        "allStatuses": "Բոլոր կարգավիճակները",
+        "search": "Որոնել ըստ վերնագրի"
+      },
+      "empty": {
+        "title": "Դեռ գրառումներ չկան",
+        "description": "Ստեղծեք ձեր առաջին բլոգ գրառումը։"
+      },
+      "error": {
+        "title": "Ինչ-որ բան սխալ գնաց",
+        "retry": "Կրկին փորձել"
+      },
+      "createSuccess": "Սևագիրը ստեղծված է։",
+      "createError": "Չհաջողվեց ստեղծել սևագիրը։"
+    },
+    "editor": {
+      "backAction": "Վերադառնալ գրառումներին",
+      "noCategory": "Առանց կատեգորիայի",
+      "settingsHeading": "Կարգավորումներ",
+      "slugLabel": "URL-հասցե",
+      "categoryLabel": "Կատեգորիա",
+      "categoryNone": "Առանց կատեգորիայի",
+      "tagsLabel": "Պիտակներ",
+      "tagsPlaceholder": "Գրեք պիտակ և սեղմեք Enter",
+      "tagRemoveAction": "Հեռացնել {{tag}} պիտակը",
+      "tagAddAction": "Ավելացնել {{tag}} պիտակը",
+      "coverHeading": "Շապիկի նկար",
+      "coverUploadAction": "Վերբեռնել շապիկի նկար",
+      "coverReplaceAction": "Փոխարինել շապիկի նկարը",
+      "coverRemoveAction": "Հեռացնել",
+      "coverHint": "JPEG, PNG կամ WebP, մինչև 10 ՄԲ։",
+      "coverErrorType": "Խնդրում ենք ընտրել JPEG, PNG կամ WebP պատկեր։",
+      "coverErrorSize": "Այս պատկերը 10 ՄԲ-ից մեծ է։",
+      "translationsHeading": "Բովանդակություն",
+      "titleLabel": "Վերնագիր",
+      "excerptLabel": "Համառոտագիր",
+      "excerptHint": "Կարճ ամփոփում, որը ցուցադրվում է Բլոգի ցանկում և որոնման արդյունքներում։",
+      "bodyLabel": "Հիմնական տեքստ",
+      "bodyHint": "Աջակցվում է Markdown՝ # վերնագրեր, **թավ**, *շեղ*, [հղումներ](url), - ցանկեր, ![alt](պատկերի-url)։",
+      "seoHeading": "SEO",
+      "seoTitleLabel": "SEO վերնագիր",
+      "seoDescriptionLabel": "SEO նկարագրություն",
+      "seoHint": "Ոչ պարտադիր․ դատարկ թողնելու դեպքում օգտագործվում են վերևի վերնագիրը և համառոտագիրը։",
+      "localeTabMissingLabel": "{{code}} (դեռ չգրված)",
+      "saveAction": "Պահպանել",
+      "saveSuccess": "Պահպանված է։",
+      "saveError": "Չհաջողվեց պահպանել փոփոխությունները։",
+      "previewAction": "Նախադիտում",
+      "previewBadge": "Նախադիտում — այս էջը հրապարակայնորեն տեսանելի չէ։",
+      "openPreviewAction": "Բացել նախադիտումը",
+      "publishAction": "Հրապարակել",
+      "publishSuccess": "Գրառումը հրապարակված է։",
+      "publishError": "Չհաջողվեց հրապարակել․ անհրաժեշտ է վերնագիր և տեքստ առնվազն մեկ լեզվով։",
+      "unpublishAction": "Հանել հրապարակումից",
+      "unpublishSuccess": "Գրառումը հանվել է հրապարակումից։",
+      "unpublishError": "Չհաջողվեց հանել գրառումը հրապարակումից։",
+      "scheduleAction": "Պլանավորել",
+      "scheduleModalTitle": "Պլանավորել այս գրառումը",
+      "scheduleDateLabel": "Հրապարակման ամսաթիվ և ժամ",
+      "scheduleConfirm": "Հաստատել պլանավորումը",
+      "scheduleSuccess": "Գրառումը պլանավորված է։",
+      "scheduleError": "Չհաջողվեց պլանավորել․ ստուգեք ամսաթիվը և բովանդակությունը։",
+      "unscheduleAction": "Չեղարկել պլանավորումը",
+      "unscheduleSuccess": "Պլանավորումը չեղարկված է․ վերադարձվել է Սևագիր կարգավիճակին։"
     }
   }
 }

@@ -177,4 +177,15 @@ export default async function seedLookups(connection) {
     { code: 'NEW', name: 'New' },
     { code: 'RESOLVED', name: 'Resolved' },
   ]);
+
+  // Sprint H — Blog (migration 0044). Mirrors `listing_statuses`' own
+  // shape. SCHEDULED/ARCHIVED both round-trip back to DRAFT or forward
+  // to PUBLISHED — see `blogService.js`'s transition guards for the
+  // real state machine; this is just the vocabulary.
+  await upsertByCode(connection, 'blog_post_statuses', [
+    { code: 'DRAFT', name: 'Draft' },
+    { code: 'SCHEDULED', name: 'Scheduled' },
+    { code: 'PUBLISHED', name: 'Published' },
+    { code: 'ARCHIVED', name: 'Archived' },
+  ]);
 }

@@ -20,6 +20,7 @@ import { registerPendingVendorSlaSweepJob } from './modules/bookings/jobs/pendin
 import { registerNotificationDeliveryWorker } from './modules/notifications/jobs/notificationDeliveryQueue.js';
 import { registerLocalProviderSettlementWorker } from './modules/payments/jobs/localProviderSettlementQueue.js';
 import { registerAdvertisementLifecycleSweepJob } from './modules/advertising/jobs/advertisementLifecycleSweep.js';
+import { registerScheduledPublishSweepJob } from './modules/blog/jobs/scheduledPublishSweep.js';
 
 const server = app.listen(config.port, () => {
   logger.info({ port: config.port, env: config.env }, 'desavii-api started');
@@ -93,6 +94,12 @@ const localProviderSettlement = registerLocalProviderSettlementWorker({
 const advertisementLifecycleSweep = registerAdvertisementLifecycleSweepJob({
   advertisementService: services.advertisementService,
 });
+// Sprint H: flips a SCHEDULED post to PUBLISHED once its scheduled_at
+// passes — never the sole authority on public visibility, see
+// `modules/blog/repositories/mysqlBlogRepository.js`'s own header.
+const blogScheduledPublishSweep = registerScheduledPublishSweepJob({
+  blogService: services.blogService,
+});
 
 async function shutdown(signal) {
   logger.info({ signal }, 'Shutting down gracefully');
@@ -110,6 +117,8 @@ async function shutdown(signal) {
       localProviderSettlement.queue.close(),
       advertisementLifecycleSweep.worker.close(),
       advertisementLifecycleSweep.queue.close(),
+      blogScheduledPublishSweep.worker.close(),
+      blogScheduledPublishSweep.queue.close(),
     ]);
     await closeMysqlPool();
     await closeRedisConnection();

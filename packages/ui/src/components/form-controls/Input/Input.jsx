@@ -32,6 +32,7 @@ const TYPES = [
   'tel',
   'time',
   'date',
+  'datetime-local',
   'url',
 ];
 

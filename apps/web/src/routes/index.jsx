@@ -40,6 +40,7 @@ import CustomerAccountLayout from '../layouts/CustomerAccountLayout.jsx';
 import PartnerLayout from '../layouts/PartnerLayout.jsx';
 import AdminLayout from '../layouts/AdminLayout.jsx';
 import ManagerLayout from '../layouts/ManagerLayout.jsx';
+import MarketingLayout from '../layouts/MarketingLayout.jsx';
 import ErrorLayout from '../layouts/ErrorLayout.jsx';
 import RequireAuth from '../guards/RequireAuth.jsx';
 import RequirePartner from '../guards/RequirePartner.jsx';
@@ -66,6 +67,7 @@ const FaqPage = lazy(() => import('../pages/FaqPage.jsx'));
 const HelpCenterPage = lazy(() => import('../pages/HelpCenterPage.jsx'));
 const BecomePartnerPage = lazy(() => import('../pages/BecomePartnerPage.jsx'));
 const BlogPage = lazy(() => import('../pages/BlogPage.jsx'));
+const BlogPostPage = lazy(() => import('../pages/BlogPostPage.jsx'));
 const LoginPage = lazy(() => import('../pages/auth/LoginPage.jsx'));
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage.jsx'));
 const ForgotPasswordPage = lazy(
@@ -215,6 +217,13 @@ const AdminCmsPage = lazy(() => import('../pages/admin/AdminCmsPage.jsx'));
 const AdminCmsDetailPage = lazy(
   () => import('../pages/admin/AdminCmsDetailPage.jsx'),
 );
+const AdminBlogPage = lazy(() => import('../pages/admin/AdminBlogPage.jsx'));
+const AdminBlogPostEditPage = lazy(
+  () => import('../pages/admin/AdminBlogPostEditPage.jsx'),
+);
+const AdminBlogPostPreviewPage = lazy(
+  () => import('../pages/admin/AdminBlogPostPreviewPage.jsx'),
+);
 const AdminAuditLogsPage = lazy(
   () => import('../pages/admin/AdminAuditLogsPage.jsx'),
 );
@@ -241,6 +250,18 @@ const AdminPaymentsPage = lazy(
 );
 const AdminPaymentDetailPage = lazy(
   () => import('../pages/admin/AdminPaymentDetailPage.jsx'),
+);
+const MarketingDashboardPage = lazy(
+  () => import('../pages/marketing/MarketingDashboardPage.jsx'),
+);
+const MarketingPostsPage = lazy(
+  () => import('../pages/marketing/MarketingPostsPage.jsx'),
+);
+const MarketingPostEditPage = lazy(
+  () => import('../pages/marketing/MarketingPostEditPage.jsx'),
+);
+const MarketingPostPreviewPage = lazy(
+  () => import('../pages/marketing/MarketingPostPreviewPage.jsx'),
 );
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage.jsx'));
 
@@ -327,6 +348,7 @@ export default function AppRoutes() {
               <Route path="help" element={<HelpCenterPage />} />
               <Route path="become-a-partner" element={<BecomePartnerPage />} />
               <Route path="blog" element={<BlogPage />} />
+              <Route path="blog/:slug" element={<BlogPostPage />} />
             </Route>
 
             {/* Booking Flow (Phase 7) — checkout is RequireAuth-gated (a
@@ -538,6 +560,38 @@ export default function AppRoutes() {
               />
             </Route>
 
+            {/* Marketing/SMM Workspace (Sprint H) — RequireAuth +
+              RequireRole roles={['MARKETING']} (a global-role check, same
+              shape as Admin's below, not RequireManager's assignment-table
+              check: Marketing's access is unscoped, via `blog.manage`/
+              `blog.publish` permissions, not scoped to specific entities).
+              Deliberately NOT shared with Admin's `/admin/blog` group —
+              spec §16 requires Marketing never gain unrestricted Admin
+              access, and Admin already has its own `/admin/blog` entry
+              point into the same shared components. No Provider here,
+              unlike Manager: see `MarketingLayout.jsx`'s file header for
+              why no scoping context is needed. */}
+            <Route
+              element={
+                <RequireAuth>
+                  <RequireRole roles={['MARKETING']}>
+                    <MarketingLayout />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            >
+              <Route path="marketing" element={<MarketingDashboardPage />} />
+              <Route path="marketing/posts" element={<MarketingPostsPage />} />
+              <Route
+                path="marketing/posts/:id"
+                element={<MarketingPostEditPage />}
+              />
+              <Route
+                path="marketing/posts/:id/preview"
+                element={<MarketingPostPreviewPage />}
+              />
+            </Route>
+
             {/* Admin (Phase 11) — RequireAuth + RequireRole (not
               RequirePartner: admin access is a global role, not a
               partner-membership relationship). Ships in stages — only
@@ -606,6 +660,15 @@ export default function AppRoutes() {
               />
               <Route path="admin/cms" element={<AdminCmsPage />} />
               <Route path="admin/cms/:id" element={<AdminCmsDetailPage />} />
+              <Route path="admin/blog" element={<AdminBlogPage />} />
+              <Route
+                path="admin/blog/:id"
+                element={<AdminBlogPostEditPage />}
+              />
+              <Route
+                path="admin/blog/:id/preview"
+                element={<AdminBlogPostPreviewPage />}
+              />
               <Route path="admin/audit-logs" element={<AdminAuditLogsPage />} />
               <Route
                 path="admin/system-health"

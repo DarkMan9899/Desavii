@@ -1,0 +1,87 @@
+@use 'tokens' as tokens;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-8;
+  padding-block: tokens.$space-6;
+}
+
+.filters {
+  align-items: flex-end;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  border-radius: tokens.$radius-lg;
+  background-color: tokens.$color-white;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  @include tokens.elevation-0;
+  transition: box-shadow tokens.$motion-micro tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
+
+  &:hover {
+    @include tokens.elevation-1;
+  }
+}
+
+.cardCover {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background-color: tokens.$color-gray-100;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.cardCoverFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: tokens.$color-gray-400;
+}
+
+.cardCategory {
+  position: absolute;
+  top: tokens.$space-3;
+  left: tokens.$space-3;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  padding: tokens.$space-4;
+}
+
+.cardTitle {
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-h4;
+  line-height: tokens.$line-height-h4;
+  color: tokens.$color-gray-900;
+}
+
+.cardExcerpt {
+  margin: 0;
+  color: tokens.$color-gray-600;
+  font-size: tokens.$font-size-body;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cardMeta {
+  margin: 0;
+  color: tokens.$color-gray-400;
+  font-size: tokens.$font-size-small;
+}

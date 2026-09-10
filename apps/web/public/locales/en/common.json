@@ -87,7 +87,8 @@
     "register": "Sign up",
     "logout": "Log out",
     "workspace": "Workspace",
-    "manager": "Manager"
+    "manager": "Manager",
+    "marketing": "Marketing"
   },
   "status": {
     "loading": "Loading...",
@@ -1763,7 +1764,8 @@
         "system": "System"
       },
       "managers": "Managers",
-      "contactInquiries": "Contact Inquiries"
+      "contactInquiries": "Contact Inquiries",
+      "blog": "Blog"
     },
     "dashboard": {
       "heading": "Marketplace overview",
@@ -3032,6 +3034,19 @@
         "receivedLabel": "Received",
         "closeAction": "Close"
       }
+    },
+    "blog": {
+      "heading": "Blog",
+      "description": "Manage every blog post, or grant the Marketing role to a user.",
+      "marketingRoleHeading": "Marketing role",
+      "marketingRoleDescription": "Grant or revoke Marketing/SMM access for an existing user.",
+      "grantUserIdLabel": "User ID",
+      "grantUserIdPlaceholder": "e.g. 42",
+      "grantAction": "Grant Marketing role",
+      "revokeAction": "Revoke Marketing role",
+      "grantSuccess": "Marketing role granted.",
+      "revokeSuccess": "Marketing role revoked.",
+      "roleError": "Could not update this user’s role."
     }
   },
   "pages": {
@@ -3926,6 +3941,130 @@
       "placeholder": "Search destinations, hotels, tours…",
       "submitAction": "Search",
       "closeAction": "Close search"
+    }
+  },
+  "blog": {
+    "title": "Blog",
+    "description": "Travel guides, partner stories, and destination inspiration from across Armenia.",
+    "filters": {
+      "allCategories": "All categories",
+      "category": "Category",
+      "tag": "Tag"
+    },
+    "readMore": "Read more",
+    "by": "By {{author}}",
+    "relatedPosts": "Related posts",
+    "loadMore": "Load more",
+    "empty": {
+      "title": "No articles yet",
+      "description": "Check back soon for travel guides and stories from Armenia."
+    },
+    "error": {
+      "title": "Something went wrong",
+      "retry": "Try again"
+    },
+    "statuses": {
+      "DRAFT": "Draft",
+      "SCHEDULED": "Scheduled",
+      "PUBLISHED": "Published",
+      "ARCHIVED": "Unpublished"
+    }
+  },
+  "marketing": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "posts": "Blog Posts"
+    },
+    "dashboard": {
+      "heading": "Marketing Dashboard",
+      "description": "An overview of your blog content.",
+      "draftCount": "Drafts",
+      "scheduledCount": "Scheduled",
+      "publishedCount": "Published",
+      "recentlyUpdated": "Recently updated",
+      "noRecentPosts": "No posts updated recently."
+    },
+    "posts": {
+      "heading": "Blog Posts",
+      "description": "Create, edit, and publish articles for the public Blog.",
+      "createAction": "New post",
+      "createModalTitle": "New blog post",
+      "titleLabel": "Title",
+      "titleRequired": "Please enter a title.",
+      "columns": {
+        "title": "Title",
+        "status": "Status",
+        "author": "Author",
+        "category": "Category",
+        "updated": "Updated",
+        "published": "Published",
+        "scheduled": "Scheduled for"
+      },
+      "filters": {
+        "status": "Status",
+        "allStatuses": "All statuses",
+        "search": "Search by title"
+      },
+      "empty": {
+        "title": "No posts yet",
+        "description": "Create your first blog post to get started."
+      },
+      "error": {
+        "title": "Something went wrong",
+        "retry": "Try again"
+      },
+      "createSuccess": "Draft created.",
+      "createError": "Could not create the draft."
+    },
+    "editor": {
+      "backAction": "Back to posts",
+      "noCategory": "No category",
+      "settingsHeading": "Settings",
+      "slugLabel": "URL slug",
+      "categoryLabel": "Category",
+      "categoryNone": "No category",
+      "tagsLabel": "Tags",
+      "tagsPlaceholder": "Type a tag and press Enter",
+      "tagRemoveAction": "Remove tag {{tag}}",
+      "tagAddAction": "Add tag {{tag}}",
+      "coverHeading": "Cover image",
+      "coverUploadAction": "Upload cover image",
+      "coverReplaceAction": "Replace cover image",
+      "coverRemoveAction": "Remove",
+      "coverHint": "JPEG, PNG, or WebP, up to 10 MB.",
+      "coverErrorType": "Please choose a JPEG, PNG, or WebP image.",
+      "coverErrorSize": "This image is larger than 10 MB.",
+      "translationsHeading": "Content",
+      "titleLabel": "Title",
+      "excerptLabel": "Excerpt",
+      "excerptHint": "A short summary shown on the Blog index and in search results.",
+      "bodyLabel": "Body",
+      "bodyHint": "Supports Markdown: # headings, **bold**, *italic*, [links](url), - lists, ![alt](image-url).",
+      "seoHeading": "SEO",
+      "seoTitleLabel": "SEO title",
+      "seoDescriptionLabel": "SEO description",
+      "seoHint": "Optional — falls back to the title and excerpt above when left blank.",
+      "localeTabMissingLabel": "{{code}} (not written yet)",
+      "saveAction": "Save",
+      "saveSuccess": "Saved.",
+      "saveError": "Could not save your changes.",
+      "previewAction": "Preview",
+      "previewBadge": "Preview — this page is not publicly visible.",
+      "openPreviewAction": "Open preview",
+      "publishAction": "Publish",
+      "publishSuccess": "Post published.",
+      "publishError": "Could not publish this post — it needs a title and body in at least one language.",
+      "unpublishAction": "Unpublish",
+      "unpublishSuccess": "Post unpublished.",
+      "unpublishError": "Could not unpublish this post.",
+      "scheduleAction": "Schedule",
+      "scheduleModalTitle": "Schedule this post",
+      "scheduleDateLabel": "Publish date and time",
+      "scheduleConfirm": "Confirm schedule",
+      "scheduleSuccess": "Post scheduled.",
+      "scheduleError": "Could not schedule this post — check the date and that it has real content.",
+      "unscheduleAction": "Cancel schedule",
+      "unscheduleSuccess": "Schedule cancelled — moved back to Draft."
     }
   }
 }

@@ -1,0 +1,78 @@
+@use 'tokens' as tokens;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-4;
+  max-width: 68ch;
+  margin-inline: auto;
+  padding-block: tokens.$space-6;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding-block: tokens.$space-16;
+}
+
+.title {
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-h1;
+  line-height: tokens.$line-height-h1;
+  color: tokens.$color-gray-900;
+  text-wrap: balance;
+}
+
+.meta {
+  margin: 0;
+  color: tokens.$color-gray-600;
+  font-size: tokens.$font-size-small;
+}
+
+.cover {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: tokens.$radius-lg;
+}
+
+.related {
+  margin-block-start: tokens.$space-8;
+  padding-block-start: tokens.$space-6;
+  border-top: 1px solid tokens.$color-gray-200;
+}
+
+.relatedHeading {
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-h4;
+  line-height: tokens.$line-height-h4;
+  color: tokens.$color-gray-900;
+}
+
+.relatedCard {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  text-decoration: none;
+  color: tokens.$color-gray-900;
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+
+  img,
+  .relatedCardFallback {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: tokens.$radius-md;
+  }
+}
+
+.relatedCardFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: tokens.$color-gray-100;
+  color: tokens.$color-gray-400;
+}

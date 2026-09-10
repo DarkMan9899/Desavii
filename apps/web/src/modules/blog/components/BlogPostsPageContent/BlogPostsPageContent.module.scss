@@ -1,0 +1,5 @@
+@use 'tokens' as tokens;
+
+.createModal {
+  padding: tokens.$space-2 tokens.$space-6 tokens.$space-6;
+}

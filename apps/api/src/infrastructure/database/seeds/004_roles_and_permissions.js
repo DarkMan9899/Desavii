@@ -30,6 +30,22 @@
  * (`isManagerAssignedToPartner`), not an RBAC permission flag. Only the
  * ADMIN-side mutation that creates/removes an assignment
  * (`manager.assign`, below) is a real permission.
+ *
+ * MARKETING (Sprint H, Blog + Marketing/SMM CMS) is a seventh global
+ * role, scoped to editorial content only — unlike MANAGER, its access
+ * IS real RBAC (two permissions, not an assignment table): `blog.manage`
+ * covers the full authoring surface (create/edit drafts, categories,
+ * tags, cover media) and `blog.publish` gates every action that changes
+ * public visibility — publish/unpublish AND schedule/unschedule (a
+ * scheduled post becomes public unattended, the same trust tier as an
+ * immediate publish) — matching spec §37's "a user who can edit drafts
+ * should not automatically publish unless permission says so"
+ * requirement — the same two-tier shape
+ * `promotion.approve`/`promotion.mark_paid` already establishes for
+ * Advertising. MARKETING holds both here (a small editorial team
+ * publishes its own work); the split still matters because it's real,
+ * independently-checked authorization in `BlogService`, not cosmetic —
+ * a future narrower role can be granted `blog.manage` alone.
  */
 
 import { upsertByCode, getIdsByCode } from './helpers.js';
@@ -41,6 +57,7 @@ const ROLES = [
   { code: 'SUPER_ADMIN', name: 'Super Admin' },
   { code: 'SUPPORT', name: 'Support' },
   { code: 'MANAGER', name: 'Manager' },
+  { code: 'MARKETING', name: 'Marketing' },
 ];
 
 const PERMISSIONS = [
@@ -227,6 +244,21 @@ const PERMISSIONS = [
     module: 'contact',
     description: 'View and resolve public Contact form inquiries',
   },
+  {
+    key: 'blog.manage',
+    module: 'blog',
+    description: 'Create/edit blog posts (drafts, category, tags, cover media)',
+  },
+  {
+    key: 'blog.publish',
+    module: 'blog',
+    description: 'Publish/unpublish/schedule a blog post',
+  },
+  {
+    key: 'marketing.assign',
+    module: 'admin',
+    description: 'Grant/revoke the Marketing role for a user',
+  },
 ];
 
 const ROLE_PERMISSIONS = {
@@ -262,6 +294,7 @@ const ROLE_PERMISSIONS = {
   // Assignment-based access, not RBAC — see the MANAGER header comment
   // above.
   MANAGER: [],
+  MARKETING: ['blog.manage', 'blog.publish'],
 };
 
 async function upsertPermissions(connection) {

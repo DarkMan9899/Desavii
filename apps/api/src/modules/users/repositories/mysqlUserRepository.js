@@ -289,6 +289,16 @@ export class MySqlUserRepository extends UserRepositoryPort {
     );
   }
 
+  /** Sprint H — the first real role revocation in this codebase (MANAGER's own "demote" never needed one; Manager access is controlled by `manager_companies` assignments instead, see that module's own header). */
+  async revokeRole(userId, roleCode, connection = this.#pool) {
+    await connection.query(
+      `DELETE ru FROM role_user ru
+       JOIN roles r ON r.id = ru.role_id
+       WHERE ru.user_id = ? AND r.code = ?`,
+      [userId, roleCode],
+    );
+  }
+
   /**
    * Inserts the `media` row backing an avatar upload and returns its id.
    * Avatars are auto-approved (unlike public listing photos, which

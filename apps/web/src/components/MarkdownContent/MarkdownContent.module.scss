@@ -1,0 +1,87 @@
+// MarkdownContent — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-4;
+  max-width: 68ch;
+  color: tokens.$color-gray-900;
+  font-size: tokens.$font-size-body-large;
+  line-height: 1.7;
+
+  :global(h1),
+  :global(h2),
+  :global(h3),
+  :global(h4) {
+    margin: tokens.$space-6 0 0;
+    font-family: tokens.$font-heading;
+    color: tokens.$color-gray-900;
+    text-wrap: balance;
+  }
+
+  :global(h1) {
+    font-size: tokens.$font-size-h2;
+    line-height: tokens.$line-height-h2;
+  }
+
+  :global(h2) {
+    font-size: tokens.$font-size-h3;
+    line-height: tokens.$line-height-h3;
+  }
+
+  :global(h3) {
+    font-size: tokens.$font-size-h4;
+    line-height: tokens.$line-height-h4;
+  }
+
+  :global(p) {
+    margin: 0;
+  }
+
+  :global(ul),
+  :global(ol) {
+    margin: 0;
+    padding-inline-start: tokens.$space-6;
+    display: flex;
+    flex-direction: column;
+    gap: tokens.$space-2;
+  }
+
+  :global(a) {
+    color: tokens.$color-royal-blue;
+    text-decoration: underline;
+  }
+
+  :global(img) {
+    max-width: 100%;
+    border-radius: tokens.$radius-lg;
+  }
+
+  :global(blockquote) {
+    margin: 0;
+    padding-inline-start: tokens.$space-4;
+    border-left: 3px solid tokens.$color-gray-200;
+    color: tokens.$color-gray-600;
+  }
+
+  :global(code) {
+    padding: 0 tokens.$space-1;
+    border-radius: tokens.$radius-sm;
+    background-color: tokens.$color-gray-100;
+    font-size: tokens.$font-size-small;
+  }
+
+  :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  :global(th),
+  :global(td) {
+    padding: tokens.$space-2;
+    border: 1px solid tokens.$color-gray-200;
+    text-align: left;
+  }
+}

@@ -143,6 +143,11 @@ export class UserService {
     return this.#userRepository.assignRole(userId, roleCode);
   }
 
+  /** Sprint H — Marketing/SMM role revocation (`BlogService#demoteFromMarketing`). */
+  async revokeRole(userId, roleCode) {
+    return this.#userRepository.revokeRole(userId, roleCode);
+  }
+
   /** Used by AuthenticationService.login on a successful attempt. */
   async recordLogin(userId) {
     return this.#userRepository.updateLastLoginAt(userId);

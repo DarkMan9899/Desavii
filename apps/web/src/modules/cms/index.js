@@ -9,4 +9,6 @@ export { default as ContactPageContent } from './components/ContactPageContent/C
 export { default as FaqPageContent } from './components/FaqPageContent/FaqPageContent.jsx';
 export { default as HelpCenterPageContent } from './components/HelpCenterPageContent/HelpCenterPageContent.jsx';
 export { default as BecomePartnerPageContent } from './components/BecomePartnerPageContent/BecomePartnerPageContent.jsx';
-export { default as BlogPageContent } from './components/BlogPageContent/BlogPageContent.jsx';
+// Sprint H: Blog is no longer CMS-backed — see `modules/blog/index.js`'s
+// own `BlogPageContent`/`BlogPostPageContent` (a real article
+// index/detail, not a static title+body page).

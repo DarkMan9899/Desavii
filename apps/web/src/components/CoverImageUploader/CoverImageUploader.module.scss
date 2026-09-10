@@ -1,0 +1,71 @@
+@use 'tokens' as tokens;
+
+.uploader {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  max-width: 320px;
+}
+
+.trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border: 1px dashed tokens.$color-gray-200;
+  border-radius: tokens.$radius-lg;
+  background-color: tokens.$color-gray-100;
+  cursor: pointer;
+  overflow: hidden;
+
+  &:hover {
+    border-color: tokens.$color-royal-blue;
+  }
+}
+
+.preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: tokens.$color-gray-400;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.actions {
+  display: flex;
+  gap: tokens.$space-2;
+}
+
+.hint {
+  margin: 0;
+  color: tokens.$color-gray-400;
+  font-size: tokens.$font-size-small;
+}

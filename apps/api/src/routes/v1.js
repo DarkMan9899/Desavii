@@ -54,6 +54,8 @@ import createManagersContainer from '../modules/managers/module.container.js';
 import createManagerRoutes from '../modules/managers/module.routes.js';
 import createContactContainer from '../modules/contact/module.container.js';
 import createContactRoutes from '../modules/contact/module.routes.js';
+import createBlogContainer from '../modules/blog/module.container.js';
+import createBlogRoutes from '../modules/blog/module.routes.js';
 
 export default function createV1Router({
   guards,
@@ -241,6 +243,14 @@ export default function createV1Router({
     auditLogger,
     eventBus,
   });
+  // Sprint H (Blog + Marketing/SMM CMS): depends on Users' public
+  // Service interface only (Marketing role assignment, spec §17) —
+  // never a second Repository over `users`.
+  const blogContainer = createBlogContainer({
+    permissionResolver,
+    auditLogger,
+    userService: usersContainer.userService,
+  });
 
   router.use(
     '/auth',
@@ -373,6 +383,13 @@ export default function createV1Router({
     }),
   );
   router.use(
+    '/blog',
+    createBlogRoutes({
+      blogController: blogContainer.blogController,
+      guards,
+    }),
+  );
+  router.use(
     '/ai',
     createAiRoutes({
       aiMemoryController: aiContainer.aiMemoryController,
@@ -412,5 +429,8 @@ export default function createV1Router({
     // Sprint E: server.js needs this to register the advertisement
     // lifecycle sweep — same "app.js/tests never read this" rule.
     advertisementService: advertisingContainer.advertisementService,
+    // Sprint H: server.js needs this to register the scheduled-publish
+    // sweep — same "app.js/tests never read this" rule.
+    blogService: blogContainer.blogService,
   };
 }

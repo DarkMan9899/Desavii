@@ -9,8 +9,9 @@
  * decision) and every authenticated route (Auth/CustomerAccount/Partner/
  * Admin/booking-checkout — all `noindex` via `useNoIndex`, never
  * prerendered). Data comes from the real running API (categories,
- * destinations, companies, published listings) — never a hand-typed
- * fixture list, so the manifest always reflects actual inventory.
+ * destinations, companies, published listings, published blog posts) —
+ * never a hand-typed fixture list, so the manifest always reflects actual
+ * inventory.
  */
 
 const STATIC_PATHS = [
@@ -78,6 +79,35 @@ async function fetchAllPages(
 }
 
 /**
+ * Pages through `GET /blog/posts` — a numeric-offset `cursor` + `meta.total`
+ * shape (`BlogController`'s own, not the opaque `meta.next_cursor` shape
+ * `fetchAllPages` above expects), so it gets its own small loop rather than
+ * forcing a second pagination contract onto that shared helper.
+ */
+async function fetchAllBlogPosts(apiBaseUrl, internalToken) {
+  const rows = [];
+  let cursor = 0;
+  for (;;) {
+    const params = new URLSearchParams({ limit: '50', cursor: String(cursor) });
+    // eslint-disable-next-line no-await-in-loop -- each page's next offset depends on the previous response's total
+    const res = await fetch(`${apiBaseUrl}/blog/posts?${params.toString()}`, {
+      headers: internalBuildHeaders(internalToken),
+    });
+    if (!res.ok) {
+      throw new Error(
+        `fetchRouteManifest: /blog/posts responded ${res.status}`,
+      );
+    }
+    // eslint-disable-next-line no-await-in-loop -- see above
+    const body = await res.json();
+    rows.push(...body.data);
+    cursor += body.data.length;
+    if (body.data.length === 0 || cursor >= (body.meta?.total ?? cursor)) break;
+  }
+  return rows;
+}
+
+/**
  * @param {object} params
  * @param {string} params.apiBaseUrl - e.g. `http://localhost:4000/api/v1`.
  * @param {string[]} params.locales - e.g. `['hy', 'ru', 'en']`.
@@ -97,12 +127,14 @@ export async function fetchRouteManifest({
   locales,
   internalToken,
 }) {
-  const [categories, destinations, companies, listings] = await Promise.all([
-    fetchJson(apiBaseUrl, '/search/categories', internalToken),
-    fetchJson(apiBaseUrl, '/search/destinations', internalToken),
-    fetchAllPages(apiBaseUrl, '/partners', internalToken),
-    fetchAllPages(apiBaseUrl, '/search', internalToken),
-  ]);
+  const [categories, destinations, companies, listings, blogPosts] =
+    await Promise.all([
+      fetchJson(apiBaseUrl, '/search/categories', internalToken),
+      fetchJson(apiBaseUrl, '/search/destinations', internalToken),
+      fetchAllPages(apiBaseUrl, '/partners', internalToken),
+      fetchAllPages(apiBaseUrl, '/search', internalToken),
+      fetchAllBlogPosts(apiBaseUrl, internalToken),
+    ]);
 
   const localeFreeEntries = [
     ...STATIC_PATHS.map((localeFreePath) => ({
@@ -124,6 +156,14 @@ export async function fetchRouteManifest({
     ...listings.map((listing) => ({
       localeFreePath: `listings/${listing.slug ?? listing.id}`,
       lastmod: listing.created_at ?? null,
+    })),
+    // GET /blog/posts already filters to published (or due-scheduled)
+    // posts server-side — the same repository clause spec §33 requires
+    // ("draft/unpublished/future-scheduled content must NOT appear"), so
+    // no extra status filtering is needed here.
+    ...blogPosts.map((post) => ({
+      localeFreePath: `blog/${post.slug}`,
+      lastmod: post.published_at ?? null,
     })),
   ];
 

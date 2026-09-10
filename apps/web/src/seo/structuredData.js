@@ -185,10 +185,38 @@ export function buildFaqPageSchema(faqs) {
   };
 }
 
+/**
+ * Sprint H (Blog) — `post`: the resolved public-post shape
+ * `usePublicPostQuery`/`BlogService#getPublicPost` returns (`title`,
+ * `excerpt`, `author`, `published_at`, `cover`). `dateModified` is
+ * deliberately omitted — the schema has no real "content last edited"
+ * timestamp separate from `updated_at` on the raw admin row, which this
+ * public shape never exposes, so it's left out rather than guessed.
+ */
+export function buildArticleSchema({ post, locale, path }) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    ...(post.excerpt ? { description: post.excerpt } : {}),
+    url: buildLocaleUrl(locale, path),
+    ...(post.published_at ? { datePublished: post.published_at } : {}),
+    ...(post.author
+      ? { author: { '@type': 'Person', name: post.author } }
+      : {}),
+    ...(post.cover?.url ? { image: [post.cover.url] } : {}),
+    publisher: {
+      '@type': 'Organization',
+      name: SITE_BRAND_NAME,
+    },
+  };
+}
+
 export default {
   buildOrganizationSchema,
   buildWebsiteSchema,
   buildBreadcrumbListSchema,
   buildListingSchema,
   buildFaqPageSchema,
+  buildArticleSchema,
 };
