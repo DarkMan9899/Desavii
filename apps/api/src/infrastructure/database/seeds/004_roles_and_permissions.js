@@ -222,6 +222,11 @@ const PERMISSIONS = [
     description:
       'Grant/revoke the Manager role and assign/unassign companies to a Manager',
   },
+  {
+    key: 'contact.manage',
+    module: 'contact',
+    description: 'View and resolve public Contact form inquiries',
+  },
 ];
 
 const ROLE_PERMISSIONS = {

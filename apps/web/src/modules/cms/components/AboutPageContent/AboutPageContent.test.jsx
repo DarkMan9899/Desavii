@@ -27,11 +27,28 @@ describe('AboutPageContent (apps/web/src/modules/cms)', () => {
     getCmsPage.mockReset();
   });
 
-  test('renders the page heading and three value propositions', () => {
+  test('renders one H1, five section headings, and nine card headings (Sprint G)', () => {
     getCmsPage.mockRejectedValue(new Error('Not Found'));
     renderPage();
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
-    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(3);
+    // Mission / traveler value / partner value / how it works / CTA band.
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(5);
+    // 3 traveler-value + 3 partner-value + 3 how-it-works cards.
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(9);
+  });
+
+  test('renders a call-to-action linking to Search and Become a Partner', () => {
+    getCmsPage.mockRejectedValue(new Error('Not Found'));
+    renderPage();
+    // This suite renders at /hy/about — assert the Armenian copy actually
+    // rendered, same convention every other locale-aware test in this
+    // codebase follows.
+    expect(
+      screen.getByRole('button', { name: 'Դիտել հայտարարությունները' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Դառնալ գործընկեր' }),
+    ).toBeInTheDocument();
   });
 
   test('renders the CMS-authored title once the page is published', async () => {

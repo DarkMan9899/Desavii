@@ -1,4 +1,8 @@
-// AboutPageContent — tokens only, consumed from @desavii/ui.
+// AboutPageContent — tokens only, consumed from @desavii/ui. `.grid`/
+// `.card`/`.ctaBand` mirror BecomePartnerPageContent.module.scss's
+// `.benefitsGrid`/`.benefitCard`/`.ctaBand` patterns exactly (Sprint G) —
+// reused verbatim rather than inventing a second visual language for the
+// same "grid of icon cards" / "CTA band" shapes.
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
@@ -10,7 +14,29 @@
   padding-block: tokens.$space-6;
 }
 
-.valuesGrid {
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-4;
+}
+
+.sectionHeading {
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-h3;
+  line-height: tokens.$line-height-h3;
+  color: tokens.$color-gray-900;
+  text-wrap: balance;
+}
+
+.sectionBody {
+  margin: 0;
+  max-width: 68ch;
+  color: tokens.$color-gray-600;
+  font-size: tokens.$font-size-body-large;
+}
+
+.grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: tokens.$space-4;
@@ -20,7 +46,8 @@
   }
 }
 
-.valueCard {
+.card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -31,7 +58,7 @@
   @include tokens.elevation-0;
 }
 
-.valueIcon {
+.cardIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -43,7 +70,7 @@
   margin-block-end: tokens.$space-1;
 }
 
-.valueTitle {
+.cardTitle {
   margin: 0;
   font-family: tokens.$font-heading;
   font-size: tokens.$font-size-h4;
@@ -51,7 +78,50 @@
   color: tokens.$color-gray-900;
 }
 
-.valueDescription {
+.cardDescription {
   margin: 0;
   color: tokens.$color-gray-600;
+}
+
+.stepNumber {
+  position: absolute;
+  top: tokens.$space-4;
+  right: tokens.$space-6;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-h3;
+  color: rgba(tokens.$color-royal-blue, 0.16);
+}
+
+.ctaBand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: tokens.$space-3;
+  text-align: center;
+  padding: tokens.$space-8 tokens.$space-6;
+  border-radius: tokens.$radius-xl;
+  background-color: tokens.$color-white;
+  @include tokens.elevation-1;
+}
+
+.ctaHeading {
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-h3;
+  line-height: tokens.$line-height-h3;
+  color: tokens.$color-gray-900;
+}
+
+.ctaBody {
+  margin: 0;
+  max-width: 56ch;
+  color: tokens.$color-gray-600;
+}
+
+.ctaActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: tokens.$space-3;
+  margin-block-start: tokens.$space-2;
 }

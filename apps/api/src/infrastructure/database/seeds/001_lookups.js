@@ -1,6 +1,9 @@
 /**
- * Seeds every fixed-vocabulary lookup table created in migrations
- * 0002-0011. These are not optional/example data — the schema has no
+ * Seeds every fixed-vocabulary lookup table, including ones whose table
+ * was added by a much later migration (e.g. `advertisement_statuses`,
+ * `contact_inquiry_types`/`contact_inquiry_statuses`) — this file is
+ * where lookup rows live regardless of which migration created the
+ * table. These are not optional/example data — the schema has no
  * native ENUMs (DATABASE_ARCHITECTURE.md §1), so the platform cannot
  * function until these rows exist (e.g. nothing can be booked until
  * `booking_statuses` has a "DRAFT" row to reference).
@@ -160,5 +163,18 @@ export default async function seedLookups(connection) {
     { code: 'OFF_TOPIC', name: 'Not about this listing/stay' },
     { code: 'FAKE', name: 'Suspected fake review' },
     { code: 'OTHER', name: 'Other' },
+  ]);
+
+  // Sprint G — public Contact form (migration 0043).
+  await upsertByCode(connection, 'contact_inquiry_types', [
+    { code: 'GENERAL', name: 'General' },
+    { code: 'BOOKING_SUPPORT', name: 'Booking / Customer Support' },
+    { code: 'PARTNER_BUSINESS', name: 'Partner / Business' },
+    { code: 'TECHNICAL', name: 'Technical Issue' },
+  ]);
+
+  await upsertByCode(connection, 'contact_inquiry_statuses', [
+    { code: 'NEW', name: 'New' },
+    { code: 'RESOLVED', name: 'Resolved' },
   ]);
 }

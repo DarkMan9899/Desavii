@@ -30,6 +30,7 @@ export { default as AdminPaymentsPageContent } from './components/AdminPaymentsP
 export { default as AdminPromotionsPageContent } from './components/AdminPromotionsPageContent/AdminPromotionsPageContent.jsx';
 export { default as AdminManagersPageContent } from './components/AdminManagersPageContent/AdminManagersPageContent.jsx';
 export { default as AdminManagerDetailContent } from './components/AdminManagerDetailContent/AdminManagerDetailContent.jsx';
+export { default as AdminContactInquiriesPageContent } from './components/AdminContactInquiriesPageContent/AdminContactInquiriesPageContent.jsx';
 export { default as AdminPaymentDetailContent } from './components/AdminPaymentDetailContent/AdminPaymentDetailContent.jsx';
 export { default as AdminReviewModerationPageContent } from './components/AdminReviewModerationPageContent/AdminReviewModerationPageContent.jsx';
 export { default as AdminReviewDetailContent } from './components/AdminReviewDetailContent/AdminReviewDetailContent.jsx';

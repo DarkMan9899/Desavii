@@ -65,6 +65,7 @@ import {
   Bell,
   Megaphone,
   UserCog,
+  Mail,
 } from 'lucide-react';
 import { Sidebar } from '@desavii/ui/components/navigation';
 import { Container } from '@desavii/ui/components/layout';
@@ -214,6 +215,17 @@ export default function AdminLayout() {
       label: t('admin.nav.cms'),
       href: `/${locale}/admin/cms`,
       icon: <FileText aria-hidden="true" focusable="false" />,
+    },
+    {
+      id: 'contact-inquiries',
+      groupId: 'content',
+      label: t('admin.nav.contactInquiries'),
+      href: `/${locale}/admin/contact-inquiries`,
+      icon: <Mail aria-hidden="true" focusable="false" />,
+      // Sprint G: same "hides a dead-end 403" reasoning as the Managers/
+      // Promotions nav items above — the route requires `contact.manage`
+      // server-side.
+      requiredPermission: 'contact.manage',
     },
     {
       id: 'ai-moderation',

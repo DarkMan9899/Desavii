@@ -52,6 +52,8 @@ import createAdvertisingContainer from '../modules/advertising/module.container.
 import createAdvertisingRoutes from '../modules/advertising/module.routes.js';
 import createManagersContainer from '../modules/managers/module.container.js';
 import createManagerRoutes from '../modules/managers/module.routes.js';
+import createContactContainer from '../modules/contact/module.container.js';
+import createContactRoutes from '../modules/contact/module.routes.js';
 
 export default function createV1Router({
   guards,
@@ -232,6 +234,13 @@ export default function createV1Router({
     auditLogger,
   });
   const cmsContainer = createCmsContainer({ permissionResolver, auditLogger });
+  // Sprint G (public Contact form): no dependency on any other module's
+  // Service — a contact inquiry is self-contained.
+  const contactContainer = createContactContainer({
+    permissionResolver,
+    auditLogger,
+    eventBus,
+  });
 
   router.use(
     '/auth',
@@ -353,6 +362,13 @@ export default function createV1Router({
     '/managers',
     createManagerRoutes({
       managerController: managersContainer.managerController,
+      guards,
+    }),
+  );
+  router.use(
+    '/contact',
+    createContactRoutes({
+      contactController: contactContainer.contactController,
       guards,
     }),
   );

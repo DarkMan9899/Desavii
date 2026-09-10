@@ -1762,7 +1762,8 @@
         "ai": "AI",
         "system": "System"
       },
-      "managers": "Managers"
+      "managers": "Managers",
+      "contactInquiries": "Contact Inquiries"
     },
     "dashboard": {
       "heading": "Marketplace overview",
@@ -2998,6 +2999,39 @@
       "unassignAction": "Unassign",
       "unassignSuccess": "Company unassigned.",
       "unassignError": "Could not unassign this company."
+    },
+    "contactInquiries": {
+      "heading": "Contact Inquiries",
+      "description": "Messages submitted through the public Contact page.",
+      "columns": {
+        "name": "Name",
+        "email": "Email",
+        "type": "Type",
+        "subject": "Subject",
+        "status": "Status",
+        "date": "Received"
+      },
+      "filters": {
+        "statusLabel": "Status",
+        "statusAll": "All statuses"
+      },
+      "viewAction": "View",
+      "resolveAction": "Mark resolved",
+      "resolveSuccess": "Inquiry marked as resolved.",
+      "resolveError": "Could not mark this inquiry as resolved.",
+      "empty": {
+        "title": "No inquiries yet",
+        "description": "Messages submitted through the public Contact page will appear here."
+      },
+      "error": {
+        "title": "Something went wrong",
+        "retry": "Try again"
+      },
+      "detail": {
+        "messageLabel": "Message",
+        "receivedLabel": "Received",
+        "closeAction": "Close"
+      }
     }
   },
   "pages": {
@@ -3285,12 +3319,78 @@
           "title": "Support",
           "description": "Our support team is here to help before, during, and after your trip — reach us any time through the Help Center."
         }
+      },
+      "mission": {
+        "title": "Our mission",
+        "body": "Desavii exists to make discovering and booking real places to stay, tours, and experiences across Armenia simple and trustworthy — for travelers planning a trip, and for the local businesses who welcome them."
+      },
+      "travelerValueHeading": "Why travelers choose desavii",
+      "partnerValueHeading": "Why local businesses partner with us",
+      "partnerValues": {
+        "reach": {
+          "title": "Reach more travelers",
+          "description": "List your hotel, tours, apartments, or experiences where travelers are already searching and comparing."
+        },
+        "onboarding": {
+          "title": "Straightforward onboarding",
+          "description": "Apply, get verified, and publish your listings with tools built for how your business actually works."
+        },
+        "fair": {
+          "title": "A fair marketplace",
+          "description": "You stay in control of your availability, pricing, and content — desavii is the discovery layer, not a middleman for your business."
+        }
+      },
+      "howItWorksHeading": "How desavii works",
+      "howItWorks": {
+        "discover": {
+          "title": "Discover",
+          "description": "Search and filter real, published listings across Armenia — hotels, tours, apartments, car rentals, and more."
+        },
+        "book": {
+          "title": "Book",
+          "description": "Request a booking directly with the local partner, with clear pricing and no hidden surprises."
+        },
+        "enjoy": {
+          "title": "Enjoy",
+          "description": "Travel with confidence, knowing every partner on desavii is reviewed before their listings go live."
+        }
+      },
+      "cta": {
+        "heading": "Ready to explore Armenia?",
+        "body": "Browse real listings from local partners, or list your own business on desavii.",
+        "exploreAction": "Explore listings",
+        "partnerAction": "Become a partner"
       }
     },
     "contact": {
       "title": "Contact us",
       "lead": "Have a question about a booking or a listing? Reach our support team directly.",
-      "hours": "Monday–Friday, 9:00–18:00 (Yerevan time)"
+      "hours": "Monday–Friday, 9:00–18:00 (Yerevan time)",
+      "formHeading": "Send us a message",
+      "formDescription": "Fill out the form below and our team will get back to you by email.",
+      "form": {
+        "nameLabel": "Your name",
+        "emailLabel": "Email address",
+        "inquiryTypeLabel": "What is this about?",
+        "subjectLabel": "Subject",
+        "messageLabel": "Message",
+        "submitAction": "Send message",
+        "submitting": "Sending…",
+        "responseNote": "We read every message and reply by email — there is no live chat or phone line yet.",
+        "successTitle": "Message sent",
+        "successBody": "Thank you — we’ve received your message and will reply to {{email}} soon.",
+        "sendAnotherAction": "Send another message",
+        "errorTitle": "Something went wrong",
+        "errorBody": "We couldn’t send your message. Please try again, or email us directly.",
+        "validation": {
+          "nameRequired": "Please enter your name.",
+          "emailRequired": "Please enter your email address.",
+          "emailInvalid": "Please enter a valid email address.",
+          "subjectRequired": "Please enter a subject.",
+          "messageRequired": "Please enter a message.",
+          "messageTooLong": "Your message is too long — please keep it under {{max}} characters."
+        }
+      }
     },
     "faq": {
       "title": "Frequently asked questions",
@@ -3806,6 +3906,26 @@
         "bookingCount": "{{count}} booking",
         "bookingCount_other": "{{count}} bookings"
       }
+    }
+  },
+  "contact": {
+    "inquiryTypes": {
+      "GENERAL": "General question",
+      "BOOKING_SUPPORT": "Booking / customer support",
+      "PARTNER_BUSINESS": "Partner / business",
+      "TECHNICAL": "Technical issue"
+    },
+    "statuses": {
+      "NEW": "New",
+      "RESOLVED": "Resolved"
+    }
+  },
+  "header": {
+    "search": {
+      "label": "Search",
+      "placeholder": "Search destinations, hotels, tours…",
+      "submitAction": "Search",
+      "closeAction": "Close search"
     }
   }
 }

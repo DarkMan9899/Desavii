@@ -380,6 +380,31 @@ export function registerNotificationListeners({
     );
   });
 
+  // Sprint G — public Contact form. Same ADMIN/SUPER_ADMIN audience
+  // pattern as REVIEW_REPORTED above (no MODERATOR — contact inquiries
+  // aren't a moderation concern). The submitter is anonymous, so this
+  // is the only notification the event triggers.
+  eventBus.subscribe(EVENT_TYPES.CONTACT_INQUIRY_SUBMITTED, async (event) => {
+    const recipientUserIds = await userService.listUserIdsByRole([
+      'ADMIN',
+      'SUPER_ADMIN',
+    ]);
+    await Promise.all(
+      recipientUserIds.map((recipientUserId) =>
+        notify(event, {
+          recipientUserId,
+          categoryCode: 'ADMIN',
+          priorityCode: PRIORITY.NORMAL,
+          payload: {
+            inquiryId: event.payload.inquiryId,
+            typeCode: event.payload.typeCode,
+            subject: event.payload.subject,
+          },
+        }),
+      ),
+    );
+  });
+
   // Launch-blocker remediation (P0-B): a customer's cancellation left a
   // paid booking's `refund_status = REQUIRES_MANUAL_REVIEW` with nobody
   // ever alerted — same MODERATOR/ADMIN/SUPER_ADMIN fan-out as

@@ -199,6 +199,9 @@ const AdminManagersPage = lazy(
 const AdminManagerDetailPage = lazy(
   () => import('../pages/admin/AdminManagerDetailPage.jsx'),
 );
+const AdminContactInquiriesPage = lazy(
+  () => import('../pages/admin/AdminContactInquiriesPage.jsx'),
+);
 const AdminBookingsPage = lazy(
   () => import('../pages/admin/AdminBookingsPage.jsx'),
 );
@@ -582,6 +585,10 @@ export default function AppRoutes() {
               <Route
                 path="admin/managers/:id"
                 element={<AdminManagerDetailPage />}
+              />
+              <Route
+                path="admin/contact-inquiries"
+                element={<AdminContactInquiriesPage />}
               />
               <Route path="admin/bookings" element={<AdminBookingsPage />} />
               <Route

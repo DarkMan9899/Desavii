@@ -98,6 +98,10 @@ export const EVENT_TYPES = Object.freeze({
   ADVERTISEMENT_EXPIRED: 'advertisement.expired',
   ADVERTISEMENT_CANCELLED: 'advertisement.cancelled',
   ADVERTISEMENT_REJECTED: 'advertisement.rejected',
+  // Sprint G — public Contact form. Notifies ADMIN/SUPER_ADMIN, the same
+  // audience/pattern as REVIEW_REPORTED above; the submitter is
+  // anonymous (no account, nothing to notify them through).
+  CONTACT_INQUIRY_SUBMITTED: 'contact.inquiry_submitted',
 });
 
 export default EVENT_TYPES;

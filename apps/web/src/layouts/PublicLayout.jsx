@@ -23,6 +23,7 @@ import Header from '../components/Header/Header.jsx';
 import Footer from '../components/Footer/Footer.jsx';
 import UserMenu from '../components/UserMenu/UserMenu.jsx';
 import LanguageSwitcher from '../components/LanguageSwitcher/LanguageSwitcher.jsx';
+import HeaderSearch from '../components/HeaderSearch/HeaderSearch.jsx';
 import { useCategoriesQuery } from '../modules/search/index.js';
 import { NotificationBell } from '../modules/notifications/index.js';
 import { MessagingBell } from '../modules/messaging/index.js';
@@ -111,6 +112,7 @@ export default function PublicLayout() {
           navItems={navItems}
           actions={
             <>
+              <HeaderSearch />
               <LanguageSwitcher />
               <MessagingBell />
               <NotificationBell />
