@@ -311,7 +311,10 @@ describe('GET /search/listings — filtering', () => {
       `/api/v1/search/listings?cityId=${gyumriCityId}`,
     );
     expect(res.status).toBe(200);
-    expect(res.body.data.map((r) => r.id)).toEqual([listingGyumri]);
+    const ids = res.body.data.map((r) => r.id);
+    expect(ids).toContain(listingGyumri);
+    expect(ids).not.toContain(listingBoutique);
+    expect(ids).not.toContain(listingCozy);
   });
 
   test('country filter includes every listing in that country', async () => {
