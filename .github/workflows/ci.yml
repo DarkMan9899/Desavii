@@ -40,12 +40,12 @@ jobs:
     steps:
       - name: Configure SSH
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_PRIVATE_KEY_B64: ${{ secrets.DEPLOY_SSH_KEY_B64 }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/desavii_deploy
+          printf '%s' "$SSH_PRIVATE_KEY_B64" | base64 -d > ~/.ssh/desavii_deploy
           chmod 600 ~/.ssh/desavii_deploy
           ssh-keygen -y -f ~/.ssh/desavii_deploy > /dev/null
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
