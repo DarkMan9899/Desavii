@@ -15,6 +15,7 @@ import {
   Palmtree,
   BedDouble,
   Compass,
+  PartyPopper,
 } from 'lucide-react';
 
 export const CATEGORY_ICONS_BY_SLUG = {
@@ -26,6 +27,7 @@ export const CATEGORY_ICONS_BY_SLUG = {
   attractions: Landmark,
   villas: Palmtree,
   'guest-houses': BedDouble,
+  'entertainment-venues': PartyPopper,
 };
 
 export const DEFAULT_CATEGORY_ICON = Compass;

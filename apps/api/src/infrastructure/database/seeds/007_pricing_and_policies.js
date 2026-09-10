@@ -106,6 +106,10 @@ const CATEGORY_PRICING_MODELS = {
   tours: ['PER_PERSON', 'PER_HOUR'],
   'car-rentals': ['PER_DAY'],
   attractions: ['PER_PERSON'],
+  // Sprint I: PER_PERSON for admission-style pricing (escape room per
+  // player), PER_HOUR for time-block rentals (a bowling lane, a VR pod)
+  // — both pricing models already exist.
+  'entertainment-venues': ['PER_PERSON', 'PER_HOUR'],
 };
 
 const POLICY_DEFINITIONS = [
@@ -168,6 +172,7 @@ const CATEGORY_POLICIES = {
     { code: 'cancellation_policy', isRequired: true },
   ],
   attractions: [{ code: 'children_allowed', isRequired: false }],
+  'entertainment-venues': [{ code: 'children_allowed', isRequired: false }],
 };
 
 export default async function seedPricingAndPolicies(connection) {

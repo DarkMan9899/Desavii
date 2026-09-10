@@ -482,6 +482,12 @@ const CATEGORY_ATTRIBUTES = {
     'mileage_policy',
   ],
   attractions: ['duration_minutes', 'languages_offered', 'max_group_size'],
+  // Sprint I: reuses the same attribute definitions Attractions already
+  // uses (an escape room/VR session/bowling lane is the same "scheduled,
+  // capacity-limited experience" shape) — no new attribute_definitions
+  // row. `languages_offered` is dropped: most entertainment venues run a
+  // fixed-language activity, not a guided tour.
+  'entertainment-venues': ['duration_minutes', 'max_group_size'],
 };
 
 const CATEGORY_AMENITIES = {
@@ -566,6 +572,15 @@ const CATEGORY_AMENITIES = {
   tours: ['Family Friendly', 'Wheelchair Accessible'],
   'car-rentals': ['EV Charger', 'Air Conditioning'],
   attractions: ['Wheelchair Accessible', 'Family Friendly', 'Parking'],
+  // Sprint I: same amenity set as Attractions plus Air Conditioning —
+  // most entertainment venues (escape rooms, VR/gaming centers, bowling)
+  // are indoor, unlike Attractions' broader outdoor/sightseeing mix.
+  'entertainment-venues': [
+    'Wheelchair Accessible',
+    'Family Friendly',
+    'Parking',
+    'Air Conditioning',
+  ],
 };
 
 const FILTER_DEFINITIONS = [

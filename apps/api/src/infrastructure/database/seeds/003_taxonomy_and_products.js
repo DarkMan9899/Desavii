@@ -70,7 +70,13 @@ async function upsertAdProduct(
 
 // Matches the platform capability list (CLAUDE.md's Sprint 5 goal:
 // Hotels, Apartments, Villas, Guest houses, Restaurants, Tours,
-// Car rentals, Attractions).
+// Car rentals, Attractions). Entertainment Venues (Sprint I) is
+// category-only — no new listing_type: partners pick the existing
+// ATTRACTION type for it, the same "one category, existing type"
+// pattern Apartments/Villas/Guest Houses already establish for
+// PROPERTY (`listings.listing_type_id` and category membership are
+// intentionally decoupled — see `listing_category_listing`'s M:N shape
+// vs. `listings.listing_type_id`'s single FK).
 const ROOT_CATEGORIES = [
   { name: 'Hotels', slug: 'hotels' },
   { name: 'Apartments', slug: 'apartments' },
@@ -80,6 +86,7 @@ const ROOT_CATEGORIES = [
   { name: 'Tours', slug: 'tours' },
   { name: 'Car Rentals', slug: 'car-rentals' },
   { name: 'Attractions', slug: 'attractions' },
+  { name: 'Entertainment Venues', slug: 'entertainment-venues' },
 ];
 
 // listing_category_translations feeds mysqlSearchRepository's
@@ -104,6 +111,11 @@ const CATEGORY_TRANSLATIONS = {
     en: 'Attractions',
     hy: 'Տեսարժան վայրեր',
     ru: 'Достопримечательности',
+  },
+  'entertainment-venues': {
+    en: 'Entertainment Venues',
+    hy: 'Ժամանցի վայրեր',
+    ru: 'Развлекательные заведения',
   },
 };
 

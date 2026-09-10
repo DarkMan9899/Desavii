@@ -21,7 +21,7 @@ import CategoryCard from '../CategoryCard/CategoryCard.jsx';
 import styles from './Categories.module.scss';
 
 const HEADING_ID = 'categories-heading';
-const SKELETON_COUNT = 8;
+const SKELETON_COUNT = 9;
 
 export default function Categories() {
   const { t } = useTranslation();
