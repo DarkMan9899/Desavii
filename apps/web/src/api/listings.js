@@ -221,3 +221,65 @@ export function updateListingModerationStatus(id, status, notes) {
     .patch(`/listings/admin/${id}/moderation-status`, { status, notes })
     .then((response) => response.data);
 }
+
+/** `GET /listings/:id/menu` — public, no auth required. Pass 3 remediation (Restaurant vertical). */
+export function getListingMenu(id, { locale } = {}) {
+  return apiClient
+    .get(`/listings/${id}/menu`, { params: { locale } })
+    .then((response) => response.data);
+}
+
+/** `POST /listings/:id/menu` — owner-or-`listing.update`, RESTAURANT listings only. */
+export function createListingMenu(id, body) {
+  return apiClient
+    .post(`/listings/${id}/menu`, body)
+    .then((response) => response.data);
+}
+
+export function updateListingMenu(menuId, body) {
+  return apiClient
+    .patch(`/listings/menu/${menuId}`, body)
+    .then((response) => response.data);
+}
+
+export function deleteListingMenu(menuId) {
+  return apiClient
+    .delete(`/listings/menu/${menuId}`)
+    .then((response) => response.data);
+}
+
+export function createListingMenuSection(menuId, body) {
+  return apiClient
+    .post(`/listings/menu/${menuId}/sections`, body)
+    .then((response) => response.data);
+}
+
+export function updateListingMenuSection(sectionId, body) {
+  return apiClient
+    .patch(`/listings/menu/sections/${sectionId}`, body)
+    .then((response) => response.data);
+}
+
+export function deleteListingMenuSection(sectionId) {
+  return apiClient
+    .delete(`/listings/menu/sections/${sectionId}`)
+    .then((response) => response.data);
+}
+
+export function createListingMenuItem(sectionId, body) {
+  return apiClient
+    .post(`/listings/menu/sections/${sectionId}/items`, body)
+    .then((response) => response.data);
+}
+
+export function updateListingMenuItem(itemId, body) {
+  return apiClient
+    .patch(`/listings/menu/items/${itemId}`, body)
+    .then((response) => response.data);
+}
+
+export function deleteListingMenuItem(itemId) {
+  return apiClient
+    .delete(`/listings/menu/items/${itemId}`)
+    .then((response) => response.data);
+}

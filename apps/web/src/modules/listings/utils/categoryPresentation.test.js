@@ -32,10 +32,16 @@ describe('categoryPresentation', () => {
       );
     });
 
-    test('falls back to GENERIC for an unmapped or unknown listing type', () => {
+    // Pass 3 remediation: RESTAURANT now maps to its own DINING group (a
+    // diner reads the menu right after the description), not the GENERIC
+    // fallback.
+    test('maps RESTAURANT to DINING', () => {
       expect(resolvePresentationGroup('RESTAURANT')).toBe(
-        PRESENTATION_GROUPS.GENERIC,
+        PRESENTATION_GROUPS.DINING,
       );
+    });
+
+    test('falls back to GENERIC for an unmapped or unknown listing type', () => {
       expect(resolvePresentationGroup('SOMETHING_NEW')).toBe(
         PRESENTATION_GROUPS.GENERIC,
       );

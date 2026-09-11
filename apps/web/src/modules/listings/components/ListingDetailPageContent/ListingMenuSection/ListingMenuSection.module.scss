@@ -1,0 +1,90 @@
+// ListingMenuSection — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-4;
+}
+
+.menuHeader {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-1;
+}
+
+.menuName {
+  font-family: tokens.$font-heading;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: tokens.$color-navy;
+}
+
+.menuDescription {
+  font-size: 0.875rem;
+  color: tokens.$color-gray-600;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-3;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: tokens.$color-royal-blue;
+}
+
+.itemList {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-4;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  padding-block-end: tokens.$space-4;
+  border-bottom: 1px solid tokens.$color-gray-200;
+
+  &:last-child {
+    padding-block-end: 0;
+    border-bottom: none;
+  }
+}
+
+.itemHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: tokens.$space-3;
+}
+
+.itemTitle {
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
+.itemPrice {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.itemDescription {
+  margin-block-start: tokens.$space-1;
+  font-size: 0.875rem;
+  color: tokens.$color-gray-600;
+}
+
+.itemMarkers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-1;
+  margin-block-start: tokens.$space-2;
+}

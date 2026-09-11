@@ -42,6 +42,7 @@ import { useListingQuery } from '../../queries/useListingQuery.js';
 import { useListingMetadataQuery } from '../../queries/useListingMetadataQuery.js';
 import { useListingCategoriesQuery } from '../../queries/useListingCategoriesQuery.js';
 import { useListingBookableUnitsQuery } from '../../queries/useListingBookableUnitsQuery.js';
+import { useListingMenuQuery } from '../../queries/useListingMenuQuery.js';
 import getLocalizedTranslation from '../../utils/getLocalizedTranslation.js';
 import getLocalizedItems from '../../utils/getLocalizedItems.js';
 import { resolveInitialReservationState } from '../../utils/reservationSearchContext.js';
@@ -61,6 +62,7 @@ import ListingAvailabilitySection from './ListingAvailabilitySection/ListingAvai
 import ListingLocationSection from './ListingLocationSection/ListingLocationSection.jsx';
 import ListingReviewsSection from './ListingReviewsSection/ListingReviewsSection.jsx';
 import ListingFaqSection from './ListingFaqSection/ListingFaqSection.jsx';
+import ListingMenuSection from './ListingMenuSection/ListingMenuSection.jsx';
 import RelatedListings from './RelatedListings/RelatedListings.jsx';
 import { FavoriteButton } from '../../../favorites/index.js';
 import { AskAiButton } from '../../../ai/index.js';
@@ -82,6 +84,7 @@ const SECTION_AVAILABILITY = 'availability';
 const SECTION_LOCATION = 'location';
 const SECTION_REVIEWS = 'reviews';
 const SECTION_FAQ = 'faq';
+const SECTION_MENU = 'menu';
 
 // 2026 stabilization audit — the lower page previously read as a long
 // stack of identical giant white cards (every section shared one blanket
@@ -97,6 +100,7 @@ const EDITORIAL_SECTION_IDS = new Set([
   SECTION_AMENITIES,
   SECTION_POLICIES,
   SECTION_FAQ,
+  SECTION_MENU,
 ]);
 
 export default function ListingDetailPageContent() {
@@ -142,6 +146,13 @@ export default function ListingDetailPageContent() {
   const { data: units } = useListingBookableUnitsQuery(listing?.id);
   const hasHotelRooms = (units ?? []).some(
     (unit) => unit.bookable_unit_type === 'HOTEL_ROOM',
+  );
+
+  // Pass 3 remediation (Restaurant vertical) — only fetched for a
+  // RESTAURANT listing, never a wasted request on every other type.
+  const { data: menus } = useListingMenuQuery(
+    listing?.listing_type === 'RESTAURANT' ? listing.id : undefined,
+    locale,
   );
   const [selectedUnitId, setSelectedUnitId] = useState(null);
 
@@ -327,6 +338,10 @@ export default function ListingDetailPageContent() {
       id: SECTION_ITINERARY,
       label: t('pages.listingDetail.itinerary.heading'),
     },
+    (menus ?? []).some((menu) => menu.is_active) && {
+      id: SECTION_MENU,
+      label: t('pages.listingDetail.menu.heading'),
+    },
     includedItems.length > 0 && {
       id: SECTION_INCLUDED,
       label: t('pages.listingDetail.included.heading'),
@@ -442,6 +457,13 @@ export default function ListingDetailPageContent() {
       />
     ),
     [SECTION_FAQ]: <ListingFaqSection faqs={faqs} sectionId={SECTION_FAQ} />,
+    [SECTION_MENU]: (
+      <ListingMenuSection
+        menus={menus ?? []}
+        locale={locale}
+        sectionId={SECTION_MENU}
+      />
+    ),
   };
 
   return (

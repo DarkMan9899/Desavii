@@ -30,6 +30,18 @@ import {
   listingCompletenessSchema,
 } from './validators/listingValidators.js';
 import {
+  listMenusSchema,
+  createMenuSchema,
+  updateMenuSchema,
+  menuIdOnlySchema,
+  createSectionSchema,
+  updateSectionSchema,
+  sectionIdOnlySchema,
+  createItemSchema,
+  updateItemSchema,
+  itemIdOnlySchema,
+} from './validators/restaurantMenuValidators.js';
+import {
   ALLOWED_IMAGE_MIME_TYPES,
   ALLOWED_VIDEO_MIME_TYPES,
 } from '../media/validators/mediaConstraints.js';
@@ -39,7 +51,11 @@ const ALLOWED_LISTING_MEDIA_MIME_TYPES = [
   ...ALLOWED_VIDEO_MIME_TYPES,
 ];
 
-export default function createListingRoutes({ listingController, guards }) {
+export default function createListingRoutes({
+  listingController,
+  restaurantMenuController,
+  guards,
+}) {
   const router = Router();
   const { requireAuth, requirePermission } = guards;
 
@@ -204,6 +220,70 @@ export default function createListingRoutes({ listingController, guards }) {
     requireAuth,
     validate(listingCompletenessSchema),
     listingController.getCompleteness,
+  );
+
+  // --- Pass 3 remediation (Restaurant vertical): a listing's menu tree.
+  // Public read (same visibility model as `GET /:id` — this is content on
+  // an existing listing, not gated separately), owner-or-`listing.update`
+  // writes, same as every rich-content route above.
+  router.get(
+    '/:id/menu',
+    validate(listMenusSchema),
+    restaurantMenuController.listForListing,
+  );
+  router.post(
+    '/:id/menu',
+    requireAuth,
+    validate(createMenuSchema),
+    restaurantMenuController.createMenu,
+  );
+  router.patch(
+    '/menu/:menuId',
+    requireAuth,
+    validate(updateMenuSchema),
+    restaurantMenuController.updateMenu,
+  );
+  router.delete(
+    '/menu/:menuId',
+    requireAuth,
+    validate(menuIdOnlySchema),
+    restaurantMenuController.deleteMenu,
+  );
+  router.post(
+    '/menu/:menuId/sections',
+    requireAuth,
+    validate(createSectionSchema),
+    restaurantMenuController.createSection,
+  );
+  router.patch(
+    '/menu/sections/:sectionId',
+    requireAuth,
+    validate(updateSectionSchema),
+    restaurantMenuController.updateSection,
+  );
+  router.delete(
+    '/menu/sections/:sectionId',
+    requireAuth,
+    validate(sectionIdOnlySchema),
+    restaurantMenuController.deleteSection,
+  );
+  router.post(
+    '/menu/sections/:sectionId/items',
+    requireAuth,
+    validate(createItemSchema),
+    restaurantMenuController.createItem,
+  );
+  router.patch(
+    '/menu/items/:itemId',
+    requireAuth,
+    validate(updateItemSchema),
+    restaurantMenuController.updateItem,
+  );
+  router.delete(
+    '/menu/items/:itemId',
+    requireAuth,
+    validate(itemIdOnlySchema),
+    restaurantMenuController.deleteItem,
   );
 
   return router;

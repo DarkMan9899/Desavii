@@ -27,6 +27,7 @@ export const PRESENTATION_GROUPS = Object.freeze({
   ACCOMMODATION: 'ACCOMMODATION',
   EXPERIENCE: 'EXPERIENCE',
   TRANSPORT: 'TRANSPORT',
+  DINING: 'DINING',
   GENERIC: 'GENERIC',
 });
 
@@ -36,6 +37,10 @@ const GROUP_BY_LISTING_TYPE = Object.freeze({
   TOUR: PRESENTATION_GROUPS.EXPERIENCE,
   ATTRACTION: PRESENTATION_GROUPS.EXPERIENCE,
   CAR_RENTAL: PRESENTATION_GROUPS.TRANSPORT,
+  // Pass 3 remediation: a diner reads the menu before amenities/policy
+  // fine print — same "the actual product comes first" rule EXPERIENCE's
+  // itinerary placement already follows.
+  RESTAURANT: PRESENTATION_GROUPS.DINING,
 });
 
 export function resolvePresentationGroup(listingTypeCode) {
@@ -62,6 +67,9 @@ const SECTIONS = Object.freeze({
   // out otherwise), so it only needs a real position in the
   // ACCOMMODATION order below.
   ROOMS: 'rooms',
+  // Pass 3 remediation — only ever present for a RESTAURANT listing with
+  // a real partner-authored menu (the caller filters it out otherwise).
+  MENU: 'menu',
 });
 
 // The full generic order — what a GENERIC (dining/unclassified) listing
@@ -124,6 +132,21 @@ const SECTION_ORDER_BY_GROUP = Object.freeze({
     SECTIONS.INCLUDED,
     SECTIONS.AMENITIES,
     SECTIONS.POLICIES,
+    SECTIONS.AVAILABILITY,
+    SECTIONS.LOCATION,
+    SECTIONS.REVIEWS,
+    SECTIONS.FAQ,
+  ],
+  // A diner reads the menu right after the description, ahead of even
+  // house-wide amenities/policies — the same "the product comes first"
+  // placement EXPERIENCE's itinerary already gets.
+  [PRESENTATION_GROUPS.DINING]: [
+    SECTIONS.ABOUT,
+    SECTIONS.MENU,
+    SECTIONS.AMENITIES,
+    SECTIONS.POLICIES,
+    SECTIONS.INCLUDED,
+    SECTIONS.ATTRIBUTES,
     SECTIONS.AVAILABILITY,
     SECTIONS.LOCATION,
     SECTIONS.REVIEWS,

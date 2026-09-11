@@ -264,6 +264,7 @@ export default function createV1Router({
     '/listings',
     createListingRoutes({
       listingController: listingsContainer.listingController,
+      restaurantMenuController: listingsContainer.restaurantMenuController,
       guards,
     }),
   );

@@ -9,9 +9,12 @@
 
 import { MySqlListingRepository } from './repositories/mysqlListingRepository.js';
 import { MySqlListingMetadataRepository } from './repositories/mysqlListingMetadataRepository.js';
+import { MySqlRestaurantMenuRepository } from './repositories/mysqlRestaurantMenuRepository.js';
 import { ListingService } from './services/listingService.js';
 import { ListingMetadataService } from './services/listingMetadataService.js';
+import { RestaurantMenuService } from './services/restaurantMenuService.js';
 import { createListingController } from './controllers/listingController.js';
+import { createRestaurantMenuController } from './controllers/restaurantMenuController.js';
 import { createStorageProvider } from '../../infrastructure/storage/createStorageProvider.js';
 
 export default function createListingsContainer({
@@ -21,6 +24,7 @@ export default function createListingsContainer({
 }) {
   const listingRepository = new MySqlListingRepository();
   const listingMetadataRepository = new MySqlListingMetadataRepository();
+  const restaurantMenuRepository = new MySqlRestaurantMenuRepository();
   const storageProvider = createStorageProvider();
 
   const listingService = new ListingService({
@@ -34,16 +38,27 @@ export default function createListingsContainer({
   const listingMetadataService = new ListingMetadataService({
     listingMetadataRepository,
   });
+  const restaurantMenuService = new RestaurantMenuService({
+    restaurantMenuRepository,
+    listingRepository,
+    permissionResolver,
+  });
   const listingController = createListingController(
     listingService,
     listingMetadataService,
+  );
+  const restaurantMenuController = createRestaurantMenuController(
+    restaurantMenuService,
   );
 
   return {
     listingRepository,
     listingMetadataRepository,
+    restaurantMenuRepository,
     listingService,
     listingMetadataService,
+    restaurantMenuService,
     listingController,
+    restaurantMenuController,
   };
 }

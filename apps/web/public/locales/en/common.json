@@ -3108,6 +3108,17 @@
       "faq": {
         "heading": "Frequently asked questions"
       },
+      "menu": {
+        "heading": "Menu",
+        "dietaryMarkers": {
+          "vegetarian": "Vegetarian",
+          "vegan": "Vegan",
+          "gluten-free": "Gluten-free",
+          "dairy-free": "Dairy-free",
+          "spicy": "Spicy",
+          "nuts": "Contains nuts"
+        }
+      },
       "host": {
         "heading": "About the host",
         "verified": "Verified partner",

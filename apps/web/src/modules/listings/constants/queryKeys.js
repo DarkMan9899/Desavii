@@ -99,6 +99,14 @@ const listingKeys = {
     listingId,
     'completeness',
   ],
+  // Pass 3 remediation (Restaurant vertical): the public+Partner-authoring
+  // menu tree read, one language at a time.
+  menu: (listingId, locale) => [
+    ...listingKeys.details(),
+    listingId,
+    'menu',
+    { locale },
+  ],
 };
 
 export default listingKeys;
