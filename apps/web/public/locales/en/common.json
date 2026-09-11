@@ -195,7 +195,7 @@
         },
         "multilingualSupport": {
           "title": "Multilingual support",
-          "description": "Get help in Armenian, Russian, or English, whenever you need it."
+          "description": "Get help in Armenian, Russian, or English."
         }
       }
     },
@@ -3318,7 +3318,7 @@
         },
         "support": {
           "title": "Support",
-          "description": "Our support team is here to help before, during, and after your trip — reach us any time through the Help Center."
+          "description": "Our support team is here to help before, during, and after your trip — reach us through the Help Center."
         }
       },
       "mission": {
