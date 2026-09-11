@@ -98,7 +98,10 @@ export default function PublicLayout() {
       links: [
         { label: t('footer.links.login'), to: `/${locale}/auth/login` },
         { label: t('footer.links.register'), to: `/${locale}/auth/register` },
-        { label: t('footer.links.partner'), to: `/${locale}/partner` },
+        {
+          label: t('footer.links.partner'),
+          to: `/${locale}/become-a-partner`,
+        },
       ],
     },
   ];

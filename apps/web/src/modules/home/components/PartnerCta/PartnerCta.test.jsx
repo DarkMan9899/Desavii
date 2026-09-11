@@ -35,12 +35,12 @@ describe('PartnerCta (apps/web/src/modules/home)', () => {
     expect(screen.getByRole('button')).toBeInTheDocument();
   });
 
-  test('navigates to the partner route on click', async () => {
+  test('navigates to the public partner onboarding entry point on click', async () => {
     const user = userEvent.setup();
 
     renderCta();
     await user.click(screen.getByRole('button'));
 
-    expect(navigateMock).toHaveBeenCalledWith('/en/partner');
+    expect(navigateMock).toHaveBeenCalledWith('/en/become-a-partner');
   });
 });

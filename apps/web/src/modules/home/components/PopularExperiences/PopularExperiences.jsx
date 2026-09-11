@@ -1,17 +1,24 @@
 /**
- * PopularExperiences — real published `TOUR` listings (`GET /search`,
- * filtered via the `listingType` param — see `searchParams.js`'s
- * `toSearchQueryParams`), presented as a premium showcase carousel
- * (`Showcase`). Mirrors `FeaturedListings.jsx`'s exact data-fetching and
- * state-handling pattern (loading/empty/error before content).
+ * PopularExperiences — real published listings, newest first (`GET
+ * /search`, `sort=newest`, no `listingType` filter — see
+ * `searchParams.js`'s `toSearchQueryParams`), presented as a premium
+ * showcase carousel (`Showcase`). Mirrors `FeaturedListings.jsx`'s exact
+ * data-fetching and state-handling pattern (loading/empty/error before
+ * content).
  *
  * P1.6 (Master Roadmap): replaces the previous version, which rendered
  * six fully fabricated ratings/review counts/prices
  * (`constants/experiences.js`, now deleted) as if they were real.
  *
- * `listingType: 'TOUR'` only, not `ATTRACTION` too — `GET /search` takes
- * one `listingType` per request, and Tours are this marketplace's
- * primary "experience" listing type.
+ * Sprint K: was `listingType: 'TOUR'` only. `GET /search` accepts one
+ * `listingType` per request, so a single query can't span multiple types
+ * — but the section doesn't need to: dropping the filter entirely (still
+ * one simple, deterministic query, not a recommendation engine) surfaces
+ * a genuinely heterogeneous slice of the catalog — hotels, tours,
+ * restaurants, car rentals, attractions, entertainment venues — which
+ * `FeaturedListings` (paid TOP placements only) and `Categories`
+ * (taxonomy, not listings) don't. `sort=newest` also means this is the
+ * one section of Home that visibly reflects freshly published listings.
  *
  * Redesign phase (2026) — this section's own scene identity within the
  * page-wide depth system: a dark cinematic panel (`SectionHeader
@@ -45,7 +52,7 @@ export default function PopularExperiences() {
   const { t } = useTranslation();
   const { locale } = useParams();
   const { data, isPending, isError } = useSearchListingsQuery(
-    { listingType: 'TOUR' },
+    { sort: 'newest' },
     { locale },
   );
   const experiences = data?.pages[0]?.results ?? [];

@@ -15,5 +15,5 @@ export { default as FeaturedListings } from './components/FeaturedListings/Featu
 export { default as PopularExperiences } from './components/PopularExperiences/PopularExperiences.jsx';
 export { default as Categories } from './components/Categories/Categories.jsx';
 export { default as WhyDesavii } from './components/WhyDesavii/WhyDesavii.jsx';
+export { default as EditorialHighlights } from './components/EditorialHighlights/EditorialHighlights.jsx';
 export { default as PartnerCta } from './components/PartnerCta/PartnerCta.jsx';
-export { default as Testimonials } from './components/Testimonials/Testimonials.jsx';

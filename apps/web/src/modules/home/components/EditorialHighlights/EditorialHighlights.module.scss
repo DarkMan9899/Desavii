@@ -1,0 +1,77 @@
+// EditorialHighlights — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+.section {
+  padding-block: tokens.$space-4;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  border-radius: tokens.$radius-lg;
+  background-color: tokens.$color-white;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  @include tokens.elevation-0;
+  transition: box-shadow tokens.$motion-micro tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
+
+  &:hover {
+    @include tokens.elevation-1;
+  }
+}
+
+.cover {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background-color: tokens.$color-gray-100;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.coverFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: tokens.$color-gray-400;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  padding: tokens.$space-4;
+}
+
+.title {
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-h4;
+  line-height: tokens.$line-height-h4;
+  color: tokens.$color-gray-900;
+}
+
+.excerpt {
+  margin: 0;
+  color: tokens.$color-gray-600;
+  font-size: tokens.$font-size-body;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.readMore {
+  margin-block-start: tokens.$space-1;
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  color: tokens.$color-gold;
+}

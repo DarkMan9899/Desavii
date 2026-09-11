@@ -150,12 +150,12 @@
       }
     },
     "experiences": {
-      "eyebrow": "Things to do",
-      "title": "Popular experiences",
-      "subtitle": "Tours and attractions loved by travelers across Armenia.",
+      "eyebrow": "Just added",
+      "title": "New on desavii",
+      "subtitle": "The newest stays, tours, restaurants and experiences across Armenia.",
       "empty": {
-        "title": "No experiences yet",
-        "description": "Check back soon — new tours and experiences are added regularly."
+        "title": "Nothing new yet",
+        "description": "Check back soon — new places to stay and things to do are added regularly."
       },
       "error": {
         "title": "Couldn't load experiences",
@@ -204,27 +204,12 @@
       "description": "Reach travelers from around the world and manage bookings in one dashboard.",
       "cta": "Become a partner"
     },
-    "testimonials": {
-      "eyebrow": "Testimonials",
-      "title": "What travelers say",
-      "items": {
-        "testimonial-1": {
-          "quote": "Booking our whole trip to Dilijan took minutes, and everything matched what we saw online.",
-          "name": "Anna K.",
-          "role": "Family traveler"
-        },
-        "testimonial-2": {
-          "quote": "The Tatev excursion was the highlight of our trip. Easy to book and well organized.",
-          "name": "Michael R.",
-          "role": "Solo traveler"
-        },
-        "testimonial-3": {
-          "quote": "We found a lovely guesthouse in Gyumri we never would have discovered otherwise.",
-          "name": "Sofia L.",
-          "role": "Couple traveler"
-        }
-      },
-      "disclosure": "Illustrative quotes based on typical traveler feedback."
+    "blog": {
+      "eyebrow": "Inspiration",
+      "title": "From the blog",
+      "subtitle": "Travel guides and stories to help you plan your trip across Armenia.",
+      "readMore": "Read article",
+      "viewAll": "Visit the blog"
     },
     "showcase": {
       "previous": "Previous",

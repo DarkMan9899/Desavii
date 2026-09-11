@@ -9,6 +9,7 @@ import {
   useSearchListingsQuery,
 } from '../modules/search/index.js';
 import { usePublicHomeFeaturedQuery } from '../modules/advertising/index.js';
+import { usePublicPostsQuery } from '../modules/blog/index.js';
 
 // Only the data-fetching hooks are mocked, same as
 // FeaturedListings.test.jsx/Categories.test.jsx/FeaturedDestinations.test.jsx
@@ -33,6 +34,15 @@ vi.mock('../modules/advertising/index.js', async (importOriginal) => {
   return {
     ...actual,
     usePublicHomeFeaturedQuery: vi.fn(),
+  };
+});
+
+// Sprint K: EditorialHighlights (real published Blog posts).
+vi.mock('../modules/blog/index.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    usePublicPostsQuery: vi.fn(),
   };
 });
 
@@ -65,14 +75,19 @@ describe('HomePage (apps/web/src/pages)', () => {
     });
     useSuggestionsQuery.mockReturnValue({ data: [], isPending: false });
     usePublicHomeFeaturedQuery.mockReturnValue({ data: [], isPending: false });
+    usePublicPostsQuery.mockReturnValue({
+      data: { data: [{ id: 1, slug: 'a-post', title: 'A post', excerpt: '' }] },
+      isPending: false,
+      isError: false,
+    });
 
     renderHomePage();
 
     // Hero
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
     // One labeled section per homepage section (destinations, featured
-    // listings, experiences, categories, why-desavii, partner CTA,
-    // testimonials).
+    // listings, experiences, categories, why-desavii, editorial
+    // highlights, partner CTA).
     expect(
       screen.getAllByRole('heading', { level: 2 }).length,
     ).toBeGreaterThanOrEqual(7);

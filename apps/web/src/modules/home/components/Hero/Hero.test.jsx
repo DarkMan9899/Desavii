@@ -39,11 +39,11 @@ describe('Hero (apps/web/src/modules/home)', () => {
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
-  test('renders a link to the partner route', () => {
+  test('renders a link to the public partner onboarding entry point', () => {
     renderHero();
     const partnerLink = screen
       .getAllByRole('link')
-      .find((link) => link.getAttribute('href') === '/en/partner');
+      .find((link) => link.getAttribute('href') === '/en/become-a-partner');
     expect(partnerLink).toBeInTheDocument();
   });
 

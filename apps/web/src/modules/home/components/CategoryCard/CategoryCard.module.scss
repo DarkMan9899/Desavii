@@ -81,29 +81,45 @@
 // its own mesh backdrop, instead of the regular tile's centered
 // icon-then-label stack. Still the same component, same data, same
 // interaction — only the internal composition differs.
-.card--featured {
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding: tokens.$space-6;
-  text-align: left;
+//
+// Sprint K fix — this whole floating-label composition only makes sense
+// once the tile actually IS visibly larger: `Categories.module.scss`'s
+// own 2x2 span for the first tile is itself gated to `tablet`+ (a 2x2
+// span at 2-column mobile width would already claim the full row). Below
+// that, `.card--featured` was still applying its absolutely-positioned
+// top-left icon over a `justify-content: flex-end` label inside a plain
+// ~148px single-row tile — too little vertical room to separate the two,
+// so the icon visibly sat on top of the label text. Scoping the whole
+// composition to `tablet`+ makes the featured tile fall back to the
+// exact same centered icon-then-label-then-count stack every other
+// mobile tile already uses correctly.
+@include respond.respond(tablet) {
+  .card--featured {
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: tokens.$space-6;
+    text-align: left;
 
-  .iconWrapper {
-    position: absolute;
-    top: tokens.$space-6;
-    left: tokens.$space-6;
-  }
+    .iconWrapper {
+      position: absolute;
+      top: tokens.$space-6;
+      left: tokens.$space-6;
+    }
 
-  .label {
-    font-family: tokens.$font-display;
-    font-size: tokens.$font-size-h4;
-    font-weight: 700;
+    .label {
+      font-family: tokens.$font-display;
+      font-size: tokens.$font-size-h4;
+      font-weight: 700;
+    }
   }
 
   @include respond.respond(laptop) {
-    padding: tokens.$space-8;
+    .card--featured {
+      padding: tokens.$space-8;
 
-    .label {
-      font-size: tokens.$font-size-h3;
+      .label {
+        font-size: tokens.$font-size-h3;
+      }
     }
   }
 }
@@ -130,6 +146,16 @@
   font-family: tokens.$font-body;
   font-weight: 600;
   font-size: tokens.$font-size-body;
+  // Some real translated category names are one long unbreakable word
+  // (Russian "Достопримечательности" is the longest — 21 characters, no
+  // spaces) — a flex child's default `min-width: auto` would otherwise
+  // resist shrinking below that word's own intrinsic width and let it
+  // run past the card edge instead of wrapping. `overflow-wrap` allows a
+  // break inside the word only as a last resort, once normal wrapping
+  // at spaces (every EN/HY label, and most RU ones) still can't fit.
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
 }
 
 .count {

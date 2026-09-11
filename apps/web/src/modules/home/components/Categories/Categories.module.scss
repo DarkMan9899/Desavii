@@ -26,8 +26,25 @@
   grid-auto-flow: dense;
   gap: tokens.$space-3;
 
+  // 9 real categories over 2 mobile columns leaves a lone last tile
+  // stranded alone on its own row — not "dead space" so much as a tile
+  // that visibly doesn't belong to the grid above it. Spanning it full
+  // width only when it lands on an odd position (`:last-child:nth-child
+  // (odd)`) fixes exactly that case and, unlike a hardcoded `:nth-child
+  // (9)`, keeps working automatically if the taxonomy ever gains or
+  // loses a category. Reset at `tablet`+, where 4 columns plus the 2x2
+  // featured tile already divide evenly (12 cells / 4 cols = 3 full
+  // rows) and this rule would otherwise fight that layout.
+  > *:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
   @include respond.respond(tablet) {
     grid-template-columns: repeat(4, 1fr);
+
+    > *:last-child:nth-child(odd) {
+      grid-column: unset;
+    }
   }
 
   @include respond.respond(laptop) {

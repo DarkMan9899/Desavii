@@ -67,7 +67,7 @@ describe('PopularExperiences (apps/web/src/modules/home)', () => {
     expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
-  test('renders an empty state when there are no published TOUR listings', () => {
+  test('renders an empty state when there are no published listings', () => {
     useSearchListingsQuery.mockReturnValue({
       data: { pages: [{ results: [] }] },
       isPending: false,
@@ -75,11 +75,11 @@ describe('PopularExperiences (apps/web/src/modules/home)', () => {
     });
     renderSection();
     expect(
-      screen.getByRole('heading', { name: 'Փորձառություններ դեռ չկան' }),
+      screen.getByRole('heading', { name: 'Դեռ նոր բան չկա' }),
     ).toBeInTheDocument();
   });
 
-  test('renders one card per real TOUR listing, filtered via listingType', () => {
+  test('renders one card per real listing, sorted newest-first across every listing type', () => {
     useSearchListingsQuery.mockReturnValue({
       data: { pages: [{ results: [EXPERIENCE] }] },
       isPending: false,
@@ -90,7 +90,7 @@ describe('PopularExperiences (apps/web/src/modules/home)', () => {
       screen.getByRole('heading', { name: 'Dilijan Forest Hike' }),
     ).toBeInTheDocument();
     expect(useSearchListingsQuery).toHaveBeenCalledWith(
-      { listingType: 'TOUR' },
+      { sort: 'newest' },
       { locale: 'en' },
     );
   });

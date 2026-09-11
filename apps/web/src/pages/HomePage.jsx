@@ -10,8 +10,18 @@
  * cinematic hero and the carousel sections need to bleed to the viewport
  * edge (see each carousel section's own `bleed-start` treatment), which a
  * single wrapping `Container` around the whole page would make
- * impossible. Sections that stay conventional width (Categories/
- * WhyDesavii/PartnerCta) each get their own `Container` here instead.
+ * impossible. Sections that stay conventional width (PopularExperiences/
+ * Categories/WhyDesavii/PartnerCta) each get their own `Container` here
+ * instead; `EditorialHighlights` manages its own internal `Container`
+ * (same pattern as `FeaturedListings`/`FeaturedDestinations`), so it is
+ * composed bare here too.
+ *
+ * Sprint K: the previous `Testimonials` section (fabricated "Anna K." /
+ * "Michael R." / "Sofia L." quotes, only ever disclosed as "illustrative"
+ * — never real customer feedback) is removed rather than replaced;
+ * `WhyDesavii` already carries the page's honest trust content, and
+ * `PartnerCta` is the intentional closing section. `EditorialHighlights`
+ * (real published Blog posts) is the one net-new section.
  */
 
 import { useTranslation } from 'react-i18next';
@@ -24,8 +34,8 @@ import {
   PopularExperiences,
   Categories,
   WhyDesavii,
+  EditorialHighlights,
   PartnerCta,
-  Testimonials,
 } from '../modules/home/index.js';
 import useSeo from '../seo/useSeo.js';
 
@@ -54,10 +64,10 @@ export default function HomePage() {
       <Container size="wide">
         <WhyDesavii />
       </Container>
+      <EditorialHighlights />
       <Container size="wide">
         <PartnerCta />
       </Container>
-      <Testimonials />
     </>
   );
 }

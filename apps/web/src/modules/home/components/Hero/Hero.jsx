@@ -230,7 +230,7 @@ export default function Hero() {
                 {t('home.hero.ctaPrimary')}
               </button>
               <RouterLink
-                href={`/${locale}/partner`}
+                href={`/${locale}/become-a-partner`}
                 className={styles.ctaSecondary}
               >
                 {t('home.hero.ctaSecondary')}
