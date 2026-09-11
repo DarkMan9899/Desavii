@@ -153,7 +153,19 @@ describe('PartnerApplicationPageContent (apps/web/src/modules/partner-onboarding
     expect(
       screen.queryByRole('button', { name: 'Պահպանել սևագիրը' }),
     ).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/Հանրային բիզնես անվանում/)).toBeDisabled();
+    // The pending notice comes from useMyApplicationsQuery (the first,
+    // outer query) and is already visible by the time the `await
+    // findByText` above resolves. The form itself - including this field
+    // - only renders once the second, sequential useApplicationQuery
+    // (gated behind `enabled: Boolean(inProgressSummary)`, so it can't
+    // even start until the first query resolves) finishes too; it's
+    // rendered behind a Skeleton until then. A synchronous getByLabelText
+    // right after the notice appears races that second query - this
+    // await is what the real component's own async data flow requires.
+    const businessNameInput = await screen.findByLabelText(
+      /Հանրային բիզնես անվանում/,
+    );
+    expect(businessNameInput).toBeDisabled();
   });
 
   test('shows the admin review note while NEEDS_CHANGES and allows resubmission', async () => {
