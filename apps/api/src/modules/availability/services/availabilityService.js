@@ -615,7 +615,10 @@ export class AvailabilityService {
 
     const media = await this.#bookableUnitService.findMediaById(mediaId);
     if (!media || media.mediableId !== id) {
-      throw new NotFoundError('Media not found for this room.');
+      // Generic across every bookable-unit type (hotel rooms, restaurant
+      // tables, tour departures, rental vehicles, etc.) — "room" was
+      // hotel-specific terminology leaking into a shared code path.
+      throw new NotFoundError('Media not found for this bookable unit.');
     }
 
     await this.#bookableUnitService.removeMedia(mediaId, principal.userId);
