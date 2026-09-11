@@ -1,0 +1,11 @@
+// BrandLogo — tokens only, consumed from @desavii/ui.
+
+.image {
+  display: block;
+  height: 32px;
+  width: auto;
+  // The mark is a 1:1 image, the wordmark ~2.23:1 — both stay legible at
+  // this fixed height without reserving different box widths that would
+  // cause layout shift when `<picture>` swaps sources across the 767px
+  // breakpoint (the swap only ever happens on load/resize, not mid-scroll).
+}

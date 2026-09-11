@@ -20,6 +20,7 @@ import { Outlet, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AppLayout from './AppLayout.jsx';
 import Header from '../components/Header/Header.jsx';
+import BrandLogo from '../components/BrandLogo/BrandLogo.jsx';
 import Footer from '../components/Footer/Footer.jsx';
 import UserMenu from '../components/UserMenu/UserMenu.jsx';
 import LanguageSwitcher from '../components/LanguageSwitcher/LanguageSwitcher.jsx';
@@ -125,7 +126,8 @@ export default function PublicLayout() {
     <AppLayout
       header={
         <Header
-          logo={t('app.name')}
+          logo={<BrandLogo />}
+          logoLabel={t('app.name')}
           homeHref={`/${locale}`}
           navItems={navItems}
           actions={

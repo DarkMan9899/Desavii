@@ -79,6 +79,7 @@ NavDropdown.propTypes = { item: navItemShape.isRequired };
 
 export default function Header({
   logo,
+  logoLabel = undefined,
   navItems = [],
   actions = undefined,
   homeHref = '/',
@@ -116,7 +117,9 @@ export default function Header({
           <Link
             to={homeHref}
             className={styles.logo}
-            aria-label={typeof logo === 'string' ? logo : undefined}
+            aria-label={
+              logoLabel ?? (typeof logo === 'string' ? logo : undefined)
+            }
           >
             {logo}
           </Link>
@@ -172,6 +175,10 @@ export default function Header({
 
 Header.propTypes = {
   logo: PropTypes.node.isRequired,
+  // Required whenever `logo` isn't plain text (e.g. the brand image
+  // markup below) — the Link's accessible name otherwise has nothing to
+  // fall back to.
+  logoLabel: PropTypes.string,
   homeHref: PropTypes.string,
   navItems: PropTypes.arrayOf(navItemShape),
   actions: PropTypes.node,

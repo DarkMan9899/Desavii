@@ -15,6 +15,7 @@
     "test:e2e": "npm run db:seed:demo --prefix ../.. && cross-env NODE_ENV=test playwright test",
     "prerender": "node scripts/prerender.mjs",
     "generate:seo-files": "node scripts/generateSeoFiles.mjs",
+    "generate:favicons": "node scripts/generateFavicons.mjs",
     "lighthouse:cwv": "node scripts/lighthouseCwv.mjs"
   },
   "dependencies": {
