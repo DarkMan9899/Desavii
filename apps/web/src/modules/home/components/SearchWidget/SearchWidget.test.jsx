@@ -110,6 +110,36 @@ describe('SearchWidget (apps/web/src/modules/home)', () => {
     expect(screen.getAllByTestId('select-trigger').length).toBeGreaterThan(0);
   });
 
+  // Same rule as SearchFilters (the /search page's own filter bar): Car
+  // Rentals has no "guests" concept, only pickup/return + seats.
+  test('hides the Guests field once Car Rentals is selected, and clears an already-picked value', async () => {
+    const user = userEvent.setup();
+    useCategoriesQuery.mockReturnValue({
+      data: [
+        { id: 1, slug: 'hotels', name: 'Hotels', listing_count: 4 },
+        { id: 2, slug: 'car-rentals', name: 'Car Rentals', listing_count: 5 },
+      ],
+      isPending: false,
+    });
+    renderSearchWidget();
+    await expandDock(user);
+
+    const selects = screen.getAllByTestId('select-trigger');
+    // Field order: Guests, then Category (see SearchWidget.jsx render order).
+    await user.click(selects[0]);
+    await user.click(screen.getByText('2 հյուր'));
+    expect(screen.getAllByTestId('select-trigger')).toHaveLength(2);
+
+    await user.click(selects[1]);
+    await user.click(screen.getByText('Car Rentals'));
+
+    expect(screen.getAllByTestId('select-trigger')).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: /Որոնել/ }));
+    const [url] = navigateMock.mock.calls[0];
+    expect(url).not.toContain('guests');
+  });
+
   // P1.1 (Master Roadmap): these dates used to be plain free-text
   // Input fields under the stale checkIn/checkOut param names that
   // modules/search/schemas/searchParams.js never read — a selected

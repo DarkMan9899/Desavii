@@ -24,7 +24,7 @@
  * with what's actually browsable.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -33,6 +33,7 @@ import { Select, DatePicker } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import { Inline } from '@desavii/ui/components/layout';
 import { useCategoriesQuery } from '../../../search/index.js';
+import { shouldShowGuestsFilter } from '../../../search/utils/categoryFilterCapabilities.js';
 import DestinationAutocomplete from '../DestinationAutocomplete/DestinationAutocomplete.jsx';
 import styles from './SearchWidget.module.scss';
 
@@ -54,6 +55,18 @@ export default function SearchWidget({ className = undefined }) {
     { value: '', label: t('home.search.categoryAll') },
     ...categories.map((cat) => ({ value: String(cat.id), label: cat.name })),
   ];
+  const selectedCategory = categories.find(
+    (cat) => String(cat.id) === categoryId,
+  );
+  const showGuests = shouldShowGuestsFilter(selectedCategory?.slug);
+
+  // Same rule as SearchFilters (the /search page's own filter bar): a
+  // category that doesn't support Guests (Car Rentals today) must not
+  // leave a stale value sitting in state once selected, or submitting
+  // would silently carry an irrelevant guests param into the URL.
+  useEffect(() => {
+    if (!showGuests && guests) setGuests('');
+  }, [showGuests, guests]);
 
   const guestOptions = GUEST_COUNTS.map((count) => ({
     value: String(count),
@@ -136,15 +149,17 @@ export default function SearchWidget({ className = undefined }) {
                 nextMonthLabel={t('partner.listingWizard.datePicker.nextMonth')}
               />
             </div>
-            <div className={styles.field}>
-              <Select
-                ariaLabel={t('home.search.guestsLabel')}
-                placeholder={t('home.search.guestsPlaceholder')}
-                options={guestOptions}
-                value={guests}
-                onChange={setGuests}
-              />
-            </div>
+            {showGuests && (
+              <div className={styles.field}>
+                <Select
+                  ariaLabel={t('home.search.guestsLabel')}
+                  placeholder={t('home.search.guestsPlaceholder')}
+                  options={guestOptions}
+                  value={guests}
+                  onChange={setGuests}
+                />
+              </div>
+            )}
             <div className={styles.field}>
               <Select
                 ariaLabel={t('home.search.categoryLabel')}
