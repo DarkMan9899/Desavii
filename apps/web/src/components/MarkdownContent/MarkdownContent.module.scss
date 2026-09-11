@@ -9,15 +9,16 @@
   max-width: 68ch;
   color: tokens.$color-gray-900;
   font-size: tokens.$font-size-body-large;
-  line-height: 1.7;
+  line-height: 1.75;
 
   :global(h1),
   :global(h2),
   :global(h3),
   :global(h4) {
-    margin: tokens.$space-6 0 0;
-    font-family: tokens.$font-heading;
-    color: tokens.$color-gray-900;
+    margin: tokens.$space-8 0 0;
+    font-family: tokens.$font-display;
+    font-weight: 700;
+    color: tokens.$color-navy;
     text-wrap: balance;
   }
 
@@ -62,7 +63,11 @@
   :global(blockquote) {
     margin: 0;
     padding-inline-start: tokens.$space-4;
-    border-left: 3px solid tokens.$color-gray-200;
+    border-left: 3px solid tokens.$color-gold;
+    font-family: tokens.$font-display;
+    font-style: italic;
+    font-size: tokens.$font-size-h4;
+    line-height: tokens.$line-height-h4;
     color: tokens.$color-gray-600;
   }
 

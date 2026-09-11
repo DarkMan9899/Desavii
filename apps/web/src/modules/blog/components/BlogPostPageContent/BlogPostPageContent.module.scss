@@ -1,12 +1,17 @@
 @use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
 
 .page {
   display: flex;
   flex-direction: column;
-  gap: tokens.$space-4;
+  gap: tokens.$space-6;
   max-width: 68ch;
   margin-inline: auto;
   padding-block: tokens.$space-6;
+
+  @include respond.respond(tablet) {
+    padding-block: tokens.$space-8;
+  }
 }
 
 .loading {
@@ -15,40 +20,113 @@
   padding-block: tokens.$space-16;
 }
 
+// A one-beat entrance for the whole masthead, matching the restrained
+// fade EditorialPageHero/About/Contact/Blog-index already use.
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  animation: article-header-in 0.5s tokens.$ease-out both;
+  @include tokens.reduced-motion-safe;
+}
+
+@keyframes article-header-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: tokens.$color-gold;
+}
+
 .title {
   margin: 0;
-  font-family: tokens.$font-heading;
+  font-family: tokens.$font-display;
   font-size: tokens.$font-size-h1;
   line-height: tokens.$line-height-h1;
-  color: tokens.$color-gray-900;
+  color: tokens.$color-navy;
   text-wrap: balance;
+
+  @include respond.respond(tablet) {
+    font-size: tokens.$font-size-display;
+    line-height: tokens.$line-height-display;
+  }
 }
 
 .meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: tokens.$space-2;
   margin: 0;
   color: tokens.$color-gray-600;
   font-size: tokens.$font-size-small;
+
+  span:not(:last-child)::after {
+    content: '·';
+    margin-inline-start: tokens.$space-2;
+    color: tokens.$color-gray-400;
+  }
 }
 
 .cover {
   width: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;
-  border-radius: tokens.$radius-lg;
+  border-radius: tokens.$radius-xl;
+  @include tokens.elevation-2;
+}
+
+.tagsSection {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  padding-block-start: tokens.$space-4;
+  border-top: 1px solid tokens.$color-gray-200;
+}
+
+.tagsLabel {
+  margin: 0;
+  font-size: tokens.$font-size-micro;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: tokens.$color-gray-600;
 }
 
 .related {
-  margin-block-start: tokens.$space-8;
+  margin-block-start: tokens.$space-4;
   padding-block-start: tokens.$space-6;
   border-top: 1px solid tokens.$color-gray-200;
 }
 
 .relatedHeading {
   margin: 0;
-  font-family: tokens.$font-heading;
+  font-family: tokens.$font-display;
   font-size: tokens.$font-size-h4;
   line-height: tokens.$line-height-h4;
-  color: tokens.$color-gray-900;
+  color: tokens.$color-navy;
+}
+
+.relatedGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: tokens.$space-4;
+
+  @include respond.respond(mobile-large) {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .relatedCard {
@@ -66,6 +144,13 @@
     aspect-ratio: 16 / 10;
     object-fit: cover;
     border-radius: tokens.$radius-md;
+    transition: transform tokens.$motion-transition tokens.$ease-out;
+    @include tokens.reduced-motion-safe;
+  }
+
+  &:hover img,
+  &:focus-visible img {
+    transform: scale(1.04);
   }
 }
 

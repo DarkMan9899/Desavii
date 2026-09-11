@@ -46,8 +46,11 @@ describe('AboutPageContent (apps/web/src/modules/cms)', () => {
     expect(
       screen.getByRole('button', { name: 'Դիտել հայտարարությունները' }),
     ).toBeInTheDocument();
+    // The dark CTA band's secondary action is a link (matches Hero.jsx's
+    // own `.ctaSecondary` pattern) — Button's secondary/ghost variants are
+    // styled for a light surface only, never a dark gradient band.
     expect(
-      screen.getByRole('button', { name: 'Դառնալ գործընկեր' }),
+      screen.getByRole('link', { name: 'Դառնալ գործընկեր' }),
     ).toBeInTheDocument();
   });
 

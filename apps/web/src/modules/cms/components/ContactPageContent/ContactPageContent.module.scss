@@ -27,18 +27,22 @@
   align-items: center;
   gap: tokens.$space-3;
   padding: tokens.$space-4;
-  border-radius: tokens.$radius-lg;
+  border-radius: tokens.$radius-xl;
   background-color: tokens.$color-white;
-  @include tokens.elevation-0;
+  @include tokens.elevation-1;
 }
 
 .emailCard {
   text-decoration: none;
-  transition: box-shadow tokens.$motion-micro tokens.$ease-out;
+  transition:
+    transform tokens.$motion-transition tokens.$ease-out,
+    box-shadow tokens.$motion-transition tokens.$ease-out;
   @include tokens.reduced-motion-safe;
 
-  &:hover {
-    @include tokens.elevation-1;
+  &:hover,
+  &:focus-visible {
+    transform: translateY(-2px);
+    @include tokens.elevation-3;
   }
 }
 
@@ -71,17 +75,22 @@
   gap: tokens.$space-4;
   max-width: 640px;
   padding: tokens.$space-6;
-  border-radius: tokens.$radius-lg;
+  border-radius: tokens.$radius-xl;
   background-color: tokens.$color-white;
-  @include tokens.elevation-0;
+  @include tokens.elevation-2;
+
+  @include respond.respond(tablet) {
+    padding: tokens.$space-8;
+  }
 }
 
 .formHeading {
   margin: 0;
-  font-family: tokens.$font-heading;
+  font-family: tokens.$font-display;
+  font-weight: 700;
   font-size: tokens.$font-size-h3;
   line-height: tokens.$line-height-h3;
-  color: tokens.$color-gray-900;
+  color: tokens.$color-navy;
 }
 
 .formDescription {

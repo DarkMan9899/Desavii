@@ -19,13 +19,14 @@ import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { Newspaper } from 'lucide-react';
 import { Select } from '@desavii/ui/components/form-controls';
 import { Button, Badge } from '@desavii/ui/components/primitives';
-import { Grid, Stack, Inline } from '@desavii/ui/components/layout';
+import { Stack, Inline } from '@desavii/ui/components/layout';
 import {
   Skeleton,
   EmptyState,
   ErrorState,
 } from '@desavii/ui/components/feedback-overlays';
 import EditorialPageHero from '../../../../components/EditorialPageHero/EditorialPageHero.jsx';
+import DestinationArt from '../../../../components/DestinationArt/DestinationArt.jsx';
 import useSeo from '../../../../seo/useSeo.js';
 import { buildBreadcrumbListSchema } from '../../../../seo/structuredData.js';
 import { usePublicPostsQuery } from '../../queries/usePublicPostsQuery.js';
@@ -45,9 +46,10 @@ function BlogPostCard({ post, locale }) {
         {post.cover ? (
           <img src={post.cover.url} alt={post.cover.alt_text ?? ''} />
         ) : (
-          <span className={styles.cardCoverFallback} aria-hidden="true">
-            <Newspaper size={28} />
-          </span>
+          <DestinationArt
+            seed={post.slug ?? post.title}
+            className={styles.cardCoverFallback}
+          />
         )}
         {post.category_slug && (
           <Badge
@@ -62,10 +64,12 @@ function BlogPostCard({ post, locale }) {
         <h3 className={styles.cardTitle}>{post.title}</h3>
         <p className={styles.cardExcerpt}>{post.excerpt}</p>
         <p className={styles.cardMeta}>
-          {post.published_at
-            ? new Date(post.published_at).toLocaleDateString(locale)
-            : ''}
-          {post.author ? ` · ${t('blog.by', { author: post.author })}` : ''}
+          {post.published_at && (
+            <span>
+              {new Date(post.published_at).toLocaleDateString(locale)}
+            </span>
+          )}
+          {post.author && <span>{t('blog.by', { author: post.author })}</span>}
         </p>
       </div>
     </Link>
@@ -93,11 +97,11 @@ function BlogPostGrid({ posts, locale, hasMore, onLoadMore }) {
   const { t } = useTranslation();
   return (
     <Stack gap="6">
-      <Grid columns={3} gap="6">
+      <div className={styles.grid}>
         {posts.map((post) => (
           <BlogPostCard key={post.id} post={post} locale={locale} />
         ))}
-      </Grid>
+      </div>
       {hasMore && (
         <Inline justify="center">
           <Button variant="secondary" onClick={onLoadMore}>
@@ -205,11 +209,11 @@ export default function BlogPageContent() {
     );
   } else if (isPending) {
     body = (
-      <Grid columns={3} gap="6">
+      <div className={styles.grid}>
         {[1, 2, 3, 4, 5, 6].map((key) => (
           <Skeleton key={key} height="320px" />
         ))}
-      </Grid>
+      </div>
     );
   } else if (posts.length === 0) {
     body = (
@@ -235,6 +239,7 @@ export default function BlogPageContent() {
         breadcrumbItems={breadcrumbItems}
         heroSeed="blog"
         icon={Newspaper}
+        eyebrow={t('blog.eyebrow')}
         title={title}
         lead={t('blog.description')}
       />

@@ -3322,6 +3322,7 @@
   },
   "cms": {
     "about": {
+      "eyebrow": "Our story",
       "title": "About desavii",
       "lead": "desavii connects travelers with trusted local partners — hotels, tour operators, apartment owners, and experience hosts — across every destination we serve.",
       "values": {
@@ -3381,6 +3382,7 @@
       }
     },
     "contact": {
+      "eyebrow": "Get in touch",
       "title": "Contact us",
       "lead": "Have a question about a booking or a listing? Reach our support team directly.",
       "hours": "Monday–Friday, 9:00–18:00 (Yerevan time)",
@@ -3947,6 +3949,7 @@
     }
   },
   "blog": {
+    "eyebrow": "Editorial",
     "title": "Blog",
     "description": "Travel guides, partner stories, and destination inspiration from across Armenia.",
     "filters": {
@@ -3956,6 +3959,8 @@
     },
     "readMore": "Read more",
     "by": "By {{author}}",
+    "readingTime": "{{count}} min read",
+    "tagged": "Tagged",
     "relatedPosts": "Related posts",
     "loadMore": "Load more",
     "empty": {

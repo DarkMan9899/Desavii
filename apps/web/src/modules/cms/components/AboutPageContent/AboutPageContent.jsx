@@ -36,9 +36,11 @@ import {
   Search,
   CalendarCheck,
   Sparkles,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Button } from '@desavii/ui/components/primitives';
 import EditorialPageHero from '../../../../components/EditorialPageHero/EditorialPageHero.jsx';
+import RouterLink from '../../../../components/RouterLink.jsx';
 import useSeo from '../../../../seo/useSeo.js';
 import { buildBreadcrumbListSchema } from '../../../../seo/structuredData.js';
 import { useCmsPageQuery } from '../../queries/useCmsPageQuery.js';
@@ -89,6 +91,7 @@ export default function AboutPageContent() {
         breadcrumbItems={breadcrumbItems}
         heroSeed="about"
         icon={Compass}
+        eyebrow={t('cms.about.eyebrow')}
         title={title}
         lead={lead}
       />
@@ -177,13 +180,13 @@ export default function AboutPageContent() {
           >
             {t('cms.about.cta.exploreAction')}
           </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            onClick={() => navigate(`/${locale}/become-a-partner`)}
+          <RouterLink
+            href={`/${locale}/become-a-partner`}
+            className={styles.ctaSecondaryLink}
           >
             {t('cms.about.cta.partnerAction')}
-          </Button>
+            <ArrowUpRight size={16} aria-hidden="true" />
+          </RouterLink>
         </div>
       </div>
     </div>

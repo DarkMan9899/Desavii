@@ -6,6 +6,8 @@
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
+@use 'mixins/grain' as grain;
+@use 'mixins/focus-ring' as focus;
 
 .page {
   display: flex;
@@ -22,11 +24,17 @@
 
 .sectionHeading {
   margin: 0;
-  font-family: tokens.$font-heading;
+  font-family: tokens.$font-display;
+  font-weight: 700;
   font-size: tokens.$font-size-h3;
   line-height: tokens.$line-height-h3;
-  color: tokens.$color-gray-900;
+  color: tokens.$color-navy;
   text-wrap: balance;
+
+  @include respond.respond(tablet) {
+    font-size: tokens.$font-size-h2;
+    line-height: tokens.$line-height-h2;
+  }
 }
 
 .sectionBody {
@@ -53,9 +61,18 @@
   align-items: flex-start;
   gap: tokens.$space-2;
   padding: tokens.$space-6;
-  border-radius: tokens.$radius-lg;
+  border-radius: tokens.$radius-xl;
   background-color: tokens.$color-white;
-  @include tokens.elevation-0;
+  @include tokens.elevation-1;
+  transition:
+    transform tokens.$motion-transition tokens.$ease-out,
+    box-shadow tokens.$motion-transition tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
+
+  &:hover {
+    transform: translateY(-4px);
+    @include tokens.elevation-3;
+  }
 }
 
 .cardIcon {
@@ -92,36 +109,101 @@
   color: rgba(tokens.$color-royal-blue, 0.16);
 }
 
+// The same "cinematic chapter" dark banner Home's PartnerCta closes on —
+// reused verbatim (minus its ring motif, which is Hero-specific) so the
+// page's one dramatic beat is drawn from the platform's own established
+// dark-gradient identity, not a fourth invented treatment.
 .ctaBand {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: tokens.$space-3;
   text-align: center;
-  padding: tokens.$space-8 tokens.$space-6;
+  padding: tokens.$space-12 tokens.$space-6;
   border-radius: tokens.$radius-xl;
-  background-color: tokens.$color-white;
-  @include tokens.elevation-1;
+  background: linear-gradient(
+    160deg,
+    #060f1c 0%,
+    tokens.$color-navy 45%,
+    tokens.$color-royal-blue 100%
+  );
+  @include tokens.elevation-3;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(
+      55% 65% at 88% 12%,
+      rgba(tokens.$color-gold, 0.22) 0%,
+      rgba(tokens.$color-gold, 0) 100%
+    );
+  }
+
+  &::before {
+    z-index: 0;
+    @include grain.grain-overlay(0.04);
+  }
 }
 
 .ctaHeading {
   margin: 0;
-  font-family: tokens.$font-heading;
+  font-family: tokens.$font-display;
+  font-weight: 700;
   font-size: tokens.$font-size-h3;
   line-height: tokens.$line-height-h3;
-  color: tokens.$color-gray-900;
+  color: tokens.$color-white;
+
+  @include respond.respond(tablet) {
+    font-size: tokens.$font-size-h2;
+    line-height: tokens.$line-height-h2;
+  }
 }
 
 .ctaBody {
   margin: 0;
   max-width: 56ch;
-  color: tokens.$color-gray-600;
+  color: tokens.$color-gray-100;
 }
 
 .ctaActions {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
-  gap: tokens.$space-3;
+  gap: tokens.$space-4;
   margin-block-start: tokens.$space-2;
+}
+
+// The dark banner's secondary action — an underlined text link, matching
+// Hero.jsx's own `.ctaSecondary` treatment for the same reason: Button's
+// `secondary`/`ghost` variants are styled for a light surface only, so a
+// dark CTA band needs this instead, never `<Button variant="secondary">`.
+.ctaSecondaryLink {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-1;
+  color: tokens.$color-white;
+  font-family: tokens.$font-body;
+  font-weight: 600;
+  font-size: tokens.$font-size-small;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  padding-block-end: 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  transition: border-color tokens.$motion-micro tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
+  @include focus.focus-ring;
+
+  &:hover,
+  &:focus-visible {
+    border-color: tokens.$color-white;
+  }
 }

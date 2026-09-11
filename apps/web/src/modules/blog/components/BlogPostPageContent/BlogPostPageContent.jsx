@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams, Link } from 'react-router-dom';
 import { Newspaper } from 'lucide-react';
 import { Badge } from '@desavii/ui/components/primitives';
-import { Stack, Inline, Grid } from '@desavii/ui/components/layout';
+import { Stack, Inline } from '@desavii/ui/components/layout';
 import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
 import { Breadcrumbs } from '@desavii/ui/components/navigation';
 import RouterLink from '../../../../components/RouterLink.jsx';
@@ -84,20 +84,33 @@ export default function BlogPostPageContent() {
     );
   }
 
+  // Derived from the real published body — never a stand-in figure — so
+  // it stays truthful for a one-line post as much as a long itinerary.
+  const readingMinutes = post.body
+    ? Math.max(1, Math.round(post.body.trim().split(/\s+/).length / 200))
+    : null;
+
   return (
     <article className={styles.page}>
       <Breadcrumbs items={breadcrumbItems} linkComponent={RouterLink} />
 
-      {post.category_slug && (
-        <Badge size="sm" variant="neutral" label={post.category_slug} />
-      )}
-      <h1 className={styles.title}>{post.title}</h1>
-      <p className={styles.meta}>
-        {post.published_at
-          ? new Date(post.published_at).toLocaleDateString(locale)
-          : ''}
-        {post.author ? ` · ${t('blog.by', { author: post.author })}` : ''}
-      </p>
+      <header className={styles.header}>
+        {post.category_slug && (
+          <p className={styles.eyebrow}>{post.category_slug}</p>
+        )}
+        <h1 className={styles.title}>{post.title}</h1>
+        <p className={styles.meta}>
+          {post.published_at && (
+            <span>
+              {new Date(post.published_at).toLocaleDateString(locale)}
+            </span>
+          )}
+          {post.author && <span>{t('blog.by', { author: post.author })}</span>}
+          {readingMinutes && (
+            <span>{t('blog.readingTime', { count: readingMinutes })}</span>
+          )}
+        </p>
+      </header>
 
       {post.cover && (
         <img
@@ -110,17 +123,25 @@ export default function BlogPostPageContent() {
       <MarkdownContent>{post.body ?? ''}</MarkdownContent>
 
       {post.tags?.length > 0 && (
-        <Inline gap="2" wrap>
-          {post.tags.map((tag) => (
-            <Badge key={tag.id} size="sm" variant="neutral" label={tag.name} />
-          ))}
-        </Inline>
+        <div className={styles.tagsSection}>
+          <p className={styles.tagsLabel}>{t('blog.tagged')}</p>
+          <Inline gap="2" wrap>
+            {post.tags.map((tag) => (
+              <Badge
+                key={tag.id}
+                size="sm"
+                variant="neutral"
+                label={tag.name}
+              />
+            ))}
+          </Inline>
+        </div>
       )}
 
       {post.related?.length > 0 && (
         <Stack gap="4" className={styles.related}>
           <h2 className={styles.relatedHeading}>{t('blog.relatedPosts')}</h2>
-          <Grid columns={3} gap="4">
+          <div className={styles.relatedGrid}>
             {post.related.map((related) => (
               <Link
                 key={related.id}
@@ -140,7 +161,7 @@ export default function BlogPostPageContent() {
                 <span>{related.title}</span>
               </Link>
             ))}
-          </Grid>
+          </div>
         </Stack>
       )}
     </article>

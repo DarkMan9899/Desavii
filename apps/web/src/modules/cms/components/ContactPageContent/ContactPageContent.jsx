@@ -241,6 +241,7 @@ export default function ContactPageContent() {
         breadcrumbItems={breadcrumbItems}
         heroSeed="contact"
         icon={MessageCircle}
+        eyebrow={t('cms.contact.eyebrow')}
         title={title}
         lead={lead}
       />
