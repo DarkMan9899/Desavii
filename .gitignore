@@ -27,7 +27,14 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
-.claude/
+# .claude/ stays ignored by default (launch.json, MCP config, local auth/
+# session state are all machine-local, never meant to leave this
+# checkout) — except the project design skill, which is meant to travel
+# with the repo so every machine/checkout gets the same brand/UX rules.
+.claude/*
+!.claude/skills
+.claude/skills/*
+!.claude/skills/desavii-frontend-design
 
 # Test / coverage output
 coverage/
