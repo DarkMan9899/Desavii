@@ -1,47 +1,74 @@
 // EditorialHighlights — tokens only, consumed from @desavii/ui.
 
 @use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
 
 .section {
   padding-block: tokens.$space-4;
 }
 
+// Matches ListingGrid/BlogPageContent's breakpoint scale — a fixed
+// `<Grid columns={3}>` pins that column count at every breakpoint by
+// design (see Grid.jsx), which squeezed these 3 cards into a clipped
+// single row on mobile.
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: tokens.$space-6;
+
+  @include respond.respond(mobile-large) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @include respond.respond(tablet) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 .card {
   display: flex;
   flex-direction: column;
-  border-radius: tokens.$radius-lg;
+  border-radius: tokens.$radius-xl;
   background-color: tokens.$color-white;
   overflow: hidden;
   text-decoration: none;
   color: inherit;
-  @include tokens.elevation-0;
-  transition: box-shadow tokens.$motion-micro tokens.$ease-out;
+  @include tokens.elevation-1;
+  transition:
+    transform tokens.$motion-transition tokens.$ease-out,
+    box-shadow tokens.$motion-transition tokens.$ease-out;
   @include tokens.reduced-motion-safe;
 
-  &:hover {
-    @include tokens.elevation-1;
+  &:hover,
+  &:focus-visible {
+    transform: translateY(-4px);
+    @include tokens.elevation-3;
   }
 }
 
 .cover {
   position: relative;
   aspect-ratio: 16 / 10;
+  overflow: hidden;
   background-color: tokens.$color-gray-100;
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform tokens.$motion-transition tokens.$ease-out;
+    @include tokens.reduced-motion-safe;
   }
 }
 
+.card:hover .cover img,
+.card:focus-visible .cover img {
+  transform: scale(1.05);
+}
+
 .coverFallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 100%;
   height: 100%;
-  color: tokens.$color-gray-400;
 }
 
 .body {
@@ -53,10 +80,11 @@
 
 .title {
   margin: 0;
-  font-family: tokens.$font-heading;
+  font-family: tokens.$font-display;
+  font-weight: 700;
   font-size: tokens.$font-size-h4;
   line-height: tokens.$line-height-h4;
-  color: tokens.$color-gray-900;
+  color: tokens.$color-navy;
 }
 
 .excerpt {

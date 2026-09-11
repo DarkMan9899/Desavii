@@ -23,7 +23,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Grid, Section, Stack } from '@desavii/ui/components/layout';
+import { Section, Stack } from '@desavii/ui/components/layout';
 import {
   Skeleton,
   EmptyState,
@@ -33,18 +33,19 @@ import { Button } from '@desavii/ui/components/primitives';
 import { Heart } from 'lucide-react';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import ListingCardBase from '../../../../components/ListingCardBase/ListingCardBase.jsx';
+import ListingGrid from '../../../../components/ListingGrid/ListingGrid.jsx';
 import FavoriteButton from '../FavoriteButton/FavoriteButton.jsx';
 import { useFavoritesQuery } from '../../queries/useFavoritesQuery.js';
 import styles from './FavoritesPageContent.module.scss';
 
 function FavoritesGridSkeleton() {
   return (
-    <Grid columns={3} gap="4">
+    <ListingGrid>
       {Array.from({ length: 6 }, (_, index) => (
         // eslint-disable-next-line react/no-array-index-key -- fixed skeleton count, no real data yet
         <Skeleton key={index} variant="rect" height={280} />
       ))}
-    </Grid>
+    </ListingGrid>
   );
 }
 
@@ -117,7 +118,7 @@ export default function FavoritesPageContent() {
             groups.map(({ city, items }) => (
               <Stack key={city} gap="3" as="div">
                 <h2 className={styles.groupHeading}>{city}</h2>
-                <Grid columns={3} gap="4">
+                <ListingGrid>
                   {items.map((favorite) => (
                     <ListingCardBase
                       key={favorite.favorite_id}
@@ -137,7 +138,7 @@ export default function FavoritesPageContent() {
                       locale={locale}
                     />
                   ))}
-                </Grid>
+                </ListingGrid>
               </Stack>
             ))}
           {hasNextPage && (

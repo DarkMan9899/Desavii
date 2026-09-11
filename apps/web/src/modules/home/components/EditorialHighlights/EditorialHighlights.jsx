@@ -21,11 +21,11 @@
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import { Newspaper } from 'lucide-react';
-import { Container, Section, Grid } from '@desavii/ui/components/layout';
+import { Container, Section } from '@desavii/ui/components/layout';
 import { Skeleton } from '@desavii/ui/components/feedback-overlays';
 import { usePublicPostsQuery } from '../../../blog/index.js';
 import RouterLink from '../../../../components/RouterLink.jsx';
+import DestinationArt from '../../../../components/DestinationArt/DestinationArt.jsx';
 import SectionHeader from '../SectionHeader/SectionHeader.jsx';
 import ScrollReveal from '../ScrollReveal/ScrollReveal.jsx';
 import styles from './EditorialHighlights.module.scss';
@@ -41,9 +41,10 @@ function PostCard({ post, locale }) {
         {post.cover ? (
           <img src={post.cover.url} alt={post.cover.alt_text ?? ''} />
         ) : (
-          <span className={styles.coverFallback} aria-hidden="true">
-            <Newspaper size={28} />
-          </span>
+          <DestinationArt
+            seed={post.slug ?? post.title}
+            className={styles.coverFallback}
+          />
         )}
       </div>
       <div className={styles.body}>
@@ -96,17 +97,17 @@ export default function EditorialHighlights() {
           />
 
           {isPending ? (
-            <Grid columns={3} gap="6">
+            <div className={styles.grid}>
               {[1, 2, 3].map((key) => (
                 <Skeleton key={key} variant="rect" height={320} />
               ))}
-            </Grid>
+            </div>
           ) : (
-            <Grid columns={3} gap="6">
+            <div className={styles.grid}>
               {posts.map((post) => (
                 <PostCard key={post.id} post={post} locale={locale} />
               ))}
-            </Grid>
+            </div>
           )}
         </ScrollReveal>
       </Container>
