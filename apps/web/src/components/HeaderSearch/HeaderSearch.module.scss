@@ -1,28 +1,14 @@
-// HeaderSearch — tokens only, consumed from @desavii/ui. `.trigger`
-// mirrors `NotificationBell.module.scss`'s exact icon-button shape.
+// HeaderSearch — tokens only, consumed from @desavii/ui.
 
 @use 'tokens' as tokens;
 
+// Remediation: the trigger used to be a bare icon-only <button> styled
+// entirely by this file (fixed 40x40 circle). It's now the shared
+// `Button` (variant="ghost") with a visible label, which already owns
+// its own padding/hover/focus-visible treatment - this class only needs
+// to stop it wrapping onto two lines against its header siblings.
 .trigger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border: none;
-  border-radius: tokens.$radius-full;
-  background: transparent;
-  color: tokens.$color-navy;
-  cursor: pointer;
-
-  &:hover {
-    background-color: tokens.$color-gray-100;
-  }
-
-  &:focus-visible {
-    outline: 2px solid tokens.$color-royal-blue;
-    outline-offset: 2px;
-  }
+  white-space: nowrap;
 }
 
 .panel {

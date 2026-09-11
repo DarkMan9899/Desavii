@@ -57,16 +57,24 @@ export default function HeaderSearch() {
       placement="bottom-end"
       panelClassName={styles.panel}
       trigger={
-        <button
+        // Remediation: this used to be icon-only (a bare 40x40 magnifying
+        // glass with only an aria-label, no visible text) - functionally
+        // reachable but not "obvious" at a glance among the header's
+        // other icon-sized controls. A visible label is now the real
+        // accessible name; the previous aria-label is redundant once
+        // real text exists and has been dropped rather than kept
+        // alongside it.
+        <Button
           type="button"
+          variant="ghost"
           className={styles.trigger}
           aria-haspopup="dialog"
           aria-expanded={isOpen}
-          aria-label={t('header.search.label')}
+          iconLeft={<Icon icon={SearchIcon} size="md" />}
           onClick={() => setIsOpen((current) => !current)}
         >
-          <Icon icon={SearchIcon} size="md" />
-        </button>
+          {t('header.search.label')}
+        </Button>
       }
     >
       <form className={styles.form} onSubmit={handleSubmit} role="search">

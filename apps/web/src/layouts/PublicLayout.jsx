@@ -51,10 +51,25 @@ export default function PublicLayout() {
         }
       : { label: t('nav.explore'), to: `/${locale}/search` };
 
+  // Remediation: About/Contact/Blog previously existed only in the
+  // Footer, with no way to reach them from the header at all - grouped
+  // here rather than added as three more flat top-level items, reusing
+  // the exact same {label, items} dropdown shape `exploreItem` already
+  // renders (Header.jsx's NavDropdown), so this needed no new UI.
+  const companyItem = {
+    label: t('nav.company'),
+    items: [
+      { label: t('nav.about'), to: `/${locale}/about` },
+      { label: t('nav.blog'), to: `/${locale}/blog` },
+      { label: t('nav.contact'), to: `/${locale}/contact` },
+    ],
+  };
+
   const navItems = [
     { label: t('nav.home'), to: `/${locale}` },
     exploreItem,
     { label: t('nav.companies'), to: `/${locale}/companies` },
+    companyItem,
     { label: t('nav.becomePartner'), to: `/${locale}/become-a-partner` },
   ];
 
