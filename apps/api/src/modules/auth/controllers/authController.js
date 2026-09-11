@@ -12,12 +12,25 @@
  * concrete header value exists yet to match against, so this is
  * documented here as the value apps/web's Axios instance should send,
  * `FRONTEND_ARCHITECTURE.md` §10.1).
+ *
+ * Sprint L fix: alongside the httpOnly `refresh_token` cookie, also sets
+ * a plain, non-httpOnly, valueless-of-any-secret `session_hint` cookie.
+ * `refresh_token` being httpOnly is deliberate (XSS protection,
+ * `tokenStore.js`'s own comment) but it also means the frontend's
+ * `AuthProvider` bootstrap effect had no way to tell "no session cookie
+ * at all" apart from "cookie exists, might be expired" without firing a
+ * real `POST /auth/refresh` on every single page load — including a
+ * logged-out visitor on a public page, who could never have a session.
+ * `session_hint` carries no sensitive value (just presence/absence) so
+ * exposing it to JS costs nothing security-wise, and lets the frontend
+ * skip that network call entirely when it's absent.
  */
 
 import { decodeToken } from '../../../core/domain/tokenService.js';
 import { toAuthResponseDto, toPrincipalDto } from '../dto/authDto.js';
 
 const REFRESH_COOKIE_NAME = 'refresh_token';
+const SESSION_HINT_COOKIE_NAME = 'session_hint';
 
 function isWebClient(req) {
   return req.headers['x-client'] === 'web';
@@ -35,12 +48,25 @@ function buildContext(req) {
 function setRefreshCookie(req, res, refreshToken) {
   if (!isWebClient(req)) return;
   const { exp } = decodeToken(refreshToken);
+  const expires = new Date(exp * 1000);
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
     httpOnly: true,
     secure: true,
     sameSite: 'strict',
-    expires: new Date(exp * 1000),
+    expires,
   });
+  res.cookie(SESSION_HINT_COOKIE_NAME, '1', {
+    httpOnly: false,
+    secure: true,
+    sameSite: 'strict',
+    expires,
+  });
+}
+
+function clearSessionCookies(req, res) {
+  if (!isWebClient(req)) return;
+  res.clearCookie(REFRESH_COOKIE_NAME);
+  res.clearCookie(SESSION_HINT_COOKIE_NAME);
 }
 
 function readRefreshToken(req) {
@@ -115,7 +141,7 @@ export function createAuthController(authenticationService) {
           refreshToken,
           buildContext(req),
         );
-        if (isWebClient(req)) res.clearCookie(REFRESH_COOKIE_NAME);
+        clearSessionCookies(req, res);
         res
           .status(200)
           .json({ success: true, data: result, meta: null, error: null });
@@ -130,7 +156,7 @@ export function createAuthController(authenticationService) {
           req.principal.userId,
           buildContext(req),
         );
-        if (isWebClient(req)) res.clearCookie(REFRESH_COOKIE_NAME);
+        clearSessionCookies(req, res);
         res.status(200).json({
           success: true,
           data: { revoked_count: revokedCount },

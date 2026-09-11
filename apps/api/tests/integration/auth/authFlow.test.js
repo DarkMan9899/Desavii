@@ -164,3 +164,75 @@ describe('Auth flow: register -> login -> me -> refresh -> logout', () => {
     expect(refreshAfterLogout.status).toBe(401);
   });
 });
+
+// Sprint L fix: a web client also gets a `session_hint` cookie alongside
+// the httpOnly `refresh_token` one, so the frontend can tell "definitely
+// no session" apart from "might have one" without ever calling
+// `/auth/refresh` — see `authController.js`'s own header for the full
+// defect this closes (an unconditional refresh call, and its guaranteed
+// 401, on every logged-out page load).
+describe('Auth flow: web-client session_hint cookie (Sprint L)', () => {
+  const email = uniqueEmail('auth-flow-web-client');
+  const password = 'StrongPass!2024';
+
+  function cookieNamed(setCookieHeader, name) {
+    return setCookieHeader.find((entry) => entry.startsWith(`${name}=`));
+  }
+
+  beforeAll(async () => {
+    await request(app)
+      .post('/api/v1/auth/register')
+      .send({ email, password, firstName: 'Test', lastName: 'User' });
+  });
+
+  test('POST /auth/login as a web client sets both refresh_token (httpOnly) and session_hint (not httpOnly)', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/login')
+      .set('X-Client', 'web')
+      .send({ email, password });
+
+    expect(res.status).toBe(200);
+    const setCookie = res.headers['set-cookie'];
+    expect(setCookie).toBeDefined();
+
+    const refreshCookie = cookieNamed(setCookie, 'refresh_token');
+    const hintCookie = cookieNamed(setCookie, 'session_hint');
+    expect(refreshCookie).toEqual(expect.any(String));
+    expect(hintCookie).toEqual(expect.any(String));
+    expect(refreshCookie.toLowerCase()).toContain('httponly');
+    expect(hintCookie.toLowerCase()).not.toContain('httponly');
+  });
+
+  test('a non-web client login does not set either cookie', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email, password });
+
+    expect(res.status).toBe(200);
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+
+  test('POST /auth/logout as a web client clears both cookies', async () => {
+    const loginRes = await request(app)
+      .post('/api/v1/auth/login')
+      .set('X-Client', 'web')
+      .send({ email, password });
+    const { access_token: accessToken, refresh_token: refreshToken } =
+      loginRes.body.data;
+
+    const logoutRes = await request(app)
+      .post('/api/v1/auth/logout')
+      .set('X-Client', 'web')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ refresh_token: refreshToken });
+
+    expect(logoutRes.status).toBe(200);
+    const setCookie = logoutRes.headers['set-cookie'];
+    expect(setCookie).toBeDefined();
+    // `res.clearCookie` re-sets the cookie with an already-past `Expires`
+    // — the presence of both names here (rather than their absence) is
+    // what actually clears them client-side.
+    expect(cookieNamed(setCookie, 'refresh_token')).toEqual(expect.any(String));
+    expect(cookieNamed(setCookie, 'session_hint')).toEqual(expect.any(String));
+  });
+});

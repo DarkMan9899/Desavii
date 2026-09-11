@@ -43,14 +43,46 @@ function Consumer() {
   );
 }
 
+// Clears the `session_hint` cookie the fixed bootstrap effect gates on
+// (Sprint L — see `AuthProvider.jsx`'s own header) so tests don't leak
+// state into one another via jsdom's shared `document.cookie` jar.
+function clearSessionHintCookie() {
+  document.cookie =
+    'session_hint=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+}
+
+function setSessionHintCookie() {
+  document.cookie = 'session_hint=1; path=/';
+}
+
 describe('AuthProvider (apps/web/src/providers)', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     partnersApi.getMyPartnerships.mockResolvedValue({ data: [] });
+    clearSessionHintCookie();
   });
 
-  test('bootstraps to logged-out when no refresh session exists', async () => {
-    authApi.refresh.mockRejectedValue(new Error('no session'));
+  test('bootstraps to logged-out without calling /auth/refresh when no session_hint cookie exists', async () => {
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    );
+
+    // No cookie means bootstrap has nothing to await — it resolves
+    // synchronously to logged-out, unlike the cookie-present paths below
+    // which genuinely pass through a "booting" state.
+    await waitFor(() => expect(screen.getByText('out')).toBeInTheDocument());
+    expect(getAccessToken()).toBeNull();
+    // The real defect this guards: a logged-out visitor can never have a
+    // session, so bootstrap must not fire a network call that can only
+    // ever 401.
+    expect(authApi.refresh).not.toHaveBeenCalled();
+  });
+
+  test('bootstraps to logged-out when the session_hint cookie is present but the refresh call still fails (e.g. an expired/revoked refresh token)', async () => {
+    setSessionHintCookie();
+    authApi.refresh.mockRejectedValue(new Error('expired session'));
 
     render(
       <AuthProvider>
@@ -58,12 +90,13 @@ describe('AuthProvider (apps/web/src/providers)', () => {
       </AuthProvider>,
     );
 
-    expect(screen.getByText('booting')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('out')).toBeInTheDocument());
     expect(getAccessToken()).toBeNull();
+    expect(authApi.refresh).toHaveBeenCalledTimes(1);
   });
 
   test('bootstraps to logged-in via refresh + me when a session exists, also hydrating partnerships', async () => {
+    setSessionHintCookie();
     authApi.refresh.mockResolvedValue({ data: { access_token: 'token-1' } });
     authApi.me.mockResolvedValue({
       data: {
@@ -128,6 +161,7 @@ describe('AuthProvider (apps/web/src/providers)', () => {
 
   test('logout() clears the session even if the API call fails', async () => {
     const user = userEvent.setup();
+    setSessionHintCookie();
     authApi.refresh.mockResolvedValue({ data: { access_token: 'token-3' } });
     authApi.me.mockResolvedValue({
       data: { user: { id: 3, email: 'c@d.com' }, roles: [], permissions: [] },
@@ -151,6 +185,7 @@ describe('AuthProvider (apps/web/src/providers)', () => {
 
   test('refreshUser() re-fetches /auth/me and updates the session (Phase 8)', async () => {
     const user = userEvent.setup();
+    setSessionHintCookie();
     authApi.refresh.mockResolvedValue({ data: { access_token: 'token-4' } });
     authApi.me
       .mockResolvedValueOnce({

@@ -9,6 +9,17 @@
  * specifically so `RequireAuth` (Ch. 12) can tell "still checking" apart
  * from "definitely logged out" and never briefly flashes a redirect.
  *
+ * Sprint L fix: bootstrap first checks for the `session_hint` cookie
+ * (`authController.js`'s own comment) before calling `/auth/refresh` at
+ * all. `refresh_token` itself is httpOnly and unreadable from JS by
+ * design, so without this hint every page load — including a logged-out
+ * visitor on a public page, who can never have a session — fired a real
+ * network request that always failed with 401. `session_hint` carries no
+ * secret, only presence/absence, so reading it costs nothing security-
+ * wise; its absence is a hard guarantee of "no session", letting
+ * bootstrap skip straight to the logged-out state with zero network
+ * calls.
+ *
  * `login`/`register` both immediately follow up with `GET /auth/me`
  * rather than trusting `roles`/`permissions` from the auth response —
  * `toAuthResponseDto` (apps/api's auth DTO) doesn't return them, only
@@ -64,6 +75,14 @@ const EMPTY_SESSION = {
 // would be a much bigger behavior change than this fix needs.
 let bootstrapRefreshPromise = null;
 
+// Presence-only check — `session_hint` is deliberately not httpOnly (see
+// `authController.js`) specifically so this read is possible.
+function hasSessionHint() {
+  return document.cookie
+    .split('; ')
+    .some((entry) => entry.startsWith('session_hint='));
+}
+
 function getBootstrapRefresh() {
   if (!bootstrapRefreshPromise) {
     bootstrapRefreshPromise = authApi.refresh().finally(() => {
@@ -108,6 +127,10 @@ export default function AuthProvider({ children }) {
     let cancelled = false;
 
     async function bootstrap() {
+      if (!hasSessionHint()) {
+        if (!cancelled) setIsBootstrapping(false);
+        return;
+      }
       try {
         const { data } = await getBootstrapRefresh();
         setAccessToken(data.access_token);
