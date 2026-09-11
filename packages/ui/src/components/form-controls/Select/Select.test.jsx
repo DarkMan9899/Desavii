@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { createRef, forwardRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Select from './Select.jsx';
@@ -11,20 +11,36 @@ const ROOM_OPTIONS = [
   { value: 'suite', label: 'Suite' },
 ];
 
-function ControlledSelect({ initialValue = undefined, options, ...rest }) {
+// `forwardRef`-wrapped so the "ref forwarding" tests below can pass a ref
+// through this test harness to the real `Select` underneath, the same
+// way React Hook Form's `Controller` does in real usage.
+const ControlledSelect = forwardRef(function ControlledSelect(
+  { initialValue = undefined, options, ...rest },
+  ref,
+) {
   const [value, setValue] = useState(initialValue);
   return (
-    // eslint-disable-next-line react/jsx-props-no-spreading -- test helper forwards arbitrary Select props
-    <Select {...rest} options={options} value={value} onChange={setValue} />
+    <Select
+      ref={ref}
+      // eslint-disable-next-line react/jsx-props-no-spreading -- test helper forwards arbitrary Select props
+      {...rest}
+      options={options}
+      value={value}
+      onChange={setValue}
+    />
   );
-}
+});
 
+/* eslint-disable react/require-default-props -- every optional prop below
+   is a test-harness convenience with an inline default, not a defaultProps
+   candidate (mirrors Select.jsx's own convention). */
 ControlledSelect.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types -- test helper accepts arbitrary initial values
   initialValue: PropTypes.any,
   // eslint-disable-next-line react/forbid-prop-types -- test helper forwards options through to Select
   options: PropTypes.array.isRequired,
 };
+/* eslint-enable react/require-default-props */
 
 describe('Select / Dropdown (COMPONENT_LIBRARY.md Part II §2)', () => {
   test('is closed by default and opens on trigger click, showing options via role="listbox"', async () => {
@@ -169,5 +185,64 @@ describe('Select / Dropdown (COMPONENT_LIBRARY.md Part II §2)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Room type' }));
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  // Sprint L — Select used to be a bare function component: React Hook
+  // Form's `Controller` (partner listing type/category, and every other
+  // `Controller`-wrapped Select in the app) passes a `ref` down for its
+  // focus-on-error integration, which React silently drops before it
+  // reaches an unforwarded function component, printing "Function
+  // components cannot be given refs" — reproduced live via
+  // BasicInfoStep.test.jsx before this fix.
+  describe('ref forwarding', () => {
+    test('an object ref receives the real trigger DOM node', () => {
+      const ref = createRef();
+      render(
+        <ControlledSelect ref={ref} options={ROOM_OPTIONS} label="Room type" />,
+      );
+      expect(ref.current).toBe(screen.getByTestId('select-trigger'));
+    });
+
+    test('a callback ref receives the real trigger DOM node', () => {
+      const refCallback = vi.fn();
+      render(
+        <ControlledSelect
+          ref={refCallback}
+          options={ROOM_OPTIONS}
+          label="Room type"
+        />,
+      );
+      expect(refCallback).toHaveBeenCalledWith(
+        screen.getByTestId('select-trigger'),
+      );
+    });
+
+    test('does not print the "Function components cannot be given refs" warning', () => {
+      const consoleError = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const ref = createRef();
+      render(
+        <ControlledSelect ref={ref} options={ROOM_OPTIONS} label="Room type" />,
+      );
+      const refWarning = consoleError.mock.calls.some((args) =>
+        String(args[0]).includes('Function components cannot be given refs'),
+      );
+      expect(refWarning).toBe(false);
+      consoleError.mockRestore();
+    });
+
+    test('the component’s own focus-on-close behavior still works with an external ref attached', async () => {
+      const user = userEvent.setup();
+      const ref = createRef();
+      render(
+        <ControlledSelect ref={ref} options={ROOM_OPTIONS} label="Room type" />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Room type' }));
+      await user.keyboard('{Escape}');
+
+      expect(screen.getByTestId('select-trigger')).toHaveFocus();
+    });
   });
 });

@@ -6,6 +6,14 @@
  * `render`, and a "Load more" footer matching this app's established
  * cursor-pagination convention (`useAdminUsersQuery.js`'s own note)
  * rather than the unused `Pagination` primitive.
+ *
+ * Sprint L fix: row keys now go through an actual `rowKey` prop (string
+ * field name or `(row, index) => key` function, defaulting to `'id'`)
+ * instead of a hardcoded `row.id`. Several call sites (AI usage stats,
+ * system health queues, AI moderation queue, CSV import preview) render
+ * rows with no `id` field at all and were already passing `rowKey` —
+ * silently dropped since this prop never existed, so every one of their
+ * rows keyed to `undefined` and printed React's duplicate-key warning.
  */
 
 import PropTypes from 'prop-types';
@@ -16,9 +24,15 @@ import styles from './DataTable.module.scss';
 
 const SKELETON_ROW_COUNT = 5;
 
+function resolveRowKey(rowKey, row, rowIndex) {
+  if (typeof rowKey === 'function') return rowKey(row, rowIndex);
+  return row[rowKey] ?? rowIndex;
+}
+
 export default function DataTable({
   columns,
   rows,
+  rowKey = 'id',
   isLoading = false,
   emptyTitle,
   emptyDescription = undefined,
@@ -59,9 +73,9 @@ export default function DataTable({
               </tr>
             ))}
           {!isLoading &&
-            rows.map((row) => (
+            rows.map((row, rowIndex) => (
               <tr
-                key={row.id}
+                key={resolveRowKey(rowKey, row, rowIndex)}
                 className={onRowClick ? styles.clickableRow : undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
@@ -110,6 +124,7 @@ DataTable.propTypes = {
   columns: PropTypes.arrayOf(columnShape).isRequired,
   // eslint-disable-next-line react/forbid-prop-types -- row shape is entirely caller-defined, keyed only by `columns[].key`/`.render`
   rows: PropTypes.arrayOf(PropTypes.object).isRequired,
+  rowKey: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
   isLoading: PropTypes.bool,
   emptyTitle: PropTypes.string.isRequired,
   emptyDescription: PropTypes.string,

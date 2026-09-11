@@ -14,9 +14,20 @@
  *    bottom panel (no backdrop/focus-trap) rather than a full modal —
  *    the shared Modal/Drawer primitive this would normally compose with
  *    isn't part of this sprint's scope either.
+ *
+ * Wrapped in `forwardRef` for the same reason `Input`/`Textarea` already
+ * are (see `Input.jsx`'s own header) — React Hook Form's `Controller`
+ * passes a `ref` down for its focus-on-error integration, and a bare
+ * function component drops it before it reaches here, which is exactly
+ * the "Function components cannot be given refs" warning every
+ * `Controller`-wrapped `Select` (partner listing type, category, etc.)
+ * produced. Unlike `Input`, this component already keeps its own
+ * internal `triggerRef` (the div it moves focus back to on close/Escape)
+ * — `setTriggerRef` below writes to both that ref and whatever the
+ * caller forwarded, so neither loses the DOM node.
  */
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useId, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import Label from '../Label/Label.jsx';
 import styles from './Select.module.scss';
@@ -73,30 +84,45 @@ function CheckIcon() {
   );
 }
 
-export default function Select({
-  options,
-  value = undefined,
-  onChange,
-  multiple = false,
-  searchable = false,
-  label = undefined,
-  ariaLabel = undefined,
-  error = undefined,
-  size = 'md',
-  disabled = false,
-  placeholder = 'Select…',
-  required = false,
-  id = undefined,
-  searchPlaceholder = 'Search…',
-  noOptionsMessage = 'No results',
-  getRemoveChipLabel = (optionLabel) => `Remove ${optionLabel}`,
-}) {
+const Select = forwardRef(function Select(
+  {
+    options,
+    value = undefined,
+    onChange,
+    multiple = false,
+    searchable = false,
+    label = undefined,
+    ariaLabel = undefined,
+    error = undefined,
+    size = 'md',
+    disabled = false,
+    placeholder = 'Select…',
+    required = false,
+    id = undefined,
+    searchPlaceholder = 'Search…',
+    noOptionsMessage = 'No results',
+    getRemoveChipLabel = (optionLabel) => `Remove ${optionLabel}`,
+  },
+  forwardedRef,
+) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [query, setQuery] = useState('');
   const containerRef = useRef(null);
   const triggerRef = useRef(null);
   const searchInputRef = useRef(null);
+
+  function setTriggerRef(node) {
+    triggerRef.current = node;
+    if (typeof forwardedRef === 'function') {
+      forwardedRef(node);
+    } else if (forwardedRef) {
+      // eslint-disable-next-line no-param-reassign -- the documented way
+      // to write to an object ref forwarded by a caller (e.g. React Hook
+      // Form's Controller); it is not this component's own prop.
+      forwardedRef.current = node;
+    }
+  }
   const generatedId = useId();
   const fieldId = id || generatedId;
   const listboxId = `${fieldId}-listbox`;
@@ -262,7 +288,7 @@ export default function Select({
       <div className={styles.wrapper}>
         <div
           id={fieldId}
-          ref={triggerRef}
+          ref={setTriggerRef}
           data-testid="select-trigger"
           role="button"
           tabIndex={disabled ? -1 : 0}
@@ -391,8 +417,13 @@ export default function Select({
       )}
     </div>
   );
-}
+});
 
+/* eslint-disable react/require-default-props -- every optional prop below
+   already has an ES6 default in the destructured params on the
+   forwardRef-wrapped function above; eslint-plugin-react's default-props
+   check doesn't associate propTypes on a forwardRef object with defaults
+   declared on its inner render function (see Input.jsx's identical note). */
 Select.propTypes = {
   options: PropTypes.arrayOf(optionShape).isRequired,
   value: PropTypes.oneOfType([
@@ -420,5 +451,7 @@ Select.propTypes = {
   noOptionsMessage: PropTypes.string,
   getRemoveChipLabel: PropTypes.func,
 };
+/* eslint-enable react/require-default-props */
 
+export default Select;
 export { SIZES as SELECT_SIZES };

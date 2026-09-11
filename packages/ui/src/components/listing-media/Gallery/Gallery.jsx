@@ -4,10 +4,22 @@
  * lightbox — the Mobile swipeable-carousel variant is out of this
  * pass's scope (no shared carousel primitive exists yet); the lightbox
  * itself is used at every breakpoint.
+ *
+ * Sprint L fix: the lightbox is now actually focus-trapped — it used to
+ * only close on Escape, with no initial-focus move into it, no Tab/
+ * Shift+Tab trapping, no focus-return to the thumbnail that opened it,
+ * and no `aria-hidden` on background content, despite the header comment
+ * above (unchanged since this component's original build) already
+ * claiming it was. Reuses the shared `useFocusTrap` hook that `Modal`/
+ * `Drawer` are built on rather than re-implementing any of this —
+ * `useFocusTrap` already owns Escape-to-close, so this component's own
+ * keydown handler now only covers Left/Right image navigation, which the
+ * hook doesn't know about.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
+import useFocusTrap from '../../../hooks/useFocusTrap.js';
 import styles from './Gallery.module.scss';
 
 const THUMBNAIL_LIMIT = 5;
@@ -22,12 +34,19 @@ export default function Gallery({
   initialIndex = 0,
 }) {
   const [lightboxIndex, setLightboxIndex] = useState(null);
+  const lightboxRef = useRef(null);
+  const isLightboxOpen = lightboxIndex !== null;
+
+  useFocusTrap({
+    containerRef: lightboxRef,
+    isOpen: isLightboxOpen,
+    onClose: () => setLightboxIndex(null),
+  });
 
   useEffect(() => {
-    if (lightboxIndex === null) return undefined;
+    if (!isLightboxOpen) return undefined;
 
     function handleKeyDown(event) {
-      if (event.key === 'Escape') setLightboxIndex(null);
       if (event.key === 'ArrowRight') {
         setLightboxIndex((current) => (current + 1) % media.length);
       }
@@ -39,7 +58,7 @@ export default function Gallery({
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [lightboxIndex, media.length]);
+  }, [isLightboxOpen, media.length]);
 
   const visibleThumbnails = media.slice(0, THUMBNAIL_LIMIT);
   const remainingCount = media.length - THUMBNAIL_LIMIT;
@@ -98,10 +117,12 @@ export default function Gallery({
 
       {activeItem && (
         <div
+          ref={lightboxRef}
           className={styles.lightbox}
           role="dialog"
           aria-modal="true"
           aria-label={viewImageLabel}
+          tabIndex={-1}
         >
           <button
             type="button"
