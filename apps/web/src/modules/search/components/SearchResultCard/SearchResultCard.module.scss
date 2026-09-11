@@ -5,15 +5,19 @@
 
 @use 'tokens' as tokens;
 
+// Plain metadata, not a link or an action — kept on the neutral gray
+// scale so it never reads as clickable the way the royal-blue accent
+// (reserved for real interactive/informational elements) would.
 .location {
   display: flex;
   align-items: center;
   gap: tokens.$space-1;
   margin: 0;
   font-size: tokens.$font-size-small;
-  color: tokens.$color-royal-blue;
+  color: tokens.$color-gray-600;
 
   svg {
     flex-shrink: 0;
+    color: tokens.$color-gray-400;
   }
 }

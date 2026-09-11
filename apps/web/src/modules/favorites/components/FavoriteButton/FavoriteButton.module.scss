@@ -8,8 +8,19 @@
   border-radius: tokens.$radius-full;
   background-color: rgba(255, 255, 255, 0.85);
   color: tokens.$color-navy;
+  transition:
+    transform tokens.$motion-micro tokens.$ease-out,
+    background-color tokens.$motion-micro tokens.$ease-out,
+    box-shadow tokens.$motion-micro tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
 
   &:hover {
     background-color: tokens.$color-white;
+    transform: scale(1.08);
+    @include tokens.elevation-1;
+  }
+
+  &:active {
+    transform: scale(0.96);
   }
 }

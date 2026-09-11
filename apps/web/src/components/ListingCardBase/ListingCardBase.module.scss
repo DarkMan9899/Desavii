@@ -41,8 +41,19 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: transform tokens.$motion-transition tokens.$ease-out;
+  opacity: 0;
+  transition:
+    opacity tokens.$motion-transition tokens.$ease-out,
+    transform tokens.$motion-transition tokens.$ease-out;
   @include tokens.reduced-motion-safe;
+}
+
+// Fades a real (network-loaded) photo in once it actually arrives,
+// instead of the browser's abrupt default paint — `imagePlaceholder`'s
+// own gray-100 ground shows underneath until then, so this never reads
+// as a broken/empty box while loading.
+.imageLoaded {
+  opacity: 1;
 }
 
 .card:hover .image {
@@ -96,13 +107,14 @@
 .body {
   display: flex;
   flex-direction: column;
-  gap: tokens.$space-2;
+  gap: tokens.$space-1;
   padding: tokens.$space-4;
 }
 
 .title {
   margin: 0;
   font-family: tokens.$font-heading;
+  font-weight: 700;
   font-size: tokens.$font-size-h4;
   line-height: tokens.$line-height-h4;
   color: tokens.$color-gray-900;
@@ -110,17 +122,23 @@
 }
 
 .summary {
-  margin: 0;
+  margin-block-start: tokens.$space-1;
   font-size: tokens.$font-size-small;
   line-height: tokens.$line-height-small;
   color: tokens.$color-gray-600;
   @include truncate.truncate-lines(2);
 }
 
+// A visual footer, not just the last flex item — a hairline separates
+// price from the descriptive content above it, so it reads as the
+// card's one settled fact rather than another line of prose.
 .priceRow {
   display: flex;
   align-items: baseline;
   gap: tokens.$space-1;
+  margin-block-start: tokens.$space-2;
+  padding-block-start: tokens.$space-2;
+  border-block-start: 1px solid tokens.$color-gray-200;
 }
 
 .pricePrefix {

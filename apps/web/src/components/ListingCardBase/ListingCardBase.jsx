@@ -68,6 +68,10 @@ export default function ListingCardBase({
   topBadgeLabel = undefined,
 }) {
   const [imageFailed, setImageFailed] = useState(false);
+  // A real photo (unlike the inline demo SVGs) has a visible network
+  // fetch — fading it in on `onLoad` avoids a pop-in flash once it
+  // arrives, rather than the browser's default abrupt paint.
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   return (
     <Card
@@ -84,7 +88,17 @@ export default function ListingCardBase({
           <img
             src={imageUrl}
             alt={imageAlt}
-            className={styles.image}
+            // `priorityImage` renders at full opacity immediately — this
+            // is the page's likely LCP element (see the comment below),
+            // and an opacity:0 start would risk delaying when it counts
+            // as painted for that metric. The fade-in is for every other,
+            // lazily-loaded card only.
+            className={[
+              styles.image,
+              (priorityImage || imageLoaded) && styles.imageLoaded,
+            ]
+              .filter(Boolean)
+              .join(' ')}
             // 2026 SEO/performance audit: real Lighthouse trace evidence
             // (largest-contentful-paint-element + lcp-lazy-loaded audits)
             // identified the FIRST card's image as the actual LCP element
@@ -96,6 +110,7 @@ export default function ListingCardBase({
             loading={priorityImage ? 'eager' : 'lazy'}
             // eslint-disable-next-line react/no-unknown-property -- this React version's JSX runtime doesn't yet know the camelCase `fetchPriority` DOM-property mapping; the lowercase spelling passes straight through as the real HTML attribute browsers read.
             fetchpriority={priorityImage ? 'high' : undefined}
+            onLoad={() => setImageLoaded(true)}
             onError={() => setImageFailed(true)}
           />
         ) : (
