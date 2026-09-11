@@ -1,5 +1,6 @@
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import ErrorBoundary from './ErrorBoundary.jsx';
 
 // Redesign phase (2026, i18n remediation) — the fallback UI used to be
@@ -30,6 +31,36 @@ describe('ErrorBoundary (apps/web/src/errors)', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Խնդրում ենք թարմացնել էջը',
     );
+  });
+
+  // Sprint L — the fallback used to be two lines of plain text with no
+  // way forward for the user; it now offers a real action button, using
+  // window.location.reload() rather than useNavigate() since this
+  // fallback renders with no Router context available (ErrorBoundary
+  // sits above AppProviders/the router in App.jsx).
+  test('the fallback action button reloads the page', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const reload = vi.fn();
+    const originalLocation = window.location;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...originalLocation, reload },
+    });
+
+    const user = userEvent.setup();
+    render(
+      <ErrorBoundary>
+        <Bomb />
+      </ErrorBoundary>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Թարմացնել էջը' }));
+    expect(reload).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    });
   });
 
   test('renders children normally when nothing throws', () => {

@@ -543,7 +543,8 @@
     },
     "boundary": {
       "title": "Something went wrong.",
-      "description": "Please reload the page."
+      "description": "Please reload the page.",
+      "action": "Reload page"
     }
   },
   "auth": {

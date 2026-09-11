@@ -1,0 +1,13 @@
+// ErrorBoundary fallback — tokens only, consumed from @desavii/ui.
+// Deliberately independent of ErrorLayout.module.scss: this fallback
+// renders with no Router context (see ErrorBoundary.jsx's own header),
+// so it can't share ErrorLayout's logo-as-<Link> chrome, only its
+// full-viewport centering treatment.
+
+.errorBoundary {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
