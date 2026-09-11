@@ -200,6 +200,70 @@ describe('Inventory connections + sync', () => {
   });
 });
 
+// Sprint L — icalConnector.js's SSRF protection (Sprint D-1 P0-3: fresh
+// DNS resolution every fetch, fail-closed private/loopback/link-local
+// blocking) already has thorough unit coverage
+// (tests/unit/modules/availability/icalConnectorSsrf.test.js) with a
+// mocked fetch/DNS, but nothing exercised it through the real HTTP route
+// end to end. This closes that gap: a literal loopback IP needs no DNS
+// lookup and is rejected before any fetch is attempted, so it's a real
+// network-free integration test of the actual `POST /:id/test` path.
+describe('Inventory connection test endpoint rejects SSRF-targeting iCal feed URLs (Sprint L)', () => {
+  test('a feedUrl resolving to a loopback address is blocked, not silently fetched', async () => {
+    const listingId = await createListing(`SSRF Test ${Date.now()}`);
+    const createRes = await request(app)
+      .post('/api/v1/inventory-connections')
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({
+        partnerId,
+        listingId,
+        connectorType: 'ICAL',
+        direction: 'IMPORT',
+        name: `SSRF channel ${Date.now()}`,
+        config: { feedUrl: 'https://127.0.0.1/internal-secret' },
+      });
+    expect(createRes.status).toBe(201);
+
+    const testRes = await request(app)
+      .post(`/api/v1/inventory-connections/${createRes.body.data.id}/test`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({});
+
+    // testConnection() never throws to the HTTP layer for a connector
+    // failure (spec §27) - it reports { ok: false, message } with a 200,
+    // so the real assertion is that the connector genuinely rejected the
+    // address rather than attempting to reach it.
+    expect(testRes.status).toBe(200);
+    expect(testRes.body.data.ok).toBe(false);
+    expect(testRes.body.data.message).toMatch(/disallowed network address/i);
+  });
+
+  test('a plain http:// feedUrl (not https) is rejected before any address resolution', async () => {
+    const listingId = await createListing(`SSRF HTTP Test ${Date.now()}`);
+    const createRes = await request(app)
+      .post('/api/v1/inventory-connections')
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({
+        partnerId,
+        listingId,
+        connectorType: 'ICAL',
+        direction: 'IMPORT',
+        name: `SSRF http channel ${Date.now()}`,
+        config: { feedUrl: 'http://169.254.169.254/latest/meta-data/' },
+      });
+    expect(createRes.status).toBe(201);
+
+    const testRes = await request(app)
+      .post(`/api/v1/inventory-connections/${createRes.body.data.id}/test`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({});
+
+    expect(testRes.status).toBe(200);
+    expect(testRes.body.data.ok).toBe(false);
+    expect(testRes.body.data.message).toMatch(/https url/i);
+  });
+});
+
 // Admin Sprint 5: the two genuinely admin-wide reads — every other
 // endpoint above requires a `partnerId`/`connectionId` the caller must
 // already know (a real, confirmed gap; see `listAllActive()`'s own doc
