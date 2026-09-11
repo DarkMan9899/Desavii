@@ -117,6 +117,29 @@ describe('Modal (COMPONENT_LIBRARY.md Part II §4)', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  // Sprint L — a caller whose modal content depends on data that isn't
+  // ready yet (e.g. ListingGallery's lightbox, with nothing to show
+  // before an image is selected) legitimately passes `null` children
+  // while `isOpen` is false, since Modal is designed to stay mounted
+  // rather than conditionally rendered by its caller.
+  test('accepts null children while closed without a PropTypes warning', () => {
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    render(
+      <Modal isOpen={false} onClose={() => {}} title="Loading">
+        {null}
+      </Modal>,
+    );
+
+    const propTypeWarning = consoleError.mock.calls.some((args) =>
+      String(args[0]).includes('Failed prop type'),
+    );
+    expect(propTypeWarning).toBe(false);
+    consoleError.mockRestore();
+  });
+
   test('supports every documented size without throwing', () => {
     ['sm', 'md', 'lg', 'full'].forEach((size) => {
       const { unmount } = render(

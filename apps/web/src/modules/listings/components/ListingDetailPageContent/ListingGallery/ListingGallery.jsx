@@ -174,10 +174,8 @@ export default function ListingGallery({ media = [], title = undefined }) {
               })}
             </p>
           </div>
-        ) : // Modal requires children even while closed (it only mounts its
-        // content once `isOpen`, but PropTypes validates whatever this
-        // render passed regardless) — `null` is a valid, render-nothing
-        // React node that satisfies that contract.
+        ) : // No active item yet (closed, or between transitions) — Modal's
+        // `children` is optional for exactly this reason.
         null}
       </Modal>
     </>

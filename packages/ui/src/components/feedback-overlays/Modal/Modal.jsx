@@ -4,6 +4,17 @@
  * (portal, backdrop, focus trap, Escape, scroll lock, background inert)
  * comes entirely from the shared `internal/Overlay`; this file owns only
  * the visual card shape and the header/body/footer composition.
+ *
+ * Sprint L fix: `children` is optional, not required. `Overlay` renders
+ * nothing at all while `!isOpen`, but React still validates whatever
+ * `children` this component itself was passed regardless of `isOpen` —
+ * so a caller whose modal content depends on data that may not exist
+ * yet (e.g. `ListingGallery`'s lightbox, which has nothing to show
+ * before an image is selected) legitimately passes `null` while closed,
+ * which `.isRequired` always rejects (it fails on `null`/`undefined`
+ * before deferring to the base type, even though plain `PropTypes.node`
+ * itself allows `null`). That was firing "Failed prop type" at every
+ * such call site.
  */
 
 import { useId } from 'react';
@@ -37,7 +48,7 @@ export default function Modal({
   closeOnBackdropClick = true,
   preventClose = false,
   footer = undefined,
-  children,
+  children = undefined,
 }) {
   const titleId = useId();
 
@@ -86,6 +97,6 @@ Modal.propTypes = {
   closeOnBackdropClick: PropTypes.bool,
   preventClose: PropTypes.bool,
   footer: PropTypes.node,
-  children: PropTypes.node.isRequired,
+  children: PropTypes.node,
 };
 export { SIZES as MODAL_SIZES };
