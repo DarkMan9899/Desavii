@@ -110,12 +110,14 @@ export default function Hero() {
       <div className={styles.scene} aria-hidden="true">
         <div className={styles.sky} />
 
-        {/* The focal object — depth rings, core glow, route arcs,
-            orbiting particles, all centered on one point so they read as
-            one spatial object rather than scattered decoration.
-            `.portalStage` owns layout positioning (flexbox, not
-            `transform`, so it never fights the pointer-parallax offset
-            below); `.portal` owns only its own size and that offset. */}
+        {/* The focal object — Ararat's real, recognizable twin-peak
+            silhouette (not an abstract shape any tech landing page could
+            use) with an alpenglow behind it, flight-route arcs, and a
+            starfield, all centered on one point so they read as one
+            spatial scene rather than scattered decoration. `.portalStage`
+            owns layout positioning (flexbox, not `transform`, so it never
+            fights the pointer-parallax offset below); `.portal` owns only
+            its own size and that offset. */}
         <div className={styles.portalStage}>
           <div
             className={styles.portal}
@@ -137,18 +139,40 @@ export default function Hero() {
               viewBox="0 0 600 600"
               focusable="false"
             >
-              <circle className={styles.ringOuter} cx="300" cy="300" r="280" />
-              <circle className={styles.ringMid} cx="300" cy="300" r="215" />
-              <circle className={styles.ringInner} cx="300" cy="300" r="150" />
+              <defs>
+                <linearGradient
+                  id="hero-mountain-gradient"
+                  x1="0"
+                  y1="1"
+                  x2="0"
+                  y2="0"
+                >
+                  <stop offset="0%" className={styles.mountainStopBase} />
+                  <stop offset="55%" className={styles.mountainStopMid} />
+                  <stop offset="100%" className={styles.mountainStopLit} />
+                </linearGradient>
+              </defs>
               <path
                 className={styles.routeArc}
-                d="M60,360 C180,180 420,180 540,300"
+                d="M40,380 C180,220 420,220 560,340"
                 fill="none"
               />
               <path
                 className={styles.routeArcAlt}
-                d="M90,180 C220,340 380,340 520,220"
+                d="M70,220 C220,360 380,360 540,240"
                 fill="none"
+              />
+              {/* Ararat's real silhouette — Greater Ararat (the tall
+                  peak) with Lesser Ararat's smaller shoulder to its
+                  right, the exact skyline every Armenian recognizes, not
+                  an invented mountain shape. */}
+              <path
+                className={styles.mountain}
+                d="M20,430 L120,300 L165,335 L255,110 L320,290 L360,255 L440,195 L505,305 L580,430 Z"
+              />
+              <path
+                className={styles.snowCap}
+                d="M225,175 L255,110 L285,180 L266,168 L255,192 L240,172 Z M410,215 L440,195 L465,245 L448,238 L440,255 L426,236 Z"
               />
             </svg>
             <div className={styles.portalParticles}>

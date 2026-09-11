@@ -129,9 +129,20 @@
   padding-inline-end: tokens.$space-8;
 
   @include respond.respond(laptop) {
-    align-items: center;
+    align-items: stretch;
     row-gap: 0;
     padding-inline-end: 0;
+    // One composed instrument, not four independent boxes: each field's
+    // OWN border/background is stripped below (targeting the stable
+    // data-testid/aria-haspopup/input hooks packages/ui's Select/
+    // DatePicker/Input already expose — never their internal hashed
+    // classnames, so this stays safe across a packages/ui version bump)
+    // and replaced with one shared track + thin dividers between fields,
+    // exactly the segmented "one search bar" pattern every premium
+    // booking site uses instead of a row of separate inputs.
+    background-color: tokens.$color-white;
+    border-radius: tokens.$radius-full;
+    border: 1px solid tokens.$color-gray-200;
   }
 }
 
@@ -145,6 +156,40 @@
   @include respond.respond(laptop) {
     flex: 1 1 0;
     min-width: 0;
+    position: relative;
+
+    // A thin internal divider between fields — never on the last one —
+    // reading as one instrument's own internal segments, not four
+    // separate cards with visible gaps between them.
+    &:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      inset-block: tokens.$space-3;
+      inset-inline-end: 0;
+      width: 1px;
+      background-color: tokens.$color-gray-200;
+    }
+
+    // Strips the field's own independent border/background/radius —
+    // targets the real, stable DOM hooks Select ([data-testid=
+    // "select-trigger"]) and DatePicker (its trigger's own
+    // aria-haspopup="dialog") already render, plus the plain <input>
+    // DestinationAutocomplete wraps, rather than any packages/ui
+    // internal hashed classname.
+    [data-testid='select-trigger'],
+    [aria-haspopup='dialog'],
+    input {
+      border: none;
+      background: transparent;
+      border-radius: 0;
+
+      &:focus-visible {
+        box-shadow: none;
+        outline: 2px solid tokens.$color-royal-blue;
+        outline-offset: -2px;
+        border-radius: tokens.$radius-md;
+      }
+    }
   }
 }
 

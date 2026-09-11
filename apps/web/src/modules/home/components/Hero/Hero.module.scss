@@ -103,9 +103,13 @@
   }
 }
 
+// Alpenglow — the warm light a real dawn/dusk sky casts behind a
+// mountain's silhouette, positioned low and off-center (not a centered
+// halo) so it reads as light on the horizon, not a generic glow effect.
 .portalGlow {
   position: absolute;
   inset: 8%;
+  bottom: 16%;
   border-radius: tokens.$radius-full;
   background: radial-gradient(
     circle,
@@ -140,36 +144,33 @@
   overflow: visible;
 }
 
-.ringOuter,
-.ringMid,
-.ringInner {
-  transform-origin: 300px 300px;
-  @include tokens.reduced-motion-safe;
-}
-
-.ringOuter {
-  stroke: rgba(255, 255, 255, 0.22);
+// Ararat's own silhouette — a real, filled landmark shape, not a
+// decorative stroke. A subtle vertical gradient (darker at the base,
+// lit near the summit) gives it real dimension against the sky.
+.mountain {
+  fill: url(#hero-mountain-gradient);
+  stroke: rgba(201, 162, 75, 0.35);
   stroke-width: 1;
-  animation: hero-ring-spin 90s linear infinite;
 }
 
-.ringMid {
-  stroke: rgba(201, 162, 75, 0.4);
-  stroke-width: 1.25;
-  stroke-dasharray: 2 10;
-  animation: hero-ring-spin 60s linear infinite reverse;
+.snowCap {
+  fill: rgba(255, 255, 255, 0.72);
 }
 
-.ringInner {
-  stroke: rgba(255, 255, 255, 0.3);
-  stroke-width: 1;
-  animation: hero-ring-spin 40s linear infinite;
+// The mountain's own gradient stops — real tokens, not raw hex, applied
+// via CSS on the <stop> elements (SVG gradients don't accept CSS custom
+// properties directly in the `stop-color` presentation attribute, but do
+// honor a stylesheet rule targeting them the normal way).
+.mountainStopBase {
+  stop-color: tokens.$color-ink;
 }
 
-@keyframes hero-ring-spin {
-  to {
-    transform: rotate(360deg);
-  }
+.mountainStopMid {
+  stop-color: tokens.$color-navy;
+}
+
+.mountainStopLit {
+  stop-color: tokens.$color-royal-blue;
 }
 
 .routeArc,
@@ -199,11 +200,15 @@
   inset: -6%;
 }
 
+// A quiet starfield above the mountain — a gentle opacity twinkle
+// (never a position change, so it can never read as "orbiting UFOs"
+// the way the previous circular-motion version risked) at a slow,
+// unsynchronized-per-star cadence.
 .portalParticle {
   position: absolute;
   border-radius: tokens.$radius-full;
   filter: blur(1px);
-  animation: hero-particle-orbit 16s linear infinite;
+  animation: hero-star-twinkle 5s ease-in-out infinite;
   @include tokens.reduced-motion-safe;
 
   &:nth-child(1) {
@@ -256,15 +261,13 @@
   }
 }
 
-@keyframes hero-particle-orbit {
+@keyframes hero-star-twinkle {
   0%,
   100% {
-    transform: translate(0, 0);
-    opacity: 0.5;
+    opacity: 0.35;
   }
 
   50% {
-    transform: translate(-8px, -16px);
     opacity: 0.95;
   }
 }
