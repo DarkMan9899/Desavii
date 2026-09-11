@@ -235,6 +235,81 @@ describe('BasicInfoStep (PartnerListingWizard)', () => {
       expect(screen.getByLabelText(/Վերնագիր/)).toHaveValue('Draft in English');
     });
 
+    // Sprint L — reproduces and closes a real data-loss bug: `POST
+    // /listings` only ever persists ONE translation (the locale active
+    // at the moment Continue is clicked), so a partner who typed into
+    // more than one locale before the listing existed used to have
+    // every OTHER locale's draft silently discarded the instant the
+    // wizard advanced past this step and it unmounted.
+    test('creating the listing while multiple locale drafts are unsaved persists every one of them, not just the active locale', async () => {
+      const user = userEvent.setup();
+      const onCreated = vi.fn();
+      renderStep({ onCreated });
+
+      await user.click(screen.getByTestId('select-trigger'));
+      await user.click(screen.getByRole('option', { name: 'Հյուրանոց' }));
+
+      // startLocale defaults to 'en' — type the English draft first.
+      await user.type(
+        screen.getByLabelText(/Վերնագիր/),
+        'Boutique Yerevan Hotel',
+      );
+      // Switch to Armenian and type a second draft before ever submitting.
+      await user.click(screen.getByRole('tab', { name: /Հայերեն/ }));
+      await user.type(
+        screen.getByLabelText(/Վերնագիր/),
+        'Բուտիկ հյուրանոց Երևանում',
+      );
+      // Switch back to English, the locale active at submit time.
+      await user.click(screen.getByRole('tab', { name: /English/ }));
+
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      await waitFor(() => expect(createMutateAsync).toHaveBeenCalled());
+      expect(createMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          translations: [
+            expect.objectContaining({
+              languageId: 1,
+              title: 'Boutique Yerevan Hotel',
+            }),
+          ],
+        }),
+      );
+
+      // The Armenian draft — never sent by createListing — must be
+      // saved separately against the newly created listing's real id.
+      await waitFor(() => expect(updateMutateAsync).toHaveBeenCalled());
+      expect(updateMutateAsync).toHaveBeenCalledWith({
+        id: 42,
+        payload: {
+          translations: [
+            expect.objectContaining({
+              languageId: 2,
+              title: 'Բուտիկ հյուրանոց Երևանում',
+            }),
+          ],
+        },
+      });
+      expect(onCreated).toHaveBeenCalledWith(42);
+    });
+
+    test('creating the listing with only one locale filled in never calls the extra-locale save', async () => {
+      const user = userEvent.setup();
+      renderStep({});
+
+      await user.click(screen.getByTestId('select-trigger'));
+      await user.click(screen.getByRole('option', { name: 'Հյուրանոց' }));
+      await user.type(
+        screen.getByLabelText(/Վերնագիր/),
+        'Boutique Yerevan Hotel',
+      );
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      await waitFor(() => expect(createMutateAsync).toHaveBeenCalled());
+      expect(updateMutateAsync).not.toHaveBeenCalled();
+    });
+
     test('the standalone "Save translation" button saves only the active locale, without advancing the step', async () => {
       const user = userEvent.setup();
       const onNext = vi.fn();

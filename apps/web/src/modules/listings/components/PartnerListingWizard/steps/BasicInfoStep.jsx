@@ -114,10 +114,10 @@ export default function BasicInfoStep({
     }));
   }
 
-  function activeTranslationPayload() {
-    const draft = draftsByLocale[authoringLocale];
+  function translationPayloadForLocale(locale) {
+    const draft = draftsByLocale[locale];
     return {
-      languageId: LANGUAGE_ID_BY_LOCALE[authoringLocale],
+      languageId: LANGUAGE_ID_BY_LOCALE[locale],
       title: draft.title.trim(),
       summary: draft.summary.trim() || undefined,
       description: draft.description.trim() || undefined,
@@ -142,7 +142,7 @@ export default function BasicInfoStep({
     if (!validateActiveTitle()) return;
     await updateListingMutation.mutateAsync({
       id: listingId,
-      payload: { translations: [activeTranslationPayload()] },
+      payload: { translations: [translationPayloadForLocale(authoringLocale)] },
     });
     if (advance) {
       onNext();
@@ -162,14 +162,59 @@ export default function BasicInfoStep({
   // `setSearchParams` call and silently drop the `listingId`. Creation
   // therefore always advances; the standalone "Save translation" button
   // stays hidden until a listing exists for exactly this reason.
+  //
+  // Sprint L fix (real data-loss bug, reproduced live): `POST /listings`
+  // only ever accepts ONE translation, so only the locale active at the
+  // moment Continue is clicked was ever persisted. Switching locale tabs
+  // during this same visit never loses a draft (`draftsByLocale` lives
+  // above `AuthoringLocaleTabs`, Sprint 3's own fix for that) — but the
+  // instant `onCreated` advances the wizard step, THIS component
+  // unmounts, taking every other locale's still-unsaved draft with it.
+  // Returning to this step later re-initializes `draftsByLocale` from
+  // `initialTranslations` — the server's truth, which only ever had the
+  // one locale saved at creation — so a partner who typed HY, then RU,
+  // then hit Continue while RU was active would find HY silently gone,
+  // with no error and no warning. Once `data.id` exists, saving the
+  // other drafts is exactly what the "Save {locale} translation" button
+  // already does, so this fires that same save for every other locale
+  // with real content before advancing, instead of requiring the
+  // partner to notice the loss and redo the work by hand.
   async function onPreCreationSubmit(values) {
     if (!validateActiveTitle()) return;
     const { data } = await createListingMutation.mutateAsync({
       partnerId: values.partnerId,
       listingType: values.listingType,
-      translations: [activeTranslationPayload()],
+      translations: [translationPayloadForLocale(authoringLocale)],
       categoryIds: categoryId ? [categoryId] : undefined,
     });
+
+    const otherLocalesWithContent = SUPPORTED_LOCALES.filter(
+      (code) => code !== authoringLocale && draftsByLocale[code].title.trim(),
+    );
+    if (otherLocalesWithContent.length > 0) {
+      try {
+        await Promise.all(
+          otherLocalesWithContent.map((code) =>
+            updateListingMutation.mutateAsync({
+              id: data.id,
+              payload: { translations: [translationPayloadForLocale(code)] },
+            }),
+          ),
+        );
+      } catch {
+        // Non-fatal: the listing itself was created successfully. A
+        // partner can still save the locale(s) that failed here via this
+        // step's own "Save {locale} translation" button, now that
+        // `listingId` exists.
+        showToast(
+          t('partner.listingWizard.locale.autoSaveOtherLocalesFailed'),
+          {
+            variant: 'danger',
+          },
+        );
+      }
+    }
+
     onCreated(data.id);
   }
 

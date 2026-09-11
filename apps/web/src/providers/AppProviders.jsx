@@ -23,15 +23,31 @@ import PropTypes from 'prop-types';
 import AuthProvider from './AuthProvider.jsx';
 import ToastProvider from './ToastProvider.jsx';
 import ConfirmProvider from './ConfirmProvider.jsx';
+import { shouldRetryQuery } from './queryRetryPolicy.js';
 
 // Sensible platform-wide defaults per FRONTEND_ARCHITECTURE.md §14.2.
 // Per-resource overrides (e.g. availability/pricing's staleTime: 0) are
 // set at the individual query-hook level in the sprint that adds them.
+//
+// Sprint L fix (real, reproduced defect): `retry: 2` as a plain number
+// retried EVERY failure the same way, including permanent 4xx failures
+// (a 404 lookup, an invalid token, a validation error) that can never
+// succeed by retrying — each one burned ~1s + 2s of exponential backoff
+// (React Query's default `retryDelay`) before `isError` ever became
+// true, during which a screen gated on `isPending` alone kept showing a
+// loading spinner. This is exactly why several query hooks (blog/CMS/
+// invitation-preview lookups — all genuinely 404-able) had already
+// worked around it locally with `retry: false`, one hook at a time —
+// see `usePublicPostsQuery.js`'s own header. `shouldRetryQuery` fixes
+// the root cause globally instead: skip retrying 4xx (they're permanent,
+// not transient) but keep retrying everything else — network drops,
+// 5xx, the exact "worth trying again" cases the original `retry: 2`
+// existed for — up to twice, same as before.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 60 * 1000,
-      retry: 2,
+      retry: shouldRetryQuery,
       refetchOnWindowFocus: false,
     },
     mutations: {

@@ -1397,7 +1397,8 @@
         "notice": "You're editing the {{locale}} translation. Switching languages never discards what you've typed here.",
         "saveTranslation": "Save {{locale}} translation",
         "translationSaved": "{{locale}} translation saved.",
-        "emptyNotice": "No {{locale}} content yet. What you save here is stored as the {{locale}} translation — it is never copied from another language."
+        "emptyNotice": "No {{locale}} content yet. What you save here is stored as the {{locale}} translation — it is never copied from another language.",
+        "autoSaveOtherLocalesFailed": "The listing was created, but saving your other language drafts failed. Use the \"Save translation\" button on each language tab to try again."
       },
       "listingTypes": {
         "HOTEL": "Hotel",
