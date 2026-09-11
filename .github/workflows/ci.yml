@@ -135,6 +135,117 @@ jobs:
           DATABASE_PASSWORD: root_ci_only
           REDIS_URL: redis://127.0.0.1:6379
 
+  seo-prerender:
+    name: SEO Prerender Verification
+    runs-on: ubuntu-latest
+    needs: lint
+    # Proves the prerender pipeline (apps/web/scripts/prerender.mjs) and
+    # its raw-HTML regression spec (tests/e2e/seoRawHtml.spec.js) actually
+    # pass, deterministically, in CI — against a real API + freshly
+    # seeded database, the same MySQL/Redis service-container pattern the
+    # `integration` job already uses. This is a verification gate for the
+    # mechanism, not (yet) production wiring: production's own deploy step
+    # (`desavii-deploy`, external to this repo) still runs a plain build
+    # and does not consume this job's output. See the handoff doc this
+    # job's commit shipped with for what remains to wire production
+    # itself, which needs the production host's own configuration and is
+    # out of this repo's control.
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root_ci_only
+          MYSQL_DATABASE: travelhub_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping" --health-interval=5s
+          --health-timeout=5s --health-retries=10
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping" --health-interval=5s
+          --health-timeout=5s --health-retries=10
+    env:
+      NODE_ENV: test
+      DATABASE_HOST: 127.0.0.1
+      DATABASE_PORT: 3306
+      DATABASE_NAME_TEST: travelhub_test
+      DATABASE_USER: root
+      DATABASE_PASSWORD: root_ci_only
+      REDIS_URL: redis://127.0.0.1:6379
+      CONNECTOR_CONFIG_ENCRYPTION_KEY: ci-only-connector-config-key-not-a-real-secret
+      VITE_PUBLIC_SITE_URL: https://desavii.com
+      API_BASE_URL: http://127.0.0.1:4000/api/v1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+
+      # Cached by the exact pinned @playwright/test version so a bump to
+      # that dependency invalidates the cache instead of silently running
+      # a stale browser build against a newer test runner.
+      - name: Resolve Playwright version
+        id: playwright-version
+        run: echo "version=$(node -p "require('./apps/web/package.json').devDependencies['@playwright/test']")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+
+      # Same demo marketplace dataset `npm run db:seed:demo` seeds locally
+      # (Sprint J catalog included, so Tours are present) — enforces its
+      # own NODE_ENV=test + "looks like a test database" safety gates, so
+      # this can never target anything but the disposable service
+      # container above.
+      - name: Seed demo marketplace data
+        run: npm run db:seed:demo --workspace apps/api
+
+      - name: Start API
+        run: npm run start --workspace apps/api &
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4000/health/ready > /dev/null; then
+              echo "API is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API did not become healthy in time" >&2
+          exit 1
+
+      # prerender.mjs builds apps/web itself (vite build) before crawling
+      # — no separate build step needed here.
+      - name: Prerender public routes
+        run: npm run prerender
+        working-directory: apps/web
+
+      # Fail-closed: a prerender that produced bad/missing SEO output
+      # fails this job, it does not pass silently.
+      - name: Verify raw HTML SEO output
+        run: npx playwright test tests/e2e/seoRawHtml.spec.js --project=chromium
+        working-directory: apps/web
+
+      - name: Upload prerendered dist (for inspection)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prerendered-dist
+          path: apps/web/dist
+          retention-days: 7
+
   integration:
     name: Integration Tests (apps/api)
     runs-on: ubuntu-latest
