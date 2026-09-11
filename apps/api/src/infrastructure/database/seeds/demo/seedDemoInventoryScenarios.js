@@ -37,19 +37,22 @@ const LEDGER_SOURCE_TYPES = Object.freeze({
   ADJUSTMENT: 'ADJUSTMENT',
 });
 
-function addDays(date, days) {
+// Sprint J: exported so `seedDemoSprintJCatalog.js` can reuse the exact
+// same date/bookable-unit/calendar/listing primitives this module already
+// established (CLAUDE.md "never duplicate functionality").
+export function addDays(date, days) {
   const copy = new Date(date);
   copy.setDate(copy.getDate() + days);
   return copy;
 }
-function toSqlDate(date) {
+export function toSqlDate(date) {
   return date.toISOString().slice(0, 10);
 }
-function toSqlDateTime(date) {
+export function toSqlDateTime(date) {
   return date.toISOString().slice(0, 19).replace('T', ' ');
 }
 
-async function insertBookableUnit(
+export async function insertBookableUnit(
   connection,
   {
     listingId,
@@ -178,7 +181,7 @@ async function insertRoomMedia(
 }
 
 /** Seeds one AVAILABLE calendar row per day (capacity == quantity_available) across the given window. */
-async function seedCalendarWindow(
+export async function seedCalendarWindow(
   connection,
   { unitId, capacity, from, days, availableStatusId },
 ) {
@@ -255,7 +258,7 @@ async function decrementCalendar(
   }
 }
 
-async function insertListing(
+export async function insertListing(
   connection,
   {
     partnerId,

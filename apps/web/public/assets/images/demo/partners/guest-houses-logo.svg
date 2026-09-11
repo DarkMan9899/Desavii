@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Guest House Partner placeholder photo 1">
+  <defs>
+    <linearGradient id="g-guest-house-partner-1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f2a4a" />
+      <stop offset="100%" stop-color="#c9a24b" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#g-guest-house-partner-1)" />
+  <circle cx="700" cy="80" r="140" fill="rgba(255,255,255,0.06)" />
+  <circle cx="80" cy="540" r="180" fill="rgba(255,255,255,0.05)" />
+  <g transform="translate(400,250)" style="--icon-fill:#0f2a4a">
+    
+    <polygon points="-62,5 0,-62 62,5" fill="rgba(255,255,255,0.9)" />
+    <rect x="-48" y="5" width="96" height="72" fill="rgba(255,255,255,0.9)" />
+    <rect x="28" y="-58" width="14" height="34" fill="rgba(255,255,255,0.9)" />
+    <circle cx="0" cy="38" r="15" fill="var(--icon-fill)" />
+  
+  </g>
+  <text x="400" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="34" fill="#ffffff" opacity="0.95">Guest House Partner</text>
+  <text x="400" y="510" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="#c9a24b">DESAVII DEMO PLACEHOLDER</text>
+</svg>

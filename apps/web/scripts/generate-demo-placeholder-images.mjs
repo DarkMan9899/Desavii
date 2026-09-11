@@ -38,6 +38,14 @@ const CATEGORIES = [
   { slug: 'tours', label: 'Tour', icon: 'mountain' },
   { slug: 'car-rentals', label: 'Car Rental', icon: 'car' },
   { slug: 'attractions', label: 'Experience', icon: 'compass' },
+  // Sprint J: the 4 categories that had no placeholder set at all —
+  // Villas/Guest Houses reuse the "house" family the same way Hotels'
+  // "building" icon already implies a distinct silhouette, Restaurants
+  // gets a plate/utensils glyph, Entertainment Venues a star/ticket glyph.
+  { slug: 'villas', label: 'Villa', icon: 'villa' },
+  { slug: 'guest-houses', label: 'Guest House', icon: 'guestHouse' },
+  { slug: 'restaurants', label: 'Restaurant', icon: 'plate' },
+  { slug: 'entertainment-venues', label: 'Entertainment', icon: 'star' },
 ];
 
 const ICONS = {
@@ -73,6 +81,30 @@ const ICONS = {
     <circle cx="0" cy="0" r="95" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="12" />
     <polygon points="0,-60 20,10 -20,10" fill="rgba(255,255,255,0.9)" />
     <polygon points="0,60 20,-10 -20,-10" fill="var(--icon-fill)" />
+  `,
+  villa: `
+    <polygon points="-95,15 0,-85 95,15" fill="rgba(255,255,255,0.9)" />
+    <rect x="-70" y="15" width="140" height="85" fill="rgba(255,255,255,0.9)" />
+    <rect x="-18" y="55" width="36" height="45" fill="var(--icon-fill)" />
+    <rect x="60" y="70" width="45" height="16" rx="8" fill="var(--icon-fill)" opacity="0.55" />
+  `,
+  guestHouse: `
+    <polygon points="-62,5 0,-62 62,5" fill="rgba(255,255,255,0.9)" />
+    <rect x="-48" y="5" width="96" height="72" fill="rgba(255,255,255,0.9)" />
+    <rect x="28" y="-58" width="14" height="34" fill="rgba(255,255,255,0.9)" />
+    <circle cx="0" cy="38" r="15" fill="var(--icon-fill)" />
+  `,
+  plate: `
+    <circle cx="0" cy="10" r="88" fill="rgba(255,255,255,0.9)" />
+    <circle cx="0" cy="10" r="60" fill="none" stroke="var(--icon-fill)" stroke-width="4" />
+    <rect x="-58" y="-70" width="10" height="130" fill="var(--icon-fill)" transform="rotate(-18)" />
+    <rect x="46" y="-70" width="10" height="130" fill="var(--icon-fill)" transform="rotate(18)" />
+  `,
+  star: `
+    <polygon points="0,-95 24,-30 92,-28 38,10 58,80 0,40 -58,80 -38,10 -92,-28 -24,-30" fill="rgba(255,255,255,0.9)" />
+    <circle cx="72" cy="-58" r="9" fill="var(--icon-fill)" />
+    <circle cx="-68" cy="52" r="7" fill="var(--icon-fill)" />
+    <circle cx="0" cy="-2" r="6" fill="var(--icon-fill)" />
   `,
 };
 

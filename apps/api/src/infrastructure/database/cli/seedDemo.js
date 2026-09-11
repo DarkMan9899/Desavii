@@ -28,6 +28,8 @@ const { default: seedDemoInventoryScenarios } =
   await import('../seeds/demo/seedDemoInventoryScenarios.js');
 const { default: seedDemoListingRichContent } =
   await import('../seeds/demo/seedDemoListingRichContent.js');
+const { default: seedDemoSprintJCatalog } =
+  await import('../seeds/demo/seedDemoSprintJCatalog.js');
 const { closeMysqlPool, getMysqlPool } = await import('../mysqlPool.js');
 const { withTransaction } = await import('../transaction.js');
 const { looksLikeTestDatabase } = await import('../resetSafety.js');
@@ -77,7 +79,18 @@ async function main() {
     { pool },
   );
 
-  log.info({ summary, inventorySummary }, 'db:seed:demo complete');
+  log.info(
+    'db:seed:demo — loading Sprint J marketplace coverage catalog (3 per public category)',
+  );
+  const sprintJSummary = await withTransaction(
+    (connection) => seedDemoSprintJCatalog(connection),
+    { pool },
+  );
+
+  log.info(
+    { summary, inventorySummary, sprintJSummary },
+    'db:seed:demo complete',
+  );
 }
 
 try {

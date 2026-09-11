@@ -43,7 +43,13 @@ const ATTRIBUTE_VALUE_TABLES = {
   DATE: 'listing_attribute_values_date',
 };
 
-async function upsertTranslation(connection, listingId, languageId, t) {
+/**
+ * Sprint J: exported so `seedDemoSprintJCatalog.js` can reuse the exact
+ * same translation/attribute/policy/media-insertion primitives this module
+ * already established for the 6 Phase 17 flagship listings, rather than
+ * re-implementing them (CLAUDE.md "never duplicate functionality").
+ */
+export async function upsertTranslation(connection, listingId, languageId, t) {
   await connection.query(
     `INSERT INTO listing_translations (listing_id, language_id, title, summary, description)
      VALUES (?, ?, ?, ?, ?)
@@ -52,7 +58,7 @@ async function upsertTranslation(connection, listingId, languageId, t) {
   );
 }
 
-async function insertAttributeValue(connection, listingId, entry) {
+export async function insertAttributeValue(connection, listingId, entry) {
   const [[definition]] = await connection.query(
     `SELECT ad.id, adt.code AS data_type_code
      FROM attribute_definitions ad
@@ -93,7 +99,7 @@ async function insertAttributeValue(connection, listingId, entry) {
   );
 }
 
-async function insertPolicyValue(connection, listingId, entry) {
+export async function insertPolicyValue(connection, listingId, entry) {
   const policyDefinitionId = await getIdByCode(
     connection,
     'policy_definitions',
@@ -105,7 +111,7 @@ async function insertPolicyValue(connection, listingId, entry) {
   );
 }
 
-async function insertMedia(
+export async function insertMedia(
   connection,
   listingId,
   imageTypeId,
@@ -144,7 +150,7 @@ async function insertMedia(
  * rich-content tables, in the given order. Shared by all four content
  * types below — they differ only in table name and column shape.
  */
-async function insertLocalizedRows(
+export async function insertLocalizedRows(
   connection,
   table,
   columns,

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Villa placeholder photo 5">
+  <defs>
+    <linearGradient id="g-villa-5" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1d5fd6" />
+      <stop offset="100%" stop-color="#0f2a4a" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#g-villa-5)" />
+  <circle cx="700" cy="80" r="140" fill="rgba(255,255,255,0.06)" />
+  <circle cx="80" cy="540" r="180" fill="rgba(255,255,255,0.05)" />
+  <g transform="translate(400,250)" style="--icon-fill:#c9a24b">
+    
+    <polygon points="-95,15 0,-85 95,15" fill="rgba(255,255,255,0.9)" />
+    <rect x="-70" y="15" width="140" height="85" fill="rgba(255,255,255,0.9)" />
+    <rect x="-18" y="55" width="36" height="45" fill="var(--icon-fill)" />
+    <rect x="60" y="70" width="45" height="16" rx="8" fill="var(--icon-fill)" opacity="0.55" />
+  
+  </g>
+  <text x="400" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="34" fill="#ffffff" opacity="0.95">Villa</text>
+  <text x="400" y="510" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="#c9a24b">DESAVII DEMO PLACEHOLDER</text>
+</svg>
