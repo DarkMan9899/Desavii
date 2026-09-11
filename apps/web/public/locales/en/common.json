@@ -100,7 +100,8 @@
     "closeMenu": "Close menu",
     "userMenu": "Account menu",
     "switchLanguage": "Switch language",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "primaryNavigation": "Primary"
   },
   "home": {
     "hero": {

@@ -139,7 +139,12 @@ export default function AiAssistantDrawer({
   }, [isOpen, initialMessage]);
 
   return (
-    <Drawer isOpen={isOpen} onClose={onClose} title={t('ai.assistant.title')}>
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t('ai.assistant.title')}
+      closeLabel={t('common.close')}
+    >
       <Stack gap="4">
         <div className={styles.messages} role="log" aria-live="polite">
           {messages.length === 0 && (

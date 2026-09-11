@@ -100,7 +100,8 @@
     "closeMenu": "Закрыть меню",
     "userMenu": "Меню аккаунта",
     "switchLanguage": "Сменить язык",
-    "notifications": "Уведомления"
+    "notifications": "Уведомления",
+    "primaryNavigation": "Основная навигация"
   },
   "home": {
     "hero": {

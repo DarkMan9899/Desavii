@@ -87,6 +87,7 @@ export default function MobileBookingBar({
         onClose={() => setIsOpen(false)}
         anchor="bottom"
         title={ctaLabel}
+        closeLabel={t('common.close')}
       >
         <ListingReservationWidget
           listingId={listingId}

@@ -100,7 +100,8 @@
     "closeMenu": "Փակել ընտրացանկը",
     "userMenu": "Հաշվի ընտրացանկ",
     "switchLanguage": "Փոխել լեզուն",
-    "notifications": "Ծանուցումներ"
+    "notifications": "Ծանուցումներ",
+    "primaryNavigation": "Հիմնական նավարկություն"
   },
   "home": {
     "hero": {

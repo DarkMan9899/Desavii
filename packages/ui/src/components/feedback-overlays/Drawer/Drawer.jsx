@@ -37,6 +37,7 @@ export default function Drawer({
   onClose,
   title = undefined,
   ariaLabel = 'Panel',
+  closeLabel = 'Close',
   anchor = 'auto',
   closeOnBackdropClick = true,
   preventClose = false,
@@ -67,7 +68,7 @@ export default function Drawer({
           <Button
             variant="ghost"
             size="sm"
-            ariaLabel="Close"
+            ariaLabel={closeLabel}
             onClick={onClose}
             iconLeft={<CloseIcon />}
           />
@@ -83,6 +84,7 @@ Drawer.propTypes = {
   onClose: PropTypes.func.isRequired,
   title: PropTypes.string,
   ariaLabel: PropTypes.string,
+  closeLabel: PropTypes.string,
   anchor: PropTypes.oneOf(ANCHORS),
   closeOnBackdropClick: PropTypes.bool,
   preventClose: PropTypes.bool,

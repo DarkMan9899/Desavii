@@ -30,9 +30,10 @@ export default function MobileNav({
       isOpen={isOpen}
       onClose={onClose}
       title={t('app.name')}
+      closeLabel={t('common.close')}
       anchor="right"
     >
-      <Stack gap="4" as="nav" aria-label="Primary">
+      <Stack gap="4" as="nav" aria-label={t('a11y.primaryNavigation')}>
         {navItems.map((item) =>
           item.items ? (
             <Stack key={item.label} gap="1">

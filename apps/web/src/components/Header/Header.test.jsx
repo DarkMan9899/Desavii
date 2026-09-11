@@ -28,7 +28,7 @@ describe('Header (apps/web/src/components)', () => {
     );
   });
 
-  test('renders navItems inside a labeled Primary nav landmark', () => {
+  test('renders navItems inside a labeled primary nav landmark', () => {
     // `{ hidden: true }`: the desktop nav is shown only from the Tablet
     // breakpoint up (Application Foundation phase's mobile-hamburger
     // addition, Header.module.scss) — real, present in the DOM and
@@ -38,9 +38,15 @@ describe('Header (apps/web/src/components)', () => {
     // `hidden`-only match is a `dom-accessibility-api`/jsdom quirk (it
     // resolves to "" rather than the real `aria-label`), so the name is
     // asserted separately rather than passed as a `getByRole` filter.
+    //
+    // Sprint M — the landmark label used to be hardcoded English
+    // ("Primary"), always announced in English regardless of locale; it
+    // now reads from a11y.primaryNavigation, so this asserts the real
+    // translated value (the shared test i18n instance defaults to `hy`),
+    // not the old literal.
     renderHeader({ navItems: NAV_ITEMS });
     const nav = screen.getByRole('navigation', { hidden: true });
-    expect(nav).toHaveAttribute('aria-label', 'Primary');
+    expect(nav).toHaveAttribute('aria-label', 'Հիմնական նավարկություն');
     expect(
       screen.getByRole('link', { name: 'Search', hidden: true }),
     ).toHaveAttribute('href', '/hy/search');

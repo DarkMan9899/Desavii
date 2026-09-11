@@ -122,7 +122,10 @@ export default function Header({
           </Link>
 
           {navItems.length > 0 && (
-            <nav aria-label="Primary" className={styles.nav}>
+            <nav
+              aria-label={t('a11y.primaryNavigation')}
+              className={styles.nav}
+            >
               <Inline as="ul" gap="6" wrap={false} className={styles.navList}>
                 {navItems.map((item) => (
                   <li key={item.label}>

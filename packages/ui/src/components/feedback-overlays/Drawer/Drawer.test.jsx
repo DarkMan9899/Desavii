@@ -86,6 +86,26 @@ describe('Drawer (COMPONENT_LIBRARY.md Part II §4)', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  // Sprint M — Drawer used to hardcode ariaLabel="Close" on its close
+  // button with no override, unlike Modal's own closeLabel prop, so
+  // every Drawer in the app (mobile nav included) always announced
+  // "Close" in English regardless of locale.
+  test('closeLabel prop overrides the default English close-button aria-label', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <Drawer isOpen onClose={onClose} title="Filters" closeLabel="Փակել">
+        Filter options
+      </Drawer>,
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Close' }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Փակել' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   test('supports every documented anchor without throwing', () => {
     ['auto', 'right', 'bottom'].forEach((anchor) => {
       const { unmount } = render(

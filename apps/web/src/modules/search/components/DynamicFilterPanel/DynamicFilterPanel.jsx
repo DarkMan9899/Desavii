@@ -116,6 +116,7 @@ export default function DynamicFilterPanel({
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         title={t('search.dynamicFilters.drawerTitle')}
+        closeLabel={t('common.close')}
       >
         <div className={styles.drawerBody}>
           {groups.map((group) => (
