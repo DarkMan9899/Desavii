@@ -1,5 +1,5 @@
 import { describe, test, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import MessagingPageContent from './MessagingPageContent.jsx';
 
@@ -49,7 +49,12 @@ describe('MessagingPageContent (apps/web/src/modules/messaging)', () => {
 
   test('navigates to the conversation URL when a conversation is selected', async () => {
     renderPage('/hy/account/messages');
-    screen.getByText('mock-conversation-list').click();
+    // Sprint L — the raw DOM `.click()` this used to call fires outside
+    // Testing Library's `act()` wrapping, so the resulting MemoryRouter
+    // navigation/re-render landed unwrapped and printed "An update to
+    // MemoryRouter inside a test was not wrapped in act(...)" even though
+    // production code itself has no bug here. `fireEvent.click` wraps it.
+    fireEvent.click(screen.getByText('mock-conversation-list'));
     expect(await screen.findByText('mock-chat-window-7')).toBeInTheDocument();
   });
 
