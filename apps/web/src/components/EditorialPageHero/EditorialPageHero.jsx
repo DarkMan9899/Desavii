@@ -30,6 +30,7 @@ export default function EditorialPageHero({
   breadcrumbItems,
   heroSeed,
   icon: HeroIcon = undefined,
+  eyebrow = undefined,
   title,
   lead = undefined,
   children = undefined,
@@ -46,9 +47,10 @@ export default function EditorialPageHero({
         <div className={styles.heroContent}>
           {HeroIcon && (
             <span className={styles.heroIcon} aria-hidden="true">
-              <HeroIcon size={28} />
+              <HeroIcon size={26} />
             </span>
           )}
+          {eyebrow && <p className={styles.eyebrow}>{eyebrow}</p>}
           <h1 className={styles.title}>{title}</h1>
           {lead && <p className={styles.lead}>{lead}</p>}
           {children}
@@ -68,6 +70,7 @@ EditorialPageHero.propTypes = {
   heroSeed: PropTypes.oneOfType([PropTypes.number, PropTypes.string])
     .isRequired,
   icon: PropTypes.elementType,
+  eyebrow: PropTypes.string,
   title: PropTypes.string.isRequired,
   lead: PropTypes.string,
   children: PropTypes.node,

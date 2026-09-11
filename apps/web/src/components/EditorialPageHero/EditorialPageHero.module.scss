@@ -13,18 +13,31 @@
   position: relative;
   overflow: hidden;
   border-radius: tokens.$radius-xl;
-  min-height: 220px;
+  min-height: 320px;
   margin-block-start: tokens.$space-6;
-  @include tokens.elevation-2;
+  @include tokens.elevation-3;
 
   @include respond.respond(tablet) {
-    min-height: 280px;
+    min-height: 420px;
   }
 }
 
 .heroArt {
   position: absolute;
   inset: 0;
+  // The shared motif is deliberately faint everywhere else it's reused
+  // (destination/category cards, where it sits behind dense UI) — a
+  // full-bleed page hero has the room to let it read as real material,
+  // not a flat color swatch. Scoped to this one call site via a plain
+  // element selector (no need to know DestinationArt's own hashed
+  // class), so every other consumer is unaffected.
+  svg {
+    width: 85%;
+    height: 85%;
+    right: -6%;
+    bottom: -14%;
+    color: rgba(tokens.$color-gold, 0.22);
+  }
 }
 
 .hero::after {
@@ -41,12 +54,27 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: tokens.$space-2;
+  justify-content: flex-end;
+  height: 100%;
+  gap: tokens.$space-3;
   padding: tokens.$space-6;
   color: tokens.$color-white;
+  animation: hero-content-in 0.6s tokens.$ease-out both;
+  @include tokens.reduced-motion-safe;
 
   @include respond.respond(tablet) {
     padding: tokens.$space-8;
+  }
+}
+
+@keyframes hero-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -54,11 +82,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: tokens.$radius-full;
-  background-color: rgba(tokens.$color-white, 0.14);
-  margin-block-end: tokens.$space-1;
+  background-color: rgba(tokens.$color-white, 0.12);
+  border: 1px solid rgba(tokens.$color-gold, 0.4);
+  color: tokens.$color-gold;
+  margin-block-end: tokens.$space-2;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: tokens.$color-gold;
 }
 
 .title {
@@ -66,6 +105,7 @@
   font-family: tokens.$font-display;
   font-size: tokens.$font-size-h2;
   line-height: tokens.$line-height-h2;
+  text-wrap: balance;
 
   @include respond.respond(tablet) {
     font-size: tokens.$font-size-display;
