@@ -73,6 +73,8 @@ async function main() {
     await import('../seeds/demo/seedDemoListingRichContent.js');
   const { default: seedDemoSprintJCatalog } =
     await import('../seeds/demo/seedDemoSprintJCatalog.js');
+  const { default: backfillListingCoordinatesFromCity } =
+    await import('../seeds/demo/backfillListingCoordinatesFromCity.js');
   const { closeMysqlPool, getMysqlPool } = await import('../mysqlPool.js');
   const { withTransaction } = await import('../transaction.js');
 
@@ -134,7 +136,15 @@ async function main() {
     );
 
     log.info(
-      { summary, inventorySummary, sprintJSummary },
+      'db:seed:demo:dev — backfilling listing coordinates from their city centroid',
+    );
+    const coordinateSummary = await withTransaction(
+      (connection) => backfillListingCoordinatesFromCity(connection),
+      { pool },
+    );
+
+    log.info(
+      { summary, inventorySummary, sprintJSummary, coordinateSummary },
       'db:seed:demo:dev complete',
     );
   } finally {
