@@ -34,10 +34,8 @@ import {
   ErrorState,
   EmptyState,
 } from '@desavii/ui/components/feedback-overlays';
-import { Breadcrumbs } from '@desavii/ui/components/navigation';
-import RouterLink from '../../../../components/RouterLink.jsx';
 import ListingGrid from '../../../../components/ListingGrid/ListingGrid.jsx';
-import DestinationArt from '../../../../components/DestinationArt/DestinationArt.jsx';
+import EditorialPageHero from '../../../../components/EditorialPageHero/EditorialPageHero.jsx';
 import { getCategoryIcon } from '../../../../utils/categoryIcons.js';
 import useSeo from '../../../../seo/useSeo.js';
 import { buildBreadcrumbListSchema } from '../../../../seo/structuredData.js';
@@ -158,32 +156,22 @@ export default function CategoryPageContent() {
 
   return (
     <div className={styles.page}>
-      <Breadcrumbs
-        items={breadcrumbItems}
-        linkComponent={RouterLink}
-        className={styles.breadcrumbs}
-      />
-
-      <section className={styles.hero}>
-        <DestinationArt seed={category.id} className={styles.heroArt} />
-        <div className={styles.heroContent}>
-          <span className={styles.eyebrow}>{t('nav.explore')}</span>
-          <span className={styles.heroIcon} aria-hidden="true">
-            <Icon size={28} />
+      <EditorialPageHero
+        breadcrumbItems={breadcrumbItems}
+        heroSeed={category.id}
+        icon={Icon}
+        eyebrow={t('nav.explore')}
+        title={category.name}
+        lead={t('seo.category.description', { category: category.name })}
+      >
+        {category.listing_count > 0 && (
+          <span className={styles.count}>
+            {t('home.categories.listingCount', {
+              count: category.listing_count,
+            })}
           </span>
-          <h1 className={styles.title}>{category.name}</h1>
-          <p className={styles.description}>
-            {t('seo.category.description', { category: category.name })}
-          </p>
-          {category.listing_count > 0 && (
-            <span className={styles.count}>
-              {t('home.categories.listingCount', {
-                count: category.listing_count,
-              })}
-            </span>
-          )}
-        </div>
-      </section>
+        )}
+      </EditorialPageHero>
 
       {!isTopPending && topListings?.length > 0 && (
         <section

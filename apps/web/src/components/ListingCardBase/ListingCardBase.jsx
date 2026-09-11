@@ -144,7 +144,7 @@ export default function ListingCardBase({
               amount={priceAmount}
               currencyCode={priceCurrencyCode}
               locale={locale}
-              size="sm"
+              size="md"
             />
           </span>
         )}
