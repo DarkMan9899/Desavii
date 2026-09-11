@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { describe, test, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DatePicker from './DatePicker.jsx';
 
@@ -167,5 +167,78 @@ describe('DatePicker (COMPONENT_LIBRARY.md Part II §2)', () => {
     expect(screen.getByLabelText('Rental dates')).toHaveTextContent(
       new RegExp(`${monthDay}.*${monthDay}`),
     );
+  });
+
+  // Remediation — the panel used to be a plain `position: absolute`
+  // sibling of the trigger, so a real ancestor (the booking widget's own
+  // `overflow: hidden`, kept for its decorative gold-sheen accent)
+  // clipped or hid the calendar whenever it extended past that
+  // ancestor's box. It's now portaled to document.body specifically so
+  // no ancestor's overflow can ever clip it again.
+  test('the open panel is portaled outside an ancestor with overflow: hidden, not clipped by it', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <div
+        data-testid="clipping-ancestor"
+        style={{ overflow: 'hidden', height: '40px' }}
+      >
+        <ControlledDatePicker label="Check-in" />
+      </div>,
+    );
+
+    await user.click(screen.getByLabelText('Check-in'));
+
+    const clippingAncestor = container.querySelector(
+      '[data-testid="clipping-ancestor"]',
+    );
+    const panel = screen.getByRole('grid').closest('[role="dialog"]');
+    expect(panel).toBeInTheDocument();
+    expect(clippingAncestor.contains(panel)).toBe(false);
+    expect(document.body.contains(panel)).toBe(true);
+  });
+
+  test('flips the panel above the trigger when it would overflow the bottom of the viewport', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDatePicker label="Check-in" />);
+
+    const trigger = screen.getByLabelText('Check-in');
+    // Simulate the trigger sitting near the bottom of a short viewport,
+    // with the panel too tall to fit below it but room to fit above.
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({
+      top: 700,
+      bottom: 730,
+      left: 100,
+      right: 300,
+      width: 200,
+      height: 30,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      writable: true,
+      value: 800,
+    });
+
+    await user.click(trigger);
+
+    const panel = screen.getByRole('grid').closest('[role="dialog"]');
+    vi.spyOn(panel, 'getBoundingClientRect').mockReturnValue({
+      top: 0,
+      bottom: 400,
+      left: 0,
+      right: 300,
+      width: 300,
+      height: 400,
+    });
+    // Re-trigger the positioning effect the same way a real resize would.
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+
+    await vi.waitFor(() => {
+      const top = Number.parseFloat(panel.style.top);
+      // Below the trigger (bottom 730 + gap) would be 738, well past a
+      // panel 400px tall in an 800px-tall viewport - opening upward
+      // means the panel's top must land above the trigger's own top.
+      expect(top).toBeLessThan(700);
+    });
   });
 });

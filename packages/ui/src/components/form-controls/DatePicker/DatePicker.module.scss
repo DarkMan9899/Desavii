@@ -74,10 +74,12 @@
   color: colors.$color-gray-900;
 }
 
+// Position (fixed/top/left/visibility) is computed in JS from the
+// trigger's real bounding rect and applied inline - the panel is
+// portaled to document.body (see DatePicker.jsx), so it's no longer a
+// positioned descendant of `.wrapper` at all, and no ancestor's
+// `overflow: hidden` can clip it.
 .panel {
-  position: absolute;
-  top: calc(100% + #{spacing.$space-2});
-  left: 0;
   z-index: z.$z-dropdown;
   width: max-content;
   min-width: 300px;

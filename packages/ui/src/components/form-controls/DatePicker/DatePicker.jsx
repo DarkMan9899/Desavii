@@ -13,10 +13,54 @@
  * COMPONENT_LIBRARY.md's "full keyboard grid navigation" requirement.
  */
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import Label from '../Label/Label.jsx';
 import styles from './DatePicker.module.scss';
+
+const PANEL_GAP = 8;
+const VIEWPORT_MARGIN = 8;
+
+// Remediation: the panel used to be a plain `position: absolute` sibling
+// of the trigger, so any ancestor with `overflow: hidden` between it and
+// the viewport (the reservation widget's own decorative gold-sheen
+// accent clips exactly this way - see ListingReservationWidget.module
+// .scss) silently clipped or hid the calendar. Portaling to
+// `document.body` and computing `position: fixed` coordinates from the
+// trigger's own `getBoundingClientRect()` removes it from every
+// ancestor's box entirely; flipping above the trigger (or right-
+// aligning) when the panel would overflow the viewport is real collision
+// detection, not a fixed direction that could push it off-screen.
+function computePanelPosition(triggerEl, panelEl) {
+  const triggerRect = triggerEl.getBoundingClientRect();
+  const panelRect = panelEl.getBoundingClientRect();
+
+  const overflowsBottom =
+    triggerRect.bottom + PANEL_GAP + panelRect.height >
+    window.innerHeight - VIEWPORT_MARGIN;
+  const fitsAbove = triggerRect.top - PANEL_GAP - panelRect.height >= 0;
+  const openUpward = overflowsBottom && fitsAbove;
+
+  const top = openUpward
+    ? triggerRect.top - PANEL_GAP - panelRect.height
+    : triggerRect.bottom + PANEL_GAP;
+
+  const overflowsRight =
+    triggerRect.left + panelRect.width > window.innerWidth - VIEWPORT_MARGIN;
+  const left = overflowsRight
+    ? Math.max(VIEWPORT_MARGIN, triggerRect.right - panelRect.width)
+    : triggerRect.left;
+
+  return { top, left };
+}
 
 const MODES = ['single', 'range'];
 const SIZES = ['sm', 'md', 'lg'];
@@ -155,6 +199,8 @@ export default function DatePicker({
   );
   const containerRef = useRef(null);
   const triggerRef = useRef(null);
+  const panelRef = useRef(null);
+  const [panelPosition, setPanelPosition] = useState(null);
   const generatedId = useId();
   const fieldId = id || generatedId;
   const labelId = `${fieldId}-label`;
@@ -208,16 +254,42 @@ export default function DatePicker({
   useEffect(() => {
     if (!open) return undefined;
     function handleClickOutside(event) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target)
-      ) {
-        setOpen(false);
-      }
+      // The panel is portaled to document.body (see the positioning
+      // effect below), so it's no longer a real DOM descendant of
+      // containerRef even though it's still a React-tree child -
+      // panelRef must be checked separately, or every click inside the
+      // calendar would register as "outside" and close it immediately.
+      const insideTrigger = containerRef.current?.contains(event.target);
+      const insidePanel = panelRef.current?.contains(event.target);
+      if (!insideTrigger && !insidePanel) setOpen(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current || !panelRef.current) return undefined;
+
+    function updatePosition() {
+      if (!triggerRef.current || !panelRef.current) return;
+      setPanelPosition(
+        computePanelPosition(triggerRef.current, panelRef.current),
+      );
+    }
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+    // panelPosition itself isn't a dependency - this effect computes it,
+    // depending on it would be an infinite loop; `weeks`/`open` cover
+    // the cases where the panel's own size can change (month navigation
+    // changes the grid's row count) and need a fresh measurement.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, weeks]);
 
   function openPanel() {
     if (disabled) return;
@@ -361,151 +433,166 @@ export default function DatePicker({
           </span>
         </button>
 
-        {open && (
-          <div
-            className={styles.panel}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby={labelId}
-          >
-            <div className={styles.header}>
-              <button
-                type="button"
-                className={styles.navButton}
-                aria-label={previousMonthLabel}
-                onClick={() =>
-                  setViewMonth((current) => addMonths(current, -1))
-                }
-              >
-                <svg
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path
-                    d="M10 3 6 8l4 5"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              <span className={styles.monthLabel} aria-live="polite">
-                {monthYearFormatter.format(viewMonth)}
-              </span>
-              <button
-                type="button"
-                className={styles.navButton}
-                aria-label={nextMonthLabel}
-                onClick={() => setViewMonth((current) => addMonths(current, 1))}
-              >
-                <svg
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path
-                    d="M6 3l4 5-4 5"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            </div>
-
+        {open &&
+          createPortal(
             <div
-              role="grid"
-              // Not itself a tab stop — focus lives on the roving-tabIndex
-              // gridcell buttons below; -1 only satisfies
-              // jsx-a11y/interactive-supports-focus for the composite
-              // `role="grid"` container itself.
-              tabIndex={-1}
-              className={styles.grid}
+              ref={panelRef}
+              className={styles.panel}
+              role="dialog"
+              aria-modal="false"
               aria-labelledby={labelId}
-              onKeyDown={handleGridKeyDown}
+              style={
+                panelPosition
+                  ? {
+                      position: 'fixed',
+                      top: panelPosition.top,
+                      left: panelPosition.left,
+                      visibility: 'visible',
+                    }
+                  : { position: 'fixed', top: 0, left: 0, visibility: 'hidden' }
+              }
             >
-              <div role="row" className={styles.weekdayRow}>
-                {weekdayLabels.map((weekday) => (
-                  <span
-                    key={weekday}
-                    role="columnheader"
-                    className={styles.weekday}
+              <div className={styles.header}>
+                <button
+                  type="button"
+                  className={styles.navButton}
+                  aria-label={previousMonthLabel}
+                  onClick={() =>
+                    setViewMonth((current) => addMonths(current, -1))
+                  }
+                >
+                  <svg
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    aria-hidden="true"
+                    focusable="false"
                   >
-                    {weekday}
-                  </span>
+                    <path
+                      d="M10 3 6 8l4 5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+                <span className={styles.monthLabel} aria-live="polite">
+                  {monthYearFormatter.format(viewMonth)}
+                </span>
+                <button
+                  type="button"
+                  className={styles.navButton}
+                  aria-label={nextMonthLabel}
+                  onClick={() =>
+                    setViewMonth((current) => addMonths(current, 1))
+                  }
+                >
+                  <svg
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      d="M6 3l4 5-4 5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <div
+                role="grid"
+                // Not itself a tab stop — focus lives on the roving-tabIndex
+                // gridcell buttons below; -1 only satisfies
+                // jsx-a11y/interactive-supports-focus for the composite
+                // `role="grid"` container itself.
+                tabIndex={-1}
+                className={styles.grid}
+                aria-labelledby={labelId}
+                onKeyDown={handleGridKeyDown}
+              >
+                <div role="row" className={styles.weekdayRow}>
+                  {weekdayLabels.map((weekday) => (
+                    <span
+                      key={weekday}
+                      role="columnheader"
+                      className={styles.weekday}
+                    >
+                      {weekday}
+                    </span>
+                  ))}
+                </div>
+                {weeks.map((week, weekIndex) => (
+                  // eslint-disable-next-line react/no-array-index-key -- weeks never reorder within a static month grid
+                  <div role="row" className={styles.weekRow} key={weekIndex}>
+                    {week.map((day, dayIndex) => {
+                      if (!day) {
+                        // eslint-disable-next-line react/no-array-index-key -- empty leading/trailing cells have no date identity
+                        return <EmptyDayCell key={dayIndex} />;
+                      }
+                      const isSelectedSingle =
+                        mode === 'single' && isSameDay(day, single);
+                      const isRangeStart =
+                        mode === 'range' && isSameDay(day, rangeStart);
+                      const isRangeEnd =
+                        mode === 'range' && isSameDay(day, rangeEnd);
+                      const previewEnd = rangeEnd || hoverDate;
+                      const isInRange =
+                        mode === 'range' &&
+                        rangeStart &&
+                        previewEnd &&
+                        day > rangeStart &&
+                        day < previewEnd;
+                      const disabledDay = isDateDisabled(day, constraints);
+                      const isToday = isSameDay(day, today);
+                      const isFocused = isSameDay(day, focusedDate);
+
+                      return (
+                        <button
+                          key={day.toISOString()}
+                          type="button"
+                          role="gridcell"
+                          tabIndex={isFocused ? 0 : -1}
+                          ref={(node) => {
+                            if (node && isFocused && open) node.focus();
+                          }}
+                          disabled={disabledDay}
+                          aria-selected={
+                            isSelectedSingle ||
+                            isRangeStart ||
+                            isRangeEnd ||
+                            undefined
+                          }
+                          aria-label={dayFormatter.format(day)}
+                          aria-current={isToday ? 'date' : undefined}
+                          className={[
+                            styles.day,
+                            isToday && styles['day--today'],
+                            (isSelectedSingle || isRangeStart || isRangeEnd) &&
+                              styles['day--selected'],
+                            isInRange && styles['day--in-range'],
+                            disabledDay && styles['day--disabled'],
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          onMouseEnter={() => setHoverDate(day)}
+                          onFocus={() => setFocusedDate(day)}
+                          onClick={() => commitDay(day)}
+                        >
+                          {day.getDate()}
+                        </button>
+                      );
+                    })}
+                  </div>
                 ))}
               </div>
-              {weeks.map((week, weekIndex) => (
-                // eslint-disable-next-line react/no-array-index-key -- weeks never reorder within a static month grid
-                <div role="row" className={styles.weekRow} key={weekIndex}>
-                  {week.map((day, dayIndex) => {
-                    if (!day) {
-                      // eslint-disable-next-line react/no-array-index-key -- empty leading/trailing cells have no date identity
-                      return <EmptyDayCell key={dayIndex} />;
-                    }
-                    const isSelectedSingle =
-                      mode === 'single' && isSameDay(day, single);
-                    const isRangeStart =
-                      mode === 'range' && isSameDay(day, rangeStart);
-                    const isRangeEnd =
-                      mode === 'range' && isSameDay(day, rangeEnd);
-                    const previewEnd = rangeEnd || hoverDate;
-                    const isInRange =
-                      mode === 'range' &&
-                      rangeStart &&
-                      previewEnd &&
-                      day > rangeStart &&
-                      day < previewEnd;
-                    const disabledDay = isDateDisabled(day, constraints);
-                    const isToday = isSameDay(day, today);
-                    const isFocused = isSameDay(day, focusedDate);
-
-                    return (
-                      <button
-                        key={day.toISOString()}
-                        type="button"
-                        role="gridcell"
-                        tabIndex={isFocused ? 0 : -1}
-                        ref={(node) => {
-                          if (node && isFocused && open) node.focus();
-                        }}
-                        disabled={disabledDay}
-                        aria-selected={
-                          isSelectedSingle ||
-                          isRangeStart ||
-                          isRangeEnd ||
-                          undefined
-                        }
-                        aria-label={dayFormatter.format(day)}
-                        aria-current={isToday ? 'date' : undefined}
-                        className={[
-                          styles.day,
-                          isToday && styles['day--today'],
-                          (isSelectedSingle || isRangeStart || isRangeEnd) &&
-                            styles['day--selected'],
-                          isInRange && styles['day--in-range'],
-                          disabledDay && styles['day--disabled'],
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                        onMouseEnter={() => setHoverDate(day)}
-                        onFocus={() => setFocusedDate(day)}
-                        onClick={() => commitDay(day)}
-                      >
-                        {day.getDate()}
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+            </div>,
+            document.body,
+          )}
       </div>
       {error && (
         <p id={errorId} className={styles.errorText} role="alert">
