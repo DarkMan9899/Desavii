@@ -30,6 +30,7 @@ import {
   SORT_KEYS,
   SORT_OPTION_META,
 } from '../../../../constants/sortOptions.js';
+import { shouldShowGuestsFilter } from '../../utils/categoryFilterCapabilities.js';
 import styles from './SearchFilters.module.scss';
 
 const KEYWORD_DEBOUNCE_MS = 400;
@@ -83,6 +84,17 @@ export default function SearchFilters({
   const selectedCategory = categories.find(
     (category) => category.id === filters.categoryId,
   );
+  const showGuests = shouldShowGuestsFilter(selectedCategory?.slug);
+
+  // Strip an already-set guests value the moment the selected category
+  // stops supporting it (e.g. switching to Car Rentals), so it can't
+  // silently keep constraining results for a category it's meaningless
+  // for, nor reappear as a stale chip.
+  useEffect(() => {
+    if (!showGuests && filters.guests) {
+      onUpdateFilters({ guests: undefined }, { replace: true });
+    }
+  }, [showGuests, filters.guests, onUpdateFilters]);
 
   const guestOptions = GUEST_COUNTS.map((count) => ({
     value: String(count),
@@ -154,20 +166,22 @@ export default function SearchFilters({
             nextMonthLabel={t('partner.listingWizard.datePicker.nextMonth')}
           />
         </div>
-        <div className={styles.guestsField}>
-          <Select
-            ariaLabel={t('search.filters.guestsLabel')}
-            placeholder={t('search.filters.guestsPlaceholder')}
-            options={guestOptions}
-            value={filters.guests ? String(filters.guests) : ''}
-            onChange={(value) =>
-              onUpdateFilters(
-                { guests: value ? Number(value) : undefined },
-                { replace: false },
-              )
-            }
-          />
-        </div>
+        {showGuests && (
+          <div className={styles.guestsField}>
+            <Select
+              ariaLabel={t('search.filters.guestsLabel')}
+              placeholder={t('search.filters.guestsPlaceholder')}
+              options={guestOptions}
+              value={filters.guests ? String(filters.guests) : ''}
+              onChange={(value) =>
+                onUpdateFilters(
+                  { guests: value ? Number(value) : undefined },
+                  { replace: false },
+                )
+              }
+            />
+          </div>
+        )}
       </div>
 
       {hasActiveFilters && (
@@ -232,7 +246,7 @@ export default function SearchFilters({
               </span>
             </button>
           )}
-          {filters.guests && (
+          {showGuests && filters.guests && (
             <button
               type="button"
               className={styles.chip}

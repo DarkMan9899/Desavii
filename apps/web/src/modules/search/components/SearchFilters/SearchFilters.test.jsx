@@ -12,6 +12,7 @@ vi.mock('../../queries/useCategoriesQuery.js', () => ({
 const CATEGORIES = [
   { id: 1, slug: 'hotels', name: 'Hotels', listing_count: 4 },
   { id: 2, slug: 'tours', name: 'Tours', listing_count: 2 },
+  { id: 3, slug: 'car-rentals', name: 'Car Rentals', listing_count: 5 },
 ];
 
 const DEFAULT_FILTERS = {
@@ -23,15 +24,25 @@ const DEFAULT_FILTERS = {
 function renderFilters(overrides = {}) {
   const onUpdateFilters = vi.fn();
   const onClearFilters = vi.fn();
-  render(
+  const filters = { ...DEFAULT_FILTERS, ...overrides.filters };
+  const utils = render(
     <SearchFilters
-      filters={{ ...DEFAULT_FILTERS, ...overrides.filters }}
+      filters={filters}
       onUpdateFilters={onUpdateFilters}
       onClearFilters={onClearFilters}
       hasActiveFilters={overrides.hasActiveFilters ?? false}
     />,
   );
-  return { onUpdateFilters, onClearFilters };
+  const rerenderWithFilters = (nextFilters) =>
+    utils.rerender(
+      <SearchFilters
+        filters={{ ...filters, ...nextFilters }}
+        onUpdateFilters={onUpdateFilters}
+        onClearFilters={onClearFilters}
+        hasActiveFilters={overrides.hasActiveFilters ?? false}
+      />,
+    );
+  return { onUpdateFilters, onClearFilters, rerenderWithFilters };
 }
 
 describe('SearchFilters (apps/web/src/modules/search)', () => {
@@ -194,6 +205,53 @@ describe('SearchFilters (apps/web/src/modules/search)', () => {
     expect(onUpdateFilters).toHaveBeenCalledWith(
       { guests: undefined },
       { replace: false },
+    );
+  });
+
+  // Car Rentals has no "guests" concept (only pickup/return + seats, owned
+  // by the listing's own booking widget) — the global Search filter bar
+  // previously showed Guests unconditionally regardless of category.
+  test('hides the Guests filter when the Car Rentals category is selected', () => {
+    renderFilters({ filters: { categoryId: 3 } });
+    expect(screen.queryByLabelText('Հյուրեր')).not.toBeInTheDocument();
+    // Only category + sort selects remain (no third, guests, trigger).
+    expect(screen.getAllByTestId('select-trigger')).toHaveLength(2);
+  });
+
+  test('shows the Guests filter for a Hotels/accommodation category', () => {
+    renderFilters({ filters: { categoryId: 1 } });
+    expect(screen.getByLabelText('Հյուրեր')).toBeInTheDocument();
+  });
+
+  test('shows the Guests filter with no category selected (defaults to visible)', () => {
+    renderFilters();
+    expect(screen.getByLabelText('Հյուրեր')).toBeInTheDocument();
+  });
+
+  test('updates Guests visibility immediately when switching category', () => {
+    const { rerenderWithFilters } = renderFilters({
+      filters: { categoryId: 1 },
+    });
+    expect(screen.getByLabelText('Հյուրեր')).toBeInTheDocument();
+
+    rerenderWithFilters({ categoryId: 3 });
+    expect(screen.queryByLabelText('Հյուրեր')).not.toBeInTheDocument();
+
+    rerenderWithFilters({ categoryId: 1 });
+    expect(screen.getByLabelText('Հյուրեր')).toBeInTheDocument();
+  });
+
+  test('strips an already-set guests value on switching to Car Rentals, so it cannot keep constraining results', () => {
+    const { onUpdateFilters, rerenderWithFilters } = renderFilters({
+      filters: { categoryId: 1, guests: 4 },
+    });
+    expect(onUpdateFilters).not.toHaveBeenCalled();
+
+    rerenderWithFilters({ categoryId: 3, guests: 4 });
+
+    expect(onUpdateFilters).toHaveBeenCalledWith(
+      { guests: undefined },
+      { replace: true },
     );
   });
 });
