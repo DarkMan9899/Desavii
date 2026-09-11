@@ -85,7 +85,13 @@ export function buildSitemapXml(manifest, origin, defaultLocale) {
  * crawl); disallowing them here would instead risk an unindexed URL
  * with no snippet ever showing up, the opposite of the goal.
  */
-const DISALLOWED_PATH_SEGMENTS = ['account', 'partner', 'admin'];
+const DISALLOWED_PATH_SEGMENTS = [
+  'account',
+  'partner',
+  'manager',
+  'marketing',
+  'admin',
+];
 
 /**
  * 2026 SEO audit: `auth/reset-password/:token` is the one route left

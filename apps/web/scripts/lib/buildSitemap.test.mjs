@@ -120,6 +120,15 @@ describe('buildRobotsTxt', () => {
     expect(robots).toContain('Disallow: /*/booking/checkout');
   });
 
+  // Sprint L — Manager and Marketing are RequireAuth-gated workspaces
+  // exactly like Partner/Admin (routes/index.jsx's own RequireManager/
+  // RequireRole(['MARKETING']) gates), but were missing from this list —
+  // a crawler could spend budget on private routes it can never render.
+  test('disallows the Manager and Marketing workspace prefixes, same as Partner/Admin', () => {
+    expect(robots).toContain('Disallow: /*/manager');
+    expect(robots).toContain('Disallow: /*/marketing');
+  });
+
   test('disallows the one /auth sub-path whose URL itself carries a real secret', () => {
     // auth/reset-password/:token — unlike login/register, there is no
     // "let Google see the noindex tag" upside worth a crawler fetching a
