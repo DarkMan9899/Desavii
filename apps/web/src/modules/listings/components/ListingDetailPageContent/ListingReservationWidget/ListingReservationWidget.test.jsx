@@ -58,8 +58,8 @@ vi.mock('@desavii/ui/components/form-controls', async () => {
           type="button"
           onClick={() =>
             mode === 'single'
-              ? onChange('2026-08-01')
-              : onChange({ start: '2026-08-01', end: '2026-08-02' })
+              ? onChange('2027-08-01')
+              : onChange({ start: '2027-08-01', end: '2027-08-02' })
           }
         >
           pick dates
@@ -112,13 +112,13 @@ const MULTI_UNIT_LABELED = [
 ];
 const CALENDAR_DAYS = [
   {
-    date: '2026-08-01',
+    date: '2027-08-01',
     status: 'AVAILABLE',
     price_amount: '100.00',
     price_currency: 'AMD',
   },
   {
-    date: '2026-08-02',
+    date: '2027-08-02',
     status: 'AVAILABLE',
     price_amount: '120.00',
     price_currency: 'AMD',
@@ -158,12 +158,12 @@ const SINGLE_TIME_SLOT_UNIT = [
 
 const DAY_STATUSES = [
   {
-    date: '2026-08-01',
+    date: '2027-08-01',
     availability_status: 'AVAILABLE',
     remaining_count: null,
   },
   {
-    date: '2026-08-02',
+    date: '2027-08-02',
     availability_status: 'AVAILABLE',
     remaining_count: null,
   },
@@ -301,7 +301,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
     ).toBeEnabled();
     // P2.2B: SINGLE_UNIT is a PROPERTY_UNIT (accommodation) — the picked
-    // range (2026-08-01 -> 2026-08-02) is a genuine 1-night stay, so only
+    // range (2027-08-01 -> 2027-08-02) is a genuine 1-night stay, so only
     // the check-in day's price (100) is charged, matching the backend's
     // own checkout-exclusive `resolveConsumedRange`. The old inclusive-
     // both-ends sum (100 + 120 = 220) double-charged the checkout day —
@@ -479,7 +479,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
 
   test('clicking Request to Book while authenticated creates a hold and navigates to checkout', async () => {
     const mutateAsync = vi.fn().mockResolvedValue({
-      data: { items: [{ hold_ids: [1] }], expires_at: '2026-08-01T00:15:00Z' },
+      data: { items: [{ hold_ids: [1] }], expires_at: '2027-08-01T00:15:00Z' },
     });
     useCreateBookingHoldMutation.mockReturnValue({
       mutateAsync,
@@ -501,8 +501,8 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     expect(mutateAsync).toHaveBeenCalledWith([
       {
         bookableUnitId: 1,
-        dateFrom: '2026-08-01',
-        dateTo: '2026-08-02',
+        dateFrom: '2027-08-01',
+        dateTo: '2027-08-02',
         quantity: 1,
       },
     ]);
@@ -518,7 +518,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     const mutateAsync = vi.fn().mockResolvedValue({
       data: {
         items: [{ hold_ids: [1, 2] }],
-        expires_at: '2026-08-01T00:15:00Z',
+        expires_at: '2027-08-01T00:15:00Z',
       },
     });
     useCreateBookingHoldMutation.mockReturnValue({
@@ -555,8 +555,8 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     expect(mutateAsync).toHaveBeenCalledWith([
       {
         bookableUnitId: 1,
-        dateFrom: '2026-08-01',
-        dateTo: '2026-08-02',
+        dateFrom: '2027-08-01',
+        dateTo: '2027-08-02',
         quantity: 2,
       },
     ]);
@@ -650,12 +650,12 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     useListingDayStatusQuery.mockReturnValue({
       data: [
         {
-          date: '2026-08-01',
+          date: '2027-08-01',
           availability_status: 'SOLD_OUT',
           remaining_count: 0,
         },
         {
-          date: '2026-08-02',
+          date: '2027-08-02',
           availability_status: 'AVAILABLE',
           remaining_count: null,
         },
@@ -670,10 +670,10 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     renderWidget();
 
     expect(screen.getByTestId('disabled-dates')).toHaveTextContent(
-      '2026-08-01',
+      '2027-08-01',
     );
     expect(screen.getByTestId('disabled-dates')).not.toHaveTextContent(
-      '2026-08-02',
+      '2027-08-02',
     );
   });
 
@@ -734,7 +734,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       });
       renderWidget(
         {},
-        '/en/listings/10?dateFrom=2026-09-10&dateTo=2026-09-12&guests=2',
+        '/en/listings/10?dateFrom=2027-09-10&dateTo=2027-09-12&guests=2',
       );
 
       // dateRange is already valid without ever clicking the (mocked)
@@ -767,15 +767,15 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       ],
       [
         'dateTo before dateFrom',
-        '/en/listings/10?dateFrom=2026-09-12&dateTo=2026-09-10&guests=2',
+        '/en/listings/10?dateFrom=2027-09-12&dateTo=2027-09-10&guests=2',
       ],
       [
         'a malformed date',
-        '/en/listings/10?dateFrom=not-a-date&dateTo=2026-09-12&guests=2',
+        '/en/listings/10?dateFrom=not-a-date&dateTo=2027-09-12&guests=2',
       ],
       [
         'only dateFrom, no dateTo',
-        '/en/listings/10?dateFrom=2026-09-10&guests=2',
+        '/en/listings/10?dateFrom=2027-09-10&guests=2',
       ],
     ])('falls back to blank dates rather than trusting %s', (_label, entry) => {
       useListingBookableUnitsQuery.mockReturnValue({
@@ -846,7 +846,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       const user = userEvent.setup();
       renderWidget(
         {},
-        '/en/listings/10?dateFrom=2026-09-10&dateTo=2026-09-12&guests=2',
+        '/en/listings/10?dateFrom=2027-09-10&dateTo=2027-09-12&guests=2',
       );
 
       await user.click(screen.getByTestId('select-trigger'));
@@ -1026,7 +1026,7 @@ describe('ListingReservationWidget — Sprint A (Time-Aware Booking Foundation)'
         : { data: TIME_SLOT_UNITS, isPending: false, isError: false },
     );
     const mutateAsync = vi.fn().mockResolvedValue({
-      data: { items: [{ hold_ids: [1] }], expires_at: '2026-08-01T00:15:00Z' },
+      data: { items: [{ hold_ids: [1] }], expires_at: '2027-08-01T00:15:00Z' },
     });
     useCreateBookingHoldMutation.mockReturnValue({
       mutateAsync,
@@ -1053,8 +1053,8 @@ describe('ListingReservationWidget — Sprint A (Time-Aware Booking Foundation)'
     expect(mutateAsync).toHaveBeenCalledWith([
       {
         bookableUnitId: 2,
-        dateFrom: '2026-08-01',
-        dateTo: '2026-08-01',
+        dateFrom: '2027-08-01',
+        dateTo: '2027-08-01',
         quantity: 1,
       },
     ]);
@@ -1195,7 +1195,7 @@ describe('ListingReservationWidget — Sprint B (Car Rental Pickup/Return Interv
 
   test('a valid interval enables submit and sends startTime/endTime through in the hold request and checkout hand-off', async () => {
     const mutateAsync = vi.fn().mockResolvedValue({
-      data: { items: [{ hold_ids: [1] }], expires_at: '2026-08-01T00:15:00Z' },
+      data: { items: [{ hold_ids: [1] }], expires_at: '2027-08-01T00:15:00Z' },
     });
     useCreateBookingHoldMutation.mockReturnValue({
       mutateAsync,
@@ -1223,8 +1223,8 @@ describe('ListingReservationWidget — Sprint B (Car Rental Pickup/Return Interv
     expect(mutateAsync).toHaveBeenCalledWith([
       {
         bookableUnitId: 1,
-        dateFrom: '2026-08-01',
-        dateTo: '2026-08-02',
+        dateFrom: '2027-08-01',
+        dateTo: '2027-08-02',
         quantity: 1,
         startTime: '10:00',
         endTime: '18:00',
