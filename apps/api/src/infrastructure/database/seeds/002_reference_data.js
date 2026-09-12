@@ -122,6 +122,15 @@ export default async function seedReferenceData(connection) {
     name: 'Euro',
     decimalPlaces: 2,
   });
+  // Pass 8 (Multi-Currency / CBA FX Pricing) — RU locale's public display
+  // currency (brief §5's `getDefaultCurrencyForLocale`: hy->AMD, en->USD,
+  // ru->RUB). Genuinely absent before this pass.
+  await upsertCurrency(connection, {
+    code: 'RUB',
+    symbol: '₽',
+    name: 'Russian Ruble',
+    decimalPlaces: 2,
+  });
 
   const armeniaId = await upsertCountry(connection, {
     isoCode: 'AM',

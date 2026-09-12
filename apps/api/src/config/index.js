@@ -188,6 +188,23 @@ const env = cleanEnv(process.env, {
   OLLAMA_BASE_URL: str({ default: 'http://localhost:11434' }),
   OLLAMA_MODEL: str({ default: 'llama3.1' }),
 
+  // Multi-currency / FX (Pass 8) — official Central Bank of Armenia SOAP
+  // service is the only live provider; matches this file's established
+  // all-defaults pattern (an app with no FX vars set still boots, and
+  // getModuleLogger-based providers report failures at call time, never
+  // a boot crash). `NODE_ENV=test` always uses the deterministic
+  // FixtureExchangeRateProvider regardless of FX_PROVIDER (see
+  // modules/fx/module.container.js) — brief §29's "CI must not depend on
+  // live CBA availability."
+  FX_PROVIDER: str({ choices: ['cba', 'fixture'], default: 'cba' }),
+  CBA_EXCHANGE_RATE_URL: str({
+    default: 'https://api.cba.am/exchangerates.asmx',
+  }),
+  FX_HTTP_TIMEOUT_MS: num({ default: 8000 }),
+  // CBA publishes rates roughly once a day — an hour keeps display prices
+  // fresh without a request-per-price-render (brief §11).
+  FX_RATE_CACHE_TTL_SECONDS: num({ default: 3600 }),
+
   // Payment Infrastructure (Phase 16) — every var below defaults to
   // empty/safe, matching this file's established all-defaults pattern.
   // `local` (never touches real money) is the default and only enabled
@@ -339,6 +356,13 @@ const config = Object.freeze({
       baseUrl: env.OLLAMA_BASE_URL,
       model: env.OLLAMA_MODEL,
     }),
+  }),
+
+  fx: Object.freeze({
+    provider: env.NODE_ENV === 'test' ? 'fixture' : env.FX_PROVIDER,
+    cbaExchangeRateUrl: env.CBA_EXCHANGE_RATE_URL,
+    httpTimeoutMs: env.FX_HTTP_TIMEOUT_MS,
+    rateCacheTtlSeconds: env.FX_RATE_CACHE_TTL_SECONDS,
   }),
 
   payments: Object.freeze({

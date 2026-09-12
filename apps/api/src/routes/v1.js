@@ -56,6 +56,8 @@ import createContactContainer from '../modules/contact/module.container.js';
 import createContactRoutes from '../modules/contact/module.routes.js';
 import createBlogContainer from '../modules/blog/module.container.js';
 import createBlogRoutes from '../modules/blog/module.routes.js';
+import createFxContainer from '../modules/fx/module.container.js';
+import createFxRoutes from '../modules/fx/module.routes.js';
 
 export default function createV1Router({
   guards,
@@ -82,6 +84,11 @@ export default function createV1Router({
     eventBus,
   });
   const searchContainer = createSearchContainer({ permissionResolver });
+  // Pass 8 (Multi-Currency / CBA FX Pricing): no dependency on any other
+  // module's Service — FX rates are a pure reference concept, same
+  // rationale as Contact/Search above. Constructed early since Bookings
+  // (below) needs `exchangeRateService` for its server-side FX snapshot.
+  const fxContainer = createFxContainer();
   // Sprint E (Promotion Engine): depends on Listings' (`getListingAdminDetail`,
   // listing existence + category membership) and Search's
   // (`getListingsByIds`, public card hydration) public Service
@@ -148,6 +155,9 @@ export default function createV1Router({
     availabilityService: availabilityContainer.availabilityService,
     listingService: listingsContainer.listingService,
     partnerService: partnersContainer.partnerService,
+    // Pass 8: server-side-only FX snapshot resolution at booking creation
+    // (brief §30 — a client-supplied FX rate is never trusted).
+    exchangeRateService: fxContainer.exchangeRateService,
     permissionResolver,
     auditLogger,
     eventBus,
@@ -391,6 +401,7 @@ export default function createV1Router({
       guards,
     }),
   );
+  router.use('/fx', createFxRoutes({ fxController: fxContainer.fxController }));
   router.use(
     '/ai',
     createAiRoutes({
