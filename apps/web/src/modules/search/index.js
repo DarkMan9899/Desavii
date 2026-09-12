@@ -14,3 +14,10 @@ export { default as useSuggestionsQuery } from './queries/useSuggestionsQuery.js
 // /search`'s flat DTO is exactly what a "more like this" strip needs.
 export { default as useSearchListingsQuery } from './queries/useSearchListingsQuery.js';
 export { default as SearchResultCard } from './components/SearchResultCard/SearchResultCard.jsx';
+
+// Pass 6 (Restaurant vertical, owner issue #13/#15): `CategoryPageContent`
+// (the `discovery` module) reuses this directly — the exact same
+// category-scoped attribute filtering `SearchPageContent` already has,
+// on the real indexable category landing page it was otherwise entirely
+// missing from.
+export { default as DynamicFilterPanel } from './components/DynamicFilterPanel/DynamicFilterPanel.jsx';

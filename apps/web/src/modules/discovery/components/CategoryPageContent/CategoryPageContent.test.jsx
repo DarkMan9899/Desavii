@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import CategoryPageContent from './CategoryPageContent.jsx';
 import {
@@ -19,6 +20,19 @@ vi.mock('../../../search/index.js', () => ({
       {hideTypeBadge ? ' (badge hidden)' : ''}
       {topBadgeLabel ? ` (${topBadgeLabel})` : ''}
     </div>
+  ),
+  // Pass 6 (owner issue #13/#15): a trivial test double — DynamicFilterPanel's
+  // own real behavior (category-scoped attribute filters) has its own
+  // dedicated test file; this page only needs to prove it wires the panel
+  // in with the real category id, covered separately below.
+  // eslint-disable-next-line react/prop-types -- trivial test double
+  DynamicFilterPanel: ({ categoryId, onChange }) => (
+    <button
+      type="button"
+      onClick={() => onChange({ attr_cuisine: 'ARMENIAN' })}
+    >
+      DynamicFilterPanel for category {categoryId}
+    </button>
   ),
 }));
 
@@ -92,7 +106,7 @@ describe('CategoryPageContent (apps/web/src/modules/discovery)', () => {
     // No matching category (slug not found in the seeded list above) —
     // `category?.id` is undefined, so the fetch must stay disabled.
     expect(useSearchListingsQuery).toHaveBeenCalledWith(
-      { categoryId: undefined },
+      { categoryId: undefined, dynamicFilters: {} },
       expect.objectContaining({ enabled: false }),
     );
   });
@@ -214,6 +228,36 @@ describe('CategoryPageContent (apps/web/src/modules/discovery)', () => {
     renderPage();
 
     expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
+  });
+
+  test('owner issue #13/#15: wires the real category id into DynamicFilterPanel, and applying a filter re-queries with it', async () => {
+    const user = userEvent.setup();
+    useCategoriesQuery.mockReturnValue({
+      data: [CATEGORY],
+      isPending: false,
+      isError: false,
+    });
+    useSearchListingsQuery.mockReturnValue({
+      data: { pages: [{ results: [] }] },
+      isPending: false,
+    });
+    renderPage();
+
+    expect(
+      screen.getByText('DynamicFilterPanel for category 5'),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: /DynamicFilterPanel/ }),
+    );
+
+    expect(useSearchListingsQuery).toHaveBeenLastCalledWith(
+      {
+        categoryId: 5,
+        dynamicFilters: { attr_cuisine: 'ARMENIAN' },
+      },
+      expect.objectContaining({ enabled: true }),
+    );
   });
 
   test('shows a retryable error state when the categories query fails', () => {

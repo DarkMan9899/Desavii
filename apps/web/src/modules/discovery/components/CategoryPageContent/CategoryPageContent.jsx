@@ -27,6 +27,7 @@
  * title itself were duplicating).
  */
 
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -43,6 +44,7 @@ import {
   useCategoriesQuery,
   useSearchListingsQuery,
   SearchResultCard,
+  DynamicFilterPanel,
 } from '../../../search/index.js';
 import { usePublicCategoryTopQuery } from '../../../advertising/index.js';
 import styles from './CategoryPageContent.module.scss';
@@ -64,6 +66,39 @@ export default function CategoryPageContent() {
     (candidate) => candidate.slug === categorySlug,
   );
 
+  // Pass 6 (Restaurant vertical, owner issue #13/#15): the same
+  // category-scoped attribute filtering (`GET /search/filters` +
+  // `DynamicFilterPanel`) `SearchPageContent` already has, on the real
+  // indexable category landing page — this page had NO filter UI at all
+  // despite the backend already fully supporting it (Restaurants'
+  // cuisine/price-tier being the concrete gap that surfaced this).
+  // Deliberately local component state, never synced to this page's own
+  // URL the way `/search` syncs its filters: `/search` is `noindex`
+  // specifically because arbitrary filter-param combinations are a crawl
+  // trap (see that page's own header comment) — persisting filters into
+  // this page's URL would recreate exactly that risk on a page that's
+  // meant to stay indexable. Reset whenever the category itself changes,
+  // so a filter chosen under one category's catalog never silently
+  // carries over and narrows a different category's results.
+  const [dynamicFilters, setDynamicFilters] = useState({});
+  useEffect(() => {
+    setDynamicFilters({});
+  }, [categorySlug]);
+
+  const updateDynamicFilter = useCallback((patch) => {
+    setDynamicFilters((current) => {
+      const next = { ...current };
+      Object.entries(patch).forEach(([key, value]) => {
+        if (value) {
+          next[key] = value;
+        } else {
+          delete next[key];
+        }
+      });
+      return next;
+    });
+  }, []);
+
   // 2026 SEO/performance audit: real, confirmed waste, caught via a live
   // network capture — without `enabled`, this fired once with
   // `categoryId: undefined` (an unfiltered "all listings" fetch, whose
@@ -75,7 +110,7 @@ export default function CategoryPageContent() {
   // showing a listings skeleton.
   const { data: listingsData, isPending: isListingsPending } =
     useSearchListingsQuery(
-      { categoryId: category?.id },
+      { categoryId: category?.id, dynamicFilters },
       { locale, enabled: Boolean(category?.id) },
     );
   const listings = listingsData?.pages[0]?.results ?? [];
@@ -172,6 +207,12 @@ export default function CategoryPageContent() {
           </span>
         )}
       </EditorialPageHero>
+
+      <DynamicFilterPanel
+        categoryId={category.id}
+        dynamicFilters={dynamicFilters}
+        onChange={updateDynamicFilter}
+      />
 
       {!isTopPending && topListings?.length > 0 && (
         <section
