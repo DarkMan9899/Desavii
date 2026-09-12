@@ -64,6 +64,17 @@ export function toBookingResponse(booking) {
     fees_amount: booking.feesAmount,
     discount_amount: booking.discountAmount,
     total_amount: booking.totalAmount,
+    // Pass 8 (Multi-Currency / CBA FX Pricing) — the immutable FX display
+    // snapshot taken at booking creation (see migration 0047). All five
+    // are `null` for a booking with no display currency on record — the
+    // frontend then shows `total_amount`/`currency` (AMD) as-is, the same
+    // as it always has. Never recomputed after creation, regardless of
+    // any later CBA rate change (brief §26).
+    display_currency: booking.displayCurrencyCode ?? null,
+    fx_amd_per_unit: booking.fxAmdPerUnit ?? null,
+    fx_effective_at: booking.fxEffectiveAt ?? null,
+    display_subtotal_amount: booking.displaySubtotalAmount ?? null,
+    display_total_amount: booking.displayTotalAmount ?? null,
     payment_method: booking.paymentMethod,
     payment_status: booking.paymentStatusCode,
     requested_at: booking.requestedAt,
@@ -94,6 +105,12 @@ export function toBookingSummaryResponse(booking) {
     status: booking.statusCode,
     currency: booking.currencyCode,
     total_amount: booking.totalAmount,
+    // Pass 8 — same immutable FX display snapshot `toBookingResponse`
+    // carries (see its own comment); the "My Trips"/admin list needs it
+    // too, so a booking shows the same currency there as on its own
+    // detail page.
+    display_currency: booking.displayCurrencyCode ?? null,
+    display_total_amount: booking.displayTotalAmount ?? null,
     requested_at: booking.requestedAt,
     // Admin Sprint 4: only present when the repository was asked for
     // `includeNames` (the admin-only browsing paths) — `undefined` on a

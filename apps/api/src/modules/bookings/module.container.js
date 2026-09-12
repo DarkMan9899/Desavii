@@ -18,6 +18,10 @@ export default function createBookingsContainer({
   availabilityService,
   listingService,
   partnerService,
+  // Pass 8 (Multi-Currency / CBA FX Pricing): the FX module's public
+  // Service interface only — never a second Repository over
+  // `exchange_rates` (BACKEND_ARCHITECTURE.md §4's cross-module rule).
+  exchangeRateService,
   permissionResolver,
   auditLogger,
   eventBus,
@@ -28,6 +32,7 @@ export default function createBookingsContainer({
     availabilityService,
     listingService,
     partnerService,
+    exchangeRateService,
     permissionResolver,
     auditLogger,
     eventBus,

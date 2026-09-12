@@ -50,6 +50,11 @@ export const createBookingSchema = z.object({
     items: z.array(bookingItemInputSchema).min(1),
     guestContactSnapshot: guestContactSnapshotSchema,
     customerNotes: z.string().trim().max(2000).optional(),
+    // Pass 8 (Multi-Currency / CBA FX Pricing) — the only FX-related input
+    // a client may ever supply (brief §30: no client-supplied rate is
+    // trusted). A fixed enum, never an arbitrary ISO code; omitted means
+    // "book in AMD," the same as before this pass existed.
+    displayCurrencyCode: z.enum(['AMD', 'USD', 'RUB']).optional(),
   }),
 });
 

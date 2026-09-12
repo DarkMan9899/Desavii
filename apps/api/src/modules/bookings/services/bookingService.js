@@ -38,6 +38,11 @@ import { isManagerAssignedToPartner } from '../../../infrastructure/database/rep
 import { findCurrencyByCode } from '../../../infrastructure/database/repositories/currencyRepository.js';
 import { withTransaction } from '../../../infrastructure/database/transaction.js';
 import { Money } from '../../../core/domain/money.js';
+import { convertAmdToDisplayCurrency } from '../../../core/domain/fxConversion.js';
+import {
+  BASE_CURRENCY as FX_BASE_CURRENCY,
+  SUPPORTED_DISPLAY_CURRENCIES,
+} from '../../fx/services/exchangeRateService.js';
 import { enumerateDates } from '../../../core/domain/calendarExpansion.js';
 import { resolveConsumedRange } from '../../../core/domain/accommodationDateSemantics.js';
 import { resolvePriceForDate } from '../../../core/domain/accommodationPriceResolution.js';
@@ -71,6 +76,15 @@ const CANCEL_ANY_PERMISSION = 'booking.cancel_any';
 // REFUND_PERMISSION comment).
 const REFUND_REVIEW_PERMISSION = 'payment.refund';
 const MAX_REFERENCE_ATTEMPTS = 5;
+// Pass 8 (Multi-Currency / CBA FX Pricing) — the only currencies a
+// customer may ever pick as their booking's display currency (brief
+// §30/§31: security validation, no arbitrary ISO code). AMD is always
+// allowed (the identity conversion, brief §26) even though it's not one
+// of `exchangeRateService`'s own fetched/converted currencies.
+const ALLOWED_DISPLAY_CURRENCIES = [
+  FX_BASE_CURRENCY,
+  ...SUPPORTED_DISPLAY_CURRENCIES,
+];
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -110,11 +124,17 @@ export class BookingService {
 
   #paymentService;
 
+  #exchangeRateService;
+
   constructor({
     bookingRepository,
     availabilityService,
     listingService,
     partnerService = null,
+    // Pass 8 — optional, same "not every test/harness constructs one"
+    // shape as `partnerService` above: `createBooking` only ever needs it
+    // when a caller actually supplies `displayCurrencyCode`.
+    exchangeRateService = null,
     permissionResolver,
     auditLogger,
     eventBus = createNoOpEventBus(),
@@ -123,6 +143,7 @@ export class BookingService {
     this.#availabilityService = availabilityService;
     this.#listingService = listingService;
     this.#partnerService = partnerService;
+    this.#exchangeRateService = exchangeRateService;
     this.#permissionResolver = permissionResolver;
     this.#auditLogger = auditLogger;
     this.#eventBus = eventBus;
@@ -386,9 +407,85 @@ export class BookingService {
    * bookable unit type (so `booking_type_id`, also a singular column,
    * stays well-defined).
    */
+  /**
+   * Pass 8 (Multi-Currency / CBA FX Pricing) — the server-side-only FX
+   * snapshot resolution for booking creation (brief §23/§24/§30). Never
+   * trusts a client-supplied rate: `displayCurrencyCode` is the only FX
+   * input a client may send, validated against a fixed allow-list, and
+   * the actual rate always comes from `exchangeRateService.getRates()` —
+   * a client sending an out-of-band `fxRate` field has no effect, because
+   * nothing here ever reads one.
+   *
+   * Returns `null` (no display-currency columns written) when
+   * `displayCurrencyCode` is omitted — the base AMD amount stays the only
+   * price on record, exactly as it was before this pass.
+   */
+  async #resolveDisplayFxSnapshot(displayCurrencyCode, baseAmount, connection) {
+    if (!displayCurrencyCode) return null;
+    if (!ALLOWED_DISPLAY_CURRENCIES.includes(displayCurrencyCode)) {
+      throw new ValidationError(
+        `displayCurrencyCode must be one of: ${ALLOWED_DISPLAY_CURRENCIES.join(', ')}.`,
+        [{ field: 'displayCurrencyCode', issue: 'UNSUPPORTED_CURRENCY' }],
+      );
+    }
+
+    const displayCurrency = await findCurrencyByCode(
+      displayCurrencyCode,
+      connection,
+    );
+    if (!displayCurrency) {
+      // Seeded currency list and this allow-list are expected to always
+      // agree — a mismatch is a deployment/seed bug, not a client error.
+      throw new ConflictError(
+        `Currency ${displayCurrencyCode} is not configured.`,
+        'DISPLAY_CURRENCY_NOT_CONFIGURED',
+      );
+    }
+
+    if (displayCurrencyCode === baseAmount.currency) {
+      return {
+        displayCurrencyId: displayCurrency.id,
+        fxAmdPerUnit: '1.00000000',
+        fxEffectiveAt: new Date(),
+        displayAmount: baseAmount,
+      };
+    }
+
+    if (!this.#exchangeRateService) {
+      throw new ConflictError(
+        'Currency conversion is temporarily unavailable — please book in AMD.',
+        'FX_RATE_UNAVAILABLE',
+      );
+    }
+    const { rates, effectiveAt } = await this.#exchangeRateService.getRates();
+    const amdPerUnit = rates[displayCurrencyCode];
+    if (!amdPerUnit) {
+      // Brief §12/§20 — never invent a rate. A customer who explicitly
+      // chose a currency CBA (and its last-known-good fallback) has never
+      // once supplied simply cannot book in it right now.
+      throw new ConflictError(
+        `No exchange rate is currently available for ${displayCurrencyCode} — please book in AMD.`,
+        'FX_RATE_UNAVAILABLE',
+      );
+    }
+
+    const displayAmount = convertAmdToDisplayCurrency(
+      baseAmount,
+      displayCurrencyCode,
+      displayCurrency.decimalPlaces,
+      amdPerUnit,
+    );
+    return {
+      displayCurrencyId: displayCurrency.id,
+      fxAmdPerUnit: amdPerUnit,
+      fxEffectiveAt: effectiveAt ? new Date(effectiveAt) : new Date(),
+      displayAmount,
+    };
+  }
+
   async createBooking(
     principal,
-    { items, customerNotes, guestContactSnapshot },
+    { items, customerNotes, guestContactSnapshot, displayCurrencyCode },
   ) {
     if (!principal) throw new AuthenticationError();
 
@@ -438,6 +535,13 @@ export class BookingService {
       });
 
       const currency = await findCurrencyByCode(first.currencyCode, connection);
+      // Pass 8 — resolved once, before the reference-retry loop below, so
+      // a retry on a duplicate reference never re-fetches/re-converts.
+      const fxSnapshot = await this.#resolveDisplayFxSnapshot(
+        displayCurrencyCode,
+        subtotal,
+        connection,
+      );
       const bookingTypeCode = resolveBookingTypeCode(
         first.bookableUnitTypeCode,
       );
@@ -473,6 +577,17 @@ export class BookingService {
               currencyId: currency.id,
               subtotalAmount: subtotal.toDecimalString(),
               totalAmount: subtotal.toDecimalString(),
+              ...(fxSnapshot
+                ? {
+                    displayCurrencyId: fxSnapshot.displayCurrencyId,
+                    fxAmdPerUnit: fxSnapshot.fxAmdPerUnit,
+                    fxEffectiveAt: fxSnapshot.fxEffectiveAt,
+                    displaySubtotalAmount:
+                      fxSnapshot.displayAmount.toDecimalString(),
+                    displayTotalAmount:
+                      fxSnapshot.displayAmount.toDecimalString(),
+                  }
+                : {}),
               paymentStatusId,
               requestedAt: new Date(),
               createdBy: principal.userId,

@@ -53,6 +53,15 @@ function toBookingDomain(row) {
     feesAmount: row.fees_amount,
     discountAmount: row.discount_amount,
     totalAmount: row.total_amount,
+    // Pass 8 — the FX display snapshot (brief §23/§24). All five are
+    // `null` for a booking with no display currency recorded (every
+    // booking created before this pass, or one whose customer never left
+    // AMD) — never fabricated, never recomputed after creation.
+    displayCurrencyCode: row.display_currency_code ?? null,
+    fxAmdPerUnit: row.fx_amd_per_unit ?? null,
+    fxEffectiveAt: row.fx_effective_at ?? null,
+    displaySubtotalAmount: row.display_subtotal_amount ?? null,
+    displayTotalAmount: row.display_total_amount ?? null,
     paymentMethod: row.payment_method,
     paymentStatusCode: row.payment_status_code,
     requestedAt: row.requested_at,
@@ -135,6 +144,8 @@ const BOOKING_SELECT = `
   bt.code AS booking_type_code, b.status_id, bs.code AS status_code,
   b.customer_notes, b.vendor_notes, b.guest_contact_snapshot,
   cur.code AS currency_code, b.subtotal_amount, b.fees_amount, b.discount_amount, b.total_amount,
+  dispcur.code AS display_currency_code, b.fx_amd_per_unit, b.fx_effective_at,
+  b.display_subtotal_amount, b.display_total_amount,
   b.payment_method, ps.code AS payment_status_code,
   b.requested_at, b.confirmed_at, b.rejected_at, b.cancelled_at, b.completed_at,
   b.cancellation_reason, b.refund_status, b.created_at, b.updated_at
@@ -144,6 +155,7 @@ const BOOKING_FROM = `
   JOIN booking_types bt ON bt.id = b.booking_type_id
   JOIN booking_statuses bs ON bs.id = b.status_id
   JOIN currencies cur ON cur.id = b.currency_id
+  LEFT JOIN currencies dispcur ON dispcur.id = b.display_currency_id
   JOIN payment_statuses ps ON ps.id = b.payment_status_id
 `;
 
@@ -195,6 +207,15 @@ export class MySqlBookingRepository {
       currencyId,
       subtotalAmount,
       totalAmount,
+      // Pass 8 — all four optional; `null` together means "no display
+      // currency snapshot," never a partially-populated FX record (see
+      // `BookingService#createBooking`, which only ever sets all four or
+      // none).
+      displayCurrencyId = null,
+      fxAmdPerUnit = null,
+      fxEffectiveAt = null,
+      displaySubtotalAmount = null,
+      displayTotalAmount = null,
       paymentStatusId,
       requestedAt,
       createdBy,
@@ -206,9 +227,11 @@ export class MySqlBookingRepository {
         `INSERT INTO bookings
           (booking_reference, customer_user_id, partner_id, listing_id, booking_type_id, status_id,
            customer_notes, guest_contact_snapshot, currency_id, subtotal_amount, fees_amount,
-           discount_amount, total_amount, payment_method, payment_status_id, requested_at,
+           discount_amount, total_amount, display_currency_id, fx_amd_per_unit, fx_effective_at,
+           display_subtotal_amount, display_total_amount,
+           payment_method, payment_status_id, requested_at,
            created_by, updated_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, 0.00, ?, 'offline', ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, 0.00, ?, ?, ?, ?, ?, ?, 'offline', ?, ?, ?, ?)`,
         [
           bookingReference,
           customerUserId,
@@ -221,6 +244,11 @@ export class MySqlBookingRepository {
           currencyId,
           subtotalAmount,
           totalAmount,
+          displayCurrencyId,
+          fxAmdPerUnit,
+          fxEffectiveAt,
+          displaySubtotalAmount,
+          displayTotalAmount,
           paymentStatusId,
           requestedAt,
           createdBy,
