@@ -1,0 +1,31 @@
+// ScrollRevealLite — tokens only, consumed from @desavii/ui. Mirrors
+// modules/home/components/ScrollReveal's fade/depth values, but as a
+// plain CSS transition (no Framer Motion) — see the component's own
+// header for why.
+
+@use 'tokens' as tokens;
+
+.reveal {
+  transition:
+    opacity tokens.$motion-transition-slow tokens.$ease-out,
+    transform tokens.$motion-transition-slow tokens.$ease-out,
+    filter tokens.$motion-transition-slow tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
+}
+
+.fade {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+.depth {
+  opacity: 0;
+  transform: translateY(36px) scale(0.94);
+  filter: blur(6px);
+}
+
+.inView {
+  opacity: 1;
+  transform: none;
+  filter: blur(0);
+}

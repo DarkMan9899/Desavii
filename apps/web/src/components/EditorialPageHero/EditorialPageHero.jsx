@@ -29,6 +29,12 @@ import styles from './EditorialPageHero.module.scss';
 export default function EditorialPageHero({
   breadcrumbItems,
   heroSeed,
+  // Pass 7B: optional, independent overrides forwarded straight to
+  // `DestinationArt` — see that component's own header. Omit both for
+  // the original seed-hash-only behavior every non-category caller
+  // (About/Contact/FAQ/etc.) keeps using unchanged.
+  heroMotif = undefined,
+  heroMeshVariant = undefined,
   icon: HeroIcon = undefined,
   eyebrow = undefined,
   title,
@@ -43,7 +49,12 @@ export default function EditorialPageHero({
         className={styles.breadcrumbs}
       />
       <section className={styles.hero}>
-        <DestinationArt seed={heroSeed} className={styles.heroArt} />
+        <DestinationArt
+          seed={heroSeed}
+          motif={heroMotif}
+          meshVariant={heroMeshVariant}
+          className={styles.heroArt}
+        />
         <div className={styles.heroContent}>
           {HeroIcon && (
             <span className={styles.heroIcon} aria-hidden="true">
@@ -69,6 +80,8 @@ EditorialPageHero.propTypes = {
   ).isRequired,
   heroSeed: PropTypes.oneOfType([PropTypes.number, PropTypes.string])
     .isRequired,
+  heroMotif: PropTypes.string,
+  heroMeshVariant: PropTypes.number,
   icon: PropTypes.elementType,
   eyebrow: PropTypes.string,
   title: PropTypes.string.isRequired,

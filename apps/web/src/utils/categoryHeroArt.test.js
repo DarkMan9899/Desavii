@@ -1,6 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { resolveCategoryHeroSeed } from './categoryHeroArt.js';
-import { seedToIndex } from '../components/DestinationArt/DestinationArt.jsx';
+import { resolveCategoryHeroArt } from './categoryHeroArt.js';
 
 const KNOWN_SLUGS = [
   'hotels',
@@ -15,30 +14,37 @@ const KNOWN_SLUGS = [
 ];
 
 describe('categoryHeroArt', () => {
-  test('every known category resolves to a defined seed, never the fallback', () => {
+  test('every known category resolves to a defined motif, not the fallback', () => {
     KNOWN_SLUGS.forEach((slug) => {
-      expect(resolveCategoryHeroSeed(slug, 'FALLBACK')).not.toBe('FALLBACK');
+      const art = resolveCategoryHeroArt(slug, 'FALLBACK_SEED');
+      expect(art.motif).toBeDefined();
+      expect(art.meshVariant).toBeDefined();
+      expect(art.seed).toBe('FALLBACK_SEED');
     });
   });
 
-  test('the two owner-flagged confusable groups each get 9/5 art combos with zero internal collision', () => {
-    const accommodationSubTypes = ['apartments', 'villas', 'guest-houses'];
-    const attractionSubTypes = ['attractions', 'entertainment-venues'];
-
-    const accommodationCombos = accommodationSubTypes.map(
-      (slug) => seedToIndex(resolveCategoryHeroSeed(slug)) % 5,
+  test('brief §2/§3: all 9 categories get a genuinely unique motif — none shared', () => {
+    const motifs = KNOWN_SLUGS.map(
+      (slug) => resolveCategoryHeroArt(slug).motif,
     );
-    expect(new Set(accommodationCombos).size).toBe(
-      accommodationSubTypes.length,
-    );
-
-    const attractionCombos = attractionSubTypes.map(
-      (slug) => seedToIndex(resolveCategoryHeroSeed(slug)) % 5,
-    );
-    expect(new Set(attractionCombos).size).toBe(attractionSubTypes.length);
+    expect(new Set(motifs).size).toBe(KNOWN_SLUGS.length);
   });
 
-  test('falls back to the given seed for an unrecognized category slug', () => {
-    expect(resolveCategoryHeroSeed('not-a-real-category', 42)).toBe(42);
+  test('the two owner-flagged confusable groups are internally distinct', () => {
+    const accommodation = ['apartments', 'villas', 'guest-houses'].map(
+      (slug) => resolveCategoryHeroArt(slug).motif,
+    );
+    expect(new Set(accommodation).size).toBe(3);
+
+    const attractionGroup = ['attractions', 'entertainment-venues'].map(
+      (slug) => resolveCategoryHeroArt(slug).motif,
+    );
+    expect(new Set(attractionGroup).size).toBe(2);
+  });
+
+  test('falls back to a bare seed (no motif/meshVariant override) for an unrecognized category slug', () => {
+    expect(resolveCategoryHeroArt('not-a-real-category', 42)).toEqual({
+      seed: 42,
+    });
   });
 });

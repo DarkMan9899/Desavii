@@ -20,6 +20,13 @@ import PropTypes from 'prop-types';
 import styles from './DestinationArt.module.scss';
 
 const MOTIFS = ['compass', 'peaks', 'sun-waves', 'starburst', 'arch'];
+// Pass 7B (category visual closure): four more motifs, reachable ONLY via
+// an explicit `motif` override prop (never via the seed hash below) — the
+// hash-selectable `MOTIFS` array above stays exactly 5 entries so every
+// existing caller's already-shipped deterministic art is unaffected.
+const EXTRA_MOTIFS = ['door-key', 'fork-knife', 'road', 'ticket'];
+const ALL_MOTIFS = [...MOTIFS, ...EXTRA_MOTIFS];
+const MESH_VARIANTS = [1, 2, 3, 4, 5];
 
 function Motif({ name }) {
   switch (name) {
@@ -66,6 +73,54 @@ function Motif({ name }) {
           fill="none"
         />
       );
+    // Pass 7B — Guest House: a small house silhouette + a key, reading as
+    // warmer/more personal-scale than Hotel's bare arch.
+    case 'door-key':
+      return (
+        <g stroke="currentColor" strokeWidth="2.5" fill="none">
+          <path d="M20 90V50L50 25l30 25v40" />
+          <rect x="42" y="65" width="16" height="25" />
+          <circle cx="72" cy="48" r="7" fill="currentColor" stroke="none" />
+          <path d="M72 55v14M72 63h8" />
+        </g>
+      );
+    // Pass 7B — Restaurant: a literal fork/knife pairing, matching the
+    // UtensilsCrossed category icon already used elsewhere.
+    case 'fork-knife':
+      return (
+        <g
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          fill="none"
+        >
+          <path d="M28 8v28M22 8v14a6 6 0 0 0 12 0V8" />
+          <path d="M28 36v56" />
+          <path d="M72 8c-10 4-10 20-2 26l2 2v54" />
+        </g>
+      );
+    // Pass 7B — Car Rentals: converging road-edge lines + a dashed center
+    // line, a technical/directional motif (brief: "cleaner, more
+    // technical, less editorial").
+    case 'road':
+      return (
+        <g stroke="currentColor" strokeWidth="2.5" fill="none">
+          <path d="M32 92 L46 8" />
+          <path d="M68 92 L54 8" />
+          <path d="M50 92 L50 8" strokeDasharray="8 10" />
+        </g>
+      );
+    // Pass 7B — Entertainment: a ticket/pass shape, matching the brief's
+    // explicit "poster/event imagery" language.
+    case 'ticket':
+      return (
+        <g stroke="currentColor" strokeWidth="2.5" fill="none">
+          <rect x="10" y="28" width="80" height="44" rx="8" />
+          <path d="M50 28v44" strokeDasharray="5 7" />
+          <circle cx="30" cy="50" r="4" fill="currentColor" stroke="none" />
+          <circle cx="70" cy="50" r="4" fill="currentColor" stroke="none" />
+        </g>
+      );
     case 'compass':
     default:
       return (
@@ -83,7 +138,7 @@ function Motif({ name }) {
   }
 }
 
-Motif.propTypes = { name: PropTypes.oneOf(MOTIFS).isRequired };
+Motif.propTypes = { name: PropTypes.oneOf(ALL_MOTIFS).isRequired };
 
 /** A numeric id seeds directly; any other value (a title string, when no id is available) is hashed so it still varies instead of collapsing to one shared mesh. */
 function seedToIndex(seed) {
@@ -101,16 +156,22 @@ function seedToIndex(seed) {
   return Math.abs(hash);
 }
 
-export default function DestinationArt({ seed, className = undefined }) {
+export default function DestinationArt({
+  seed,
+  className = undefined,
+  motif: motifOverride = undefined,
+  meshVariant: meshVariantOverride = undefined,
+}) {
   const index = seedToIndex(seed);
+  const meshVariant = meshVariantOverride ?? (index % 5) + 1;
+  const motif = motifOverride ?? MOTIFS[index % MOTIFS.length];
   const combinedClassName = [
     styles.art,
-    styles[`art--mesh-${(index % 5) + 1}`],
+    styles[`art--mesh-${meshVariant}`],
     className,
   ]
     .filter(Boolean)
     .join(' ');
-  const motif = MOTIFS[index % MOTIFS.length];
 
   return (
     <div className={combinedClassName} aria-hidden="true">
@@ -129,6 +190,11 @@ export default function DestinationArt({ seed, className = undefined }) {
 DestinationArt.propTypes = {
   seed: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
   className: PropTypes.string,
+  // Pass 7B: overrides the seed-derived motif/mesh independently — see
+  // file header. Omit both for every pre-existing caller's unchanged
+  // seed-hash behavior.
+  motif: PropTypes.oneOf(ALL_MOTIFS),
+  meshVariant: PropTypes.oneOf(MESH_VARIANTS),
 };
 
 // Exported so other procedural-art surfaces (e.g. `CompanyAvatar`'s

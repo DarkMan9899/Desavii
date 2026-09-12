@@ -59,7 +59,8 @@
   opacity: 0;
   transition:
     opacity tokens.$motion-transition tokens.$ease-out,
-    transform tokens.$motion-transition tokens.$ease-out;
+    transform tokens.$motion-transition tokens.$ease-out,
+    filter tokens.$motion-transition tokens.$ease-out;
   @include tokens.reduced-motion-safe;
 }
 
@@ -89,6 +90,52 @@
 
 .card[data-category='tours']:hover .image {
   transform: scale(1.07) translateY(-2px);
+}
+
+// Pass 7B (category motion completion, brief §5) — the remaining 5
+// categories each get their OWN restrained, transform/opacity(/filter)
+// treatment, still layered on this same shared image-zoom mechanism or a
+// different sub-element (never fighting `Card`'s own shared whole-card
+// lift, which every category already gets from `card--elevated
+// card--interactive:hover` in the `@desavii/ui` primitive). Hotels and
+// Restaurants deliberately keep the BASE 1.05 zoom here — their brief-
+// assigned motion ("room/gallery depth", "menu/reservation reveal")
+// lives on the Listing Detail page instead (see
+// `ListingDetailPageContent.jsx`'s category-emphasis wiring).
+
+// Apartments — "calm space reveal": a smaller, gentler zoom than the
+// base, reading as composed rather than dramatic.
+.card[data-category='apartments']:hover .image {
+  transform: scale(1.02);
+}
+
+// Guest Houses — "warm content/card reveal": a warm-toned scrim intensifies
+// on hover (never just the bare image zoom), reading as the card's own
+// content warming up rather than only the photo moving.
+.card[data-category='guest-houses']:hover .image {
+  filter: brightness(1.04) saturate(1.08);
+}
+
+// Car Rentals — "spec-chip / vehicle-info interaction": the price row's
+// hairline picks up the brand accent, drawing the eye to the per-day
+// rate/spec area rather than the photo — matches the brief's "cleaner,
+// more technical" character (no image-zoom flourish at all here).
+.card[data-category='car-rentals']:hover .priceRow {
+  border-block-start-color: tokens.$color-gold;
+}
+
+// Attractions — "story/fact/highlight reveal": the title itself picks up
+// the accent color, an editorial "this is worth reading" cue.
+.card[data-category='attractions']:hover .title {
+  color: tokens.$color-gold-strong;
+}
+
+// Entertainment — "poster/date/session transition": a stronger zoom plus
+// a slight brightness lift, reading as a poster catching the light —
+// matches the brief's explicit poster/event framing.
+.card[data-category='entertainment-venues']:hover .image {
+  transform: scale(1.06);
+  filter: brightness(1.06);
 }
 
 .imagePlaceholder {
@@ -149,6 +196,8 @@
   font-size: tokens.$font-size-h4;
   line-height: tokens.$line-height-h4;
   color: tokens.$color-gray-900;
+  transition: color tokens.$motion-transition tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
   @include truncate.truncate-lines(2);
 }
 
@@ -194,6 +243,8 @@
   margin-block-start: tokens.$space-2;
   padding-block-start: tokens.$space-2;
   border-block-start: 1px solid tokens.$color-gray-200;
+  transition: border-color tokens.$motion-transition tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
 }
 
 .pricePrefix {

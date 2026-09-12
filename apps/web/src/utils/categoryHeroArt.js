@@ -1,67 +1,55 @@
 /**
- * categoryHeroArt — Pass 7 (category-specific visual identity, brief §14:
- * "Do not make 9 identical heroes with different text").
+ * categoryHeroArt — Pass 7B (category visual closure, brief §2: "Create
+ * enough lightweight category presentation variants so all 9 public
+ * categories can have a distinct recognizable hero treatment").
  *
- * `CategoryPageContent`/`EditorialPageHero` previously passed
- * `heroSeed={category.id}` straight into `DestinationArt` — a STABLE but
- * ACCIDENTAL art combo (whatever a raw database id happens to hash to),
- * never a deliberate choice. This module replaces that with a curated
- * seed per category slug.
- *
- * Real constraint discovered while building this (`DestinationArt.jsx`):
- * its mesh variant (`(index % 5) + 1`) and motif (`MOTIFS[index % 5]`) are
- * BOTH derived from the exact same `index % 5` — there are only 5 possible
- * combos total, not one per category. With 9 categories, at least 4 must
- * share a combo with another regardless of curation. The 5 slots are
- * spent on the two groups the owner specifically flagged as
- * indistinguishable: Apartments/Villas/Guest Houses (all `PROPERTY`) and
- * Attractions/Entertainment (both `ATTRACTION`) — every category in
- * EITHER group gets a combo no other member of that same group has.
- * Hotels/Restaurants/Tours/Car Rentals reuse a combo from the other
- * group's five, since those four already have strong differentiation
- * elsewhere (rooms/reservation, cuisine chips, itinerary, vehicle specs)
- * and were never the categories the owner called out as visually
- * confusable via hero art.
- *
- * Numeric seeds pass straight through `DestinationArt`'s `seedToIndex`
- * (`Math.abs(Math.trunc(seed))`), so the seed value IS the index — 100-104
- * are arbitrary but deliberately spaced 1 apart to land on all 5 distinct
- * `index % 5` buckets (compass/mesh-1, peaks/mesh-2, sun-waves/mesh-3,
- * starburst/mesh-4, arch/mesh-5), never the category's own id.
+ * Pass 7 shipped a curated-but-limited version of this: `DestinationArt`'s
+ * mesh variant and motif were BOTH derived from the same `index % 5`, so
+ * only 5 combos existed total and 4 categories had to share one with an
+ * unrelated category. This pass closes that gap properly by having
+ * `DestinationArt` accept an explicit `motif`/`meshVariant` override
+ * (independent of each other and of the seed hash) and adding four new
+ * motifs — every one of the 9 real categories now gets its OWN unique
+ * motif, not just its own combo of an already-shared set.
  */
 
-const SEED_COMPASS_MESH_1 = 100;
-const SEED_PEAKS_MESH_2 = 101;
-const SEED_SUN_WAVES_MESH_3 = 102;
-const SEED_STARBURST_MESH_4 = 103;
-const SEED_ARCH_MESH_5 = 104;
-
-const HERO_SEED_BY_CATEGORY_SLUG = Object.freeze({
-  // The two owner-flagged "look too similar" groups — every member gets
-  // its OWN combo, none shared within the same group.
-  apartments: SEED_COMPASS_MESH_1,
-  villas: SEED_PEAKS_MESH_2,
-  'guest-houses': SEED_SUN_WAVES_MESH_3,
-  attractions: SEED_STARBURST_MESH_4,
-  'entertainment-venues': SEED_ARCH_MESH_5,
-  // Not part of either confusable group — reuse a combo from the other
-  // group; their real differentiation lives in card/detail composition,
-  // not hero art.
-  hotels: SEED_ARCH_MESH_5,
-  restaurants: SEED_PEAKS_MESH_2,
-  tours: SEED_STARBURST_MESH_4,
-  'car-rentals': SEED_SUN_WAVES_MESH_3,
+const CATEGORY_HERO_ART = Object.freeze({
+  // Hospitality/architecture — an arched doorway.
+  hotels: { motif: 'arch', meshVariant: 5 },
+  // Calm, everyday light — a modern home's ambiance rather than a
+  // hospitality doorway (brief §4: "modern home / independent stay").
+  apartments: { motif: 'sun-waves', meshVariant: 3 },
+  // Dramatic, premium landscape — a large-property/estate feeling.
+  villas: { motif: 'peaks', meshVariant: 2 },
+  // A small house + key — warmer, smaller-scale, more personal than
+  // Hotel's bare arch (brief §4: "warm / local / smaller-scale").
+  'guest-houses': { motif: 'door-key', meshVariant: 4 },
+  // Literal cuisine — fork/knife, matching the UtensilsCrossed category
+  // icon already used elsewhere for this category.
+  restaurants: { motif: 'fork-knife', meshVariant: 1 },
+  // Discovery/wayfinding.
+  tours: { motif: 'compass', meshVariant: 1 },
+  // Technical/directional — converging road-edge lines, never a
+  // cinematic/editorial treatment (brief: "cleaner, more technical").
+  'car-rentals': { motif: 'road', meshVariant: 4 },
+  // Landmark spotlight.
+  attractions: { motif: 'starburst', meshVariant: 4 },
+  // Explicitly "poster/event imagery" — a ticket/pass shape.
+  'entertainment-venues': { motif: 'ticket', meshVariant: 5 },
 });
 
 /**
  * @param {string} categorySlug
  * @param {number|string} fallbackSeed - used for a category outside the
- *   known 9 (shouldn't happen in production, but keeps this safe for a
- *   future/unseeded category) — the previous accidental-but-stable
- *   behavior, never a hard failure.
+ *   known 9 (shouldn't happen in production) — falls back to plain
+ *   `DestinationArt` seed-hash behavior rather than a hard failure.
+ * @returns {{motif?: string, meshVariant?: number, seed: number|string}}
+ *   spreadable straight onto `DestinationArt`/`EditorialPageHero` props.
  */
-export function resolveCategoryHeroSeed(categorySlug, fallbackSeed) {
-  return HERO_SEED_BY_CATEGORY_SLUG[categorySlug] ?? fallbackSeed;
+export function resolveCategoryHeroArt(categorySlug, fallbackSeed) {
+  const art = CATEGORY_HERO_ART[categorySlug];
+  if (!art) return { seed: fallbackSeed };
+  return { ...art, seed: fallbackSeed };
 }
 
-export default { resolveCategoryHeroSeed };
+export default { resolveCategoryHeroArt };

@@ -37,8 +37,9 @@ import {
 } from '@desavii/ui/components/feedback-overlays';
 import ListingGrid from '../../../../components/ListingGrid/ListingGrid.jsx';
 import EditorialPageHero from '../../../../components/EditorialPageHero/EditorialPageHero.jsx';
+import Showcase from '../../../home/components/Showcase/Showcase.jsx';
 import { getCategoryIcon } from '../../../../utils/categoryIcons.js';
-import { resolveCategoryHeroSeed } from '../../../../utils/categoryHeroArt.js';
+import { resolveCategoryHeroArt } from '../../../../utils/categoryHeroArt.js';
 import useSeo from '../../../../seo/useSeo.js';
 import { buildBreadcrumbListSchema } from '../../../../seo/structuredData.js';
 import {
@@ -189,17 +190,20 @@ export default function CategoryPageContent() {
   }
 
   const Icon = getCategoryIcon(category.slug);
+  // Pass 7B (category visual closure, brief §2/§3) — each of the 9 real
+  // categories now gets its OWN unique motif (not just a combo shared
+  // with another category, Pass 7's limitation) — see `categoryHeroArt.js`.
+  // Falls back to the previous accidental-but-stable `category.id` seed
+  // hash for a category outside the known 9.
+  const heroArt = resolveCategoryHeroArt(category.slug, category.id);
 
   return (
     <div className={styles.page}>
       <EditorialPageHero
         breadcrumbItems={breadcrumbItems}
-        // Pass 7 (category-specific visual identity, brief §14) — a
-        // deliberately curated art combo per category slug (see
-        // `categoryHeroArt.js` for why only 5 combos exist for 9
-        // categories), falling back to the previous accidental-but-stable
-        // `category.id` seed for a category outside the known 9.
-        heroSeed={resolveCategoryHeroSeed(category.slug, category.id)}
+        heroSeed={heroArt.seed}
+        heroMotif={heroArt.motif}
+        heroMeshVariant={heroArt.meshVariant}
         icon={Icon}
         eyebrow={t('nav.explore')}
         title={category.name}
@@ -228,7 +232,20 @@ export default function CategoryPageContent() {
           <h2 id="category-top-heading" className={styles.topSectionHeading}>
             {t('discovery.category.topHeading', { category: category.name })}
           </h2>
-          <ListingGrid>
+          {/* Pass 7B (brief §11/§17) — the same premium carousel engine
+              Home's Featured section uses, not a plain grid: Category TOP
+              is a paid placement and must visibly feel more premium than
+              the ordinary inventory grid below it. Every card already
+              carries this category's own visual identity (aspect ratio,
+              price unit, real metadata chips) via `SearchResultCard` —
+              nothing category-specific to add here beyond the carousel
+              shell itself. */}
+          <Showcase
+            ariaLabel={t('discovery.category.topHeading', {
+              category: category.name,
+            })}
+            slideClassName={styles.topSlide}
+          >
             {topListings.map((listing) => (
               <SearchResultCard
                 key={listing.id}
@@ -237,7 +254,7 @@ export default function CategoryPageContent() {
                 topBadgeLabel={t('advertising.topBadge')}
               />
             ))}
-          </ListingGrid>
+          </Showcase>
         </section>
       )}
 

@@ -1,6 +1,7 @@
 // CategoryPageContent — tokens only, consumed from @desavii/ui.
 
 @use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
 
 .page {
   display: flex;
@@ -26,6 +27,26 @@
   font-size: tokens.$font-size-h4;
   font-weight: 700;
   color: tokens.$color-gray-900;
+}
+
+// Pass 7B (brief §11/§17) — mirrors `FeaturedListings.module.scss`'s own
+// `.slide` sizing (Home's Featured carousel), so Category TOP reads as
+// the same premium carousel treatment, just scoped to this category's
+// own listings rather than a mixed-category set.
+.topSlide {
+  flex: 0 0 82%;
+
+  @include respond.respond(mobile-large) {
+    flex: 0 0 60%;
+  }
+
+  @include respond.respond(tablet) {
+    flex: 0 0 46%;
+  }
+
+  @include respond.respond(laptop) {
+    flex: 0 0 34%;
+  }
 }
 
 .count {

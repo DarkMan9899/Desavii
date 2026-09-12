@@ -68,11 +68,13 @@ import ListingOpeningHoursSection from './ListingOpeningHoursSection/ListingOpen
 import RelatedListings from './RelatedListings/RelatedListings.jsx';
 import { FavoriteButton } from '../../../favorites/index.js';
 import { AskAiButton } from '../../../ai/index.js';
+import ScrollReveal from '../../../../components/ScrollRevealLite/ScrollRevealLite.jsx';
 import {
   resolveCategoryVisualKey,
   reorderSections,
   resolveBookingCtaKey,
 } from '../../utils/categoryPresentation.js';
+import { resolveDetailEmphasisSectionId } from '../../../../utils/categoryMotionConfig.js';
 import styles from './ListingDetailPageContent.module.scss';
 
 const SECTION_ABOUT = 'about';
@@ -406,6 +408,15 @@ export default function ListingDetailPageContent() {
   });
   const orderedSections = reorderSections(sections, categoryVisualKey);
   const bookingCtaKey = resolveBookingCtaKey(categoryVisualKey);
+  // Pass 7B (category motion completion, brief §5/§6) — the ONE section
+  // that IS this category's "product comes first" section (see
+  // `categoryMotionConfig.js`) gets the more pronounced `depth`
+  // ScrollReveal variant; every other section keeps the default `fade`.
+  // Never a per-category page fork — same sections/components, only the
+  // reveal variant differs, mirroring how `reorderSections` above only
+  // ever changes ORDER, never markup.
+  const detailEmphasisSectionId =
+    resolveDetailEmphasisSectionId(categoryVisualKey);
 
   const sectionElements = {
     [SECTION_ABOUT]: (
@@ -551,8 +562,9 @@ export default function ListingDetailPageContent() {
           )}
 
           {orderedSections.map(({ id: sectionId }) => (
-            <div
+            <ScrollReveal
               key={sectionId}
+              variant={sectionId === detailEmphasisSectionId ? 'depth' : 'fade'}
               className={
                 EDITORIAL_SECTION_IDS.has(sectionId)
                   ? styles.sectionEditorial
@@ -560,7 +572,7 @@ export default function ListingDetailPageContent() {
               }
             >
               {sectionElements[sectionId]}
-            </div>
+            </ScrollReveal>
           ))}
 
           <RelatedListings
