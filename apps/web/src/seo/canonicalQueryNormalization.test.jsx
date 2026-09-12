@@ -28,6 +28,10 @@ vi.mock('../modules/search/index.js', () => ({
   useSearchListingsQuery: vi.fn(),
   // eslint-disable-next-line react/prop-types -- trivial test double
   SearchResultCard: ({ result }) => <div>{result.title}</div>,
+  // Pass 6 (owner issue #13/#15): a trivial test double — this file only
+  // exercises canonical-URL output, never DynamicFilterPanel's own
+  // filtering behavior (covered by its own dedicated test files).
+  DynamicFilterPanel: () => null,
 }));
 
 // Sprint E: CategoryPageContent now also queries the Promotion Engine's

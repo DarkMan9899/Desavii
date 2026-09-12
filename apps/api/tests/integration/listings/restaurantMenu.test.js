@@ -4,6 +4,16 @@
  * travelhub.dev owns the verified `yerevan-boutique-hospitality` partner),
  * but against a RESTAURANT-type listing, since menu creation is
  * restaurant-only.
+ *
+ * Pass 6 (owner issue #13, brief §19): the existing "non-owner cannot"
+ * tests below all use an unrelated CUSTOMER, which proves permission
+ * absence but not the ownership predicate itself. `otherVendor` — a
+ * genuine, distinct, approved partner OWNER — closes that gap the same
+ * way `bookingOwnership.test.js`/`openingHours.test.js` already do: a
+ * rival partner holds real owner-level capability for their OWN
+ * partner, so this is the actual test of
+ * `RestaurantMenuService#isOwnerOrHasPermission`'s ownership check, not
+ * just of permission absence.
  */
 
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
@@ -22,6 +32,7 @@ import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_
 let pool;
 let vendor;
 let customer;
+let otherVendor;
 let partnerId;
 let languageId;
 let restaurantListingId;
@@ -36,6 +47,47 @@ async function login(email, password) {
   return { accessToken: res.body.data.access_token };
 }
 
+async function registerAndApproveOtherPartner() {
+  const email = `other-vendor-menu-${Date.now()}-${Math.floor(Math.random() * 100000)}@example.com`;
+  const registerRes = await request(app).post('/api/v1/auth/register').send({
+    email,
+    password: 'OtherVendor!2024',
+    firstName: 'Other',
+    lastName: 'Vendor',
+  });
+  const accessToken = registerRes.body.data.access_token;
+
+  const createRes = await request(app)
+    .post('/api/v1/partners/applications')
+    .set('Authorization', `Bearer ${accessToken}`)
+    .send({ displayName: 'Cross-Partner Menu Fixture' });
+  const otherPartnerId = createRes.body.data.id;
+
+  await request(app)
+    .patch(`/api/v1/partners/applications/${otherPartnerId}`)
+    .set('Authorization', `Bearer ${accessToken}`)
+    .send({
+      legalName: 'Cross-Partner Menu Fixture LLC',
+      email: 'contact@crosspartnermenu.example',
+      phone: '+37400000097',
+      description: 'RBAC fixture partner — never used for real bookings.',
+    });
+  await request(app)
+    .post(`/api/v1/partners/applications/${otherPartnerId}/submit`)
+    .set('Authorization', `Bearer ${accessToken}`);
+
+  const admin = await login(
+    DEV_CREDENTIALS.admin.email,
+    DEV_CREDENTIALS.admin.password,
+  );
+  await request(app)
+    .patch(`/api/v1/partners/admin/${otherPartnerId}/verification-status`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
+    .send({ status: 'APPROVED' });
+
+  return { accessToken };
+}
+
 beforeAll(async () => {
   await up();
   await seedAll();
@@ -46,6 +98,7 @@ beforeAll(async () => {
     DEV_CREDENTIALS.vendor.email,
     DEV_CREDENTIALS.vendor.password,
   );
+  otherVendor = await registerAndApproveOtherPartner();
   customer = await login(
     DEV_CREDENTIALS.customer.email,
     DEV_CREDENTIALS.customer.password,
@@ -115,6 +168,14 @@ describe('Restaurant Menu (POST/GET/PATCH/DELETE)', () => {
     expect(res.status).toBe(403);
   });
 
+  test("a genuinely distinct partner owner cannot create a menu on another partner's listing", async () => {
+    const res = await request(app)
+      .post(`/api/v1/listings/${restaurantListingId}/menu`)
+      .set('Authorization', `Bearer ${otherVendor.accessToken}`)
+      .send({ name: 'Hacked Menu' });
+    expect(res.status).toBe(403);
+  });
+
   test('creating a menu on a non-RESTAURANT listing is rejected', async () => {
     const res = await request(app)
       .post(`/api/v1/listings/${hotelListingId}/menu`)
@@ -171,6 +232,30 @@ describe('Restaurant Menu (POST/GET/PATCH/DELETE)', () => {
         priceCurrencyCode: 'AMD',
       });
     expect(res.status).toBe(403);
+  });
+
+  test('a genuinely distinct partner owner cannot add an item, update the section, or delete either', async () => {
+    const addItem = await request(app)
+      .post(`/api/v1/listings/menu/sections/${sectionId}/items`)
+      .set('Authorization', `Bearer ${otherVendor.accessToken}`)
+      .send({ title: 'Khinkali', priceAmount: 3500, priceCurrencyCode: 'AMD' });
+    expect(addItem.status).toBe(403);
+
+    const updateSection = await request(app)
+      .patch(`/api/v1/listings/menu/sections/${sectionId}`)
+      .set('Authorization', `Bearer ${otherVendor.accessToken}`)
+      .send({ title: 'Hacked Section' });
+    expect(updateSection.status).toBe(403);
+
+    const deleteSection = await request(app)
+      .delete(`/api/v1/listings/menu/sections/${sectionId}`)
+      .set('Authorization', `Bearer ${otherVendor.accessToken}`);
+    expect(deleteSection.status).toBe(403);
+
+    const deleteMenu = await request(app)
+      .delete(`/api/v1/listings/menu/${menuId}`)
+      .set('Authorization', `Bearer ${otherVendor.accessToken}`);
+    expect(deleteMenu.status).toBe(403);
   });
 
   test('an unknown currency code is rejected', async () => {
