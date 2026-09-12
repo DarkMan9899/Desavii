@@ -34,6 +34,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, Outlet, useParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
+import i18n from 'i18next';
 import PublicLayout from '../layouts/PublicLayout.jsx';
 import AuthLayout from '../layouts/AuthLayout.jsx';
 import CustomerAccountLayout from '../layouts/CustomerAccountLayout.jsx';
@@ -51,7 +52,10 @@ import ManagerProvider from '../providers/ManagerProvider.jsx';
 import CurrencyProvider from '../providers/CurrencyProvider.jsx';
 import PageLoader from '../components/PageLoader/PageLoader.jsx';
 import ScrollRestoration from './ScrollRestoration.jsx';
-import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from '../translations/i18n.js';
+import {
+  SUPPORTED_LOCALES,
+  DEFAULT_LOCALE,
+} from '../translations/supportedLocales.js';
 
 const HomePage = lazy(() => import('../pages/HomePage.jsx'));
 const SearchPage = lazy(() => import('../pages/SearchPage.jsx'));
@@ -282,6 +286,34 @@ const ADMIN_AREA_ROLES = ['ADMIN', 'SUPER_ADMIN', 'MODERATOR', 'SUPPORT'];
 
 function LocaleValidator({ children }) {
   const { locale } = useParams();
+
+  // Pass 9 (P1 locale/i18n remediation) — THE root-cause fix. Before this,
+  // nothing ever called `i18n.changeLanguage()` on a route change: i18next's
+  // own `LanguageDetector` only resolves the active language ONCE, at
+  // initial page load (from the URL path, correctly). On any subsequent
+  // CLIENT-SIDE navigation to a different locale prefix — any in-app
+  // `<Link>`/`RouterLink` to a foreign-locale URL, not just the dedicated
+  // `LanguageSwitcher` (which already called `changeLanguage` itself) —
+  // the URL changed but `i18n.language` silently did not, so the page kept
+  // rendering in whatever language it booted with. This is the exact
+  // "opening /hy can render in English" bug: reproduced by loading /en
+  // (a real full page load, i18next correctly resolves 'en'), then
+  // performing a client-side-only route change to /hy — the URL and
+  // `<html lang>` both correctly become "hy", but every translated string
+  // stayed English because `i18n.language` was still "en".
+  //
+  // The fix: this is the ONE place every locale-prefixed route already
+  // passes through (same reasoning the `<html lang>` sync below already
+  // used) — so it is also the one correct place to make the URL's locale
+  // segment unconditionally authoritative over whatever i18next's passive
+  // detector guessed at boot, on EVERY navigation, not just the first.
+  // Never gated on "only if no stored preference" — brief's explicit rule
+  // is that an explicit route locale always wins, full stop.
+  useEffect(() => {
+    if (SUPPORTED_LOCALES.includes(locale) && i18n.language !== locale) {
+      i18n.changeLanguage(locale);
+    }
+  }, [locale]);
 
   // Phase 20 (SEO) §25: `index.html`'s static `lang="hy"` never reflects a
   // client-side locale switch/direct-navigation on its own — this is the
