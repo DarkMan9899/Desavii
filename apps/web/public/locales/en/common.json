@@ -1416,7 +1416,8 @@
       },
       "location": {
         "latitude": "Latitude",
-        "longitude": "Longitude"
+        "longitude": "Longitude",
+        "mapHint": "Click the map to place a marker at your exact location, or enter coordinates directly below."
       },
       "attributes": {
         "loading": "Loading details…",

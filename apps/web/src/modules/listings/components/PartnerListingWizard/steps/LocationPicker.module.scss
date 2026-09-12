@@ -1,0 +1,28 @@
+// LocationPicker — tokens only, consumed from @desavii/ui.
+// Leaflet requires an explicit, non-percentage-only container height to
+// size its tile grid correctly (matches ListingMap.module.scss's own
+// note).
+
+@use 'tokens' as tokens;
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  width: 100%;
+}
+
+.hint {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+}
+
+.map {
+  width: 100%;
+  height: 280px;
+  border-radius: tokens.$radius-lg;
+  border: 1px solid tokens.$color-gray-200;
+  z-index: 0;
+  cursor: crosshair;
+}

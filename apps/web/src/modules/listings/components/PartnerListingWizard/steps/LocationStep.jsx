@@ -11,16 +11,26 @@
  * inventing a text-to-id mapping with no real data source behind it,
  * this step only collects latitude/longitude; `cityId`/`addressId`
  * remain unset (both genuinely optional per `locationSchema`).
+ *
+ * `LocationPicker` is `lazy()`-loaded for the exact reason
+ * `ListingLocationSection.jsx` already lazy-loads `ListingMap`: a static
+ * import of `leaflet`/`react-leaflet` (plus its module-level icon-config
+ * side effect) would otherwise land in whatever shared chunk this
+ * wizard-steps barrel resolves to, bloating every other step (and every
+ * other consumer of that barrel) with map code most of them never use.
  */
 
+import { lazy, Suspense, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@desavii/ui/components/form-controls';
-import { Alert } from '@desavii/ui/components/feedback-overlays';
+import { Alert, Skeleton } from '@desavii/ui/components/feedback-overlays';
 import { Stack } from '@desavii/ui/components/layout';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
 import WizardStepActions from '../WizardStepActions.jsx';
+
+const LocationPicker = lazy(() => import('./LocationPicker.jsx'));
 
 export default function LocationStep({
   listingId,
@@ -34,6 +44,8 @@ export default function LocationStep({
   const {
     control,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -41,6 +53,30 @@ export default function LocationStep({
       longitude: initialValues.longitude ?? '',
     },
   });
+
+  // Backs the map picker below — the number fields stay the field of
+  // record (react-hook-form's own state), the map just reads/writes the
+  // same two values so neither can drift out of sync with the other.
+  const watchedLatitude = watch('latitude');
+  const watchedLongitude = watch('longitude');
+  const numericLatitude =
+    watchedLatitude === '' ? undefined : Number(watchedLatitude);
+  const numericLongitude =
+    watchedLongitude === '' ? undefined : Number(watchedLongitude);
+
+  const handleMapPick = useCallback(
+    (lat, lng) => {
+      setValue('latitude', Number(lat.toFixed(6)), {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+      setValue('longitude', Number(lng.toFixed(6)), {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    },
+    [setValue],
+  );
 
   async function onSubmit(values) {
     await updateListingMutation.mutateAsync({
@@ -62,6 +98,14 @@ export default function LocationStep({
         {updateListingMutation.error && (
           <Alert variant="danger">{updateListingMutation.error.message}</Alert>
         )}
+
+        <Suspense fallback={<Skeleton variant="rect" height={280} />}>
+          <LocationPicker
+            latitude={numericLatitude}
+            longitude={numericLongitude}
+            onPick={handleMapPick}
+          />
+        </Suspense>
 
         <Controller
           name="latitude"
