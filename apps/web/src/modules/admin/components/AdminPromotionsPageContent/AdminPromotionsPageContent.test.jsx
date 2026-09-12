@@ -20,6 +20,8 @@ import {
   useApproveAdvertisementMutation,
   useRejectAdvertisementMutation,
   useCancelAdvertisementMutation,
+  usePauseAdvertisementMutation,
+  useResumeAdvertisementMutation,
   useExtendAdvertisementMutation,
 } from '../../../advertising/index.js';
 
@@ -39,6 +41,8 @@ vi.mock('../../../advertising/index.js', async () => {
     useApproveAdvertisementMutation: vi.fn(),
     useRejectAdvertisementMutation: vi.fn(),
     useCancelAdvertisementMutation: vi.fn(),
+    usePauseAdvertisementMutation: vi.fn(),
+    useResumeAdvertisementMutation: vi.fn(),
     useExtendAdvertisementMutation: vi.fn(),
   };
 });
@@ -146,6 +150,8 @@ describe('AdminPromotionsPageContent (Sprint E — Promotion Engine)', () => {
     useApproveAdvertisementMutation.mockReturnValue(NOOP_MUTATION);
     useRejectAdvertisementMutation.mockReturnValue(NOOP_MUTATION);
     useCancelAdvertisementMutation.mockReturnValue(NOOP_MUTATION);
+    usePauseAdvertisementMutation.mockReturnValue(NOOP_MUTATION);
+    useResumeAdvertisementMutation.mockReturnValue(NOOP_MUTATION);
     useExtendAdvertisementMutation.mockReturnValue(NOOP_MUTATION);
   });
 
@@ -293,5 +299,158 @@ describe('AdminPromotionsPageContent (Sprint E — Promotion Engine)', () => {
         }),
       ),
     );
+  });
+
+  // Pass 7B (brief §13) — reversible pause/resume, and the priority field
+  // reaching the create mutation.
+  describe('Pass 7B — Pause/Resume and priority', () => {
+    test('an ACTIVE row offers Pause, not Resume; a PAUSED row offers Resume, not Pause', () => {
+      useAdvertisementsQuery.mockReturnValue({
+        ...EMPTY_LIST_QUERY,
+        data: {
+          pages: [
+            {
+              results: [HOME_AD, { ...HOME_AD, id: 3, status_code: 'PAUSED' }],
+              meta: {},
+            },
+          ],
+        },
+      });
+      renderPage();
+      expect(
+        screen.getAllByRole('button', { name: 'Դադարեցնել ժամանակավորապես' }),
+      ).toHaveLength(1);
+      expect(screen.getAllByRole('button', { name: 'Վերսկսել' })).toHaveLength(
+        1,
+      );
+    });
+
+    test('clicking Pause calls the pause mutation with the row id', async () => {
+      const user = userEvent.setup();
+      const mutateAsync = vi.fn().mockResolvedValue({});
+      usePauseAdvertisementMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      });
+      useAdvertisementsQuery.mockReturnValue({
+        ...EMPTY_LIST_QUERY,
+        data: { pages: [{ results: [HOME_AD], meta: {} }] },
+      });
+      renderPage();
+
+      await user.click(
+        screen.getByRole('button', { name: 'Դադարեցնել ժամանակավորապես' }),
+      );
+      expect(mutateAsync).toHaveBeenCalledWith({ id: HOME_AD.id });
+    });
+
+    test('the create form sends displayPriority when entered', async () => {
+      const user = userEvent.setup();
+      const mutateAsync = vi.fn().mockResolvedValue({});
+      useCreateAdvertisementMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      });
+      renderPage();
+
+      await user.click(
+        screen.getByRole('button', { name: 'Առաջխաղացնել հայտարարություն' }),
+      );
+      const dialog = screen.getByRole('dialog');
+      fireEvent.change(within(dialog).getByLabelText('Հայտարարության ID'), {
+        target: { value: '86' },
+      });
+      fireEvent.change(
+        within(dialog).getByLabelText(
+          'Առաջնահերթություն (ավելի բարձրը՝ առաջինը)',
+        ),
+        { target: { value: '5' } },
+      );
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Տևողություն / գին' }),
+      );
+      await user.click(
+        within(dialog).getByRole('option', { name: '7 օր — 30000.00 AMD' }),
+      );
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Ստեղծել առաջխաղացում' }),
+      );
+
+      await waitFor(() =>
+        expect(mutateAsync).toHaveBeenCalledWith(
+          expect.objectContaining({ displayPriority: 5 }),
+        ),
+      );
+    });
+
+    test('"Both" placement fires two creates — one Home, one Category — sharing the same listing', async () => {
+      const user = userEvent.setup();
+      const mutateAsync = vi.fn().mockResolvedValue({});
+      useCreateAdvertisementMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      });
+      renderPage();
+
+      await user.click(
+        screen.getByRole('button', { name: 'Առաջխաղացնել հայտարարություն' }),
+      );
+      const dialog = screen.getByRole('dialog');
+      fireEvent.change(within(dialog).getByLabelText('Հայտարարության ID'), {
+        target: { value: '86' },
+      });
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Տեղաբաշխում' }),
+      );
+      await user.click(
+        within(dialog).getByRole('option', {
+          name: 'Երկուսն էլ (Գլխավոր + Կատեգորիա)',
+        }),
+      );
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Կատեգորիա' }),
+      );
+      await user.click(
+        within(dialog).getByRole('option', { name: 'Car Rentals' }),
+      );
+      await user.click(
+        within(dialog).getByRole('button', {
+          name: 'Գլխավոր էջի տևողություն / գին',
+        }),
+      );
+      await user.click(
+        within(dialog).getByRole('option', { name: '7 օր — 30000.00 AMD' }),
+      );
+      await user.click(
+        within(dialog).getByRole('button', {
+          name: 'Կատեգորիայի տևողություն / գին',
+        }),
+      );
+      await user.click(
+        within(dialog).getByRole('option', { name: '7 օր — 20000.00 AMD' }),
+      );
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Ստեղծել առաջխաղացում' }),
+      );
+
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(2));
+      expect(mutateAsync).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          listingId: 86,
+          placementCode: 'HOMEPAGE_SECTION',
+          productId: 5,
+        }),
+      );
+      expect(mutateAsync).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          listingId: 86,
+          placementCode: 'CATEGORY_TOP',
+          categoryId: 7,
+          productId: 9,
+        }),
+      );
+    });
   });
 });

@@ -59,7 +59,8 @@
       "ACTIVE": "Ակտիվ",
       "EXPIRED": "Ժամկետանց",
       "REJECTED": "Մերժված",
-      "CANCELLED": "Չեղարկված"
+      "CANCELLED": "Չեղարկված",
+      "PAUSED": "Դադարեցված"
     }
   },
   "common": {
@@ -2131,6 +2132,7 @@
         "placement": "Տեղաբաշխում",
         "status": "Կարգավիճակ",
         "dates": "Ամսաթվեր",
+        "priority": "Առաջնահերթություն",
         "payment": "Վճարում"
       },
       "payment": {
@@ -2142,12 +2144,16 @@
         "title": "Ստեղծել առաջխաղացում",
         "listingIdLabel": "Հայտարարության ID",
         "placementLabel": "Տեղաբաշխում",
+        "bothPlacementsLabel": "Երկուսն էլ (Գլխավոր + Կատեգորիա)",
         "categoryLabel": "Կատեգորիա",
         "productLabel": "Տևողություն / գին",
+        "homeProductLabel": "Գլխավոր էջի տևողություն / գին",
+        "categoryProductLabel": "Կատեգորիայի տևողություն / գին",
         "productDurationLabel": "{{days}} օր — {{amount}} {{currency}}",
         "productCustomLabel": "Հատուկ ժամկետ — {{amount}} {{currency}} / օր",
         "startDateLabel": "Սկզբի ամսաթիվ",
         "endDateLabel": "Ավարտի ամսաթիվ",
+        "priorityLabel": "Առաջնահերթություն (ավելի բարձրը՝ առաջինը)",
         "markPaidNowLabel": "Վճարումն արդեն ստացվել է — ակտիվացնել անմիջապես",
         "noteLabel": "Նշում (ընտրովի)",
         "submitAction": "Ստեղծել առաջխաղացում",
@@ -2167,6 +2173,10 @@
         "cancelConfirmTitle": "Դադարեցնե՞լ այս առաջխաղացումն այժմ",
         "cancelConfirmDescription": "Այն անմիջապես կդադարի հրապարակայնորեն երևալուց։ Այս գործողությունը հնարավոր չէ հետարկել։",
         "cancelSuccess": "Առաջխաղացումը դադարեցվեց։",
+        "pauseAction": "Դադարեցնել ժամանակավորապես",
+        "pauseSuccess": "Առաջխաղացումը դադարեցվեց ժամանակավորապես։",
+        "resumeAction": "Վերսկսել",
+        "resumeSuccess": "Առաջխաղացումը վերսկսվեց։",
         "extendAction": "Երկարացնել",
         "extendTitle": "Երկարացնել առաջխաղացումը",
         "extendCurrentEnd": "Ներկայումս ավարտվում է {{date}}։",

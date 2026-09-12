@@ -45,6 +45,8 @@ import {
   useApproveAdvertisementMutation,
   useRejectAdvertisementMutation,
   useCancelAdvertisementMutation,
+  usePauseAdvertisementMutation,
+  useResumeAdvertisementMutation,
   useExtendAdvertisementMutation,
   PLACEMENT_CODES,
 } from '../../../advertising/index.js';
@@ -59,6 +61,9 @@ const STATUS_BADGE_VARIANT = {
   EXPIRED: 'neutral',
   REJECTED: 'danger',
   CANCELLED: 'danger',
+  // Pass 7B — reversible admin toggle, visually distinct from both the
+  // "live" ACTIVE and the terminal CANCELLED/REJECTED states.
+  PAUSED: 'warning',
 };
 const OPEN_STATUSES = [
   'REQUEST_SUBMITTED',
@@ -67,7 +72,14 @@ const OPEN_STATUSES = [
   'APPROVED',
   'SCHEDULED',
   'ACTIVE',
+  'PAUSED',
 ];
+const PAUSABLE_STATUSES = ['SCHEDULED', 'ACTIVE'];
+// Pass 7B (brief §12/§13) — "Both" is a pure UI convenience: the domain
+// stays two separate `advertisements` rows (one per placement), never a
+// schema/enum change. Selecting it fires `createPromotion` twice — see
+// `handleCreate` below.
+const BOTH_PLACEMENTS_VALUE = 'BOTH';
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -78,8 +90,13 @@ const EMPTY_CREATE_FORM = {
   placementCode: PLACEMENT_CODES.HOME,
   categoryId: '',
   productId: '',
+  // Pass 7B — only used when placementCode === BOTH_PLACEMENTS_VALUE (the
+  // Category leg's own product, since Home/Category have separate
+  // catalogs).
+  categoryProductId: '',
   startDate: todayDateString(),
   endDate: '',
+  displayPriority: '',
   markPaidNow: true,
   note: '',
 };
@@ -118,14 +135,24 @@ export default function AdminPromotionsPageContent() {
   const approveMutation = useApproveAdvertisementMutation();
   const rejectMutation = useRejectAdvertisementMutation();
   const cancelMutation = useCancelAdvertisementMutation();
+  const pauseMutation = usePauseAdvertisementMutation();
+  const resumeMutation = useResumeAdvertisementMutation();
   const extendMutation = useExtendAdvertisementMutation();
 
   const placements = catalogQuery.data ?? [];
-  const selectedPlacement = placements.find(
-    (p) => p.code === createForm.placementCode,
+  const isBothPlacements = createForm.placementCode === BOTH_PLACEMENTS_VALUE;
+  const homePlacement = placements.find((p) => p.code === PLACEMENT_CODES.HOME);
+  const categoryPlacement = placements.find(
+    (p) => p.code === PLACEMENT_CODES.CATEGORY,
   );
+  const selectedPlacement = isBothPlacements
+    ? homePlacement
+    : placements.find((p) => p.code === createForm.placementCode);
   const selectedProduct = selectedPlacement?.products.find(
     (p) => String(p.id) === String(createForm.productId),
+  );
+  const selectedCategoryProduct = categoryPlacement?.products.find(
+    (p) => String(p.id) === String(createForm.categoryProductId),
   );
   const dateTimeFormatter = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: 'medium',
@@ -139,24 +166,58 @@ export default function AdminPromotionsPageContent() {
     setCreateOpen(true);
   }
 
+  function buildPromotionPayload({ placementCode, productId, product }) {
+    return {
+      listingId: Number(createForm.listingId),
+      placementCode,
+      categoryId:
+        placementCode === PLACEMENT_CODES.CATEGORY
+          ? Number(createForm.categoryId)
+          : undefined,
+      productId: Number(productId),
+      startDate: createForm.startDate,
+      endDate: product?.duration_days == null ? createForm.endDate : undefined,
+      displayPriority:
+        createForm.displayPriority === ''
+          ? undefined
+          : Number(createForm.displayPriority),
+      markPaidNow: createForm.markPaidNow,
+      note: createForm.note || undefined,
+    };
+  }
+
   async function handleCreate() {
     try {
-      await createMutation.mutateAsync({
-        listingId: Number(createForm.listingId),
-        placementCode: createForm.placementCode,
-        categoryId:
-          createForm.placementCode === PLACEMENT_CODES.CATEGORY
-            ? Number(createForm.categoryId)
-            : undefined,
-        productId: Number(createForm.productId),
-        startDate: createForm.startDate,
-        endDate:
-          selectedProduct?.duration_days == null
-            ? createForm.endDate
-            : undefined,
-        markPaidNow: createForm.markPaidNow,
-        note: createForm.note || undefined,
-      });
+      if (isBothPlacements) {
+        // Pass 7B (brief §12/§13) — "Both" stays a pure UI convenience:
+        // two separate `advertisements` rows (the existing per-placement
+        // domain shape), never a schema/enum change. Sequential, not
+        // parallel, so a failure on the second call still leaves the
+        // first's real row intact and visible in the table below rather
+        // than an ambiguous partial state from two racing requests.
+        await createMutation.mutateAsync(
+          buildPromotionPayload({
+            placementCode: PLACEMENT_CODES.HOME,
+            productId: createForm.productId,
+            product: selectedProduct,
+          }),
+        );
+        await createMutation.mutateAsync(
+          buildPromotionPayload({
+            placementCode: PLACEMENT_CODES.CATEGORY,
+            productId: createForm.categoryProductId,
+            product: selectedCategoryProduct,
+          }),
+        );
+      } else {
+        await createMutation.mutateAsync(
+          buildPromotionPayload({
+            placementCode: createForm.placementCode,
+            productId: createForm.productId,
+            product: selectedProduct,
+          }),
+        );
+      }
       showToast(t('admin.promotions.create.success'), { variant: 'success' });
       setCreateOpen(false);
     } catch (err) {
@@ -236,6 +297,32 @@ export default function AdminPromotionsPageContent() {
     }
   }
 
+  async function handlePause(ad) {
+    try {
+      await pauseMutation.mutateAsync({ id: ad.id });
+      showToast(t('admin.promotions.actions.pauseSuccess'), {
+        variant: 'success',
+      });
+    } catch {
+      showToast(t('admin.promotions.actions.actionError'), {
+        variant: 'danger',
+      });
+    }
+  }
+
+  async function handleResume(ad) {
+    try {
+      await resumeMutation.mutateAsync({ id: ad.id });
+      showToast(t('admin.promotions.actions.resumeSuccess'), {
+        variant: 'success',
+      });
+    } catch {
+      showToast(t('admin.promotions.actions.actionError'), {
+        variant: 'danger',
+      });
+    }
+  }
+
   async function handleExtend() {
     try {
       await extendMutation.mutateAsync({
@@ -276,6 +363,7 @@ export default function AdminPromotionsPageContent() {
       'EXPIRED',
       'REJECTED',
       'CANCELLED',
+      'PAUSED',
     ].map((code) => ({
       value: code,
       label: t(`advertising.statuses.${code}`),
@@ -290,21 +378,39 @@ export default function AdminPromotionsPageContent() {
       value: PLACEMENT_CODES.CATEGORY,
       label: t('advertising.placements.CATEGORY_TOP'),
     },
+    {
+      value: BOTH_PLACEMENTS_VALUE,
+      label: t('admin.promotions.create.bothPlacementsLabel'),
+    },
   ];
-  const productOptions = (selectedPlacement?.products ?? []).map((p) => ({
-    value: String(p.id),
-    label:
-      p.duration_days != null
-        ? t('admin.promotions.create.productDurationLabel', {
-            days: p.duration_days,
-            amount: p.price_amount,
-            currency: p.currency_code,
-          })
-        : t('admin.promotions.create.productCustomLabel', {
-            amount: p.price_amount,
-            currency: p.currency_code,
-          }),
-  }));
+  function toProductOption(p) {
+    return {
+      value: String(p.id),
+      label:
+        p.duration_days != null
+          ? t('admin.promotions.create.productDurationLabel', {
+              days: p.duration_days,
+              amount: p.price_amount,
+              currency: p.currency_code,
+            })
+          : t('admin.promotions.create.productCustomLabel', {
+              amount: p.price_amount,
+              currency: p.currency_code,
+            }),
+    };
+  }
+  // "Both" fires two separate creates sharing one startDate/endDate — a
+  // Custom Period product's endDate is a single form field, so "Both"
+  // restricts product choice to fixed-duration products only, where each
+  // leg's own endDate is server-computed independently. A genuinely
+  // custom-length "Both" promotion still works as two separate single-
+  // placement creates.
+  const productOptions = (selectedPlacement?.products ?? [])
+    .filter((p) => !isBothPlacements || p.duration_days != null)
+    .map(toProductOption);
+  const categoryProductOptions = (categoryPlacement?.products ?? [])
+    .filter((p) => p.duration_days != null)
+    .map(toProductOption);
   const categoryOptions = (categoriesQuery.data ?? []).map((c) => ({
     value: String(c.id),
     label: c.name,
@@ -340,6 +446,11 @@ export default function AdminPromotionsPageContent() {
       header: t('admin.promotions.columns.dates'),
       render: (row) =>
         `${dateTimeFormatter.format(new Date(`${row.start_date}T00:00:00Z`))} – ${dateTimeFormatter.format(new Date(`${row.end_date}T00:00:00Z`))}`,
+    },
+    {
+      key: 'priority',
+      header: t('admin.promotions.columns.priority'),
+      render: (row) => row.display_priority,
     },
     {
       key: 'payment',
@@ -391,6 +502,32 @@ export default function AdminPromotionsPageContent() {
           {row.status_code === 'REQUEST_SUBMITTED' && (
             <Button variant="ghost" size="sm" onClick={() => handleReject(row)}>
               {t('admin.promotions.actions.rejectAction')}
+            </Button>
+          )}
+          {PAUSABLE_STATUSES.includes(row.status_code) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handlePause(row)}
+              loading={
+                pauseMutation.isPending &&
+                pauseMutation.variables?.id === row.id
+              }
+            >
+              {t('admin.promotions.actions.pauseAction')}
+            </Button>
+          )}
+          {row.status_code === 'PAUSED' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleResume(row)}
+              loading={
+                resumeMutation.isPending &&
+                resumeMutation.variables?.id === row.id
+              }
+            >
+              {t('admin.promotions.actions.resumeAction')}
             </Button>
           )}
           {OPEN_STATUSES.includes(row.status_code) && (
@@ -506,8 +643,10 @@ export default function AdminPromotionsPageContent() {
                 disabled={
                   !createForm.listingId ||
                   !createForm.productId ||
-                  (createForm.placementCode === PLACEMENT_CODES.CATEGORY &&
-                    !createForm.categoryId)
+                  ((createForm.placementCode === PLACEMENT_CODES.CATEGORY ||
+                    isBothPlacements) &&
+                    !createForm.categoryId) ||
+                  (isBothPlacements && !createForm.categoryProductId)
                 }
               >
                 {t('admin.promotions.create.submitAction')}
@@ -537,11 +676,13 @@ export default function AdminPromotionsPageContent() {
                   ...prev,
                   placementCode: value,
                   productId: '',
+                  categoryProductId: '',
                   categoryId: '',
                 }))
               }
             />
-            {createForm.placementCode === PLACEMENT_CODES.CATEGORY && (
+            {(createForm.placementCode === PLACEMENT_CODES.CATEGORY ||
+              isBothPlacements) && (
               <Select
                 label={t('admin.promotions.create.categoryLabel')}
                 options={categoryOptions}
@@ -552,13 +693,30 @@ export default function AdminPromotionsPageContent() {
               />
             )}
             <Select
-              label={t('admin.promotions.create.productLabel')}
+              label={
+                isBothPlacements
+                  ? t('admin.promotions.create.homeProductLabel')
+                  : t('admin.promotions.create.productLabel')
+              }
               options={productOptions}
               value={createForm.productId}
               onChange={(value) =>
                 setCreateForm((prev) => ({ ...prev, productId: value }))
               }
             />
+            {isBothPlacements && (
+              <Select
+                label={t('admin.promotions.create.categoryProductLabel')}
+                options={categoryProductOptions}
+                value={createForm.categoryProductId}
+                onChange={(value) =>
+                  setCreateForm((prev) => ({
+                    ...prev,
+                    categoryProductId: value,
+                  }))
+                }
+              />
+            )}
             <Input
               label={t('admin.promotions.create.startDateLabel')}
               type="date"
@@ -570,19 +728,35 @@ export default function AdminPromotionsPageContent() {
                 }))
               }
             />
-            {selectedProduct?.duration_days == null && createForm.productId && (
-              <Input
-                label={t('admin.promotions.create.endDateLabel')}
-                type="date"
-                value={createForm.endDate}
-                onChange={(event) =>
-                  setCreateForm((prev) => ({
-                    ...prev,
-                    endDate: event.target.value,
-                  }))
-                }
-              />
-            )}
+            {!isBothPlacements &&
+              selectedProduct?.duration_days == null &&
+              createForm.productId && (
+                <Input
+                  label={t('admin.promotions.create.endDateLabel')}
+                  type="date"
+                  value={createForm.endDate}
+                  onChange={(event) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      endDate: event.target.value,
+                    }))
+                  }
+                />
+              )}
+            <Input
+              label={t('admin.promotions.create.priorityLabel')}
+              type="number"
+              min="0"
+              max="1000"
+              value={createForm.displayPriority}
+              placeholder="0"
+              onChange={(event) =>
+                setCreateForm((prev) => ({
+                  ...prev,
+                  displayPriority: event.target.value,
+                }))
+              }
+            />
             <Checkbox
               label={t('admin.promotions.create.markPaidNowLabel')}
               checked={createForm.markPaidNow}

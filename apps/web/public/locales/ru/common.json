@@ -59,7 +59,8 @@
       "ACTIVE": "Активно",
       "EXPIRED": "Истекло",
       "REJECTED": "Отклонено",
-      "CANCELLED": "Отменено"
+      "CANCELLED": "Отменено",
+      "PAUSED": "Приостановлено"
     }
   },
   "common": {
@@ -2151,6 +2152,7 @@
         "placement": "Размещение",
         "status": "Статус",
         "dates": "Даты",
+        "priority": "Приоритет",
         "payment": "Оплата"
       },
       "payment": {
@@ -2162,12 +2164,16 @@
         "title": "Создать продвижение",
         "listingIdLabel": "ID объявления",
         "placementLabel": "Размещение",
+        "bothPlacementsLabel": "Оба (Главная + Категория)",
         "categoryLabel": "Категория",
         "productLabel": "Срок / цена",
+        "homeProductLabel": "Срок / цена (Главная)",
+        "categoryProductLabel": "Срок / цена (Категория)",
         "productDurationLabel": "{{days}} дн. — {{amount}} {{currency}}",
         "productCustomLabel": "Произвольный срок — {{amount}} {{currency}} в день",
         "startDateLabel": "Дата начала",
         "endDateLabel": "Дата окончания",
+        "priorityLabel": "Приоритет (выше — показывается раньше)",
         "markPaidNowLabel": "Оплата уже получена — активировать сразу",
         "noteLabel": "Примечание (необязательно)",
         "submitAction": "Создать продвижение",
@@ -2187,6 +2193,10 @@
         "cancelConfirmTitle": "Завершить продвижение сейчас?",
         "cancelConfirmDescription": "Оно сразу перестанет отображаться публично. Это действие нельзя отменить.",
         "cancelSuccess": "Продвижение завершено.",
+        "pauseAction": "Приостановить",
+        "pauseSuccess": "Продвижение приостановлено.",
+        "resumeAction": "Возобновить",
+        "resumeSuccess": "Продвижение возобновлено.",
         "extendAction": "Продлить",
         "extendTitle": "Продлить продвижение",
         "extendCurrentEnd": "Сейчас заканчивается {{date}}.",

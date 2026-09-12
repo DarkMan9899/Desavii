@@ -69,7 +69,8 @@
       "ACTIVE": "Active",
       "EXPIRED": "Expired",
       "REJECTED": "Rejected",
-      "CANCELLED": "Cancelled"
+      "CANCELLED": "Cancelled",
+      "PAUSED": "Paused"
     }
   },
   "nav": {
@@ -2131,6 +2132,7 @@
         "placement": "Placement",
         "status": "Status",
         "dates": "Dates",
+        "priority": "Priority",
         "payment": "Payment"
       },
       "payment": {
@@ -2142,12 +2144,16 @@
         "title": "Create promotion",
         "listingIdLabel": "Listing ID",
         "placementLabel": "Placement",
+        "bothPlacementsLabel": "Both (Home + Category)",
         "categoryLabel": "Category",
         "productLabel": "Duration / price",
+        "homeProductLabel": "Home duration / price",
+        "categoryProductLabel": "Category duration / price",
         "productDurationLabel": "{{days}} days — {{amount}} {{currency}}",
         "productCustomLabel": "Custom period — {{amount}} {{currency}} per day",
         "startDateLabel": "Start date",
         "endDateLabel": "End date",
+        "priorityLabel": "Priority (higher shows first)",
         "markPaidNowLabel": "Payment already received — activate immediately",
         "noteLabel": "Note (optional)",
         "submitAction": "Create promotion",
@@ -2167,6 +2173,10 @@
         "cancelConfirmTitle": "End this promotion now?",
         "cancelConfirmDescription": "It stops appearing publicly immediately. This cannot be undone.",
         "cancelSuccess": "Promotion ended.",
+        "pauseAction": "Pause",
+        "pauseSuccess": "Promotion paused.",
+        "resumeAction": "Resume",
+        "resumeSuccess": "Promotion resumed.",
         "extendAction": "Extend",
         "extendTitle": "Extend promotion",
         "extendCurrentEnd": "Currently ends {{date}}.",
