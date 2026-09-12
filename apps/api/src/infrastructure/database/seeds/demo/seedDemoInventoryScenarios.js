@@ -106,8 +106,8 @@ export async function insertBookableUnit(
   return result.insertId;
 }
 
-/** Sprint C-1 — room description (`bookable_unit_translations`) for one unit across every seeded language. Mirrors this file's own listing-media raw-INSERT style rather than going through the Availability module's Service layer (seed scripts write directly, same as every other helper in this file). */
-async function insertRoomTranslations(
+/** Sprint C-1 — room description (`bookable_unit_translations`) for one unit across every seeded language. Mirrors this file's own listing-media raw-INSERT style rather than going through the Availability module's Service layer (seed scripts write directly, same as every other helper in this file). Exported (Pass 5) so `seedDemoSprintJCatalog.js` can give its own hotel rooms the same rich data this file's dev-vendor listing already has, instead of a second copy of this helper. */
+export async function insertRoomTranslations(
   connection,
   { unitId, languageIds, descriptions },
 ) {
@@ -126,8 +126,11 @@ async function insertRoomTranslations(
   }
 }
 
-/** Sprint C-1 — room-specific amenities (`bookable_unit_amenity_listing`), resolved from the shared `listing_amenities` catalog by name. */
-async function insertRoomAmenities(connection, { unitId, amenityNames }) {
+/** Sprint C-1 — room-specific amenities (`bookable_unit_amenity_listing`), resolved from the shared `listing_amenities` catalog by name. Exported (Pass 5) — see `insertRoomTranslations`'s export note above. */
+export async function insertRoomAmenities(
+  connection,
+  { unitId, amenityNames },
+) {
   // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order
   for (const name of amenityNames) {
     // eslint-disable-next-line no-await-in-loop -- sequential by design
@@ -145,8 +148,8 @@ async function insertRoomAmenities(connection, { unitId, amenityNames }) {
   }
 }
 
-/** Sprint C-1 — room-specific photo gallery (`media` with `mediable_type = 'bookable_unit'`), deliberately its own image set per room, never copied from the listing's own gallery. */
-async function insertRoomMedia(
+/** Sprint C-1 — room-specific photo gallery (`media` with `mediable_type = 'bookable_unit'`), deliberately its own image set per room, never copied from the listing's own gallery. Exported (Pass 5) — see `insertRoomTranslations`'s export note above. */
+export async function insertRoomMedia(
   connection,
   {
     unitId,

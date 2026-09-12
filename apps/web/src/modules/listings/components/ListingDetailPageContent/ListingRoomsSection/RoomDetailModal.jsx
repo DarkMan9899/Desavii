@@ -36,6 +36,7 @@ import {
   Cigarette,
 } from 'lucide-react';
 import ListingGallery from '../ListingGallery/ListingGallery.jsx';
+import DestinationArt from '../../../../../components/DestinationArt/DestinationArt.jsx';
 import getLocalizedTranslation from '../../../utils/getLocalizedTranslation.js';
 import { resolveUnitDisplayLabel } from '../../../utils/resolveUnitDisplayLabel.js';
 import { formatBedConfiguration } from '../../../utils/bedConfigurationDisplay.js';
@@ -140,9 +141,12 @@ export default function RoomDetailModal({
         {unit.media?.length > 0 ? (
           <ListingGallery media={unit.media} title={title} />
         ) : (
-          <p className={styles.noPhotos}>
-            {t('pages.listingDetail.rooms.noRoomPhotos')}
-          </p>
+          <div className={styles.noPhotos}>
+            <DestinationArt seed={unit.id} className={styles.noPhotosArt} />
+            <p className={styles.noPhotosCaption}>
+              {t('pages.listingDetail.rooms.noRoomPhotos')}
+            </p>
+          </div>
         )}
 
         {description && <p className={styles.description}>{description}</p>}

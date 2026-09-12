@@ -49,6 +49,9 @@ import {
   insertListing,
   insertBookableUnit,
   seedCalendarWindow,
+  insertRoomTranslations,
+  insertRoomAmenities,
+  insertRoomMedia,
 } from './seedDemoInventoryScenarios.js';
 import {
   upsertTranslation,
@@ -208,10 +211,44 @@ const LISTINGS = [
     units: [
       {
         type: 'HOTEL_ROOM',
-        label: 'Standard Room',
+        label: 'Heritage Room',
         capacity: 4,
         maxGuests: 2,
         basePriceAmount: 16000,
+        bedConfiguration: [{ type: 'QUEEN', count: 1 }],
+        roomSizeSqm: 20,
+        bathroomType: 'PRIVATE',
+        viewType: 'CITY',
+        smokingPolicy: 'NON_SMOKING',
+        amenities: ['WiFi', 'Non-Smoking Rooms'],
+        images: ['hotels-2.svg', 'hotels-3.svg'],
+        descriptions: {
+          en: 'A ground-floor room in the original merchant house, keeping its tall ceilings and a shuttered window facing the street.',
+          hy: 'Առաջին հարկի սենյակ՝ պահպանված բարձր առաստաղով և փողոց նայող փեղկավոր պատուհանով։',
+          ru: 'Номер на первом этаже купеческого дома с высокими потолками и ставнями на окне, выходящем на улицу.',
+        },
+      },
+      {
+        type: 'HOTEL_ROOM',
+        label: 'Courtyard Suite',
+        capacity: 2,
+        maxGuests: 3,
+        basePriceAmount: 24000,
+        bedConfiguration: [
+          { type: 'QUEEN', count: 1 },
+          { type: 'SOFA_BED', count: 1 },
+        ],
+        roomSizeSqm: 30,
+        bathroomType: 'ENSUITE',
+        viewType: 'COURTYARD',
+        smokingPolicy: 'NON_SMOKING',
+        amenities: ['WiFi', 'Non-Smoking Rooms', 'Breakfast Included'],
+        images: ['hotels-4.svg', 'hotels-5.svg'],
+        descriptions: {
+          en: 'The hotel largest room, overlooking the small courtyard garden, with its own en-suite bathroom and a sofa bed for a third guest.',
+          hy: 'Հյուրանոցի ամենամեծ սենյակը՝ նայող բակի փոքրիկ այգուն, սեփական լոգարանով և բազմոց-մահճակալով՝ երրորդ հյուրի համար։',
+          ru: 'Самый большой номер отеля с видом на небольшой дворовый сад, отдельной ванной комнатой и диваном-кроватью для третьего гостя.',
+        },
       },
     ],
   },
@@ -270,6 +307,40 @@ const LISTINGS = [
         capacity: 3,
         maxGuests: 3,
         basePriceAmount: 38000,
+        bedConfiguration: [{ type: 'QUEEN', count: 1 }],
+        roomSizeSqm: 26,
+        bathroomType: 'ENSUITE',
+        viewType: 'MOUNTAIN',
+        smokingPolicy: 'NON_SMOKING',
+        amenities: ['WiFi', 'Air Conditioning', 'Non-Smoking Rooms'],
+        images: ['hotels-8.svg', 'hotels-1.svg'],
+        descriptions: {
+          en: 'A room larger than a typical city hotel, with a private balcony facing the surrounding hills — steps from the indoor thermal pool.',
+          hy: 'Սովորական քաղաքային հյուրանոցից ընդարձակ սենյակ՝ շրջակա բլուրներին նայող սեփական պատշգամբով, մի քանի քայլ փակ թերմալ լողավազանից։',
+          ru: 'Номер просторнее, чем в типичном городском отеле, с собственным балконом с видом на окрестные холмы — в нескольких шагах от крытого термального бассейна.',
+        },
+      },
+      {
+        type: 'HOTEL_ROOM',
+        label: 'Deluxe Spa Suite',
+        capacity: 2,
+        maxGuests: 4,
+        basePriceAmount: 52000,
+        bedConfiguration: [
+          { type: 'KING', count: 1 },
+          { type: 'SOFA_BED', count: 1 },
+        ],
+        roomSizeSqm: 38,
+        bathroomType: 'ENSUITE',
+        viewType: 'MOUNTAIN',
+        smokingPolicy: 'NON_SMOKING',
+        amenities: ['WiFi', 'Air Conditioning', 'Non-Smoking Rooms', 'Minibar'],
+        images: ['hotels-6.svg', 'hotels-7.svg'],
+        descriptions: {
+          en: 'A two-room suite with a separate sitting area, a wider balcony over the hills, and priority booking for the treatment wing.',
+          hy: 'Երկսենյականոց լյուքս՝ առանձին հանգստի գոտիով, բլուրներին նայող ընդարձակ պատշգամբով և պրոցեդուրային թևամասի առաջնահերթ ամրագրմամբ։',
+          ru: 'Люкс из двух комнат с отдельной гостиной зоной, широким балконом с видом на холмы и приоритетной записью в процедурное крыло.',
+        },
       },
     ],
   },
@@ -321,6 +392,40 @@ const LISTINGS = [
         capacity: 5,
         maxGuests: 2,
         basePriceAmount: 13000,
+        bedConfiguration: [{ type: 'DOUBLE', count: 1 }],
+        roomSizeSqm: 16,
+        bathroomType: 'PRIVATE',
+        viewType: 'NONE',
+        smokingPolicy: 'NON_SMOKING',
+        amenities: ['WiFi', 'Non-Smoking Rooms'],
+        images: ['hotels-2.svg', 'hotels-3.svg'],
+        descriptions: {
+          en: 'A compact, clean room facing the quiet side street rather than the main road — a practical base for business in Lori province.',
+          hy: 'Կոմպակտ, մաքուր սենյակ՝ նայող հանգիստ կողքի փողոցին, ոչ թե գլխավոր ճանապարհին. գործնական բազա Լոռու մարզում աշխատանքի համար։',
+          ru: 'Компактный чистый номер окнами на тихую боковую улицу, а не на главную дорогу — практичная база для дел в провинции Лори.',
+        },
+      },
+      {
+        type: 'HOTEL_ROOM',
+        label: 'Family Room',
+        capacity: 2,
+        maxGuests: 4,
+        basePriceAmount: 21000,
+        bedConfiguration: [
+          { type: 'DOUBLE', count: 1 },
+          { type: 'TWIN', count: 2 },
+        ],
+        roomSizeSqm: 26,
+        bathroomType: 'PRIVATE',
+        viewType: 'NONE',
+        smokingPolicy: 'NON_SMOKING',
+        amenities: ['WiFi', 'Non-Smoking Rooms'],
+        images: ['hotels-4.svg', 'hotels-5.svg'],
+        descriptions: {
+          en: 'A larger room with one double bed and two twin beds, built for a family stopping between Yerevan and the Debed Canyon monasteries.',
+          hy: 'Ընդարձակ սենյակ՝ մեկ երկտեղանոց և երկու առանձին մահճակալով, նախատեսված Երևանից Դեբեդի կիրճի վանքեր ուղևորվող ընտանիքի համար։',
+          ru: 'Номер побольше с одной двуспальной и двумя односпальными кроватями — для семьи в пути между Ереваном и монастырями Дебедского каньона.',
+        },
       },
     ],
   },
@@ -1530,6 +1635,16 @@ async function createFullListing(connection, ctx, spec) {
       maxGuests: unit.maxGuests ?? null,
       basePriceAmount: unit.basePriceAmount ?? null,
       basePriceCurrencyId: unit.basePriceAmount ? ctx.amdCurrencyId : null,
+      // Pass 5 (Rooms audit, owner issue #11): the same structured
+      // room-product fields `seedDemoInventoryScenarios.js`'s own
+      // flagship hotel already populates — optional here so every unit
+      // spec that doesn't set them (tours, vehicles, restaurant tables)
+      // is unaffected.
+      bedConfiguration: unit.bedConfiguration ?? null,
+      roomSizeSqm: unit.roomSizeSqm ?? null,
+      bathroomType: unit.bathroomType ?? null,
+      viewType: unit.viewType ?? null,
+      smokingPolicy: unit.smokingPolicy ?? null,
     });
     // eslint-disable-next-line no-await-in-loop -- sequential by design
     await seedCalendarWindow(connection, {
@@ -1539,6 +1654,35 @@ async function createFullListing(connection, ctx, spec) {
       days: 240,
       availableStatusId: ctx.availableStatusId,
     });
+
+    if (unit.descriptions) {
+      // eslint-disable-next-line no-await-in-loop -- sequential by design
+      await insertRoomTranslations(connection, {
+        unitId,
+        languageIds: ctx.languageIds,
+        descriptions: unit.descriptions,
+      });
+    }
+    if (unit.amenities?.length > 0) {
+      // eslint-disable-next-line no-await-in-loop -- sequential by design
+      await insertRoomAmenities(connection, {
+        unitId,
+        amenityNames: unit.amenities,
+      });
+    }
+    if (unit.images?.length > 0) {
+      // eslint-disable-next-line no-await-in-loop -- sequential by design
+      await insertRoomMedia(connection, {
+        unitId,
+        imagePaths: unit.images.map(
+          (file) => `/assets/images/demo/${spec.categorySlug}/${file}`,
+        ),
+        imageTypeId: ctx.imageTypeId,
+        completedUploadStatusId: ctx.completedUploadStatusId,
+        approvedStatusId: ctx.approvedStatusId,
+        ownerUserId: partner.ownerUserId,
+      });
+    }
   }
 
   return listingId;

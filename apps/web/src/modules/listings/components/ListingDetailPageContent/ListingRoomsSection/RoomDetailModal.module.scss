@@ -1,13 +1,28 @@
 // RoomDetailModal — tokens only, consumed from @desavii/ui.
 @use 'tokens' as tokens;
 
+// A controlled, quiet stand-in for a missing gallery — the same
+// generative art every other "no photo" placeholder in the app already
+// uses (RoomCard's own cover, listing cards), at a deliberately
+// shorter aspect ratio than a real gallery so absence never reads as
+// the page's dominant visual.
 .noPhotos {
-  padding: tokens.$space-6;
-  text-align: center;
-  color: tokens.$color-gray-600;
-  background-color: tokens.$color-gray-100;
-  border-radius: tokens.$radius-md;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: tokens.$space-3;
+}
+
+.noPhotosArt {
+  width: 100%;
+  aspect-ratio: 21 / 9;
+  border-radius: tokens.$radius-xl;
+}
+
+.noPhotosCaption {
   margin: 0;
+  color: tokens.$color-gray-600;
+  font-size: tokens.$font-size-small;
 }
 
 .description {
