@@ -25,6 +25,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import ListingCardBase from '../../../../components/ListingCardBase/ListingCardBase.jsx';
 import { FavoriteButton } from '../../../favorites/index.js';
+import { resolveCardConfig } from '../../../../utils/categoryCardConfig.js';
 import styles from './SearchResultCard.module.scss';
 
 /**
@@ -65,6 +66,44 @@ export default function SearchResultCard({
     defaultValue: result.listing_type,
   });
 
+  // Pass 7 (category-specific visual identity, brief §15) — the real
+  // category slug when the search DTO has resolved one, falling back to
+  // the coarser `listing_type` for a DTO shape that predates the new
+  // field (e.g. an older cached response). Never the full `listings`
+  // module's `resolveCategoryVisualKey`/`resolvePresentationGroup`: that
+  // module already depends on `modules/search` (`RelatedListings`), so
+  // importing it back here would close a real module dependency cycle —
+  // this simpler inline fallback needs no such import.
+  const categoryVisualKey =
+    result.category_slug ?? result.listing_type?.toLowerCase();
+  const cardConfig = resolveCardConfig(categoryVisualKey);
+  // Restaurant-only real data today (brief §9/§22's deferred card
+  // metadata) — both fields are `null` for every other category, so this
+  // naturally renders no chips there. Reuses the SAME i18n namespace
+  // `DynamicFilterPanel`'s `FilterControl` already resolves attribute-
+  // option codes through, never a second translation table for the same
+  // codes.
+  const metaChips = [
+    ...(result.cuisine ?? []).map((code) => ({
+      key: `cuisine-${code}`,
+      label: t(`search.dynamicFilters.options.${code}`, code),
+    })),
+    ...(result.price_tier
+      ? [
+          {
+            key: `price-tier-${result.price_tier}`,
+            label: t(
+              `search.dynamicFilters.options.${result.price_tier}`,
+              result.price_tier,
+            ),
+          },
+        ]
+      : []),
+  ];
+  const priceSuffix = cardConfig.priceUnitKey
+    ? t(`search.card.priceUnit.${cardConfig.priceUnitKey}`)
+    : null;
+
   return (
     <ListingCardBase
       href={`/${locale}/listings/${result.slug ?? result.id}${buildSearchContextQuery(searchParams)}`}
@@ -95,9 +134,13 @@ export default function SearchResultCard({
       // matching how it's actually computed rather than implying an
       // exact, guaranteed rate.
       pricePrefix={t('search.card.fromPrice')}
+      priceSuffix={priceSuffix}
       locale={locale}
       priorityImage={priorityImage}
       topBadgeLabel={topBadgeLabel}
+      metaChips={metaChips}
+      categoryVisualKey={categoryVisualKey}
+      imageAspect={cardConfig.imageAspect}
     />
   );
 }

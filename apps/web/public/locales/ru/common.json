@@ -535,7 +535,12 @@
     },
     "card": {
       "viewDetails": "Смотреть {{title}}",
-      "fromPrice": "От"
+      "fromPrice": "От",
+      "priceUnit": {
+        "perNight": "/ ночь",
+        "perDay": "/ день",
+        "perPerson": "/ с человека"
+      }
     }
   },
   "errors": {

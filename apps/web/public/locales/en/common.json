@@ -535,7 +535,12 @@
     },
     "card": {
       "viewDetails": "View {{title}}",
-      "fromPrice": "From"
+      "fromPrice": "From",
+      "priceUnit": {
+        "perNight": "/ night",
+        "perDay": "/ day",
+        "perPerson": "/ person"
+      }
     }
   },
   "errors": {

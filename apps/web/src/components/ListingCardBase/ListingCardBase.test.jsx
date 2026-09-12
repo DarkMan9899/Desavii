@@ -91,4 +91,37 @@ describe('ListingCardBase (apps/web/src/components)', () => {
     renderCard({ hideTypeBadge: true });
     expect(screen.queryByText('Hotel')).not.toBeInTheDocument();
   });
+
+  // Pass 7 (category-specific visual identity) — new optional, generic
+  // (never category-named) props: the caller resolves category identity,
+  // this shared shell only renders it.
+  test('renders metaChips when provided, nothing when omitted', () => {
+    renderCard({
+      metaChips: [
+        { key: 'a', label: 'Armenian' },
+        { key: 'b', label: '$$' },
+      ],
+    });
+    expect(screen.getByText('Armenian')).toBeInTheDocument();
+    expect(screen.getByText('$$')).toBeInTheDocument();
+  });
+
+  test('renders no meta-chip list when metaChips is empty (default)', () => {
+    renderCard();
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+
+  test('renders priceSuffix alongside the price when both are present', () => {
+    renderCard({
+      priceAmount: '150.00',
+      priceCurrencyCode: 'USD',
+      priceSuffix: '/ night',
+    });
+    expect(screen.getByText('/ night')).toBeInTheDocument();
+  });
+
+  test('sets data-category on the card root for CSS category hooks', () => {
+    renderCard({ categoryVisualKey: 'villas' });
+    expect(screen.getByRole('link')).toHaveAttribute('data-category', 'villas');
+  });
 });

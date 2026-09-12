@@ -535,7 +535,12 @@
     },
     "card": {
       "viewDetails": "Դիտել {{title}}",
-      "fromPrice": "Սկսած"
+      "fromPrice": "Սկսած",
+      "priceUnit": {
+        "perNight": "/ գիշեր",
+        "perDay": "/ օր",
+        "perPerson": "/ անձի համար"
+      }
     }
   },
   "errors": {

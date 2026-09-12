@@ -57,6 +57,10 @@ export default function ListingCardBase({
   priceAmount = undefined,
   priceCurrencyCode = undefined,
   pricePrefix = null,
+  // Pass 7 (category-specific visual identity, brief §15): a per-unit
+  // suffix ("/ night", "/ per day") — generic, caller-resolved, never a
+  // category name baked into this shared shell.
+  priceSuffix = null,
   locale = undefined,
   artSeed = undefined,
   priorityImage = false,
@@ -66,6 +70,21 @@ export default function ListingCardBase({
   // labeled (never a bare color swatch), so it reads correctly without
   // relying on color alone.
   topBadgeLabel = undefined,
+  // Pass 7 (category-specific visual identity, brief §15's acceptance
+  // test: "if the badge were hidden, could you still tell the category?")
+  // — short real-data chips (e.g. Restaurant cuisine/price-tier), never
+  // decorative. Each entry is a `{key, label}` pair; `key` only backs
+  // React's list identity, never rendered.
+  metaChips = [],
+  // Sets `data-category` on the card root for CSS-only aspect-ratio/
+  // motion hooks (`ListingCardBase.module.scss`) — a category slug or the
+  // coarser presentation-group fallback from `resolveCategoryVisualKey`,
+  // never a hardcoded category name inside this shared component.
+  categoryVisualKey = undefined,
+  // 'standard' | 'wide' | 'tall' — see `categoryCardConfig.js`'s
+  // `IMAGE_ASPECT`. Kept a plain string here (not that enum import) so
+  // this shared shell never depends on `modules/listings` config.
+  imageAspect = 'standard',
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   // A real photo (unlike the inline demo SVGs) has a visible network
@@ -82,8 +101,17 @@ export default function ListingCardBase({
       elevated
       className={styles.card}
       aria-label={ariaLabel}
+      data-category={categoryVisualKey}
     >
-      <div className={styles.media}>
+      <div
+        className={[
+          styles.media,
+          imageAspect === 'wide' && styles.mediaWide,
+          imageAspect === 'tall' && styles.mediaTall,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
         {imageUrl && !imageFailed ? (
           <img
             src={imageUrl}
@@ -149,6 +177,15 @@ export default function ListingCardBase({
           />
         )}
         {location}
+        {metaChips.length > 0 && (
+          <ul className={styles.metaChips}>
+            {metaChips.map((chip) => (
+              <li key={chip.key} className={styles.metaChip}>
+                {chip.label}
+              </li>
+            ))}
+          </ul>
+        )}
         {summary && <p className={styles.summary}>{summary}</p>}
         {priceAmount && (
           <span className={styles.priceRow}>
@@ -161,6 +198,9 @@ export default function ListingCardBase({
               locale={locale}
               size="md"
             />
+            {priceSuffix && (
+              <span className={styles.priceSuffix}>{priceSuffix}</span>
+            )}
           </span>
         )}
       </div>
@@ -185,8 +225,17 @@ ListingCardBase.propTypes = {
   priceAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   priceCurrencyCode: PropTypes.string,
   pricePrefix: PropTypes.node,
+  priceSuffix: PropTypes.node,
   locale: PropTypes.string,
   artSeed: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   priorityImage: PropTypes.bool,
   topBadgeLabel: PropTypes.string,
+  metaChips: PropTypes.arrayOf(
+    PropTypes.shape({
+      key: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      label: PropTypes.node.isRequired,
+    }),
+  ),
+  categoryVisualKey: PropTypes.string,
+  imageAspect: PropTypes.oneOf(['standard', 'wide', 'tall']),
 };

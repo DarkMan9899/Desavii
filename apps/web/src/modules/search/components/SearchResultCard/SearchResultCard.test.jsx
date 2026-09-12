@@ -132,4 +132,53 @@ describe('SearchResultCard (apps/web/src/modules/search)', () => {
     renderCard(RESULT, '/en', true);
     expect(screen.queryByText('Հյուրանոց')).not.toBeInTheDocument();
   });
+
+  // Pass 7 (category-specific visual identity, brief §15's acceptance
+  // test: badge hidden, category must still be recognizable). Restaurant
+  // is the one category with real card metadata today (cuisine/price
+  // tier, the deferred item from the previous pass) — these assertions
+  // exercise the new `category_slug`/`cuisine`/`price_tier` search DTO
+  // fields end to end, not just the SQL layer already covered by
+  // `mysqlSearchRepository.buildQuery.test.js`/the new backend
+  // integration test.
+  test('a Restaurant result shows cuisine and price-tier chips, and a per-person price suffix', () => {
+    renderCard({
+      ...RESULT,
+      listing_type: 'RESTAURANT',
+      category_slug: 'restaurants',
+      cuisine: ['ARMENIAN', 'GEORGIAN'],
+      price_tier: '$$',
+      price_amount: '5000.00',
+      price_currency_code: 'AMD',
+    });
+    // Test i18n defaults to 'hy' (tests/setup.js) — Armenian option
+    // labels, matching this file's existing 'Հյուրանոց'/'Սկսած' convention.
+    expect(screen.getByText('Հայկական')).toBeInTheDocument();
+    expect(screen.getByText('Վրացական')).toBeInTheDocument();
+    expect(screen.getByText('$$')).toBeInTheDocument();
+    expect(screen.getByText('/ անձի համար')).toBeInTheDocument();
+  });
+
+  test('a Hotel result shows no cuisine/price-tier chips and a per-night price suffix (never fabricated for other categories)', () => {
+    renderCard({
+      ...RESULT,
+      category_slug: 'hotels',
+      cuisine: null,
+      price_tier: null,
+      price_amount: '99.00',
+      price_currency_code: 'USD',
+    });
+    expect(screen.queryByText('Հայկական')).not.toBeInTheDocument();
+    expect(screen.getByText('/ գիշեր')).toBeInTheDocument();
+  });
+
+  test('renders no price-unit suffix when category_slug is absent (unresolved category, never guessed)', () => {
+    renderCard({
+      ...RESULT,
+      category_slug: undefined,
+      price_amount: '99.00',
+      price_currency_code: 'USD',
+    });
+    expect(screen.queryByText('/ գիշեր')).not.toBeInTheDocument();
+  });
 });

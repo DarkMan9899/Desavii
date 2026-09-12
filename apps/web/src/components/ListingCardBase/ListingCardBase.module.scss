@@ -21,6 +21,21 @@
   background-color: tokens.$color-gray-100;
   overflow: hidden;
 
+  // Pass 7 (category-specific visual identity, brief §15): imagery ratio
+  // is one of the differentiation dimensions the brief calls out
+  // explicitly — Villas/Tours/Attractions get a wider, more panoramic
+  // crop (brief §7/§10/§12's "stronger image presence"/"editorial"
+  // language); Entertainment gets a tall, portrait "poster" crop (brief
+  // §13's own explicit "poster/event imagery"). Every other category
+  // keeps the original 4:3.
+  &.mediaWide {
+    aspect-ratio: 16 / 9;
+  }
+
+  &.mediaTall {
+    aspect-ratio: 3 / 4;
+  }
+
   // A soft top scrim so badges stay legible over any image, not just
   // dark ones. `::before` (not `::after`) so it paints behind the
   // badges, not over them.
@@ -58,6 +73,22 @@
 
 .card:hover .image {
   transform: scale(1.05);
+}
+
+// Pass 7 (brief §17's per-category motion grammar) — reuses the SAME
+// image-zoom transition/token above (never a second animation mechanism
+// per category — brief: "transform/opacity first, no excessive
+// animation"), just a different intensity for the categories the brief
+// gives an explicitly more pronounced treatment: Villa's "cinematic
+// gallery motion" and Tour's "directional motion" get a stronger zoom
+// (with a slight upward drift for Tour, reading as forward movement);
+// every other category keeps the base 1.05 above.
+.card[data-category='villas']:hover .image {
+  transform: scale(1.08);
+}
+
+.card[data-category='tours']:hover .image {
+  transform: scale(1.07) translateY(-2px);
 }
 
 .imagePlaceholder {
@@ -129,6 +160,30 @@
   @include truncate.truncate-lines(2);
 }
 
+// Pass 7 (category-specific visual identity, brief §15) — real per-
+// category metadata (Restaurant cuisine/price-tier today), never
+// decorative. A plain inline list, not `Badge` primitives: these are
+// dense, secondary facts read at a glance, not a call-to-action-level
+// affordance.
+.metaChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.metaChip {
+  padding: 2px tokens.$space-2;
+  border-radius: tokens.$radius-full;
+  background-color: tokens.$color-gray-100;
+  color: tokens.$color-gray-600;
+  font-size: tokens.$font-size-micro;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 // A visual footer, not just the last flex item — a hairline separates
 // price from the descriptive content above it, so it reads as the
 // card's one settled fact rather than another line of prose.
@@ -142,6 +197,13 @@
 }
 
 .pricePrefix {
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+}
+
+// Pass 7 — the per-unit suffix ("/ night", "/ per day"), mirroring
+// `pricePrefix`'s own quiet, secondary treatment.
+.priceSuffix {
   font-size: tokens.$font-size-small;
   color: tokens.$color-gray-600;
 }
