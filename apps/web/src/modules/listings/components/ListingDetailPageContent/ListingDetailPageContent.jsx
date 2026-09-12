@@ -69,7 +69,7 @@ import RelatedListings from './RelatedListings/RelatedListings.jsx';
 import { FavoriteButton } from '../../../favorites/index.js';
 import { AskAiButton } from '../../../ai/index.js';
 import {
-  resolvePresentationGroup,
+  resolveCategoryVisualKey,
   reorderSections,
   resolveBookingCtaKey,
 } from '../../utils/categoryPresentation.js';
@@ -391,9 +391,21 @@ export default function ListingDetailPageContent() {
   // same components, no per-category markup fork: only the reading order
   // (and the reservation panel's CTA copy, see `bookingCtaKey` below)
   // adapts to what actually matters first for this listing's type.
-  const presentationGroup = resolvePresentationGroup(listing.listing_type);
-  const orderedSections = reorderSections(sections, presentationGroup);
-  const bookingCtaKey = resolveBookingCtaKey(presentationGroup);
+  //
+  // Pass 7 (category-specific visual identity): keyed by the real category
+  // slug (already resolved above as `category`), not just `listing_type` —
+  // `listing_type` alone can't tell Apartments/Villas/Guest Houses (all
+  // PROPERTY) or Attractions/Entertainment (both ATTRACTION) apart, which
+  // is exactly why those pairs previously read identically here.
+  // `resolveCategoryVisualKey` falls back to the coarser group when
+  // `category` hasn't resolved yet (e.g. mid-fetch), so this never regresses
+  // the existing group-based behavior.
+  const categoryVisualKey = resolveCategoryVisualKey({
+    listingType: listing.listing_type,
+    categorySlug: category?.slug,
+  });
+  const orderedSections = reorderSections(sections, categoryVisualKey);
+  const bookingCtaKey = resolveBookingCtaKey(categoryVisualKey);
 
   const sectionElements = {
     [SECTION_ABOUT]: (
