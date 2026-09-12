@@ -534,11 +534,16 @@ describe('BookingDetailPageContent (apps/web/src/modules/bookings)', () => {
         refetch: vi.fn(),
       });
       renderPage();
+      // Pass 5 (owner issue #12): pickup/return each pair their OWN date
+      // with their OWN time and location on one line — `date_from` (Aug 1)
+      // with `start_time` (10:00), `date_to` (Aug 3) with `end_time`
+      // (18:00) — never one combined date range next to a combined time
+      // range, which left it ambiguous which date each time belonged to.
       expect(
-        screen.getByText('Ստացման վայրը: Yerevan, Armenia'),
+        screen.getByText(/Ստացման վայրը:.*10:00.*Yerevan, Armenia/),
       ).toBeInTheDocument();
       expect(
-        screen.getByText('Վերադարձի վայրը: Yerevan, Armenia'),
+        screen.getByText(/Վերադարձի վայրը:.*18:00.*Yerevan, Armenia/),
       ).toBeInTheDocument();
     });
 

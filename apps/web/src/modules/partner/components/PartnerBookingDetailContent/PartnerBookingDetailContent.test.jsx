@@ -573,11 +573,15 @@ describe('PartnerBookingDetailContent (apps/web/src/modules/partner)', () => {
         refetch: vi.fn(),
       });
       renderPage();
+      // Pass 5 (owner issue #12): pickup/return each pair their OWN date
+      // with their OWN time and location — see PartnerBookingDetailContent
+      // .jsx's identical comment for why (date_from+start_time and
+      // date_to+end_time are different calendar days for a vehicle).
       expect(
-        screen.getByText(/Ստացման վայրը: Yerevan, Armenia/),
+        screen.getByText(/Ստացման վայրը:.*10:00.*Yerevan, Armenia/),
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Վերադարձի վայրը: Yerevan, Armenia/),
+        screen.getByText(/Վերադարձի վայրը:.*18:00.*Yerevan, Armenia/),
       ).toBeInTheDocument();
     });
 

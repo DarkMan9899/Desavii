@@ -295,33 +295,49 @@ export default function PartnerBookingDetailContent({
                         {t('bookings.detail.roomType')}: {item.unit_label}
                       </p>
                     )}
-                    <p>
-                      {t('bookings.detail.dates')}:{' '}
-                      {dateFormatter.format(new Date(item.date_from))} –{' '}
-                      {dateFormatter.format(new Date(item.date_to))}
-                    </p>
-                    {formatTimeRange(item.start_time, item.end_time) && (
-                      <p>
-                        {t('bookings.detail.time')}:{' '}
-                        {formatTimeRange(item.start_time, item.end_time)}
-                      </p>
-                    )}
-                    {/* Sprint B (Car Rental Pickup/Return Interval): the
-                        exact fulfillment-critical detail a partner needs
-                        for a vehicle booking — only ever populated for a
-                        VEHICLE item, so every Hotel/Tour booking view here
-                        is unaffected. */}
-                    {item.pickup_location && (
-                      <p>
-                        {t('bookings.detail.pickupLocation')}:{' '}
-                        {item.pickup_location}
-                      </p>
-                    )}
-                    {item.return_location && (
-                      <p>
-                        {t('bookings.detail.returnLocation')}:{' '}
-                        {item.return_location}
-                      </p>
+                    {/* Sprint B (Car Rental Pickup/Return Interval), Pass 5
+                        (owner issue #12): `date_from`+`start_time` and
+                        `date_to`+`end_time` are two DIFFERENT calendar days
+                        for a vehicle (migration 0039) — a partner reading
+                        one combined date range next to one combined time
+                        range can't tell which date each time belongs to.
+                        Pairing each date with its own time and location
+                        removes that ambiguity; every other vertical (a
+                        single-day stay or same-day timed session) keeps
+                        the original combined rendering below. */}
+                    {item.pickup_location || item.return_location ? (
+                      <>
+                        <p>
+                          {t('bookings.detail.pickupLocation')}:{' '}
+                          {dateFormatter.format(new Date(item.date_from))}
+                          {item.start_time ? ` · ${item.start_time}` : ''}
+                          {item.pickup_location
+                            ? ` · ${item.pickup_location}`
+                            : ''}
+                        </p>
+                        <p>
+                          {t('bookings.detail.returnLocation')}:{' '}
+                          {dateFormatter.format(new Date(item.date_to))}
+                          {item.end_time ? ` · ${item.end_time}` : ''}
+                          {item.return_location
+                            ? ` · ${item.return_location}`
+                            : ''}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p>
+                          {t('bookings.detail.dates')}:{' '}
+                          {dateFormatter.format(new Date(item.date_from))} –{' '}
+                          {dateFormatter.format(new Date(item.date_to))}
+                        </p>
+                        {formatTimeRange(item.start_time, item.end_time) && (
+                          <p>
+                            {t('bookings.detail.time')}:{' '}
+                            {formatTimeRange(item.start_time, item.end_time)}
+                          </p>
+                        )}
+                      </>
                     )}
                     {nights !== null && (
                       <p>

@@ -20,7 +20,7 @@
 
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar, Clock, Moon, Hash, Users2, MapPin } from 'lucide-react';
+import { Calendar, Clock, Moon, Hash, Users2 } from 'lucide-react';
 import { Section, Stack, Inline } from '@desavii/ui/components/layout';
 import {
   Skeleton,
@@ -253,43 +253,63 @@ export default function BookingDetailPageContent() {
                         </span>
                       </p>
                     )}
-                    <p className={styles.metaLine}>
-                      <Calendar aria-hidden="true" focusable="false" />
-                      <span>
-                        {dateFormatter.format(new Date(item.date_from))} –{' '}
-                        {dateFormatter.format(new Date(item.date_to))}
-                      </span>
-                    </p>
-                    {formatTimeRange(item.start_time, item.end_time) && (
-                      <p className={styles.metaLine}>
-                        <Clock aria-hidden="true" focusable="false" />
-                        <span>
-                          {formatTimeRange(item.start_time, item.end_time)}
-                        </span>
-                      </p>
-                    )}
                     {/* Sprint B (Car Rental Pickup/Return Interval):
                         `pickup_location`/`return_location` are only ever
-                        non-null for a VEHICLE booking item — every
-                        Hotel/Tour booking's view stays exactly as it was,
-                        with no empty rental-specific row rendered. */}
-                    {item.pickup_location && (
-                      <p className={styles.metaLine}>
-                        <MapPin aria-hidden="true" focusable="false" />
-                        <span>
-                          {t('bookings.detail.pickupLocation')}:{' '}
-                          {item.pickup_location}
-                        </span>
-                      </p>
-                    )}
-                    {item.return_location && (
-                      <p className={styles.metaLine}>
-                        <MapPin aria-hidden="true" focusable="false" />
-                        <span>
-                          {t('bookings.detail.returnLocation')}:{' '}
-                          {item.return_location}
-                        </span>
-                      </p>
+                        non-null for a VEHICLE booking item. Pass 5 (owner
+                        issue #12): a vehicle's `date_from`+`start_time` and
+                        `date_to`+`end_time` are two DIFFERENT calendar days
+                        (migration 0039's own design) — showing one combined
+                        date range followed by one combined time range, as
+                        every other vertical does, left it ambiguous which
+                        date each time belonged to. Pairing each date with
+                        its own time, right next to its own pickup/return
+                        location, removes that ambiguity; every other
+                        vertical's booking (a single-day stay or a
+                        same-day timed session) keeps the original combined
+                        rendering below, unchanged. */}
+                    {item.pickup_location || item.return_location ? (
+                      <>
+                        <p className={styles.metaLine}>
+                          <Calendar aria-hidden="true" focusable="false" />
+                          <span>
+                            {t('bookings.detail.pickupLocation')}:{' '}
+                            {dateFormatter.format(new Date(item.date_from))}
+                            {item.start_time ? ` · ${item.start_time}` : ''}
+                            {item.pickup_location
+                              ? ` · ${item.pickup_location}`
+                              : ''}
+                          </span>
+                        </p>
+                        <p className={styles.metaLine}>
+                          <Calendar aria-hidden="true" focusable="false" />
+                          <span>
+                            {t('bookings.detail.returnLocation')}:{' '}
+                            {dateFormatter.format(new Date(item.date_to))}
+                            {item.end_time ? ` · ${item.end_time}` : ''}
+                            {item.return_location
+                              ? ` · ${item.return_location}`
+                              : ''}
+                          </span>
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className={styles.metaLine}>
+                          <Calendar aria-hidden="true" focusable="false" />
+                          <span>
+                            {dateFormatter.format(new Date(item.date_from))} –{' '}
+                            {dateFormatter.format(new Date(item.date_to))}
+                          </span>
+                        </p>
+                        {formatTimeRange(item.start_time, item.end_time) && (
+                          <p className={styles.metaLine}>
+                            <Clock aria-hidden="true" focusable="false" />
+                            <span>
+                              {formatTimeRange(item.start_time, item.end_time)}
+                            </span>
+                          </p>
+                        )}
+                      </>
                     )}
                     {nights !== null && (
                       <p className={styles.metaLine}>
