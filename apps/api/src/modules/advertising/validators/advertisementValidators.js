@@ -78,6 +78,7 @@ export const listAdvertisementsQuerySchema = z.object({
         'EXPIRED',
         'REJECTED',
         'CANCELLED',
+        'PAUSED',
       ])
       .optional(),
     cursor: z.string().optional(),

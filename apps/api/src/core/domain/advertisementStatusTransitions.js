@@ -13,6 +13,14 @@
  * early. Sprint E's Admin "end/cancel" action does — see
  * `AdvertisementService#cancel` — so this is a genuine, minimal
  * completion of the existing lifecycle, not a new one.
+ *
+ * Pass 7B (brief §13/§14) added `PAUSED`, reachable only from SCHEDULED/
+ * ACTIVE (the two "visible or about to be visible" states — pausing a
+ * request still awaiting payment/approval is meaningless, CANCEL already
+ * covers that) and resumable back to ACTIVE/SCHEDULED (server-decided by
+ * `start_date` vs. today, the same rule `AdvertisementService#approve`
+ * already uses) or CANCELLED (end it outright while paused). Distinct
+ * from CANCELLED: pausing is reversible, cancelling is terminal.
  */
 
 const TRANSITIONS = Object.freeze({
@@ -20,8 +28,9 @@ const TRANSITIONS = Object.freeze({
   AWAITING_OFFLINE_PAYMENT: Object.freeze(['PAID_MANUAL', 'CANCELLED']),
   PAID_MANUAL: Object.freeze(['APPROVED', 'CANCELLED']),
   APPROVED: Object.freeze(['SCHEDULED', 'ACTIVE', 'CANCELLED']),
-  SCHEDULED: Object.freeze(['ACTIVE', 'CANCELLED']),
-  ACTIVE: Object.freeze(['EXPIRED', 'CANCELLED']),
+  SCHEDULED: Object.freeze(['ACTIVE', 'CANCELLED', 'PAUSED']),
+  ACTIVE: Object.freeze(['EXPIRED', 'CANCELLED', 'PAUSED']),
+  PAUSED: Object.freeze(['ACTIVE', 'SCHEDULED', 'CANCELLED']),
   REJECTED: Object.freeze([]),
   CANCELLED: Object.freeze([]),
   EXPIRED: Object.freeze([]),

@@ -11,6 +11,8 @@ import {
   approveAdvertisement,
   rejectAdvertisement,
   cancelAdvertisement,
+  pauseAdvertisement,
+  resumeAdvertisement,
   extendAdvertisement,
 } from '../../../api/advertising.js';
 import advertisingKeys from '../constants/queryKeys.js';
@@ -40,6 +42,15 @@ export function useRejectAdvertisementMutation() {
 
 export function useCancelAdvertisementMutation() {
   return useAdvertisementActionMutation(cancelAdvertisement);
+}
+
+/** Pass 7B — reversible pause/resume, distinct from cancel. */
+export function usePauseAdvertisementMutation() {
+  return useAdvertisementActionMutation(pauseAdvertisement);
+}
+
+export function useResumeAdvertisementMutation() {
+  return useAdvertisementActionMutation(resumeAdvertisement);
 }
 
 export function useExtendAdvertisementMutation() {

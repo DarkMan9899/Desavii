@@ -445,6 +445,37 @@ export class AdvertisementService {
     return updated;
   }
 
+  /**
+   * Pass 7B (brief §13/§14) — reversibly hides a still-visible-or-about-
+   * to-be-visible promotion without ending it. Only legal from SCHEDULED/
+   * ACTIVE (see `advertisementStatusTransitions.js`'s header) — a request
+   * still awaiting payment/approval was never public in the first place,
+   * so CANCEL (not pause) is the correct action there.
+   */
+  async pause(principal, id) {
+    this.#assertPrincipal(principal);
+    const ad = await this.#getOwnedOrThrow(id);
+    const updated = await withTransaction((connection) =>
+      this.#advanceStatus(ad, 'PAUSED', { principal, connection }),
+    );
+    return updated;
+  }
+
+  /** Resumes a paused promotion — server-decided target (ACTIVE|SCHEDULED) by today vs. start_date, the SAME rule `approve()` already uses. */
+  async resume(principal, id) {
+    this.#assertPrincipal(principal);
+    const ad = await this.#getOwnedOrThrow(id);
+    const targetStatus =
+      ad.startDate <= todayDateString() ? 'ACTIVE' : 'SCHEDULED';
+    const updated = await withTransaction((connection) =>
+      this.#advanceStatus(ad, targetStatus, { principal, connection }),
+    );
+    if (updated.statusCode === 'ACTIVE') {
+      await this.#publish(EVENT_TYPES.ADVERTISEMENT_ACTIVATED, updated);
+    }
+    return updated;
+  }
+
   /** Extends the SAME row's end_date — never a duplicate row (spec §13/§27). Only meaningful for a still-open promotion. */
   async extend(principal, id, { endDate }) {
     this.#assertPrincipal(principal);

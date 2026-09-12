@@ -154,6 +154,12 @@ export default async function seedLookups(connection) {
     { code: 'EXPIRED', name: 'Expired' },
     { code: 'REJECTED', name: 'Rejected' },
     { code: 'CANCELLED', name: 'Cancelled' },
+    // Pass 7B (brief §13/§14): a reversible admin-toggled "temporarily
+    // off" state, distinct from CANCELLED (terminal, never reactivated).
+    // Never in `VISIBLE_STATUS_CODES` (mysqlAdvertisementRepository.js),
+    // so a paused promotion disappears from every public placement the
+    // instant it's set, and reappears exactly where it left off on resume.
+    { code: 'PAUSED', name: 'Paused' },
   ]);
 
   // P1.5 (Master Roadmap) — a customer's reason for reporting a review.

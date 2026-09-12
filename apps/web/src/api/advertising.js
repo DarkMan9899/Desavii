@@ -77,6 +77,20 @@ export function cancelAdvertisement(id) {
     .then((response) => response.data);
 }
 
+/** `POST /advertising/admin/:id/pause` — Pass 7B: reversible, distinct from cancel. */
+export function pauseAdvertisement(id) {
+  return apiClient
+    .post(`/advertising/admin/${id}/pause`)
+    .then((response) => response.data);
+}
+
+/** `POST /advertising/admin/:id/resume` — Pass 7B. */
+export function resumeAdvertisement(id) {
+  return apiClient
+    .post(`/advertising/admin/${id}/resume`)
+    .then((response) => response.data);
+}
+
 /** `POST /advertising/admin/:id/extend`. */
 export function extendAdvertisement(id, body) {
   return apiClient

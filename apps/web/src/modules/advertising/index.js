@@ -14,6 +14,8 @@ export {
   useApproveAdvertisementMutation,
   useRejectAdvertisementMutation,
   useCancelAdvertisementMutation,
+  usePauseAdvertisementMutation,
+  useResumeAdvertisementMutation,
   useExtendAdvertisementMutation,
 } from './mutations/useAdvertisementActionMutations.js';
 export { PLACEMENT_CODES } from './constants/placementCodes.js';

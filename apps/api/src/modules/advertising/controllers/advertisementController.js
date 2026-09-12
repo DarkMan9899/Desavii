@@ -141,6 +141,36 @@ export function createAdvertisementController(advertisementService) {
       }
     },
 
+    async pause(req, res, next) {
+      try {
+        const { id } = req.validated.params;
+        const ad = await advertisementService.pause(req.principal, id);
+        res.status(200).json({
+          success: true,
+          data: toAdvertisementResponse(ad),
+          meta: null,
+          error: null,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async resume(req, res, next) {
+      try {
+        const { id } = req.validated.params;
+        const ad = await advertisementService.resume(req.principal, id);
+        res.status(200).json({
+          success: true,
+          data: toAdvertisementResponse(ad),
+          meta: null,
+          error: null,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+
     async extend(req, res, next) {
       try {
         const { id } = req.validated.params;

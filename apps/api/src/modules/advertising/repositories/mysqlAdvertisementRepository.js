@@ -312,7 +312,7 @@ export class MySqlAdvertisementRepository {
     const [rows] = await connection.query(
       `SELECT ${ADVERTISEMENT_SELECT} ${ADVERTISEMENT_FROM}
        WHERE ad.listing_id = ? AND ad.ad_placement_type_id = ? AND ad.deleted_at IS NULL
-         AND ads.code IN ('REQUEST_SUBMITTED','AWAITING_OFFLINE_PAYMENT','PAID_MANUAL',${VISIBLE_STATUS_CODES.map(() => '?').join(',')})`,
+         AND ads.code IN ('REQUEST_SUBMITTED','AWAITING_OFFLINE_PAYMENT','PAID_MANUAL','PAUSED',${VISIBLE_STATUS_CODES.map(() => '?').join(',')})`,
       [listingId, placementTypeId, ...VISIBLE_STATUS_CODES],
     );
     return rows.map(toDomain);

@@ -99,6 +99,16 @@ export default function createAdvertisingRoutes({
     advertisementController.cancel,
   );
   adminRouter.post(
+    '/:id/pause',
+    validate(advertisementIdParamsSchema),
+    advertisementController.pause,
+  );
+  adminRouter.post(
+    '/:id/resume',
+    validate(advertisementIdParamsSchema),
+    advertisementController.resume,
+  );
+  adminRouter.post(
     '/:id/extend',
     validate(extendAdvertisementSchema),
     advertisementController.extend,
