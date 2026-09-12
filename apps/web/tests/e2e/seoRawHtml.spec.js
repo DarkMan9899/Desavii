@@ -178,6 +178,52 @@ test('sitemap.xml and robots.txt are served as real static files', async ({
   expect(robotsTxt).toContain('Sitemap: https://desavii.com/sitemap.xml');
 });
 
+/**
+ * Pass 9 (P1 locale/i18n remediation, brief §30 H/I/J) — the raw
+ * prerendered HTML body itself, not just `<title>`/meta/hreflang, must
+ * already be in the right language. The "/hy can render in English" bug
+ * this pass root-caused only ever affected CLIENT-SIDE navigation (see
+ * `App.test.jsx`'s own regression suite) — `npm run prerender` visits
+ * every route via a fresh, isolated Playwright page (`prerender.mjs`'s
+ * own "one page per route" design), so it was never actually at risk.
+ * These assertions exist to make that fact a guarantee, not an
+ * assumption: if a future change ever regresses prerender-time locale
+ * resolution, this is what would catch a raw HY/RU page silently
+ * shipping English body text to a crawler.
+ */
+test('HY prerendered home body is Armenian, not English', async ({
+  request,
+}) => {
+  const { html } = await fetchRawHtml(request, 'hy');
+  expect(html).toContain('Բացահայտեք Հայաստանը');
+  expect(html).not.toContain('Discover Armenia');
+});
+
+test('RU prerendered home body is Russian, not English', async ({
+  request,
+}) => {
+  const { html } = await fetchRawHtml(request, 'ru');
+  expect(html).toContain('Откройте Армению');
+  expect(html).not.toContain('Discover Armenia');
+});
+
+test('EN prerendered home body is English', async ({ request }) => {
+  const { html } = await fetchRawHtml(request, 'en');
+  expect(html).toContain('Discover Armenia');
+});
+
+test('a representative category page carries its own locale body text (not the SPA shell, not another locale)', async ({
+  request,
+}) => {
+  const hy = (await fetchRawHtml(request, 'hy/categories/hotels')).html;
+  const en = (await fetchRawHtml(request, 'en/categories/hotels')).html;
+  const ru = (await fetchRawHtml(request, 'ru/categories/hotels')).html;
+
+  expect(hy).toContain('Հյուրանոցներ');
+  expect(en).toContain('Hotels');
+  expect(ru).toContain('Отели');
+});
+
 test('an unknown route falls back to the SPA shell (200, real built assets), not a broken response', async ({
   request,
 }) => {

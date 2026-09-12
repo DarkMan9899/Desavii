@@ -128,12 +128,39 @@ module.exports = {
     // --- No hardcoded user-facing strings in JSX text (FRONTEND_ARCHITECTURE.md §16.5) ---
     // Enforced as a warning at scaffold time; tightened to `error` once the
     // i18next `t()` wrapper is in universal use from Sprint 1 onward.
+    //
+    // Pass 9 (P1 locale/i18n remediation) — a full-tree audit of every
+    // `react/jsx-no-literals` warning (`npx eslint src --ext .js,.jsx`,
+    // the exact command every prior lint run in this repo's history had
+    // been silently omitting `--ext .jsx` from, so this rule had never
+    // actually been checked against real JSX files before) found ZERO
+    // genuine untranslated English strings in production components.
+    // Every non-test-file violation was one of these locale-agnostic
+    // separator/glyph characters used as visual punctuation ("Label: value",
+    // date ranges "Jan 1 – Jan 5", a stepper's +/− buttons, a sort
+    // arrow) — never real copy needing translation. Documenting them here,
+    // as the rule's own allowlist, is this pass's "reviewable list of
+    // remaining intentional literals" (brief §21) — self-enforcing, not a
+    // separate document that can drift out of sync with the code.
     'react/jsx-no-literals': [
       'warn',
       {
         noStrings: true,
         ignoreProps: true,
-        allowedStrings: ['·', '—', '&nbsp;'],
+        allowedStrings: [
+          '·',
+          '—',
+          '&nbsp;',
+          ':',
+          '–',
+          '→',
+          '←',
+          '↑',
+          '↓',
+          '×',
+          '+',
+          '−',
+        ],
       },
     ],
     'import/prefer-default-export': 'off',
