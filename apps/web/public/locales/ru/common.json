@@ -105,6 +105,7 @@
     "closeMenu": "Закрыть меню",
     "userMenu": "Меню аккаунта",
     "switchLanguage": "Сменить язык",
+    "switchCurrency": "Сменить валюту",
     "notifications": "Уведомления",
     "primaryNavigation": "Основная навигация"
   },

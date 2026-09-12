@@ -11,9 +11,12 @@
  * Company, Support, Account), and every link still points at a route
  * that exists by the end of this phase (Companies/About/Contact/FAQ/
  * Help Center/Blog/Become a Partner all ship in this same phase — see
- * `docs/` Phase 10 plan). Currency switcher remains deliberately absent
- * (see PublicLayout's Phase 10 known-limitation note in the final
- * report) — sticky search remains deferred too.
+ * `docs/` Phase 10 plan). Sticky search remains deferred.
+ *
+ * Pass 8 (Multi-Currency / CBA FX Pricing): `CurrencySwitcher` fills the
+ * "deliberately absent" gap this file's Phase 10 comment used to note —
+ * placed right next to `LanguageSwitcher`, the header's other
+ * locale-adjacent control.
  */
 
 import { Outlet, useParams } from 'react-router-dom';
@@ -24,6 +27,7 @@ import BrandLogo from '../components/BrandLogo/BrandLogo.jsx';
 import Footer from '../components/Footer/Footer.jsx';
 import UserMenu from '../components/UserMenu/UserMenu.jsx';
 import LanguageSwitcher from '../components/LanguageSwitcher/LanguageSwitcher.jsx';
+import CurrencySwitcher from '../components/CurrencySwitcher/CurrencySwitcher.jsx';
 import HeaderSearch from '../components/HeaderSearch/HeaderSearch.jsx';
 import { useCategoriesQuery } from '../modules/search/index.js';
 import { NotificationBell } from '../modules/notifications/index.js';
@@ -133,6 +137,7 @@ export default function PublicLayout() {
           actions={
             <>
               <HeaderSearch />
+              <CurrencySwitcher />
               <LanguageSwitcher />
               <MessagingBell />
               <NotificationBell />
