@@ -56,6 +56,8 @@ import {
 import {
   upsertTranslation,
   insertPolicyValue,
+  insertAttributeValue,
+  insertOpeningHours,
 } from './seedDemoListingRichContent.js';
 
 // Shared by every Sprint J partner-owner account — same disposable-DB-only
@@ -923,6 +925,87 @@ const LISTINGS = [
       { code: 'smoking_allowed', value: 'false' },
       { code: 'children_allowed', value: 'true' },
     ],
+    // Pass 6 (owner issue #13): mid-range price tier — matches the
+    // PER_PERSON amount above (6,500 AMD), between Vanadzor's cheaper
+    // grill house and Sevan Lake's fish-driven premium.
+    attributes: [
+      { code: 'cuisine', optionCodes: ['ARMENIAN'] },
+      { code: 'price_tier', optionCodes: ['$$'] },
+    ],
+    // Sunday brunch-to-dinner hours, closed Monday, standard evening
+    // hours the rest of the week — a real, differentiated week, not a
+    // uniform "open every day 9-9" default.
+    openingHours: [
+      { dayOfWeek: 0, opensAt: '12:00', closesAt: '22:00' },
+      { dayOfWeek: 1, isClosed: true },
+      { dayOfWeek: 2, opensAt: '11:00', closesAt: '23:00' },
+      { dayOfWeek: 3, opensAt: '11:00', closesAt: '23:00' },
+      { dayOfWeek: 4, opensAt: '11:00', closesAt: '23:00' },
+      { dayOfWeek: 5, opensAt: '11:00', closesAt: '23:59' },
+      { dayOfWeek: 6, opensAt: '11:00', closesAt: '23:59' },
+    ],
+    menu: {
+      name: 'Dinner Menu',
+      description: 'Served daily, kitchen closes 30 minutes before close.',
+      sections: [
+        {
+          title: 'Appetizers',
+          items: [
+            {
+              title: 'Dolma (6 pcs)',
+              description:
+                'Grape leaves hand-wrapped around spiced lamb and rice.',
+              priceAmount: 2800,
+              dietaryMarkers: [],
+            },
+            {
+              title: 'Lavash with cheese and greens',
+              description: 'Tonir-baked lavash, string cheese, fresh herbs.',
+              priceAmount: 1800,
+              dietaryMarkers: ['vegetarian'],
+            },
+          ],
+        },
+        {
+          title: 'Khorovats (Grilled Skewers)',
+          items: [
+            {
+              title: 'Pork khorovats',
+              description: 'Marinated pork loin, grilled to order.',
+              priceAmount: 5500,
+              dietaryMarkers: [],
+            },
+            {
+              title: 'Chicken khorovats',
+              description: 'Marinated chicken thigh, grilled to order.',
+              priceAmount: 4800,
+              dietaryMarkers: [],
+            },
+            {
+              title: 'Lamb khorovats',
+              description: 'Marinated lamb leg, grilled to order.',
+              priceAmount: 6800,
+              dietaryMarkers: [],
+            },
+          ],
+        },
+        {
+          title: 'Drinks',
+          items: [
+            {
+              title: 'Homemade fruit compote',
+              priceAmount: 900,
+              dietaryMarkers: ['vegan', 'gluten-free'],
+            },
+            {
+              title: 'Armenian coffee',
+              priceAmount: 700,
+              dietaryMarkers: ['vegan', 'gluten-free'],
+            },
+          ],
+        },
+      ],
+    },
     units: [
       {
         type: 'RESTAURANT_TABLE',
@@ -968,6 +1051,62 @@ const LISTINGS = [
       { code: 'smoking_allowed', value: 'true' },
       { code: 'children_allowed', value: 'true' },
     ],
+    // Pass 6 (owner issue #13): the cheapest of the 3 (5,000 AMD/person,
+    // "plain, functional... the point is the food, not the decor").
+    attributes: [
+      { code: 'cuisine', optionCodes: ['ARMENIAN'] },
+      { code: 'price_tier', optionCodes: ['$'] },
+    ],
+    // Lunch-through-late hours every day, no rest day — a working grill
+    // house on a driving route, not a leisurely sit-down restaurant.
+    openingHours: [
+      { dayOfWeek: 0, opensAt: '10:00', closesAt: '22:00' },
+      { dayOfWeek: 1, opensAt: '10:00', closesAt: '22:00' },
+      { dayOfWeek: 2, opensAt: '10:00', closesAt: '22:00' },
+      { dayOfWeek: 3, opensAt: '10:00', closesAt: '22:00' },
+      { dayOfWeek: 4, opensAt: '10:00', closesAt: '22:00' },
+      { dayOfWeek: 5, opensAt: '10:00', closesAt: '23:00' },
+      { dayOfWeek: 6, opensAt: '10:00', closesAt: '23:00' },
+    ],
+    menu: {
+      name: 'Grill Menu',
+      sections: [
+        {
+          title: 'Khorovats (Grilled Skewers)',
+          items: [
+            {
+              title: 'Pork khorovats',
+              description:
+                'Charcoal-grilled pork, served with grilled vegetables.',
+              priceAmount: 4200,
+              dietaryMarkers: [],
+            },
+            {
+              title: 'Chicken khorovats',
+              description:
+                'Charcoal-grilled chicken, served with grilled vegetables.',
+              priceAmount: 3600,
+              dietaryMarkers: [],
+            },
+          ],
+        },
+        {
+          title: 'Sides',
+          items: [
+            {
+              title: 'Grilled vegetable plate',
+              priceAmount: 1500,
+              dietaryMarkers: ['vegetarian', 'vegan', 'gluten-free'],
+            },
+            {
+              title: 'Fresh lavash (stack)',
+              priceAmount: 700,
+              dietaryMarkers: ['vegetarian', 'vegan'],
+            },
+          ],
+        },
+      ],
+    },
     units: [
       {
         type: 'RESTAURANT_TABLE',
@@ -1013,6 +1152,68 @@ const LISTINGS = [
       { code: 'smoking_allowed', value: 'false' },
       { code: 'children_allowed', value: 'true' },
     ],
+    // Pass 6 (owner issue #13): the priciest of the 3 (9,000 AMD/person,
+    // "priced higher than an inland restaurant because of the fish
+    // itself") — a real, described reason for the tier, not an arbitrary
+    // bump for variety's sake.
+    attributes: [
+      { code: 'cuisine', optionCodes: ['ARMENIAN'] },
+      { code: 'price_tier', optionCodes: ['$$$'] },
+    ],
+    // Seasonal-terrace hours: opens later (lunch through sunset service),
+    // closed Tuesday (a real rest day, not a 7-day-a-week default).
+    openingHours: [
+      { dayOfWeek: 0, opensAt: '12:00', closesAt: '21:00' },
+      { dayOfWeek: 1, opensAt: '12:00', closesAt: '21:00' },
+      { dayOfWeek: 2, isClosed: true },
+      { dayOfWeek: 3, opensAt: '12:00', closesAt: '21:00' },
+      { dayOfWeek: 4, opensAt: '12:00', closesAt: '21:00' },
+      { dayOfWeek: 5, opensAt: '12:00', closesAt: '22:00' },
+      { dayOfWeek: 6, opensAt: '12:00', closesAt: '22:00' },
+    ],
+    menu: {
+      name: 'Fish Menu',
+      description: 'Availability depends on the day’s catch.',
+      sections: [
+        {
+          title: 'Sevan Trout (Ishkhan)',
+          items: [
+            {
+              title: 'Whole grilled ishkhan',
+              description: 'Whole Sevan trout, grilled over charcoal.',
+              priceAmount: 11000,
+              dietaryMarkers: ['gluten-free'],
+            },
+            {
+              title: 'Pan-fried ishkhan fillet',
+              priceAmount: 9500,
+              dietaryMarkers: ['gluten-free'],
+            },
+          ],
+        },
+        {
+          title: 'Seasonal',
+          items: [
+            {
+              title: 'Lake crayfish (seasonal)',
+              description: 'Subject to availability by season.',
+              priceAmount: 12000,
+              dietaryMarkers: ['gluten-free'],
+            },
+          ],
+        },
+        {
+          title: 'Sides',
+          items: [
+            {
+              title: 'Herb salad',
+              priceAmount: 1800,
+              dietaryMarkers: ['vegetarian', 'vegan', 'gluten-free'],
+            },
+          ],
+        },
+      ],
+    },
     units: [
       {
         type: 'RESTAURANT_TABLE',
@@ -1572,6 +1773,60 @@ async function createPartner(connection, ctx, spec) {
   return { partnerId, ownerUserId };
 }
 
+/**
+ * Pass 6 (Restaurant vertical, owner issue #13) — a real, multi-section
+ * menu for one of the 3 Sprint J restaurants (migration 0045). English
+ * only, matching this catalog's own established "no dynamic attribute
+ * values... not part of Sprint J's required checklist" restraint for
+ * optional depth — and matching `restaurantMenuService.js`'s own
+ * per-language-menu design: HY/RU simply have no menu authored yet here,
+ * never a machine-translated stand-in.
+ */
+async function insertRestaurantMenu(
+  connection,
+  { listingId, languageId, currencyId, userId, name, description, sections },
+) {
+  const [menuResult] = await connection.query(
+    `INSERT INTO restaurant_menus
+       (listing_id, language_id, name, description, sort_order, created_by, updated_by)
+     VALUES (?, ?, ?, ?, 0, ?, ?)`,
+    [listingId, languageId, name, description ?? null, userId, userId],
+  );
+  const menuId = menuResult.insertId;
+
+  // eslint-disable-next-line no-restricted-syntax -- ordered insert, must preserve sequence
+  for (const [sectionIndex, section] of sections.entries()) {
+    // eslint-disable-next-line no-await-in-loop -- sequential by design
+    const [sectionResult] = await connection.query(
+      `INSERT INTO restaurant_menu_sections (menu_id, title, sort_order, created_by, updated_by)
+       VALUES (?, ?, ?, ?, ?)`,
+      [menuId, section.title, sectionIndex, userId, userId],
+    );
+    const sectionId = sectionResult.insertId;
+
+    // eslint-disable-next-line no-restricted-syntax -- ordered insert, must preserve sequence
+    for (const [itemIndex, item] of section.items.entries()) {
+      // eslint-disable-next-line no-await-in-loop -- sequential by design
+      await connection.query(
+        `INSERT INTO restaurant_menu_items
+           (section_id, title, description, price_amount, price_currency_id, dietary_markers, sort_order, created_by, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          sectionId,
+          item.title,
+          item.description ?? null,
+          item.priceAmount,
+          currencyId,
+          item.dietaryMarkers ? JSON.stringify(item.dietaryMarkers) : null,
+          itemIndex,
+          userId,
+          userId,
+        ],
+      );
+    }
+  }
+}
+
 async function createFullListing(connection, ctx, spec) {
   const partner = ctx.partnersByKey.get(spec.partner);
   const listingId = await insertListing(connection, {
@@ -1621,6 +1876,35 @@ async function createFullListing(connection, ctx, spec) {
   for (const policy of spec.policies) {
     // eslint-disable-next-line no-await-in-loop -- sequential by design
     await insertPolicyValue(connection, listingId, policy);
+  }
+
+  // Pass 6 (Restaurant vertical, owner issue #13) — real cuisine/price-tier
+  // category attributes, weekly opening hours, and a real multi-section
+  // menu, for the 3 restaurant listings only (every other Sprint J entry
+  // leaves `spec.attributes`/`spec.openingHours`/`spec.menu` unset).
+  // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order
+  for (const attribute of spec.attributes ?? []) {
+    // eslint-disable-next-line no-await-in-loop -- sequential by design
+    await insertAttributeValue(connection, listingId, attribute);
+  }
+  if (spec.openingHours) {
+    await insertOpeningHours(
+      connection,
+      listingId,
+      spec.openingHours,
+      partner.ownerUserId,
+    );
+  }
+  if (spec.menu) {
+    await insertRestaurantMenu(connection, {
+      listingId,
+      languageId: ctx.enLanguageId,
+      currencyId: ctx.amdCurrencyId,
+      userId: partner.ownerUserId,
+      name: spec.menu.name,
+      description: spec.menu.description,
+      sections: spec.menu.sections,
+    });
   }
 
   // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order

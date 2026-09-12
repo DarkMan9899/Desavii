@@ -43,6 +43,7 @@ import { useListingMetadataQuery } from '../../queries/useListingMetadataQuery.j
 import { useListingCategoriesQuery } from '../../queries/useListingCategoriesQuery.js';
 import { useListingBookableUnitsQuery } from '../../queries/useListingBookableUnitsQuery.js';
 import { useListingMenuQuery } from '../../queries/useListingMenuQuery.js';
+import { useListingOpeningHoursQuery } from '../../queries/useListingOpeningHoursQuery.js';
 import getLocalizedTranslation from '../../utils/getLocalizedTranslation.js';
 import getLocalizedItems from '../../utils/getLocalizedItems.js';
 import { resolveInitialReservationState } from '../../utils/reservationSearchContext.js';
@@ -63,6 +64,7 @@ import ListingLocationSection from './ListingLocationSection/ListingLocationSect
 import ListingReviewsSection from './ListingReviewsSection/ListingReviewsSection.jsx';
 import ListingFaqSection from './ListingFaqSection/ListingFaqSection.jsx';
 import ListingMenuSection from './ListingMenuSection/ListingMenuSection.jsx';
+import ListingOpeningHoursSection from './ListingOpeningHoursSection/ListingOpeningHoursSection.jsx';
 import RelatedListings from './RelatedListings/RelatedListings.jsx';
 import { FavoriteButton } from '../../../favorites/index.js';
 import { AskAiButton } from '../../../ai/index.js';
@@ -85,6 +87,7 @@ const SECTION_LOCATION = 'location';
 const SECTION_REVIEWS = 'reviews';
 const SECTION_FAQ = 'faq';
 const SECTION_MENU = 'menu';
+const SECTION_OPENING_HOURS = 'openingHours';
 
 // 2026 stabilization audit — the lower page previously read as a long
 // stack of identical giant white cards (every section shared one blanket
@@ -101,6 +104,7 @@ const EDITORIAL_SECTION_IDS = new Set([
   SECTION_POLICIES,
   SECTION_FAQ,
   SECTION_MENU,
+  SECTION_OPENING_HOURS,
 ]);
 
 export default function ListingDetailPageContent() {
@@ -153,6 +157,11 @@ export default function ListingDetailPageContent() {
   const { data: menus } = useListingMenuQuery(
     listing?.listing_type === 'RESTAURANT' ? listing.id : undefined,
     locale,
+  );
+  // Pass 6 (Restaurant vertical, owner issue #13) — same "RESTAURANT-only
+  // fetch" rule `menus` above already follows.
+  const { data: weeklyHours } = useListingOpeningHoursQuery(
+    listing?.listing_type === 'RESTAURANT' ? listing.id : undefined,
   );
   const [selectedUnitId, setSelectedUnitId] = useState(null);
 
@@ -342,6 +351,10 @@ export default function ListingDetailPageContent() {
       id: SECTION_MENU,
       label: t('pages.listingDetail.menu.heading'),
     },
+    (weeklyHours ?? []).length > 0 && {
+      id: SECTION_OPENING_HOURS,
+      label: t('pages.listingDetail.openingHours.heading'),
+    },
     includedItems.length > 0 && {
       id: SECTION_INCLUDED,
       label: t('pages.listingDetail.included.heading'),
@@ -462,6 +475,13 @@ export default function ListingDetailPageContent() {
         menus={menus ?? []}
         locale={locale}
         sectionId={SECTION_MENU}
+      />
+    ),
+    [SECTION_OPENING_HOURS]: (
+      <ListingOpeningHoursSection
+        weeklyHours={weeklyHours ?? []}
+        locale={locale}
+        sectionId={SECTION_OPENING_HOURS}
       />
     ),
   };

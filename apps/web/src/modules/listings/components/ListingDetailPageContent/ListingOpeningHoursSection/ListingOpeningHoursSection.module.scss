@@ -1,0 +1,38 @@
+// ListingOpeningHoursSection — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+.heading {
+  margin-block-end: tokens.$space-4;
+}
+
+.schedule {
+  max-width: 24rem;
+}
+
+.row {
+  padding-block: tokens.$space-2;
+  border-bottom: 1px solid tokens.$color-gray-200;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.rowToday {
+  .day,
+  .hours {
+    font-weight: 700;
+    color: tokens.$color-gray-900;
+  }
+}
+
+.day {
+  color: tokens.$color-gray-600;
+}
+
+.hours {
+  font-variant-numeric: tabular-nums;
+  color: tokens.$color-gray-600;
+  text-align: right;
+}

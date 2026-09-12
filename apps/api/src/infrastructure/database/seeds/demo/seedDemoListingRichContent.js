@@ -111,6 +111,33 @@ export async function insertPolicyValue(connection, listingId, entry) {
   );
 }
 
+/**
+ * Pass 6 (migration 0046) — weekly opening hours. Not restricted to any
+ * one category at the schema level (see that migration's own header), so
+ * this lives alongside `insertPolicyValue`/`insertAttributeValue` rather
+ * than in a Restaurant-only seed file, ready for reuse the day a
+ * non-Restaurant demo listing wants real hours too.
+ */
+export async function insertOpeningHours(connection, listingId, days, userId) {
+  // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order
+  for (const day of days) {
+    // eslint-disable-next-line no-await-in-loop -- sequential by design
+    await connection.query(
+      `INSERT INTO listing_opening_hours
+         (listing_id, day_of_week, opens_at, closes_at, is_closed, updated_by)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        listingId,
+        day.dayOfWeek,
+        day.isClosed ? null : day.opensAt,
+        day.isClosed ? null : day.closesAt,
+        day.isClosed ? 1 : 0,
+        userId,
+      ],
+    );
+  }
+}
+
 export async function insertMedia(
   connection,
   listingId,

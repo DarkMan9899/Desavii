@@ -265,6 +265,7 @@ export default function createV1Router({
     createListingRoutes({
       listingController: listingsContainer.listingController,
       restaurantMenuController: listingsContainer.restaurantMenuController,
+      openingHoursController: listingsContainer.openingHoursController,
       guards,
     }),
   );

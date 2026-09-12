@@ -107,6 +107,14 @@ const listingKeys = {
     'menu',
     { locale },
   ],
+  // Pass 6 (Restaurant vertical): the public+Partner-authoring weekly
+  // opening-hours read — no locale segment, unlike `menu` above, since the
+  // wire shape (day_of_week/opens_at/closes_at) has no language content.
+  openingHours: (listingId) => [
+    ...listingKeys.details(),
+    listingId,
+    'openingHours',
+  ],
 };
 
 export default listingKeys;

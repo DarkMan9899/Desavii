@@ -3123,6 +3123,13 @@
           "nuts": "Contains nuts"
         }
       },
+      "openingHours": {
+        "heading": "Opening hours",
+        "openNow": "Open now",
+        "closedNow": "Closed now",
+        "closed": "Closed",
+        "notListed": "Hours not listed"
+      },
       "host": {
         "heading": "About the host",
         "verified": "Verified partner",
@@ -3197,6 +3204,7 @@
           "ACCOMMODATION": "Check availability",
           "EXPERIENCE": "Reserve your spot",
           "TRANSPORT": "Reserve this vehicle",
+          "DINING": "Reserve a table",
           "GENERIC": "Request to book"
         },
         "noUnitsAvailable": "This listing isn't bookable online yet.",

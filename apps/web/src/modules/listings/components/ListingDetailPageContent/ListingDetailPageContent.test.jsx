@@ -18,6 +18,7 @@ import { useListingAvailabilityQuery } from '../../queries/useListingAvailabilit
 import { useListingAvailabilitySummaryQuery } from '../../queries/useListingAvailabilitySummaryQuery.js';
 import { useListingBookableUnitsQuery } from '../../queries/useListingBookableUnitsQuery.js';
 import { useListingMenuQuery } from '../../queries/useListingMenuQuery.js';
+import { useListingOpeningHoursQuery } from '../../queries/useListingOpeningHoursQuery.js';
 import { useListingCalendarQuery } from '../../queries/useListingCalendarQuery.js';
 import { useListingDayStatusQuery } from '../../queries/useListingDayStatusQuery.js';
 import { useCreateBookingHoldMutation } from '../../../bookings/mutations/useCreateBookingHoldMutation.js';
@@ -45,6 +46,10 @@ vi.mock('../../queries/useListingBookableUnitsQuery.js', () => ({
 }));
 vi.mock('../../queries/useListingMenuQuery.js', () => ({
   useListingMenuQuery: vi.fn(),
+  default: vi.fn(),
+}));
+vi.mock('../../queries/useListingOpeningHoursQuery.js', () => ({
+  useListingOpeningHoursQuery: vi.fn(),
   default: vi.fn(),
 }));
 vi.mock('../../queries/useListingCalendarQuery.js', () => ({
@@ -176,6 +181,7 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
     useListingAvailabilityQuery.mockReset();
     useListingBookableUnitsQuery.mockReset();
     useListingMenuQuery.mockReset();
+    useListingOpeningHoursQuery.mockReset();
     useListingCalendarQuery.mockReset();
     useCreateBookingHoldMutation.mockReset();
     useAuth.mockReset();
@@ -197,6 +203,7 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
     useListingCalendarQuery.mockReturnValue({ data: [] });
     useListingDayStatusQuery.mockReturnValue({ data: [], refetch: vi.fn() });
     useListingMenuQuery.mockReturnValue({ data: [] });
+    useListingOpeningHoursQuery.mockReturnValue({ data: [] });
     useCreateBookingHoldMutation.mockReturnValue({
       mutateAsync: vi.fn(),
       isPending: false,

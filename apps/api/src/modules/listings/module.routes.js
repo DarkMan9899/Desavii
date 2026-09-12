@@ -42,6 +42,10 @@ import {
   itemIdOnlySchema,
 } from './validators/restaurantMenuValidators.js';
 import {
+  getOpeningHoursSchema,
+  replaceOpeningHoursSchema,
+} from './validators/openingHoursValidators.js';
+import {
   ALLOWED_IMAGE_MIME_TYPES,
   ALLOWED_VIDEO_MIME_TYPES,
 } from '../media/validators/mediaConstraints.js';
@@ -54,6 +58,7 @@ const ALLOWED_LISTING_MEDIA_MIME_TYPES = [
 export default function createListingRoutes({
   listingController,
   restaurantMenuController,
+  openingHoursController,
   guards,
 }) {
   const router = Router();
@@ -284,6 +289,21 @@ export default function createListingRoutes({
     requireAuth,
     validate(itemIdOnlySchema),
     restaurantMenuController.deleteItem,
+  );
+
+  // --- Pass 6 (Restaurant vertical): weekly opening hours. Public read
+  // (same visibility model as `GET /:id/menu`), owner-or-`listing.update`
+  // full-replace write, same as every other rich-content route above.
+  router.get(
+    '/:id/opening-hours',
+    validate(getOpeningHoursSchema),
+    openingHoursController.getForListing,
+  );
+  router.put(
+    '/:id/opening-hours',
+    requireAuth,
+    validate(replaceOpeningHoursSchema),
+    openingHoursController.replaceForListing,
   );
 
   return router;

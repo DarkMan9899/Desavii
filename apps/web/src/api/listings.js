@@ -283,3 +283,17 @@ export function deleteListingMenuItem(itemId) {
     .delete(`/listings/menu/items/${itemId}`)
     .then((response) => response.data);
 }
+
+/** `GET /listings/:id/opening-hours` — public, no auth required. Pass 6 (Restaurant vertical). */
+export function getListingOpeningHours(id) {
+  return apiClient
+    .get(`/listings/${id}/opening-hours`)
+    .then((response) => response.data);
+}
+
+/** `PUT /listings/:id/opening-hours` — owner-or-`listing.update`, full-replace. */
+export function replaceListingOpeningHours(id, days) {
+  return apiClient
+    .put(`/listings/${id}/opening-hours`, { days })
+    .then((response) => response.data);
+}

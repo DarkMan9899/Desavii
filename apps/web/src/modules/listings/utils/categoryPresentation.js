@@ -70,6 +70,9 @@ const SECTIONS = Object.freeze({
   // Pass 3 remediation — only ever present for a RESTAURANT listing with
   // a real partner-authored menu (the caller filters it out otherwise).
   MENU: 'menu',
+  // Pass 6 — only ever present for a RESTAURANT listing with real
+  // partner-authored opening hours (the caller filters it out otherwise).
+  OPENING_HOURS: 'openingHours',
 });
 
 // The full generic order — what a GENERIC (dining/unclassified) listing
@@ -85,6 +88,7 @@ const BASE_ORDER = [
   SECTIONS.ATTRIBUTES,
   SECTIONS.AMENITIES,
   SECTIONS.POLICIES,
+  SECTIONS.OPENING_HOURS,
   SECTIONS.AVAILABILITY,
   SECTIONS.LOCATION,
   SECTIONS.REVIEWS,
@@ -143,6 +147,7 @@ const SECTION_ORDER_BY_GROUP = Object.freeze({
   [PRESENTATION_GROUPS.DINING]: [
     SECTIONS.ABOUT,
     SECTIONS.MENU,
+    SECTIONS.OPENING_HOURS,
     SECTIONS.AMENITIES,
     SECTIONS.POLICIES,
     SECTIONS.INCLUDED,
