@@ -38,6 +38,7 @@ import {
 import ListingGrid from '../../../../components/ListingGrid/ListingGrid.jsx';
 import EditorialPageHero from '../../../../components/EditorialPageHero/EditorialPageHero.jsx';
 import { getCategoryIcon } from '../../../../utils/categoryIcons.js';
+import { resolveCategoryHeroSeed } from '../../../../utils/categoryHeroArt.js';
 import useSeo from '../../../../seo/useSeo.js';
 import { buildBreadcrumbListSchema } from '../../../../seo/structuredData.js';
 import {
@@ -193,7 +194,12 @@ export default function CategoryPageContent() {
     <div className={styles.page}>
       <EditorialPageHero
         breadcrumbItems={breadcrumbItems}
-        heroSeed={category.id}
+        // Pass 7 (category-specific visual identity, brief §14) — a
+        // deliberately curated art combo per category slug (see
+        // `categoryHeroArt.js` for why only 5 combos exist for 9
+        // categories), falling back to the previous accidental-but-stable
+        // `category.id` seed for a category outside the known 9.
+        heroSeed={resolveCategoryHeroSeed(category.slug, category.id)}
         icon={Icon}
         eyebrow={t('nav.explore')}
         title={category.name}
