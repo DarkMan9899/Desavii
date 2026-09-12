@@ -48,6 +48,7 @@ import RequireRole from '../guards/RequireRole.jsx';
 import RequireManager from '../guards/RequireManager.jsx';
 import PartnerProvider from '../providers/PartnerProvider.jsx';
 import ManagerProvider from '../providers/ManagerProvider.jsx';
+import CurrencyProvider from '../providers/CurrencyProvider.jsx';
 import PageLoader from '../components/PageLoader/PageLoader.jsx';
 import ScrollRestoration from './ScrollRestoration.jsx';
 import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from '../translations/i18n.js';
@@ -299,7 +300,7 @@ function LocaleValidator({ children }) {
       </ErrorLayout>
     );
   }
-  return children;
+  return <CurrencyProvider locale={locale}>{children}</CurrencyProvider>;
 }
 
 LocaleValidator.propTypes = {

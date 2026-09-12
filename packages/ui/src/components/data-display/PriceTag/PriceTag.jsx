@@ -20,11 +20,15 @@ export default function PriceTag({
   size = 'md',
   suffix = undefined,
   onDark = false,
+  minimumFractionDigits = undefined,
+  maximumFractionDigits = undefined,
 }) {
   const formatted = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: currencyCode,
     currencyDisplay: 'narrowSymbol',
+    ...(minimumFractionDigits !== undefined ? { minimumFractionDigits } : {}),
+    ...(maximumFractionDigits !== undefined ? { maximumFractionDigits } : {}),
   }).format(Number(amount));
 
   return (
@@ -53,6 +57,13 @@ PriceTag.propTypes = {
   // dark photo-backdrop hero) — every existing caller keeps its default
   // light-surface coloring untouched.
   onDark: PropTypes.bool,
+  // Pass 8 (Multi-Currency / CBA FX Pricing) — opt-in fraction-digit
+  // override (the `<Money>` component's own deterministic rounding
+  // policy, `formatMoney.js`'s `CURRENCY_DISPLAY_DECIMALS`). Omitted by
+  // every pre-existing caller, which keeps Intl's own per-currency
+  // default digit count exactly as before this pass.
+  minimumFractionDigits: PropTypes.number,
+  maximumFractionDigits: PropTypes.number,
 };
 
 export { SIZES as PRICE_TAG_SIZES };
