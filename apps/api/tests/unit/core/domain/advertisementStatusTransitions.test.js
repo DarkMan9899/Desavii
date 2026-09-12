@@ -95,7 +95,7 @@ describe('Advertisement status transitions (Sprint 5 §11 manual-payment workflo
     ).toThrow(TypeError);
   });
 
-  test('ADVERTISEMENT_STATUSES exactly matches the 9 statuses seeded in migration 0010/seed 001', () => {
+  test('ADVERTISEMENT_STATUSES exactly matches the 10 statuses seeded in migration 0010/seed 001 (Pass 7B added PAUSED)', () => {
     // ADVERTISEMENT_STATUSES is frozen — sort a copy, never the original.
     expect([...ADVERTISEMENT_STATUSES].sort()).toEqual(
       [
@@ -108,7 +108,52 @@ describe('Advertisement status transitions (Sprint 5 §11 manual-payment workflo
         'EXPIRED',
         'REJECTED',
         'CANCELLED',
+        'PAUSED',
       ].sort(),
     );
+  });
+
+  // Pass 7B (brief §13/§14) — a reversible admin toggle, distinct from
+  // the terminal CANCELLED.
+  describe('PAUSED (Pass 7B)', () => {
+    test('a SCHEDULED or ACTIVE promotion can be paused', () => {
+      expect(isValidAdvertisementStatusTransition('SCHEDULED', 'PAUSED')).toBe(
+        true,
+      );
+      expect(isValidAdvertisementStatusTransition('ACTIVE', 'PAUSED')).toBe(
+        true,
+      );
+    });
+
+    test('a request still awaiting payment/approval cannot be paused (CANCEL is the correct action there)', () => {
+      expect(
+        isValidAdvertisementStatusTransition(
+          'AWAITING_OFFLINE_PAYMENT',
+          'PAUSED',
+        ),
+      ).toBe(false);
+      expect(
+        isValidAdvertisementStatusTransition('PAID_MANUAL', 'PAUSED'),
+      ).toBe(false);
+      expect(isValidAdvertisementStatusTransition('APPROVED', 'PAUSED')).toBe(
+        false,
+      );
+    });
+
+    test('a paused promotion can resume to ACTIVE or SCHEDULED, or be cancelled outright', () => {
+      expect(isValidAdvertisementStatusTransition('PAUSED', 'ACTIVE')).toBe(
+        true,
+      );
+      expect(isValidAdvertisementStatusTransition('PAUSED', 'SCHEDULED')).toBe(
+        true,
+      );
+      expect(isValidAdvertisementStatusTransition('PAUSED', 'CANCELLED')).toBe(
+        true,
+      );
+    });
+
+    test('PAUSED is not terminal — it has outgoing transitions', () => {
+      expect(isTerminalAdvertisementStatus('PAUSED')).toBe(false);
+    });
   });
 });

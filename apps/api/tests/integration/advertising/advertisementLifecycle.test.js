@@ -345,6 +345,220 @@ describe('Admin promotion lifecycle — Category placement is independent of Hom
   });
 });
 
+/**
+ * Pass 7B fixtures — a promotion only ever shows up in ANY public
+ * placement query for a genuinely PUBLISHED listing (mirrors this file's
+ * own top-level `listingId` fixture, which patches location/media/a real
+ * bookable unit before calling `/publish` — every step is required by
+ * `ListingService`'s own publish-gating rule). Extracted here since Pass
+ * 7B's new describe blocks below each need several more published
+ * fixture listings.
+ */
+async function createPublishedHotel(title) {
+  const createRes = await request(app)
+    .post('/api/v1/listings')
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({
+      partnerId,
+      listingType: 'HOTEL',
+      translations: [
+        { languageId, title, description: `${title} — Pass 7B fixture.` },
+      ],
+      categoryIds: [categoryId],
+      location: { cityId: 1 },
+    });
+  const { id } = createRes.body.data;
+  await request(app)
+    .patch(`/api/v1/listings/${id}`)
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({
+      location: { latitude: 40.18, longitude: 44.5 },
+      policyValues: [
+        { code: 'cancellation_policy', value: 'FLEXIBLE' },
+        { code: 'check_in_time', value: '14:00' },
+        { code: 'check_out_time', value: '11:00' },
+      ],
+    });
+  await request(app)
+    .post(`/api/v1/listings/${id}/media`)
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .set('Content-Type', 'image/png')
+    .send(ONE_PX_PNG);
+  await request(app)
+    .post('/api/v1/availability/units')
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({ listingId: id, bookableUnitType: 'HOTEL_ROOM' });
+  const publishRes = await request(app)
+    .post(`/api/v1/listings/${id}/publish`)
+    .set('Authorization', `Bearer ${vendor.accessToken}`);
+  if (publishRes.status !== 200) {
+    throw new Error(
+      `createPublishedHotel: publish failed with ${publishRes.status}: ${JSON.stringify(publishRes.body)}`,
+    );
+  }
+  return id;
+}
+
+describe('Pass 7B — Pause/Resume (reversible, distinct from terminal Cancel)', () => {
+  let pausableListingId;
+  let pausableAdId;
+
+  beforeAll(async () => {
+    pausableListingId = await createPublishedHotel(
+      `Pause Test Hotel ${Date.now()}`,
+    );
+
+    const adRes = await request(app)
+      .post('/api/v1/advertising/admin')
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({
+        listingId: pausableListingId,
+        placementCode: 'HOMEPAGE_SECTION',
+        productId: 5,
+        startDate: await todayPlusDays(0),
+        markPaidNow: true,
+      });
+    pausableAdId = adRes.body.data.id;
+  });
+
+  test('an ACTIVE promotion appears publicly, then disappears the instant it is paused', async () => {
+    const before = await request(app).get(
+      '/api/v1/advertising/public/home-featured?locale=en',
+    );
+    expect(before.body.data.some((l) => l.id === pausableListingId)).toBe(true);
+
+    const pauseRes = await request(app)
+      .post(`/api/v1/advertising/admin/${pausableAdId}/pause`)
+      .set('Authorization', `Bearer ${admin.accessToken}`);
+    expect(pauseRes.status).toBe(200);
+    expect(pauseRes.body.data.status_code).toBe('PAUSED');
+
+    const after = await request(app).get(
+      '/api/v1/advertising/public/home-featured?locale=en',
+    );
+    expect(after.body.data.some((l) => l.id === pausableListingId)).toBe(false);
+  });
+
+  test('a NEW overlapping request for the same listing/placement is still rejected while paused (paused still reserves its date range)', async () => {
+    const res = await request(app)
+      .post('/api/v1/advertising/admin')
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({
+        listingId: pausableListingId,
+        placementCode: 'HOMEPAGE_SECTION',
+        productId: 5,
+        startDate: await todayPlusDays(1),
+        markPaidNow: true,
+      });
+    expect(res.status).toBe(409);
+  });
+
+  test('resuming brings it back publicly, without a new row (same id)', async () => {
+    const resumeRes = await request(app)
+      .post(`/api/v1/advertising/admin/${pausableAdId}/resume`)
+      .set('Authorization', `Bearer ${admin.accessToken}`);
+    expect(resumeRes.status).toBe(200);
+    expect(resumeRes.body.data.id).toBe(pausableAdId);
+    expect(resumeRes.body.data.status_code).toBe('ACTIVE');
+
+    const after = await request(app).get(
+      '/api/v1/advertising/public/home-featured?locale=en',
+    );
+    expect(after.body.data.some((l) => l.id === pausableListingId)).toBe(true);
+  });
+
+  test('a terminal-cancelled promotion cannot be paused', async () => {
+    await request(app)
+      .post(`/api/v1/advertising/admin/${pausableAdId}/cancel`)
+      .set('Authorization', `Bearer ${admin.accessToken}`);
+    const res = await request(app)
+      .post(`/api/v1/advertising/admin/${pausableAdId}/pause`)
+      .set('Authorization', `Bearer ${admin.accessToken}`);
+    expect(res.status).toBe(409);
+  });
+});
+
+describe('Pass 7B — display_priority ordering and category isolation', () => {
+  test('Home TOP respects display_priority — highest priority first, regardless of creation order', async () => {
+    const lowId = await createPublishedHotel(`Priority Low ${Date.now()}`);
+    const highId = await createPublishedHotel(`Priority High ${Date.now()}`);
+
+    await request(app)
+      .post('/api/v1/advertising/admin')
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({
+        listingId: lowId,
+        placementCode: 'HOMEPAGE_SECTION',
+        productId: 5,
+        startDate: await todayPlusDays(0),
+        displayPriority: 1,
+        markPaidNow: true,
+      });
+    await request(app)
+      .post('/api/v1/advertising/admin')
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({
+        listingId: highId,
+        placementCode: 'HOMEPAGE_SECTION',
+        productId: 5,
+        startDate: await todayPlusDays(0),
+        displayPriority: 10,
+        markPaidNow: true,
+      });
+
+    const res = await request(app).get(
+      '/api/v1/advertising/public/home-featured?locale=en',
+    );
+    const ids = res.body.data.map((l) => l.id);
+    expect(ids.indexOf(highId)).toBeLessThan(ids.indexOf(lowId));
+  });
+
+  test("a Category Top promotion never leaks into a DIFFERENT category's Top placement", async () => {
+    const [[toursCategory]] = await pool.query(
+      "SELECT id FROM listing_categories WHERE slug = 'tours'",
+    );
+    const isolatedListingId = await createPublishedHotel(
+      `Isolation Test Hotel ${Date.now()}`,
+    );
+    await request(app)
+      .post('/api/v1/advertising/admin')
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({
+        listingId: isolatedListingId,
+        placementCode: 'CATEGORY_TOP',
+        categoryId,
+        productId: 9,
+        startDate: await todayPlusDays(0),
+        markPaidNow: true,
+      });
+
+    const ownCategoryRes = await request(app).get(
+      `/api/v1/advertising/public/category-top?categoryId=${categoryId}&locale=en`,
+    );
+    expect(
+      ownCategoryRes.body.data.some((l) => l.id === isolatedListingId),
+    ).toBe(true);
+
+    const otherCategoryRes = await request(app).get(
+      `/api/v1/advertising/public/category-top?categoryId=${toursCategory.id}&locale=en`,
+    );
+    expect(
+      otherCategoryRes.body.data.some((l) => l.id === isolatedListingId),
+    ).toBe(false);
+  });
+
+  test('an empty placement returns an empty array, never a fabricated fallback', async () => {
+    const [[emptyCategory]] = await pool.query(
+      "SELECT id FROM listing_categories WHERE slug = 'guest-houses'",
+    );
+    const res = await request(app).get(
+      `/api/v1/advertising/public/category-top?categoryId=${emptyCategory.id}&locale=en`,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+});
+
 describe('Listing/date validation', () => {
   test('a nonexistent listingId is rejected', async () => {
     const res = await request(app)
