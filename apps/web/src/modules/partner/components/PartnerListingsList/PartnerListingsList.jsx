@@ -218,6 +218,14 @@ export default function PartnerListingsList({
                     `/${locale}/${basePath}/listings/${listing.id}/rooms`,
                   )
                 }
+                onManageMenu={() =>
+                  navigate(`/${locale}/${basePath}/listings/${listing.id}/menu`)
+                }
+                onManageOpeningHours={() =>
+                  navigate(
+                    `/${locale}/${basePath}/listings/${listing.id}/opening-hours`,
+                  )
+                }
                 onPublish={(row) => handlePublish(row)}
                 onUnpublish={(row) => handleUnpublish(row)}
                 onArchive={(row) => handleArchive(row)}

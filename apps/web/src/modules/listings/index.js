@@ -12,6 +12,8 @@ export { default as listingKeys } from './constants/queryKeys.js';
 export { default as ListingDetailPageContent } from './components/ListingDetailPageContent/ListingDetailPageContent.jsx';
 export { default as PartnerListingWizard } from './components/PartnerListingWizard/PartnerListingWizard.jsx';
 export { default as PartnerListingRoomsPageContent } from './components/PartnerListingRoomsPageContent/PartnerListingRoomsPageContent.jsx';
+export { default as PartnerListingMenuPageContent } from './components/PartnerListingMenuPageContent/PartnerListingMenuPageContent.jsx';
+export { default as PartnerListingOpeningHoursPageContent } from './components/PartnerListingOpeningHoursPageContent/PartnerListingOpeningHoursPageContent.jsx';
 export {
   PRESENTATION_GROUPS,
   resolvePresentationGroup,

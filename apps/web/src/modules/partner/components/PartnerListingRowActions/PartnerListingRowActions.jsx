@@ -42,6 +42,8 @@ export default function PartnerListingRowActions({
   onView,
   onEdit,
   onManageRooms,
+  onManageMenu,
+  onManageOpeningHours,
   onPublish,
   onUnpublish,
   onArchive,
@@ -60,6 +62,12 @@ export default function PartnerListingRowActions({
   const canManageRooms =
     resolvePresentationGroup(listing.listing_type) ===
     PRESENTATION_GROUPS.ACCOMMODATION;
+  // Pass 6 (Restaurant vertical, owner issue #13) — same
+  // presentation-group gate `canManageRooms` already uses, scoped to
+  // DINING instead of ACCOMMODATION.
+  const canManageMenu =
+    resolvePresentationGroup(listing.listing_type) ===
+    PRESENTATION_GROUPS.DINING;
   const canPublish = PUBLISHABLE_STATUSES.includes(listing.status);
   const canUnpublish = UNPUBLISHABLE_STATUSES.includes(listing.status);
   const canArchive = ARCHIVABLE_STATUSES.includes(listing.status);
@@ -104,6 +112,26 @@ export default function PartnerListingRowActions({
               onClick={() => runAndClose(onManageRooms)}
             >
               {t('partner.listings.actions.manageRooms')}
+            </button>
+          )}
+          {canManageMenu && (
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.menuItem}
+              onClick={() => runAndClose(onManageMenu)}
+            >
+              {t('partner.listings.actions.manageMenu')}
+            </button>
+          )}
+          {canManageMenu && (
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.menuItem}
+              onClick={() => runAndClose(onManageOpeningHours)}
+            >
+              {t('partner.listings.actions.manageOpeningHours')}
             </button>
           )}
           {canPublish && (
@@ -169,6 +197,8 @@ PartnerListingRowActions.propTypes = {
   onView: PropTypes.func.isRequired,
   onEdit: PropTypes.func.isRequired,
   onManageRooms: PropTypes.func.isRequired,
+  onManageMenu: PropTypes.func.isRequired,
+  onManageOpeningHours: PropTypes.func.isRequired,
   onPublish: PropTypes.func.isRequired,
   onUnpublish: PropTypes.func.isRequired,
   onArchive: PropTypes.func.isRequired,

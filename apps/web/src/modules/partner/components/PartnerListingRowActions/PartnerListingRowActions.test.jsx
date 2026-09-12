@@ -40,6 +40,8 @@ function renderActions(overrides = {}) {
     onView: vi.fn(),
     onEdit: vi.fn(),
     onManageRooms: vi.fn(),
+    onManageMenu: vi.fn(),
+    onManageOpeningHours: vi.fn(),
     onPublish: vi.fn(),
     onUnpublish: vi.fn(),
     onArchive: vi.fn(),
@@ -57,6 +59,8 @@ function renderActions(overrides = {}) {
       onView={props.onView}
       onEdit={props.onEdit}
       onManageRooms={props.onManageRooms}
+      onManageMenu={props.onManageMenu}
+      onManageOpeningHours={props.onManageOpeningHours}
       onPublish={props.onPublish}
       onUnpublish={props.onUnpublish}
       onArchive={props.onArchive}

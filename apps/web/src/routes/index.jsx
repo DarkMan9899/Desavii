@@ -110,6 +110,12 @@ const PartnerListingsPage = lazy(
 const PartnerListingRoomsPage = lazy(
   () => import('../pages/partner/PartnerListingRoomsPage.jsx'),
 );
+const PartnerListingMenuPage = lazy(
+  () => import('../pages/partner/PartnerListingMenuPage.jsx'),
+);
+const PartnerListingOpeningHoursPage = lazy(
+  () => import('../pages/partner/PartnerListingOpeningHoursPage.jsx'),
+);
 const PartnerBookingsPage = lazy(
   () => import('../pages/partner/PartnerBookingsPage.jsx'),
 );
@@ -154,6 +160,12 @@ const ManagerListingWizardPage = lazy(
 );
 const ManagerListingRoomsPage = lazy(
   () => import('../pages/manager/ManagerListingRoomsPage.jsx'),
+);
+const ManagerListingMenuPage = lazy(
+  () => import('../pages/manager/ManagerListingMenuPage.jsx'),
+);
+const ManagerListingOpeningHoursPage = lazy(
+  () => import('../pages/manager/ManagerListingOpeningHoursPage.jsx'),
 );
 const ManagerBookingsPage = lazy(
   () => import('../pages/manager/ManagerBookingsPage.jsx'),
@@ -481,6 +493,14 @@ export default function AppRoutes() {
                 element={<PartnerListingRoomsPage />}
               />
               <Route
+                path="partner/listings/:id/menu"
+                element={<PartnerListingMenuPage />}
+              />
+              <Route
+                path="partner/listings/:id/opening-hours"
+                element={<PartnerListingOpeningHoursPage />}
+              />
+              <Route
                 path="partner/bookings"
                 element={<PartnerBookingsPage />}
               />
@@ -545,6 +565,14 @@ export default function AppRoutes() {
               <Route
                 path="manager/listings/:id/rooms"
                 element={<ManagerListingRoomsPage />}
+              />
+              <Route
+                path="manager/listings/:id/menu"
+                element={<ManagerListingMenuPage />}
+              />
+              <Route
+                path="manager/listings/:id/opening-hours"
+                element={<ManagerListingOpeningHoursPage />}
               />
               <Route
                 path="manager/bookings"
