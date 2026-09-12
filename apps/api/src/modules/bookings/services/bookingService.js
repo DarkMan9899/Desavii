@@ -42,7 +42,10 @@ import { enumerateDates } from '../../../core/domain/calendarExpansion.js';
 import { resolveConsumedRange } from '../../../core/domain/accommodationDateSemantics.js';
 import { resolvePriceForDate } from '../../../core/domain/accommodationPriceResolution.js';
 import { resolveBookingTypeCode } from '../../../core/domain/bookableUnitTypeToBookingType.js';
-import { isVehicleUnitType } from '../../../core/domain/rentalIntervalValidation.js';
+import {
+  isVehicleUnitType,
+  isRestaurantUnitType,
+} from '../../../core/domain/rentalIntervalValidation.js';
 import { isValidBookingStatusTransition } from '../../../core/domain/bookingStatusTransitions.js';
 import { generateBookingReference } from '../../../core/domain/bookingReference.js';
 import {
@@ -234,6 +237,11 @@ export class BookingService {
       firstHold.bookableUnitId,
     );
     const isVehicle = isVehicleUnitType(unit.bookableUnitTypeCode);
+    // Pass 6 (Restaurant vertical): the exact same "no unit-level default,
+    // so a validated hold-time is read back here" case as VEHICLE above,
+    // just for a single reservation time rather than a pickup/return
+    // interval — see `AvailabilityService#reserveCapacity`'s own comment.
+    const isRestaurant = isRestaurantUnitType(unit.bookableUnitTypeCode);
 
     const quantity = holds.length;
 
@@ -348,7 +356,8 @@ export class BookingService {
       // (`AvailabilityService#reserveCapacity`) and read back here off
       // the consumed hold, never re-trusted from fresh client input at
       // booking-creation time (`item` is never read for this).
-      timeSlotStart: isVehicle ? firstHold.startTime : unit.timeSlotStart,
+      timeSlotStart:
+        isVehicle || isRestaurant ? firstHold.startTime : unit.timeSlotStart,
       timeSlotEnd: isVehicle ? firstHold.endTime : unit.timeSlotEnd,
       // Same-location-return-only model (see `formatListingLocationLabel`)
       // — both snapshots are the listing's own location today, never

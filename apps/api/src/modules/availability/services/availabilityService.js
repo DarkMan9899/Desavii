@@ -76,6 +76,7 @@ import { resolvePriceForDate } from '../../../core/domain/accommodationPriceReso
 import { Money } from '../../../core/domain/money.js';
 import {
   isVehicleUnitType,
+  isRestaurantUnitType,
   validateRentalInterval,
 } from '../../../core/domain/rentalIntervalValidation.js';
 import { createDomainEvent } from '../../../core/events/createDomainEvent.js';
@@ -1494,17 +1495,19 @@ export class AvailabilityService {
    * consistent order and don't deadlock each other), all-or-nothing.
    * Must run inside the caller's transaction (`connection` is required).
    *
-   * Sprint B (Car Rental Pickup/Return Interval): `startTime`/`endTime`
-   * are the ONE case in this whole engine where a time value is ever
-   * accepted from a client at all — a rental's pickup/return time has no
-   * unit-level default to derive it from (unlike a Tour departure's fixed
-   * `bookable_units.time_slot_start/end`), so the customer's choice must
-   * be captured somewhere, and this is the single point it is validated
-   * before being trusted. Every other bookable unit type either has no
-   * time concept or derives it from the unit itself — passing a time for
-   * a non-VEHICLE unit is silently ignored (never persisted), so this
-   * can never become a second, parallel way to set a Tour's departure
-   * time. The capacity/blackout check below is deliberately unchanged:
+   * Sprint B (Car Rental Pickup/Return Interval); Pass 6 (Restaurant
+   * vertical) widened this the same way: `startTime`/`endTime` are
+   * accepted from a client for exactly two bookable unit types that have
+   * no unit-level time to derive from — VEHICLE (pickup/return, a real
+   * interval, chronology-validated below) and RESTAURANT_TABLE (a single
+   * reservation time; only `startTime` is ever persisted for it, there
+   * is no "return" leg to validate). Every other bookable unit type
+   * either has no time concept or derives it from the unit itself
+   * (a Tour departure's fixed `bookable_units.time_slot_start/end`) —
+   * passing a time for any other unit type is silently ignored (never
+   * persisted), so this can never become a second, parallel way to set
+   * a Tour's departure time. The capacity/blackout check below is
+   * deliberately unchanged:
    * it still locks whole calendar DAYS (`resolveConsumedRange` already
    * treats VEHICLE as inclusive-of-the-return-day) — this sprint adds a
    * real, validated pickup/return time for persistence, display, and
@@ -1531,7 +1534,9 @@ export class AvailabilityService {
     if (!unit) throw new NotFoundError('Bookable unit not found.');
 
     const isVehicle = isVehicleUnitType(unit.bookableUnitTypeCode);
-    const resolvedStartTime = isVehicle ? (startTime ?? null) : null;
+    const isRestaurant = isRestaurantUnitType(unit.bookableUnitTypeCode);
+    const resolvedStartTime =
+      isVehicle || isRestaurant ? (startTime ?? null) : null;
     const resolvedEndTime = isVehicle ? (endTime ?? null) : null;
     if (isVehicle) {
       const interval = validateRentalInterval({

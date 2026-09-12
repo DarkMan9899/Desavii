@@ -24,6 +24,19 @@ export function isVehicleUnitType(bookableUnitTypeCode) {
   return bookableUnitTypeCode === VEHICLE_BOOKABLE_UNIT_TYPE;
 }
 
+// Pass 6 (Restaurant vertical, owner issue #12/#13): a restaurant
+// reservation is a single customer-chosen point in time (unlike a
+// rental's pickup/return interval, or a Tour's fixed unit-level
+// departure) — no unit-level default to derive it from, so it needs the
+// exact same "accept and persist a client-chosen time" treatment
+// `reserveCapacity` already gives VEHICLE, just without an interval to
+// validate (there is no "return" leg to check chronology against).
+export const RESTAURANT_BOOKABLE_UNIT_TYPE = 'RESTAURANT_TABLE';
+
+export function isRestaurantUnitType(bookableUnitTypeCode) {
+  return bookableUnitTypeCode === RESTAURANT_BOOKABLE_UNIT_TYPE;
+}
+
 /**
  * @param {{dateFrom: string, dateTo: string, startTime?: string|null, endTime?: string|null}} input
  * @returns {{valid: true} | {valid: false, reason: string}}
@@ -49,4 +62,8 @@ export function validateRentalInterval({
   return { valid: true };
 }
 
-export default { isVehicleUnitType, validateRentalInterval };
+export default {
+  isVehicleUnitType,
+  isRestaurantUnitType,
+  validateRentalInterval,
+};

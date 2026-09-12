@@ -286,6 +286,7 @@
       "reference": "Համար",
       "status": "Կարգավիճակ",
       "roomType": "Սենյակի/միավորի տեսակ",
+      "tableLabel": "Սեղան",
       "dates": "Ամսաթվեր",
       "time": "Ժամ",
       "pickupLocation": "Ստացման վայրը",
@@ -345,6 +346,7 @@
       "summary": {
         "heading": "Պատվերի ամփոփում",
         "roomType": "Սենյակի/միավորի տեսակ",
+        "tableLabel": "Սեղան",
         "dates": "Ամսաթվեր",
         "time": "Ժամ",
         "pickup": "Ստացում",
@@ -352,6 +354,7 @@
         "nights": "Գիշերներ",
         "quantity": "Քանակ",
         "guests": "Հյուրեր",
+        "partySize": "Հյուրերի քանակ",
         "total": "Գնահատված ընդհանուր գումար",
         "estimateSuffix": "(գնահատական)",
         "unavailable": "Կհաշվարկվի ամրագրման ժամանակ"
@@ -3177,7 +3180,9 @@
         "noTimesForDate": "Այս ամսաթվի համար հասանելի ժամեր չկան։ Խնդրում ենք ընտրել այլ ամսաթիվ։",
         "quantityLabel": "Քանակ",
         "guestsLabel": "Հյուրեր",
+        "partySizeLabel": "Հյուրերի քանակ",
         "guestsHint": "Մինչև {{max}} հյուր ընտրված սենյակների համար",
+        "reservationTimeLabel": "Ամրագրման ժամը",
         "pickupReturnDatesLabel": "Ստացման և վերադարձի ամսաթվեր",
         "pickupLabel": "Ստացում",
         "returnLabel": "Վերադարձ",

@@ -164,6 +164,10 @@ export default function ListingReservationWidget({
   // `AvailabilityService#reserveCapacity` via `rentalIntervalValidation.js`.
   const [pickupTime, setPickupTime] = useState('');
   const [returnTime, setReturnTime] = useState('');
+  // Pass 6: a Restaurant reservation's own single chosen time — no
+  // unit-level default the way a Tour departure's `time_slot_start`
+  // provides one, and no "return" leg the way a vehicle rental has.
+  const [reservationTime, setReservationTime] = useState('');
 
   const {
     data: units,
@@ -193,6 +197,20 @@ export default function ListingReservationWidget({
   // rule directly above.
   const isVehicleListing = useMemo(
     () => (units ?? []).some((unit) => unit.bookable_unit_type === 'VEHICLE'),
+    [units],
+  );
+
+  // Pass 6 (Restaurant vertical, owner issue #12/#13): a real per-unit
+  // `bookable_unit_type === 'RESTAURANT_TABLE'` gates a genuinely
+  // Restaurant-shaped flow — one date, one customer-chosen reservation
+  // time, and a party size (never a date RANGE or "Guests" hotel
+  // language) — mirroring `isVehicleListing`'s own "never inferred from
+  // listing category" rule exactly.
+  const isRestaurantListing = useMemo(
+    () =>
+      (units ?? []).some(
+        (unit) => unit.bookable_unit_type === 'RESTAURANT_TABLE',
+      ),
     [units],
   );
 
@@ -456,7 +474,8 @@ export default function ListingReservationWidget({
     Boolean(dateRange.start) &&
     Boolean(dateRange.end) &&
     rentalInterval.valid &&
-    !isStaySoldOut;
+    !isStaySoldOut &&
+    (!isRestaurantListing || Boolean(reservationTime));
 
   function handleSelectUnit(value) {
     // P2.2D: a multi-unit listing never auto-selects (see
@@ -554,13 +573,17 @@ export default function ListingReservationWidget({
           dateFrom: dateRange.start,
           dateTo: dateRange.end,
           quantity,
-          // Sprint B: only a real VEHICLE unit ever sends a customer-chosen
-          // time — `AvailabilityService#reserveCapacity` silently ignores
-          // time on every other unit type, so this is UX-only precision,
-          // never a tampering vector for a Tour's own fixed departure time.
+          // Sprint B / Pass 6: only a real VEHICLE or RESTAURANT_TABLE
+          // unit ever sends a customer-chosen time —
+          // `AvailabilityService#reserveCapacity` silently ignores time on
+          // every other unit type, so this is UX-only precision, never a
+          // tampering vector for a Tour's own fixed departure time.
           ...(isVehicleListing && {
             startTime: pickupTime,
             endTime: returnTime,
+          }),
+          ...(isRestaurantListing && {
+            startTime: reservationTime,
           }),
         },
       ]);
@@ -580,11 +603,24 @@ export default function ListingReservationWidget({
           estimatedTotal,
           unitLabel: resolveUnitDisplayLabel(selectedUnit),
           guestCount,
+          // Pass 6: lets checkout's generic order-summary row labels
+          // (shared across every vertical) swap in Restaurant-appropriate
+          // wording instead of the hotel-flavored "Room / unit type" /
+          // "Guests" defaults — the same "never render hotel language for
+          // a restaurant" rule the widget itself already follows.
+          isRestaurantReservation: isRestaurantListing,
           // Sprint A: rides along the same way `unitLabel` already does —
           // display-only on checkout; the persisted, authoritative time a
           // customer sees afterward always comes from the real booking
           // response's own `start_time`/`end_time` snapshot, never this.
-          timeSlotStart: selectedUnit?.time_slot_start ?? null,
+          // Pass 6: a Restaurant unit has no unit-level `time_slot_start`
+          // of its own (same reasoning as VEHICLE) — its real value is
+          // the customer's own chosen `reservationTime`, which
+          // `formatTimeRange` (checkout's own generic "Time" row) already
+          // renders correctly with no `timeSlotEnd`.
+          timeSlotStart: isRestaurantListing
+            ? reservationTime
+            : (selectedUnit?.time_slot_start ?? null),
           timeSlotEnd: selectedUnit?.time_slot_end ?? null,
           // Sprint B: same display-only, ephemeral hand-off category as
           // `timeSlotStart`/`timeSlotEnd` above — the persisted,
@@ -825,7 +861,36 @@ export default function ListingReservationWidget({
               </p>
             )}
 
-            {!isAccommodationListing && dateRangePicker}
+            {isRestaurantListing ? (
+              <>
+                <DatePicker
+                  mode="single"
+                  label={t('pages.listingDetail.reservation.dateLabel')}
+                  value={dateRange.start}
+                  onChange={(date) => handleSelectDate(date)}
+                  minDate={today}
+                  locale={i18n.language}
+                  previousMonthLabel={t(
+                    'partner.listingWizard.datePicker.previousMonth',
+                  )}
+                  nextMonthLabel={t(
+                    'partner.listingWizard.datePicker.nextMonth',
+                  )}
+                  placeholder={t('partner.listingWizard.datePicker.selectDate')}
+                />
+                <Input
+                  type="time"
+                  label={t(
+                    'pages.listingDetail.reservation.reservationTimeLabel',
+                  )}
+                  value={reservationTime}
+                  disabled={!dateRange.start}
+                  onChange={(event) => setReservationTime(event.target.value)}
+                />
+              </>
+            ) : (
+              !isAccommodationListing && dateRangePicker
+            )}
 
             {isVehicleListing && (
               <Stack gap="3">
@@ -876,7 +941,13 @@ export default function ListingReservationWidget({
           </>
         )}
 
-        {selectedUnit && selectedUnit.capacity > 1 && (
+        {/* Pass 6: a restaurant table's `capacity` is how many CONCURRENT
+            reservations the dining room can hold, not a customer-facing
+            "how many tables would you like" choice — showing this
+            stepper to a diner would read as exactly the confusing
+            hotel-room language the brief calls out. Every other category
+            keeps this exactly as before. */}
+        {!isRestaurantListing && selectedUnit && selectedUnit.capacity > 1 && (
           <Input
             type="number"
             label={t('pages.listingDetail.reservation.quantityLabel')}
@@ -892,7 +963,11 @@ export default function ListingReservationWidget({
         {selectedUnit && (
           <Input
             type="number"
-            label={t('pages.listingDetail.reservation.guestsLabel')}
+            label={t(
+              isRestaurantListing
+                ? 'pages.listingDetail.reservation.partySizeLabel'
+                : 'pages.listingDetail.reservation.guestsLabel',
+            )}
             value={guestCount}
             min={1}
             max={allowedGuests ?? undefined}

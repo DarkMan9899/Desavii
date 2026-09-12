@@ -249,7 +249,12 @@ export default function BookingDetailPageContent() {
                       <p className={styles.metaLine}>
                         <Hash aria-hidden="true" focusable="false" />
                         <span>
-                          {t('bookings.detail.roomType')}: {item.unit_label}
+                          {t(
+                            booking.booking_type === 'RESTAURANT_RESERVATION'
+                              ? 'bookings.detail.tableLabel'
+                              : 'bookings.detail.roomType',
+                          )}
+                          : {item.unit_label}
                         </span>
                       </p>
                     )}

@@ -286,6 +286,7 @@
       "reference": "Номер",
       "status": "Статус",
       "roomType": "Тип номера/единицы",
+      "tableLabel": "Столик",
       "dates": "Даты",
       "time": "Время",
       "pickupLocation": "Место получения",
@@ -345,6 +346,7 @@
       "summary": {
         "heading": "Сводка заказа",
         "roomType": "Тип номера/единицы",
+        "tableLabel": "Столик",
         "dates": "Даты",
         "time": "Время",
         "pickup": "Получение",
@@ -352,6 +354,7 @@
         "nights": "Ночи",
         "quantity": "Количество",
         "guests": "Гости",
+        "partySize": "Количество гостей",
         "total": "Примерная сумма",
         "estimateSuffix": "(примерно)",
         "unavailable": "Будет рассчитано при бронировании"
@@ -3207,7 +3210,9 @@
         "noTimesForDate": "На эту дату нет доступного времени. Пожалуйста, выберите другую дату.",
         "quantityLabel": "Количество",
         "guestsLabel": "Гости",
+        "partySizeLabel": "Количество гостей",
         "guestsHint": "До {{max}} гостей для выбранных номеров",
+        "reservationTimeLabel": "Время бронирования",
         "pickupReturnDatesLabel": "Даты получения и возврата",
         "pickupLabel": "Получение",
         "returnLabel": "Возврат",

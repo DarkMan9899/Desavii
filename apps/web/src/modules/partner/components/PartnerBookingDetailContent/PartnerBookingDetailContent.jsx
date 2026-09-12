@@ -292,7 +292,12 @@ export default function PartnerBookingDetailContent({
                   <div key={item.id}>
                     {item.unit_label && (
                       <p>
-                        {t('bookings.detail.roomType')}: {item.unit_label}
+                        {t(
+                          booking.booking_type === 'RESTAURANT_RESERVATION'
+                            ? 'bookings.detail.tableLabel'
+                            : 'bookings.detail.roomType',
+                        )}
+                        : {item.unit_label}
                       </p>
                     )}
                     {/* Sprint B (Car Rental Pickup/Return Interval), Pass 5

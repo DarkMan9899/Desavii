@@ -96,6 +96,12 @@ export default function BookingCheckoutPageContent() {
   // from the real booking response, not this hand-off).
   const unitLabel = holdState?.unitLabel;
   const guestCount = holdState?.guestCount;
+  // Pass 6 (Restaurant vertical): same ephemeral, display-only hand-off
+  // category as `unitLabel`/`guestCount` above — swaps this generic
+  // summary's "Room / unit type" / "Guests" row labels for Restaurant-
+  // appropriate wording, so the final confirmation step never re-shows
+  // the hotel language the reservation widget itself already avoids.
+  const isRestaurantReservation = Boolean(holdState?.isRestaurantReservation);
   // Sprint A (Time-Aware Booking Foundation): rides along the same way
   // `unitLabel` already does — display-only here; the customer/partner/
   // admin's own later view of this booking always reads the real,
@@ -391,7 +397,13 @@ export default function BookingCheckoutPageContent() {
               <dl className={styles.summaryList}>
                 {unitLabel && (
                   <div className={styles.summaryRow}>
-                    <dt>{t('bookings.checkout.summary.roomType')}</dt>
+                    <dt>
+                      {t(
+                        isRestaurantReservation
+                          ? 'bookings.checkout.summary.tableLabel'
+                          : 'bookings.checkout.summary.roomType',
+                      )}
+                    </dt>
                     <dd>{unitLabel}</dd>
                   </div>
                 )}
@@ -460,7 +472,13 @@ export default function BookingCheckoutPageContent() {
                 )}
                 {guestCount && (
                   <div className={styles.summaryRow}>
-                    <dt>{t('bookings.checkout.summary.guests')}</dt>
+                    <dt>
+                      {t(
+                        isRestaurantReservation
+                          ? 'bookings.checkout.summary.partySize'
+                          : 'bookings.checkout.summary.guests',
+                      )}
+                    </dt>
                     <dd>{guestCount}</dd>
                   </div>
                 )}

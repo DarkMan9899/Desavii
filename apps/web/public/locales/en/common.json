@@ -286,6 +286,7 @@
       "reference": "Reference",
       "status": "Status",
       "roomType": "Room / unit type",
+      "tableLabel": "Table",
       "dates": "Dates",
       "time": "Time",
       "pickupLocation": "Pickup location",
@@ -345,6 +346,7 @@
       "summary": {
         "heading": "Order summary",
         "roomType": "Room / unit type",
+        "tableLabel": "Table",
         "dates": "Dates",
         "time": "Time",
         "pickup": "Pickup",
@@ -352,6 +354,7 @@
         "nights": "Nights",
         "quantity": "Quantity",
         "guests": "Guests",
+        "partySize": "Party size",
         "total": "Estimated total",
         "estimateSuffix": "(estimate)",
         "unavailable": "Calculated at booking"
@@ -3177,7 +3180,9 @@
         "noTimesForDate": "No times available for this date. Please choose another date.",
         "quantityLabel": "Quantity",
         "guestsLabel": "Guests",
+        "partySizeLabel": "Party size",
         "guestsHint": "Up to {{max}} guests for the selected room(s)",
+        "reservationTimeLabel": "Reservation time",
         "pickupReturnDatesLabel": "Pickup & return dates",
         "pickupLabel": "Pickup",
         "returnLabel": "Return",
