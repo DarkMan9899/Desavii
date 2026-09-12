@@ -99,6 +99,54 @@ function fromCursorSortValue(value) {
   return value;
 }
 
+/**
+ * Pass 7 (category-specific visual identity) — three extra card-display
+ * fields, shared verbatim between `buildSearchListingsQuery`'s inner SELECT
+ * and `searchListingsByIds`'s standalone one (Sprint E's Home/Category-TOP
+ * promoted-listing endpoint reuses the exact same card shape, so it needs
+ * the same fields or its cards would silently regress relative to normal
+ * Search/Category cards). Every literal here (`'cuisine'`, `'price_tier'`)
+ * is a stable backend-declared `attribute_definitions.code`/DTO-shape
+ * constant, not user input, so it's safe to inline directly rather than as
+ * a bound param — keeps this reusable as a plain string with no
+ * placeholder-ordering entanglement in either call site.
+ *
+ * `category_slug`: a listing can technically link to more than one
+ * `listing_categories` row (`listing_category_listing` is a bare M:N
+ * junction with no `is_primary` column), but every real/demo listing today
+ * has exactly one — `MIN(category_id)` gives a single deterministic slug
+ * per listing without inventing a primary-category concept the schema
+ * doesn't have.
+ *
+ * `cuisine_codes`/`price_tier_code`: Restaurant's `cuisine` (MULTI_ENUM)
+ * and `price_tier` (ENUM) attributes, resolved through the same
+ * `listing_attribute_option` -> `attribute_options` -> `attribute_definitions`
+ * chain `getFilterDefinitions` already reads for the filter UI. `cuisine`
+ * is GROUP_CONCAT'd (a listing can hold more than one cuisine option) and
+ * split back into an array in `toSearchResultDomain`; `price_tier` is
+ * single-valued by construction (ENUM, not MULTI_ENUM) so a bare LIMIT 1
+ * is correct, not a shortcut.
+ */
+const CARD_METADATA_SELECT = `
+      (SELECT lc.slug FROM listing_category_listing lcl_card
+         JOIN listing_categories lc ON lc.id = lcl_card.category_id
+         WHERE lcl_card.listing_id = l.id
+         ORDER BY lcl_card.category_id ASC LIMIT 1
+      ) AS category_slug,
+      (SELECT GROUP_CONCAT(ao_cuisine.code ORDER BY ao_cuisine.sort_order SEPARATOR ',')
+         FROM listing_attribute_option lao_cuisine
+         JOIN attribute_options ao_cuisine ON ao_cuisine.id = lao_cuisine.attribute_option_id
+         JOIN attribute_definitions ad_cuisine ON ad_cuisine.id = ao_cuisine.attribute_definition_id
+         WHERE lao_cuisine.listing_id = l.id AND ad_cuisine.code = 'cuisine'
+      ) AS cuisine_codes,
+      (SELECT ao_tier.code
+         FROM listing_attribute_option lao_tier
+         JOIN attribute_options ao_tier ON ao_tier.id = lao_tier.attribute_option_id
+         JOIN attribute_definitions ad_tier ON ad_tier.id = ao_tier.attribute_definition_id
+         WHERE lao_tier.listing_id = l.id AND ad_tier.code = 'price_tier'
+         LIMIT 1
+      ) AS price_tier_code`;
+
 function toSearchResultDomain(row) {
   return {
     id: row.id,
@@ -121,6 +169,23 @@ function toSearchResultDomain(row) {
       row.rating_average !== null ? Number(row.rating_average) : null,
     reviewCount: Number(row.review_count),
     createdAt: row.created_at,
+    // Pass 7 (category-specific visual identity): the coarser
+    // `listing_type_code` above can't distinguish e.g. Apartments from
+    // Villas (both PROPERTY) — cards need the real category slug to
+    // choose a category-precise presentation. `undefined` (column absent
+    // from `searchListingsByIds`'s own SELECT — n/a there) collapses to
+    // `null` the same as a listing genuinely in no category.
+    categorySlug: row.category_slug ?? null,
+    // Restaurant card metadata (brief §9/§22, the deferred item from the
+    // previous pass) — MULTI_ENUM `cuisine` is GROUP_CONCAT'd into a
+    // comma string by the subquery below; split back into option codes
+    // here so callers never parse SQL-shaped strings themselves. `null`
+    // for a listing with no cuisine attribute set (every non-Restaurant
+    // category, or a Restaurant not yet authored) — never `[]`, so
+    // "not applicable/not set" stays distinguishable from a future
+    // genuinely-empty-selection state.
+    cuisineCodes: row.cuisine_codes ? row.cuisine_codes.split(',') : null,
+    priceTierCode: row.price_tier_code ?? null,
   };
 }
 
@@ -565,6 +630,7 @@ export function buildSearchListingsQuery(
          JOIN moderation_statuses rs ON rs.id = rv.status_id
          WHERE rv.listing_id = l.id AND rs.code = 'APPROVED' AND rv.deleted_at IS NULL
       ) AS review_count,
+      ${CARD_METADATA_SELECT},
       ${relevanceSelect}
     FROM listings l
     JOIN listing_types ltype ON ltype.id = l.listing_type_id
@@ -746,7 +812,8 @@ export class MySqlSearchRepository {
         (SELECT COUNT(*) FROM reviews rv
            JOIN moderation_statuses rs ON rs.id = rv.status_id
            WHERE rv.listing_id = l.id AND rs.code = 'APPROVED' AND rv.deleted_at IS NULL
-        ) AS review_count
+        ) AS review_count,
+        ${CARD_METADATA_SELECT}
       FROM listings l
       JOIN listing_types ltype ON ltype.id = l.listing_type_id
       JOIN listing_statuses ls ON ls.id = l.status_id

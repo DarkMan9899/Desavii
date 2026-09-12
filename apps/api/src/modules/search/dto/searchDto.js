@@ -31,6 +31,17 @@ export function toSearchResultResponse(result) {
     rating_average: result.ratingAverage ?? null,
     review_count: result.reviewCount ?? 0,
     created_at: result.createdAt,
+    // Pass 7 (category-specific visual identity): `listing_type` alone
+    // can't distinguish e.g. Apartments/Villas/Guest Houses (all
+    // PROPERTY) or Attractions/Entertainment (both ATTRACTION) — cards
+    // resolve their category-precise presentation from this slug,
+    // falling back to `listing_type` only if it's ever absent.
+    category_slug: result.categorySlug ?? null,
+    // Restaurant-only today (brief §9/§22's deferred card metadata) —
+    // `null` for every other category and for a Restaurant not yet
+    // authored with these attributes, never fabricated.
+    cuisine: result.cuisineCodes ?? null,
+    price_tier: result.priceTierCode ?? null,
   };
 }
 
