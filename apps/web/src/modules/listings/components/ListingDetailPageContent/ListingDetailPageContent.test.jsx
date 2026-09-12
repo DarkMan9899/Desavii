@@ -338,6 +338,37 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
     ).toBeInTheDocument();
   });
 
+  test('Pass 10: renders authored opening hours for a non-Restaurant listing (the RESTAURANT-only query gate was a bug, not intentional scoping)', () => {
+    useListingQuery.mockReturnValue({
+      data: VILLA_LISTING,
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    useListingMetadataQuery.mockReturnValue({
+      data: VILLA_METADATA,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    useListingOpeningHoursQuery.mockReturnValue({
+      data: [
+        {
+          day_of_week: 1,
+          opens_at: '09:00',
+          closes_at: '18:00',
+          is_closed: false,
+        },
+      ],
+    });
+    renderPage(3);
+
+    expect(
+      screen.getByRole('heading', { name: 'Աշխատանքային ժամեր' }),
+    ).toBeInTheDocument();
+  });
+
   test('Sprint C-2: shows a Rooms section for a listing with real HOTEL_ROOM units, and never a whole-property listing', () => {
     useListingQuery.mockReturnValue({
       data: VILLA_LISTING,

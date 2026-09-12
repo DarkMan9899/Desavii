@@ -160,11 +160,18 @@ export default function ListingDetailPageContent() {
     listing?.listing_type === 'RESTAURANT' ? listing.id : undefined,
     locale,
   );
-  // Pass 6 (Restaurant vertical, owner issue #13) — same "RESTAURANT-only
-  // fetch" rule `menus` above already follows.
-  const { data: weeklyHours } = useListingOpeningHoursQuery(
-    listing?.listing_type === 'RESTAURANT' ? listing.id : undefined,
-  );
+  // Pass 10 (Attraction vertical completion) — `listing_opening_hours`
+  // (migration 0046) and this query were never actually RESTAURANT-specific
+  // at the schema/backend level (no `listing_type` check exists in either
+  // `openingHoursService.js` or the table itself); only this frontend gate
+  // was, meaning any other category's authored hours could never render.
+  // Fetched for every listing now, same as `highlights`/`faqs`/
+  // `includedItems` below — a listing with no authored hours simply gets
+  // an empty array back and the section stays hidden (`.length > 0` gate
+  // further down), never an empty decorative shell. `menus` above stays
+  // RESTAURANT-only on purpose — a menu genuinely is restaurant-specific,
+  // unlike opening hours.
+  const { data: weeklyHours } = useListingOpeningHoursQuery(listing?.id);
   const [selectedUnitId, setSelectedUnitId] = useState(null);
 
   // Sprint C-3 (Date-Range Room Availability): the SAME canonical

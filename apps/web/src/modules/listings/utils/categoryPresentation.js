@@ -239,17 +239,28 @@ const SECTION_ORDER_BY_GROUP = Object.freeze({
   // components — brief §12/§13: "visual architecture only" for this pass).
   //
   // Attraction: Gallery -> Story -> Highlights/Facts -> Practical Visit
-  // Info -> Map -> Ticket/Opening context. ABOUT is the story; ATTRIBUTES
+  // Info -> Map -> Opening/Ticket context. ABOUT is the story; ATTRIBUTES
   // (the Generic Attribute Engine's own facts) are the highlights; visit
   // logistics live across AMENITIES (what's on-site) and POLICIES (visit
-  // rules); LOCATION is the map; AVAILABILITY (ticket/opening context, if
-  // the listing has any) comes last, before reviews/FAQ.
+  // rules); LOCATION is the map; OPENING_HOURS/AVAILABILITY (opening
+  // context, then ticket/booking, if the listing has either) come last,
+  // before reviews/FAQ. Pass 10 (Attraction vertical completion): adds
+  // OPENING_HOURS here now that `ListingDetailPageContent.jsx` fetches it
+  // for every category, not just Restaurant — was previously absent from
+  // this order entirely since it could never have any data to show for an
+  // Attraction. Still renders nothing for the 3 real guided-excursion
+  // demo listings today (their `TOUR_DEPARTURE` scheduling doesn't
+  // naturally map to weekly opening hours, and none was fabricated for
+  // them — see the seed data's own comment) — this only ordering the slot
+  // for whichever future Attraction listing (e.g. a museum, a fixed-site
+  // landmark) actually has partner-authored hours.
   [CATEGORY_VISUAL_KEYS.ATTRACTIONS]: [
     SECTIONS.ABOUT,
     SECTIONS.ATTRIBUTES,
     SECTIONS.AMENITIES,
     SECTIONS.POLICIES,
     SECTIONS.LOCATION,
+    SECTIONS.OPENING_HOURS,
     SECTIONS.AVAILABILITY,
     SECTIONS.REVIEWS,
     SECTIONS.FAQ,

@@ -58,6 +58,7 @@ import {
   insertPolicyValue,
   insertAttributeValue,
   insertOpeningHours,
+  insertLocalizedRows,
 } from './seedDemoListingRichContent.js';
 
 // Shared by every Sprint J partner-owner account — same disposable-DB-only
@@ -1506,6 +1507,66 @@ const LISTINGS = [
     },
     amenities: ['Family Friendly'],
     policies: [{ code: 'children_allowed', value: 'true' }],
+    // Pass 10 (Attraction vertical completion, brief §4/§23): every value
+    // here is either a direct mirror of already-real operational data
+    // (`max_group_size` <- this same listing's own unit `capacity` below)
+    // or omitted entirely rather than guessed. The description only says
+    // "half-day" (no exact figure), which is not a number this listing
+    // itself states — asserting a specific `duration_minutes` for it would
+    // add false precision the partner never actually authored, so it is
+    // deliberately left unset here (see the Yerevan Street Art listing
+    // below, whose description states an exact "2-hour" figure and does
+    // get a `duration_minutes` value). `languages_offered` is left unset
+    // for the same reason: nothing in this listing's authored content
+    // states which languages the guide speaks.
+    attributes: [{ code: 'max_group_size', value: 15 }],
+    // Extracted verbatim from this listing's own already-authored EN/HY/RU
+    // description above (never new prose) — the "Key Facts" the brief asks
+    // for, sourced only from partner-authored, already-approved content.
+    highlights: {
+      en: [
+        {
+          iconCode: 'mountain',
+          text: 'The only standing Hellenistic-style colonnaded temple in the former Soviet Union',
+        },
+        {
+          iconCode: 'location',
+          text: 'Geghard Monastery is partly carved directly into the cliff behind it',
+        },
+        {
+          iconCode: 'camera',
+          text: 'Includes a stop at Garni Gorge\'s basalt columns, the "Symphony of Stones"',
+        },
+      ],
+      hy: [
+        {
+          iconCode: 'mountain',
+          text: 'Նախկին Խորհրդային Միությունում միակ կանգուն հելլենիստական ոճի սյունազարդ տաճարը',
+        },
+        {
+          iconCode: 'location',
+          text: 'Գեղարդի վանքը մասամբ փորագրված է ուղղակիորեն նրա հետևում գտնվող ժայռի մեջ',
+        },
+        {
+          iconCode: 'camera',
+          text: 'Ներառված է կանգառ Գառնիի կիրճի բազալտե սյունային կազմավորումների՝ «Քարերի սիմֆոնիա» մոտ',
+        },
+      ],
+      ru: [
+        {
+          iconCode: 'mountain',
+          text: 'Единственный сохранившийся на территории бывшего СССР колонный храм эллинистического стиля',
+        },
+        {
+          iconCode: 'location',
+          text: 'Монастырь Гегард частично высечен прямо в скале позади него',
+        },
+        {
+          iconCode: 'camera',
+          text: 'Включена остановка у базальтовых колонн ущелья Гарни — «Симфония камней»',
+        },
+      ],
+    },
     units: [
       { type: 'TOUR_DEPARTURE', label: 'Shared Group Departure', capacity: 15 },
     ],
@@ -1544,6 +1605,54 @@ const LISTINGS = [
     },
     amenities: ['Family Friendly'],
     policies: [{ code: 'children_allowed', value: 'true' }],
+    // No explicit duration is stated anywhere in this listing's authored
+    // description — left unset rather than guessed (see the Garni/Geghard
+    // listing above for the same reasoning).
+    attributes: [{ code: 'max_group_size', value: 10 }],
+    highlights: {
+      en: [
+        {
+          iconCode: 'mountain',
+          text: 'Old Khndzoresk was inhabited until the mid-20th century, with hand-carved cave dwellings still visible in the canyon walls',
+        },
+        {
+          iconCode: 'location',
+          text: 'Crosses a long swinging footbridge connecting both sides of the canyon',
+        },
+        {
+          iconCode: 'camera',
+          text: 'Includes a stop at the small underground Anapat hermitage church',
+        },
+      ],
+      hy: [
+        {
+          iconCode: 'mountain',
+          text: 'Հին Խնձորեսկը բնակեցված է եղել մինչև XX դարի կեսը, և նրա ձեռքով փորագրված քարանձավային բնակարանները դեռ երևում են կիրճի ժայռերի մեջ',
+        },
+        {
+          iconCode: 'location',
+          text: 'Անցնում է երկար ճոճվող ոտքով կամրջով, որը կապում է կիրճի երկու կողմերը',
+        },
+        {
+          iconCode: 'camera',
+          text: 'Ներառում է կանգառ փոքր ստորգետնյա Անապատ մենաստանային եկեղեցու մոտ',
+        },
+      ],
+      ru: [
+        {
+          iconCode: 'mountain',
+          text: 'Старый Хндзореск был обитаем до середины XX века, и его вырубленные вручную пещерные жилища до сих пор видны в скалах',
+        },
+        {
+          iconCode: 'location',
+          text: 'Включает переход по длинному подвесному мосту, соединяющему обе стороны каньона',
+        },
+        {
+          iconCode: 'camera',
+          text: 'Остановка у небольшой подземной церкви-скита Анапат',
+        },
+      ],
+    },
     units: [
       { type: 'TOUR_DEPARTURE', label: 'Shared Group Departure', capacity: 10 },
     ],
@@ -1582,6 +1691,58 @@ const LISTINGS = [
     },
     amenities: ['Wheelchair Accessible', 'Family Friendly'],
     policies: [{ code: 'children_allowed', value: 'true' }],
+    // Unlike the two listings above, this description states an exact,
+    // unambiguous figure ("a relaxed 2-hour walking route") — a real
+    // number the partner actually authored, not an estimate this pass
+    // invented from a vaguer phrase like "half-day".
+    attributes: [
+      { code: 'duration_minutes', value: 120 },
+      { code: 'max_group_size', value: 12 },
+    ],
+    highlights: {
+      en: [
+        {
+          iconCode: 'camera',
+          text: 'Large-scale murals in the Kond and Downtown districts',
+        },
+        {
+          iconCode: 'award',
+          text: "Soviet-era modernist architecture that doesn't make most guidebooks",
+        },
+        {
+          iconCode: 'clock',
+          text: 'A relaxed, 2-hour pace with plenty of stops to look, not a march between sights',
+        },
+      ],
+      hy: [
+        {
+          iconCode: 'camera',
+          text: 'Մեծածավալ որմնանկարներ Կոնդ և կենտրոնական թաղամասերում',
+        },
+        {
+          iconCode: 'award',
+          text: 'Խորհրդային ժամանակաշրջանի մոդեռնիստական ճարտարապետության օրինակներ, որոնք չեն մտնում ուղեցույցների մեծ մասում',
+        },
+        {
+          iconCode: 'clock',
+          text: 'Հանգիստ, 2-ժամյա տեմպ՝ շատ կանգառներով, այլ ոչ թե տեսարժան վայրերի միջև երթ',
+        },
+      ],
+      ru: [
+        {
+          iconCode: 'camera',
+          text: 'Масштабные муралы в районах Конд и центре',
+        },
+        {
+          iconCode: 'award',
+          text: 'Примеры советской модернистской архитектуры, которые не попадают в большинство путеводителей',
+        },
+        {
+          iconCode: 'clock',
+          text: 'Неспешный 2-часовой темп с остановками, чтобы рассмотреть, а не марш-бросок между достопримечательностями',
+        },
+      ],
+    },
     units: [
       { type: 'TOUR_DEPARTURE', label: 'Shared Group Departure', capacity: 12 },
     ],
@@ -1907,6 +2068,35 @@ async function createFullListing(connection, ctx, spec) {
     });
   }
 
+  // Pass 10 (Attraction vertical completion): the generic, already-i18n'd
+  // `listing_highlights` table/mechanism `seedDemoListingRichContent.js`'s
+  // own flagship listings already use — wired up here too (this catalog
+  // never called `insertLocalizedRows` before) rather than inventing a
+  // second highlights-seeding mechanism. `spec.highlights` is undefined for
+  // every listing that doesn't set it, so this is a no-op everywhere else.
+  if (spec.highlights) {
+    // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order
+    for (const localeCode of ['en', 'hy', 'ru']) {
+      const items = spec.highlights[localeCode];
+      // eslint-disable-next-line no-await-in-loop -- sequential by design
+      await insertLocalizedRows(
+        connection,
+        'listing_highlights',
+        ['icon_code', 'text', 'sort_order'],
+        listingId,
+        ctx.languageIds.get(localeCode),
+        items,
+        (lid, langId, item, index) => [
+          lid,
+          langId,
+          item.iconCode,
+          item.text,
+          index,
+        ],
+      );
+    }
+  }
+
   // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order
   for (const unit of spec.units) {
     // eslint-disable-next-line no-await-in-loop -- sequential by design
@@ -2163,6 +2353,14 @@ export default async function seedDemoSprintJCatalog(connection) {
   // exactly the sequence `entertainmentVenues.test.js` (Sprint I) already
   // proves at the API layer; this seeds the same end state directly so it
   // survives a fresh reset without a manual Admin action.
+  //
+  // Pass 10 (Category TOP 3D card correction, brief §21/§29): LOCAL/DEV
+  // QA needs at least one active CATEGORY_TOP promotion per category to
+  // actually verify the promoted-card fix on every category's own
+  // catalog, not just Entertainment's — before this pass only
+  // entertainment-venues had one. This is explicitly LOCAL/DEV seed data
+  // for that QA, never a production dataset. One representative listing
+  // per remaining category, each already published with real content.
   const promotionIds = [];
   // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order
   for (const promo of [
@@ -2173,6 +2371,40 @@ export default async function seedDemoSprintJCatalog(connection) {
     {
       placementCode: 'CATEGORY_TOP',
       listingId: listingIdBySlug.get('sprintj-labyrinth-escape-rooms'),
+    },
+    {
+      placementCode: 'CATEGORY_TOP',
+      listingId: listingIdBySlug.get('sprintj-gyumri-heritage-hotel'),
+    },
+    {
+      placementCode: 'CATEGORY_TOP',
+      listingId: listingIdBySlug.get('sprintj-cascade-view-studio'),
+    },
+    {
+      placementCode: 'CATEGORY_TOP',
+      listingId: listingIdBySlug.get('sprintj-sevan-lakeside-villa'),
+    },
+    {
+      placementCode: 'CATEGORY_TOP',
+      listingId: listingIdBySlug.get('sprintj-gyumri-heritage-guesthouse'),
+    },
+    {
+      placementCode: 'CATEGORY_TOP',
+      listingId: listingIdBySlug.get('sprintj-toros-armenian-kitchen'),
+    },
+    {
+      placementCode: 'CATEGORY_TOP',
+      listingId: listingIdBySlug.get('sprintj-areni-wine-cave-day-trip'),
+    },
+    {
+      placementCode: 'CATEGORY_TOP',
+      listingId: listingIdBySlug.get('sprintj-economy-city-car-compact-class'),
+    },
+    {
+      placementCode: 'CATEGORY_TOP',
+      listingId: listingIdBySlug.get(
+        'sprintj-garni-temple-geghard-monastery-excursion',
+      ),
     },
   ]) {
     // eslint-disable-next-line no-await-in-loop -- sequential by design
