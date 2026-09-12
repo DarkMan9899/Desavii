@@ -32,7 +32,6 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import { PriceTag } from '@desavii/ui/components/data-display';
 import { Button } from '@desavii/ui/components/primitives';
 import { Drawer } from '@desavii/ui/components/feedback-overlays';
 import {
@@ -40,6 +39,7 @@ import {
   resolvePricingModelLabel,
 } from '../../../utils/reservationLabels.js';
 import ListingReservationWidget from '../ListingReservationWidget/ListingReservationWidget.jsx';
+import Money from '../../../../../components/Money/Money.jsx';
 import styles from './MobileBookingBar.module.scss';
 
 export default function MobileBookingBar({
@@ -64,9 +64,8 @@ export default function MobileBookingBar({
       <div className={styles.bar}>
         <div className={styles.priceArea}>
           {pricing ? (
-            <PriceTag
-              amount={pricing.amount}
-              currencyCode={pricing.currency}
+            <Money
+              amountAmd={pricing.amount}
               locale={locale}
               suffix={pricingModelLabel}
               size="md"

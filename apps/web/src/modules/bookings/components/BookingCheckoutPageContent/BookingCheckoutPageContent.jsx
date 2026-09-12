@@ -28,6 +28,17 @@
  * collects payment (`PAYMENTS_ENABLED=false`; the flow here creates a
  * `PENDING_VENDOR` request, not a charge), so there's no payment-status
  * messaging to add — nothing was invented to fill that gap.
+ *
+ * Pass 8 (Multi-Currency / CBA FX Pricing) — this is the documented "FX
+ * freeze point" (brief §27): the summary total renders through `<Money>`
+ * (a LIVE conversion, so it may still move if the customer switches
+ * currency before submitting), but `onSubmit` sends the customer's
+ * current `currency` as `displayCurrencyCode` — the server resolves and
+ * permanently snapshots the FX rate at that exact moment
+ * (`bookingService.js#resolveDisplayFxSnapshot`), never a client-supplied
+ * rate. After that, the booking's own stored snapshot is what every later
+ * view shows, never a fresh live conversion (see
+ * `resolveBookingDisplayAmount.js`).
  */
 
 import { useEffect, useState } from 'react';
@@ -37,14 +48,15 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Clock } from 'lucide-react';
 import { Input, Textarea } from '@desavii/ui/components/form-controls';
 import { Button, Card } from '@desavii/ui/components/primitives';
-import { PriceTag } from '@desavii/ui/components/data-display';
 import { Alert, EmptyState } from '@desavii/ui/components/feedback-overlays';
 import { Breadcrumbs } from '@desavii/ui/components/navigation';
 import { Stack } from '@desavii/ui/components/layout';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import DestinationArt from '../../../../components/DestinationArt/DestinationArt.jsx';
+import Money from '../../../../components/Money/Money.jsx';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
+import { useCurrency } from '../../../../contexts/CurrencyContext.jsx';
 import useNoIndex from '../../../../seo/useNoIndex.js';
 import { formatTimeRange } from '../../../../utils/formatTimeRange.js';
 import { useListingQuery } from '../../../listings/queries/useListingQuery.js';
@@ -78,6 +90,7 @@ export default function BookingCheckoutPageContent() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { currency: displayCurrency } = useCurrency();
   useNoIndex();
 
   const [bookingConflict, setBookingConflict] = useState(false);
@@ -192,6 +205,10 @@ export default function BookingCheckoutPageContent() {
           phone: values.phone || undefined,
         },
         customerNotes: values.notes || undefined,
+        // Pass 8 — the FX freeze point (see this file's own header
+        // comment): the server resolves/snapshots the real rate itself,
+        // this is only the customer's currency CHOICE, never a rate.
+        displayCurrencyCode: displayCurrency,
       });
       showToast(t('bookings.checkout.successToast'), { variant: 'success' });
       navigate(`/${locale}/account/bookings/${data.id}`);
@@ -486,9 +503,8 @@ export default function BookingCheckoutPageContent() {
               <div className={styles.summaryTotalRow}>
                 <strong>{t('bookings.checkout.summary.total')}</strong>
                 {estimatedTotal ? (
-                  <PriceTag
-                    amount={estimatedTotal.amount}
-                    currencyCode={estimatedTotal.currency}
+                  <Money
+                    amountAmd={estimatedTotal.amount}
                     suffix={t('bookings.checkout.summary.estimateSuffix')}
                     locale={locale}
                   />

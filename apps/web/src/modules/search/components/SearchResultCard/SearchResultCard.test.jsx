@@ -1,18 +1,36 @@
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import PropTypes from 'prop-types';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom';
 import SearchResultCard from './SearchResultCard.jsx';
+import CurrencyProvider from '../../../../providers/CurrencyProvider.jsx';
 
 // FavoriteButton has its own dedicated test file — a trivial stub here
 // keeps this file focused on SearchResultCard's own rendering and avoids
-// needing an AuthProvider/QueryClientProvider just to satisfy
-// FavoriteButton's internal hooks.
+// needing an AuthProvider just to satisfy FavoriteButton's internal
+// hooks. `QueryClientProvider` is still needed (Pass 8: `ListingCardBase`
+// now renders an AMD price through `<Money>`, which reads
+// `CurrencyContext`'s FX-rates query).
 vi.mock(
   '../../../favorites/components/FavoriteButton/FavoriteButton.jsx',
   () => ({
     default: () => null,
   }),
 );
+vi.mock('../../../../api/fx.js', () => ({
+  getRates: vi.fn().mockResolvedValue({
+    success: true,
+    data: {
+      baseCurrency: 'AMD',
+      rates: { AMD: '1.00000000', USD: '400.00000000', RUB: '4.50000000' },
+      effectiveAt: '2026-01-01',
+      source: 'fixture',
+    },
+    meta: null,
+    error: null,
+  }),
+}));
 
 const RESULT = {
   id: 7,
@@ -26,22 +44,41 @@ const RESULT = {
   price_currency_code: null,
 };
 
+function LocaleScopedCard({ result, hideTypeBadge = false }) {
+  const { locale } = useParams();
+  return (
+    <CurrencyProvider locale={locale}>
+      <SearchResultCard result={result} hideTypeBadge={hideTypeBadge} />
+    </CurrencyProvider>
+  );
+}
+LocaleScopedCard.propTypes = {
+  // eslint-disable-next-line react/forbid-prop-types -- test-only pass-through
+  result: PropTypes.object.isRequired,
+  hideTypeBadge: PropTypes.bool,
+};
+
 function renderCard(
   result = RESULT,
   initialEntry = '/en',
   hideTypeBadge = false,
 ) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <Routes>
-        <Route
-          path="/:locale"
-          element={
-            <SearchResultCard result={result} hideTypeBadge={hideTypeBadge} />
-          }
-        />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <Routes>
+          <Route
+            path="/:locale"
+            element={
+              <LocaleScopedCard result={result} hideTypeBadge={hideTypeBadge} />
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

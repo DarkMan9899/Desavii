@@ -47,6 +47,7 @@ import { AskAiButton } from '../../../ai/index.js';
 import { BookingPaymentSection } from '../../../payments/index.js';
 import { useListingQuery } from '../../../listings/queries/useListingQuery.js';
 import getLocalizedTranslation from '../../../listings/utils/getLocalizedTranslation.js';
+import { resolveBookingDisplayAmount } from '../../../../utils/resolveBookingDisplayAmount.js';
 import { computeNights } from '../../utils/computeNights.js';
 import StatusStepper from '../StatusStepper/StatusStepper.jsx';
 import styles from './BookingDetailPageContent.module.scss';
@@ -146,6 +147,9 @@ export default function BookingDetailPageContent() {
   const listingTitle = listing ? (translation?.title ?? listing.slug) : null;
   const coverMedia =
     listing?.media?.find((media) => media.is_cover) ?? listing?.media?.[0];
+  // Pass 8: the immutable FX display snapshot, never a live
+  // re-conversion (brief §26) — see resolveBookingDisplayAmount.js.
+  const displayPrice = resolveBookingDisplayAmount(booking);
 
   async function handleCancel() {
     const confirmed = await confirm({
@@ -216,8 +220,8 @@ export default function BookingDetailPageContent() {
             <Inline gap="3" align="center" wrap>
               <BookingStatusBadge status={booking.status} />
               <PriceTag
-                amount={booking.total_amount}
-                currencyCode={booking.currency}
+                amount={displayPrice.amount}
+                currencyCode={displayPrice.currencyCode}
                 locale={i18n.language}
                 suffix={t('bookings.detail.total')}
                 size="lg"

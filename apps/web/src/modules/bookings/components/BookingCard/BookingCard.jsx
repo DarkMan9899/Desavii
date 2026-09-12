@@ -34,6 +34,7 @@ import DestinationArt from '../../../../components/DestinationArt/DestinationArt
 import { useListingQuery } from '../../../listings/queries/useListingQuery.js';
 import getLocalizedTranslation from '../../../listings/utils/getLocalizedTranslation.js';
 import BookingStatusBadge from '../BookingStatusBadge/BookingStatusBadge.jsx';
+import { resolveBookingDisplayAmount } from '../../../../utils/resolveBookingDisplayAmount.js';
 import styles from './BookingCard.module.scss';
 
 function renderMedia({
@@ -84,6 +85,17 @@ export default function BookingCard({
     dateStyle: 'medium',
   }).format(new Date(booking.requested_at));
   const isPremium = variant === 'premium';
+  // Pass 8 (Multi-Currency / CBA FX Pricing) — a booking's price is
+  // immutable once created (brief §26): the customer's own view shows
+  // whatever currency/amount was snapshotted at booking time, never a
+  // live re-conversion. Partner/Admin views stay AMD-only (brief §18's
+  // carve-out) — the same underlying total, just never converted for
+  // them, matching every other Partner/Admin price surface this pass
+  // deliberately leaves untouched.
+  const displayPrice =
+    audience === 'customer'
+      ? resolveBookingDisplayAmount(booking)
+      : { amount: booking.total_amount, currencyCode: booking.currency };
 
   return (
     <Card
@@ -118,8 +130,8 @@ export default function BookingCard({
           {t('bookings.list.requestedOn', { date: requestedDate })}
         </p>
         <PriceTag
-          amount={booking.total_amount}
-          currencyCode={booking.currency}
+          amount={displayPrice.amount}
+          currencyCode={displayPrice.currencyCode}
           locale={i18n.language}
           suffix={t('bookings.list.total')}
           size="sm"

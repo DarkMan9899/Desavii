@@ -1,8 +1,25 @@
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import PropTypes from 'prop-types';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom';
 import MobileBookingBar from './MobileBookingBar.jsx';
+import CurrencyProvider from '../../../../../providers/CurrencyProvider.jsx';
+
+vi.mock('../../../../../api/fx.js', () => ({
+  getRates: vi.fn().mockResolvedValue({
+    success: true,
+    data: {
+      baseCurrency: 'AMD',
+      rates: { AMD: '1.00000000', USD: '400.00000000', RUB: '4.50000000' },
+      effectiveAt: '2026-01-01',
+      source: 'fixture',
+    },
+    meta: null,
+    error: null,
+  }),
+}));
 
 // This test only needs to prove MobileBookingBar's own contract (bar
 // content, opening the drawer, forwarding props) — the reservation
@@ -25,25 +42,60 @@ const RESERVE_YOUR_SPOT = 'Ամրագրել ձեր տեղը';
 const NO_UNITS_AVAILABLE =
   'Այս հայտարարությունը դեռ հասանելի չէ առցանց ամրագրման համար։';
 
-const PRICING = { amount: 120, currency: 'USD', pricing_model: 'PER_NIGHT' };
+// Pass 8: `pricing.amount` is always AMD (canonical) — rendered here at
+// 'hy' locale (AMD's own default, no FX conversion) so this file's price
+// assertions can keep matching the raw fixture number.
+const PRICING = { amount: 120, currency: 'AMD', pricing_model: 'PER_NIGHT' };
+
+function RouteScopedBar({
+  listingId,
+  pricing = null,
+  bookingCtaKey,
+  location = null,
+}) {
+  const { locale } = useParams();
+  return (
+    <CurrencyProvider locale={locale}>
+      <MobileBookingBar
+        listingId={listingId}
+        pricing={pricing}
+        bookingCtaKey={bookingCtaKey}
+        location={location}
+      />
+    </CurrencyProvider>
+  );
+}
+RouteScopedBar.propTypes = {
+  listingId: PropTypes.number.isRequired,
+  // eslint-disable-next-line react/forbid-prop-types -- test-only pass-through
+  pricing: PropTypes.object,
+  bookingCtaKey: PropTypes.string.isRequired,
+  // eslint-disable-next-line react/forbid-prop-types -- test-only pass-through
+  location: PropTypes.object,
+};
 
 function renderBar({ listingId, pricing, bookingCtaKey, location }) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <MemoryRouter initialEntries={['/en/listings/7']}>
-      <Routes>
-        <Route
-          path="/:locale/listings/:id"
-          element={
-            <MobileBookingBar
-              listingId={listingId}
-              pricing={pricing}
-              bookingCtaKey={bookingCtaKey}
-              location={location}
-            />
-          }
-        />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/hy/listings/7']}>
+        <Routes>
+          <Route
+            path="/:locale/listings/:id"
+            element={
+              <RouteScopedBar
+                listingId={listingId}
+                pricing={pricing}
+                bookingCtaKey={bookingCtaKey}
+                location={location}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

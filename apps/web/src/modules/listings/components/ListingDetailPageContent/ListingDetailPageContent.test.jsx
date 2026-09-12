@@ -8,8 +8,10 @@
  */
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom';
 import ToastProvider from '../../../../providers/ToastProvider.jsx';
+import CurrencyProvider from '../../../../providers/CurrencyProvider.jsx';
 import ListingDetailPageContent from './ListingDetailPageContent.jsx';
 import { useListingQuery } from '../../queries/useListingQuery.js';
 import { useListingMetadataQuery } from '../../queries/useListingMetadataQuery.js';
@@ -24,6 +26,20 @@ import { useListingDayStatusQuery } from '../../queries/useListingDayStatusQuery
 import { useCreateBookingHoldMutation } from '../../../bookings/mutations/useCreateBookingHoldMutation.js';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
 import { useSearchListingsQuery } from '../../../search/index.js';
+
+vi.mock('../../../../api/fx.js', () => ({
+  getRates: vi.fn().mockResolvedValue({
+    success: true,
+    data: {
+      baseCurrency: 'AMD',
+      rates: { AMD: '1.00000000', USD: '400.00000000', RUB: '4.50000000' },
+      effectiveAt: '2026-01-01',
+      source: 'fixture',
+    },
+    meta: null,
+    error: null,
+  }),
+}));
 
 vi.mock('../../queries/useListingQuery.js', () => ({
   useListingQuery: vi.fn(),
@@ -159,18 +175,29 @@ const TOUR_METADATA = {
   policies: [],
 };
 
+function RouteScopedPage() {
+  const { locale } = useParams();
+  return (
+    <CurrencyProvider locale={locale}>
+      <ListingDetailPageContent />
+    </CurrencyProvider>
+  );
+}
+
 function renderPage(listingId) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <MemoryRouter initialEntries={[`/hy/listings/${listingId}`]}>
-      <ToastProvider>
-        <Routes>
-          <Route
-            path="/:locale/listings/:id"
-            element={<ListingDetailPageContent />}
-          />
-        </Routes>
-      </ToastProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[`/hy/listings/${listingId}`]}>
+        <ToastProvider>
+          <Routes>
+            <Route path="/:locale/listings/:id" element={<RouteScopedPage />} />
+          </Routes>
+        </ToastProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

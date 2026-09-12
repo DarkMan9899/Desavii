@@ -1,8 +1,10 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import ToastProvider from '../../../../providers/ToastProvider.jsx';
+import CurrencyProvider from '../../../../providers/CurrencyProvider.jsx';
 import BookingCheckoutPageContent from './BookingCheckoutPageContent.jsx';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
 import { useListingQuery } from '../../../listings/queries/useListingQuery.js';
@@ -11,6 +13,19 @@ import { useReleaseBookingHoldMutation } from '../../mutations/useReleaseBooking
 
 vi.mock('../../../../contexts/AuthContext.jsx', () => ({
   useAuth: vi.fn(),
+}));
+vi.mock('../../../../api/fx.js', () => ({
+  getRates: vi.fn().mockResolvedValue({
+    success: true,
+    data: {
+      baseCurrency: 'AMD',
+      rates: { AMD: '1.00000000', USD: '400.00000000', RUB: '4.50000000' },
+      effectiveAt: '2026-01-01',
+      source: 'fixture',
+    },
+    meta: null,
+    error: null,
+  }),
 }));
 vi.mock('../../../listings/queries/useListingQuery.js', () => ({
   useListingQuery: vi.fn(),
@@ -48,19 +63,28 @@ const HOLD_STATE = {
 };
 
 function renderPage(state = HOLD_STATE) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <MemoryRouter
-      initialEntries={[{ pathname: '/en/booking/checkout', state }]}
-    >
-      <ToastProvider>
-        <Routes>
-          <Route
-            path="/:locale/booking/checkout"
-            element={<BookingCheckoutPageContent />}
-          />
-        </Routes>
-      </ToastProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter
+        initialEntries={[{ pathname: '/en/booking/checkout', state }]}
+      >
+        <ToastProvider>
+          <Routes>
+            <Route
+              path="/:locale/booking/checkout"
+              element={
+                <CurrencyProvider locale="en">
+                  <BookingCheckoutPageContent />
+                </CurrencyProvider>
+              }
+            />
+          </Routes>
+        </ToastProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -159,6 +183,9 @@ describe('BookingCheckoutPageContent (apps/web/src/modules/bookings)', () => {
         phone: '+37411000000',
       },
       customerNotes: undefined,
+      // 'en' locale's own default display currency (currencyPolicy.js) —
+      // no explicit override was set in this test.
+      displayCurrencyCode: 'USD',
     });
     expect(mockNavigate).toHaveBeenCalledWith('/en/account/bookings/42');
     expect(

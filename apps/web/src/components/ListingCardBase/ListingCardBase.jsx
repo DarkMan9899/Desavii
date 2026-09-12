@@ -38,6 +38,7 @@ import { Card, Badge, Icon } from '@desavii/ui/components/primitives';
 import { PriceTag, RatingStars } from '@desavii/ui/components/data-display';
 import RouterLink from '../RouterLink.jsx';
 import DestinationArt from '../DestinationArt/DestinationArt.jsx';
+import Money from '../Money/Money.jsx';
 import styles from './ListingCardBase.module.scss';
 
 export default function ListingCardBase({
@@ -192,12 +193,20 @@ export default function ListingCardBase({
             {pricePrefix && (
               <span className={styles.pricePrefix}>{pricePrefix}</span>
             )}
-            <PriceTag
-              amount={priceAmount}
-              currencyCode={priceCurrencyCode}
-              locale={locale}
-              size="md"
-            />
+            {/* Pass 8: every real price on this platform is authored in
+                AMD — converts through the customer's selected currency.
+                A non-AMD amount (should never occur; kept as a defensive
+                fallback) renders as-is, unconverted. */}
+            {priceCurrencyCode === 'AMD' ? (
+              <Money amountAmd={priceAmount} locale={locale} size="md" />
+            ) : (
+              <PriceTag
+                amount={priceAmount}
+                currencyCode={priceCurrencyCode}
+                locale={locale}
+                size="md"
+              />
+            )}
             {priceSuffix && (
               <span className={styles.priceSuffix}>{priceSuffix}</span>
             )}

@@ -63,7 +63,6 @@ import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { PriceTag } from '@desavii/ui/components/data-display';
 import { Button } from '@desavii/ui/components/primitives';
 import {
   Select,
@@ -73,6 +72,7 @@ import {
 } from '@desavii/ui/components/form-controls';
 import { Section, Stack, Inline } from '@desavii/ui/components/layout';
 import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
+import Money from '../../../../../components/Money/Money.jsx';
 import { useAuth } from '../../../../../contexts/AuthContext.jsx';
 import { useToast } from '../../../../../contexts/ToastContext.jsx';
 import { formatTimeRange } from '../../../../../utils/formatTimeRange.js';
@@ -687,9 +687,8 @@ export default function ListingReservationWidget({
       <Section spacing="none" className={styles.widget}>
         <Inline gap="4" justify="space-between">
           {pricing && (
-            <PriceTag
-              amount={pricing.amount}
-              currencyCode={pricing.currency}
+            <Money
+              amountAmd={pricing.amount}
               locale={locale}
               suffix={pricingModelLabel}
               size="lg"
@@ -800,9 +799,8 @@ export default function ListingReservationWidget({
     <Section spacing="none" className={styles.widget}>
       <Stack gap="4">
         {headlinePricing && (
-          <PriceTag
-            amount={headlinePricing.amount}
-            currencyCode={headlinePricing.currency}
+          <Money
+            amountAmd={headlinePricing.amount}
             locale={locale}
             suffix={pricingModelLabel}
             size="lg"
@@ -985,9 +983,8 @@ export default function ListingReservationWidget({
         )}
 
         {estimatedTotal && (
-          <PriceTag
-            amount={estimatedTotal.amount}
-            currencyCode={estimatedTotal.currency}
+          <Money
+            amountAmd={estimatedTotal.amount}
             locale={locale}
             suffix={t('pages.listingDetail.reservation.estimatedTotal')}
           />

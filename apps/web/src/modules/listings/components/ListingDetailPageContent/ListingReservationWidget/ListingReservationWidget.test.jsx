@@ -2,9 +2,11 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PropTypes from 'prop-types';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom';
 import i18n from 'i18next';
 import ToastProvider from '../../../../../providers/ToastProvider.jsx';
+import CurrencyProvider from '../../../../../providers/CurrencyProvider.jsx';
 import ListingReservationWidget from './ListingReservationWidget.jsx';
 import { useAuth } from '../../../../../contexts/AuthContext.jsx';
 import { useListingBookableUnitsQuery } from '../../../queries/useListingBookableUnitsQuery.js';
@@ -14,6 +16,19 @@ import { useCreateBookingHoldMutation } from '../../../../bookings/mutations/use
 
 vi.mock('../../../../../contexts/AuthContext.jsx', () => ({
   useAuth: vi.fn(),
+}));
+vi.mock('../../../../../api/fx.js', () => ({
+  getRates: vi.fn().mockResolvedValue({
+    success: true,
+    data: {
+      baseCurrency: 'AMD',
+      rates: { AMD: '1.00000000', USD: '400.00000000', RUB: '4.50000000' },
+      effectiveAt: '2026-01-01',
+      source: 'fixture',
+    },
+    meta: null,
+    error: null,
+  }),
 }));
 vi.mock('../../../queries/useListingBookableUnitsQuery.js', () => ({
   useListingBookableUnitsQuery: vi.fn(),
@@ -169,25 +184,38 @@ const DAY_STATUSES = [
   },
 ];
 
+function RouteScopedWidget(props) {
+  const { locale } = useParams();
+  return (
+    <CurrencyProvider locale={locale}>
+      <ListingReservationWidget
+        listingId={10}
+        pricing={{ amount: '85000.00', currency: 'AMD' }}
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...props}
+      />
+    </CurrencyProvider>
+  );
+}
+
 function renderWidget(props = {}, initialEntry = '/en/listings/10') {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <ToastProvider>
-        <Routes>
-          <Route
-            path="/:locale/listings/:id"
-            element={
-              <ListingReservationWidget
-                listingId={10}
-                pricing={{ amount: '85000.00', currency: 'AMD' }}
-                // eslint-disable-next-line react/jsx-props-no-spreading
-                {...props}
-              />
-            }
-          />
-        </Routes>
-      </ToastProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <ToastProvider>
+          <Routes>
+            <Route
+              path="/:locale/listings/:id"
+              // eslint-disable-next-line react/jsx-props-no-spreading
+              element={<RouteScopedWidget {...props} />}
+            />
+          </Routes>
+        </ToastProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -293,7 +321,11 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       isError: false,
     });
     const user = userEvent.setup();
-    renderWidget();
+    // Pass 8: 'hy' locale's own default display currency is AMD (no FX
+    // conversion) — this test is about checkout-exclusive pricing logic,
+    // not currency display, so it renders in the one locale that keeps
+    // these raw AMD fixture amounts unconverted.
+    renderWidget({}, '/hy/listings/10');
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
 
@@ -306,7 +338,10 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     // own checkout-exclusive `resolveConsumedRange`. The old inclusive-
     // both-ends sum (100 + 120 = 220) double-charged the checkout day —
     // this is the exact bug P2.2B fixes, not a weakened assertion.
-    expect(screen.getByText(/100\.00/)).toBeInTheDocument();
+    // Pass 8: AMD's own display rounding policy shows a whole dram, no
+    // decimals (formatMoney.js's CURRENCY_DISPLAY_DECIMALS) — "100 ֏",
+    // not "100.00 ֏".
+    expect(screen.getByText('100 ֏')).toBeInTheDocument();
     expect(screen.queryByText(/220/)).not.toBeInTheDocument();
   });
 
@@ -317,7 +352,9 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       isError: false,
     });
     const user = userEvent.setup();
-    renderWidget();
+    // Pass 8: same 'hy'/AMD (unconverted) rendering choice as the test
+    // above — this asserts on the raw AMD fixture sum, not currency.
+    renderWidget({}, '/hy/listings/10');
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
 
@@ -385,12 +422,22 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       isError: false,
     });
     const user = userEvent.setup();
-    renderWidget({ pricing: { amount: '85000.00', currency: 'AMD' } });
+    // Pass 8: 'hy'/AMD keeps these raw fixture amounts unconverted — this
+    // test is about which price wins (listing vs. selected unit), not
+    // currency display.
+    renderWidget(
+      { pricing: { amount: '85000.00', currency: 'AMD' } },
+      '/hy/listings/10',
+    );
 
     // Before any explicit selection, the static listing price is
     // unchanged (P2.2B: "before explicit selection, preserve existing
     // behavior").
-    expect(screen.getByText(/85[.,]?000/)).toBeInTheDocument();
+    // 'hy' locale's Intl grouping separator is a space, not a comma
+    // (e.g. "85 000 ֏") — the option label text below is a plain
+    // template string with no grouping at all ("90000.00"); this
+    // character class matches either.
+    expect(screen.getByText(/85[.,\s]?000/)).toBeInTheDocument();
 
     await user.click(screen.getByTestId('select-trigger'));
     await user.click(
@@ -404,8 +451,8 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     // one, pre-P2.2E): the headline `PriceTag` AND the select's own
     // displayed current-option text, which since P2.2E also states this
     // unit's price — both agree with each other, never diverge.
-    expect(screen.getAllByText(/90[.,]?000/)).toHaveLength(2);
-    expect(screen.queryByText(/85[.,]?000/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/90[.,\s]?000/)).toHaveLength(2);
+    expect(screen.queryByText(/85[.,\s]?000/)).not.toBeInTheDocument();
     expect(screen.getByText('1 × Քինգ')).toBeInTheDocument();
   });
 
@@ -1315,7 +1362,10 @@ describe('ListingReservationWidget — Sprint C-3 (Date-Range Room Availability)
         : { data: MULTI_UNIT_LABELED, isPending: false, isError: false },
     );
     const user = userEvent.setup();
-    renderWidget();
+    // Pass 8: 'hy'/AMD keeps the server-total fixture amount unconverted
+    // — this test is about which total wins (server vs. client-computed),
+    // not currency display.
+    renderWidget({}, '/hy/listings/10');
 
     // Dates first, then the room — picking a room does NOT itself count
     // as a "date change", so it survives; the reverse order would
@@ -1332,7 +1382,8 @@ describe('ListingReservationWidget — Sprint C-3 (Date-Range Room Availability)
     // The server total (142,500.00), never the client's own per-day sum
     // (which would compute 100 + 120 = 220 from CALENDAR_DAYS) nor a
     // client-side multiplication of the unit's own base price.
-    expect(screen.getByText(/142,?500/)).toBeInTheDocument();
+    // 'hy' locale groups with a space, not a comma (e.g. "142 500 ֏").
+    expect(screen.getByText(/142[,\s]?500/)).toBeInTheDocument();
     expect(screen.queryByText(/220/)).not.toBeInTheDocument();
   });
 

@@ -1,7 +1,27 @@
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import ListingCardBase from './ListingCardBase.jsx';
+import CurrencyProvider from '../../providers/CurrencyProvider.jsx';
+
+// A non-AMD `priceCurrencyCode` (every test but the dedicated Pass 8 one
+// below uses 'USD') never touches `<Money>`/`CurrencyContext` at all — see
+// ListingCardBase.jsx's own AMD-only conversion guard — so these existing
+// tests need no CurrencyProvider/QueryClientProvider wrapping.
+vi.mock('../../api/fx.js', () => ({
+  getRates: vi.fn().mockResolvedValue({
+    success: true,
+    data: {
+      baseCurrency: 'AMD',
+      rates: { AMD: '1.00000000', USD: '400.00000000', RUB: '4.50000000' },
+      effectiveAt: '2026-01-01',
+      source: 'fixture',
+    },
+    meta: null,
+    error: null,
+  }),
+}));
 
 function renderCard(props = {}) {
   const finalProps = {
@@ -22,6 +42,35 @@ function renderCard(props = {}) {
         />
       </Routes>
     </MemoryRouter>,
+  );
+}
+
+function renderCardWithCurrency(props = {}) {
+  const finalProps = {
+    href: '/en/listings/1',
+    typeLabel: 'Hotel',
+    title: 'Sunset Villa',
+    ...props,
+  };
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/en']}>
+        <Routes>
+          <Route
+            path="/:locale"
+            element={
+              <CurrencyProvider locale="en">
+                {/* eslint-disable-next-line react/jsx-props-no-spreading -- test helper forwards arbitrary ListingCardBase props */}
+                <ListingCardBase {...finalProps} />
+              </CurrencyProvider>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -123,5 +172,21 @@ describe('ListingCardBase (apps/web/src/components)', () => {
   test('sets data-category on the card root for CSS category hooks', () => {
     renderCard({ categoryVisualKey: 'villas' });
     expect(screen.getByRole('link')).toHaveAttribute('data-category', 'villas');
+  });
+
+  describe('Pass 8 (Multi-Currency / CBA FX Pricing)', () => {
+    test("an AMD priceCurrencyCode converts through the customer's current currency", async () => {
+      renderCardWithCurrency({
+        priceAmount: '40000',
+        priceCurrencyCode: 'AMD',
+      });
+      // 'en' locale defaults to USD (currencyPolicy.js); 40000 AMD / 400.00 = $100.00.
+      expect(await screen.findByText('$100.00')).toBeInTheDocument();
+    });
+
+    test('a non-AMD priceCurrencyCode renders unconverted, as before this pass', () => {
+      renderCard({ priceAmount: '150.00', priceCurrencyCode: 'USD' });
+      expect(screen.getByText('$150.00')).toBeInTheDocument();
+    });
   });
 });

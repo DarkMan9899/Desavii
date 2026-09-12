@@ -25,7 +25,7 @@ import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '@desavii/ui/components/feedback-overlays';
 import { Button, Badge } from '@desavii/ui/components/primitives';
-import { PriceTag, FeatureGrid } from '@desavii/ui/components/data-display';
+import { FeatureGrid } from '@desavii/ui/components/data-display';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import {
   Users,
@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import ListingGallery from '../ListingGallery/ListingGallery.jsx';
 import DestinationArt from '../../../../../components/DestinationArt/DestinationArt.jsx';
+import Money from '../../../../../components/Money/Money.jsx';
 import getLocalizedTranslation from '../../../utils/getLocalizedTranslation.js';
 import { resolveUnitDisplayLabel } from '../../../utils/resolveUnitDisplayLabel.js';
 import { formatBedConfiguration } from '../../../utils/bedConfigurationDisplay.js';
@@ -90,9 +91,8 @@ export default function RoomDetailModal({
         <Inline gap="3" justify="flex-end" wrap className={styles.footer}>
           {hasStayInfo && unit.stay_total_amount != null ? (
             <Stack gap="1">
-              <PriceTag
-                amount={unit.stay_total_amount}
-                currencyCode={unit.stay_total_currency}
+              <Money
+                amountAmd={unit.stay_total_amount}
                 locale={locale}
                 suffix={t('pages.listingDetail.rooms.stayTotalSuffix', {
                   count: unit.night_count_for_stay,
@@ -115,9 +115,8 @@ export default function RoomDetailModal({
             </Stack>
           ) : (
             unit.base_price_amount != null && (
-              <PriceTag
-                amount={unit.base_price_amount}
-                currencyCode={unit.base_price_currency}
+              <Money
+                amountAmd={unit.base_price_amount}
                 locale={locale}
                 suffix={pricingModelLabel}
                 size="md"

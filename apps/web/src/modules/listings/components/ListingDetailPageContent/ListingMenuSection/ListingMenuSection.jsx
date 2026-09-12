@@ -12,7 +12,7 @@ import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Section, Stack } from '@desavii/ui/components/layout';
 import { Badge } from '@desavii/ui/components/primitives';
-import { PriceTag } from '@desavii/ui/components/data-display';
+import Money from '../../../../../components/Money/Money.jsx';
 import styles from './ListingMenuSection.module.scss';
 
 export default function ListingMenuSection({
@@ -53,9 +53,8 @@ export default function ListingMenuSection({
                               {item.title}
                             </span>
                             <span className={styles.itemPrice}>
-                              <PriceTag
-                                amount={item.price_amount}
-                                currencyCode={item.price_currency_code}
+                              <Money
+                                amountAmd={item.price_amount}
                                 locale={locale}
                                 size="sm"
                               />

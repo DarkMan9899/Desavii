@@ -1,16 +1,31 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // The shared Vitest setup (`tests/setup.js`) already initializes a real
 // i18next instance (inline EN/HY/RU `common.json` resources, default
 // `hy`) via `initReactI18next` — importing the `i18next` package here
 // gets that SAME already-initialized instance, never a second one.
 import i18n from 'i18next';
 import ListingRoomsSection from './ListingRoomsSection.jsx';
+import CurrencyProvider from '../../../../../providers/CurrencyProvider.jsx';
 import { useListingBookableUnitsQuery } from '../../../queries/useListingBookableUnitsQuery.js';
 
 vi.mock('../../../queries/useListingBookableUnitsQuery.js', () => ({
   useListingBookableUnitsQuery: vi.fn(),
+}));
+vi.mock('../../../../../api/fx.js', () => ({
+  getRates: vi.fn().mockResolvedValue({
+    success: true,
+    data: {
+      baseCurrency: 'AMD',
+      rates: { AMD: '1.00000000', USD: '400.00000000', RUB: '4.50000000' },
+      effectiveAt: '2026-01-01',
+      source: 'fixture',
+    },
+    meta: null,
+    error: null,
+  }),
 }));
 
 const AMENITY_GROUPS = [
@@ -84,21 +99,29 @@ const DELUXE_SUITE = {
 };
 
 function renderSection(props = {}) {
+  const finalProps = {
+    listingId: 81,
+    amenityGroups: AMENITY_GROUPS,
+    pricing: {
+      pricing_model: 'PER_NIGHT',
+      amount: '25000.00',
+      currency: 'AMD',
+    },
+    locale: 'en',
+    selectedUnitId: null,
+    onSelectUnit: vi.fn(),
+    ...props,
+  };
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <ListingRoomsSection
-      listingId={81}
-      amenityGroups={AMENITY_GROUPS}
-      pricing={{
-        pricing_model: 'PER_NIGHT',
-        amount: '25000.00',
-        currency: 'AMD',
-      }}
-      locale="en"
-      selectedUnitId={null}
-      onSelectUnit={vi.fn()}
-      // eslint-disable-next-line react/jsx-props-no-spreading -- test-only prop overrides
-      {...props}
-    />,
+    <QueryClientProvider client={queryClient}>
+      <CurrencyProvider locale={finalProps.locale}>
+        {/* eslint-disable-next-line react/jsx-props-no-spreading -- test-only prop overrides */}
+        <ListingRoomsSection {...finalProps} />
+      </CurrencyProvider>
+    </QueryClientProvider>,
   );
 }
 
