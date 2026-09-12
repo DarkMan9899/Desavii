@@ -174,6 +174,42 @@ describe('ListingCardBase (apps/web/src/components)', () => {
     expect(screen.getByRole('link')).toHaveAttribute('data-category', 'villas');
   });
 
+  describe('Pass 10 (Category TOP 3D card correction)', () => {
+    test('a non-promoted card has no data-promoted attribute', () => {
+      renderCard();
+      expect(screen.getByRole('link')).not.toHaveAttribute('data-promoted');
+    });
+
+    test('a promoted card (topBadgeLabel set) gets data-promoted for the depth-treatment CSS hook', () => {
+      renderCard({ topBadgeLabel: 'TOP' });
+      expect(screen.getByRole('link')).toHaveAttribute('data-promoted', 'true');
+    });
+
+    test('a promoted card with a tall (poster) image aspect is capped to standard, so it never balloons past a normal card in the same row — the root cause of the reported oversized Entertainment TOP card', () => {
+      const { container } = renderCard({
+        topBadgeLabel: 'TOP',
+        imageAspect: 'tall',
+      });
+      const media = container.querySelector('[class*="media"]');
+      expect(media.className).not.toMatch(/mediaTall/);
+    });
+
+    test('an ordinary (non-promoted) card keeps its real tall image aspect — the poster identity stays intact outside the TOP carousel', () => {
+      const { container } = renderCard({ imageAspect: 'tall' });
+      const media = container.querySelector('[class*="media"]');
+      expect(media.className).toMatch(/mediaTall/);
+    });
+
+    test('a promoted card with a wide aspect is left as-is (wide is never taller than standard, so it never caused the oversized-card bug)', () => {
+      const { container } = renderCard({
+        topBadgeLabel: 'TOP',
+        imageAspect: 'wide',
+      });
+      const media = container.querySelector('[class*="media"]');
+      expect(media.className).toMatch(/mediaWide/);
+    });
+  });
+
   describe('Pass 8 (Multi-Currency / CBA FX Pricing)', () => {
     test("an AMD priceCurrencyCode converts through the customer's current currency", async () => {
       renderCardWithCurrency({

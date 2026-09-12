@@ -15,6 +15,62 @@
   overflow: hidden;
 }
 
+// Pass 10 (Category TOP 3D card correction) — the shared "promoted card"
+// depth treatment applied via `ListingCardBase.jsx` whenever `topBadgeLabel`
+// is set (Home Featured / Category TOP only). One restrained system reused
+// by all 9 categories + Home (brief: "subtle differences, not nine
+// unrelated designs") — differentiation between promoted and ordinary
+// cards comes from elevation/glow/border here, layered on top of Showcase's
+// own existing pointer-tilt + center-focus scale, never from the card
+// becoming physically bigger (see `effectiveImageAspect` in the JSX). Gold
+// is this codebase's own established "premium placement" accent (see
+// `$color-gold`'s own token comment, and the identical convention already
+// used for Showcase's active-dot ring) — reused here rather than inventing
+// a second premium-accent color.
+.cardPromoted {
+  position: relative;
+  transition: box-shadow tokens.$motion-transition tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
+
+  // A soft, layered glow sitting just behind the card — the "depth
+  // separation" the brief asks for, restrained to a low-opacity gold
+  // falloff rather than a hard outline or a heavy drop shadow.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    z-index: -1;
+    border-radius: inherit;
+    background: radial-gradient(
+      120% 120% at 50% 0%,
+      rgba(tokens.$color-gold, 0.22) 0%,
+      rgba(tokens.$color-gold, 0) 70%
+    );
+    opacity: 0;
+    transition: opacity tokens.$motion-transition tokens.$ease-out;
+    @include tokens.reduced-motion-safe;
+  }
+
+  // A hairline gold ring — restrained (low alpha), never a saturated
+  // border — the "border/highlight response" dimension, present at rest
+  // so it reads even on a touch device that never hovers, and
+  // strengthening slightly on hover to match the row's own tilt/scale
+  // response.
+  box-shadow:
+    0 0 0 1px rgba(tokens.$color-gold, 0.3),
+    0 12px 28px rgba(11, 26, 43, 0.16);
+
+  &:hover {
+    box-shadow:
+      0 0 0 1px rgba(tokens.$color-gold, 0.55),
+      0 18px 36px rgba(11, 26, 43, 0.22);
+
+    &::after {
+      opacity: 1;
+    }
+  }
+}
+
 .media {
   position: relative;
   aspect-ratio: 4 / 3;

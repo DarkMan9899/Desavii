@@ -93,6 +93,26 @@ export default function ListingCardBase({
   // arrives, rather than the browser's default abrupt paint.
   const [imageLoaded, setImageLoaded] = useState(false);
 
+  // Pass 10 (Category TOP 3D card correction, owner complaint: the
+  // Entertainment TOP card renders at poster scale). `topBadgeLabel` is
+  // only ever set by a Home Featured / Category TOP caller (see its own
+  // doc comment above) — it already IS this card's "is this a promoted
+  // placement" signal, so it doubles as that here rather than adding a
+  // second, redundant boolean prop. Entertainment's `tall` (3:4) identity
+  // is a real, intentional "poster" crop for its ORDINARY grid card
+  // (brief-assigned, brief §13) — but that same tall ratio, combined with
+  // a promoted carousel slide's much larger width than a grid column,
+  // is exactly what made the promoted card balloon far past every other
+  // category's promoted-card height. Every other `imageAspect` value
+  // (`standard` 4:3, `wide` 16:9) is the same height or shorter than
+  // `standard`, so only `tall` is capped — the promoted card still gets
+  // its category's own image identity everywhere else (grid, detail),
+  // and still stands out via the depth treatment below, never via being
+  // physically bigger than its neighbors in the same row.
+  const isPromoted = Boolean(topBadgeLabel);
+  const effectiveImageAspect =
+    isPromoted && imageAspect === 'tall' ? 'standard' : imageAspect;
+
   return (
     <Card
       as={RouterLink}
@@ -100,15 +120,18 @@ export default function ListingCardBase({
       padding="none"
       interactive
       elevated
-      className={styles.card}
+      className={[styles.card, isPromoted && styles.cardPromoted]
+        .filter(Boolean)
+        .join(' ')}
       aria-label={ariaLabel}
       data-category={categoryVisualKey}
+      data-promoted={isPromoted || undefined}
     >
       <div
         className={[
           styles.media,
-          imageAspect === 'wide' && styles.mediaWide,
-          imageAspect === 'tall' && styles.mediaTall,
+          effectiveImageAspect === 'wide' && styles.mediaWide,
+          effectiveImageAspect === 'tall' && styles.mediaTall,
         ]
           .filter(Boolean)
           .join(' ')}
