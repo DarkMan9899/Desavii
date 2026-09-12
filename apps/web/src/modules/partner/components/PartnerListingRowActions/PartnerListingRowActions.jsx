@@ -64,10 +64,28 @@ export default function PartnerListingRowActions({
     PRESENTATION_GROUPS.ACCOMMODATION;
   // Pass 6 (Restaurant vertical, owner issue #13) — same
   // presentation-group gate `canManageRooms` already uses, scoped to
-  // DINING instead of ACCOMMODATION.
+  // DINING instead of ACCOMMODATION. A menu is genuinely Restaurant-only
+  // content, unlike opening hours below — kept as its own, narrower gate.
   const canManageMenu =
     resolvePresentationGroup(listing.listing_type) ===
     PRESENTATION_GROUPS.DINING;
+  // Pass 10 (Attraction vertical completion) — real, concrete
+  // "EXISTS but PARTNER CANNOT AUTHOR" gap found during this pass's own
+  // audit: `listing_opening_hours` (migration 0046) and its editor page
+  // (`PartnerListingOpeningHoursPageContent`/`PartnerOpeningHoursEditor`)
+  // were never actually Restaurant-specific — only this menu item's
+  // gating was, previously piggy-backing on `canManageMenu` and so
+  // silently hiding the "Manage Opening Hours" action from every other
+  // category's partner, including Attraction. Scoped to the same
+  // presentation-group mechanism already used above (never a
+  // category-slug special case): DINING (unchanged) plus EXPERIENCE
+  // (Tours/Attractions/Entertainment, which share the `ATTRACTION`/`TOUR`
+  // listing_type) — a fixed-site landmark or a scheduled venue can both
+  // have real weekly hours to author, same as a restaurant.
+  const canManageOpeningHours = [
+    PRESENTATION_GROUPS.DINING,
+    PRESENTATION_GROUPS.EXPERIENCE,
+  ].includes(resolvePresentationGroup(listing.listing_type));
   const canPublish = PUBLISHABLE_STATUSES.includes(listing.status);
   const canUnpublish = UNPUBLISHABLE_STATUSES.includes(listing.status);
   const canArchive = ARCHIVABLE_STATUSES.includes(listing.status);
@@ -124,7 +142,7 @@ export default function PartnerListingRowActions({
               {t('partner.listings.actions.manageMenu')}
             </button>
           )}
-          {canManageMenu && (
+          {canManageOpeningHours && (
             <button
               type="button"
               role="menuitem"

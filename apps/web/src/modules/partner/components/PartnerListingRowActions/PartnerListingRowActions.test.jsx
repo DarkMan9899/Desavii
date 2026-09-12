@@ -9,14 +9,27 @@ import PartnerListingRowActions from './PartnerListingRowActions.jsx';
 vi.mock('../../../listings/index.js', () => {
   const PRESENTATION_GROUPS = Object.freeze({
     ACCOMMODATION: 'ACCOMMODATION',
+    DINING: 'DINING',
+    EXPERIENCE: 'EXPERIENCE',
     GENERIC: 'GENERIC',
   });
+  // Pass 10 (Attraction vertical completion) — extended with DINING/
+  // EXPERIENCE (mirroring the real `resolvePresentationGroup`'s own
+  // HOTEL/PROPERTY->ACCOMMODATION, RESTAURANT->DINING, TOUR/ATTRACTION
+  // ->EXPERIENCE mapping) so this component's own "Manage Opening Hours"
+  // gating — which now checks for DINING or EXPERIENCE — is exercised by
+  // real logic here, not silently short-circuited to GENERIC.
+  const GROUP_BY_TYPE = {
+    HOTEL: PRESENTATION_GROUPS.ACCOMMODATION,
+    PROPERTY: PRESENTATION_GROUPS.ACCOMMODATION,
+    RESTAURANT: PRESENTATION_GROUPS.DINING,
+    TOUR: PRESENTATION_GROUPS.EXPERIENCE,
+    ATTRACTION: PRESENTATION_GROUPS.EXPERIENCE,
+  };
   return {
     PRESENTATION_GROUPS,
     resolvePresentationGroup: (code) =>
-      code === 'HOTEL'
-        ? PRESENTATION_GROUPS.ACCOMMODATION
-        : PRESENTATION_GROUPS.GENERIC,
+      GROUP_BY_TYPE[code] ?? PRESENTATION_GROUPS.GENERIC,
   };
 });
 
@@ -98,6 +111,48 @@ describe('PartnerListingRowActions (apps/web/src/modules/partner)', () => {
     expect(
       screen.queryByRole('menuitem', { name: 'Հրապարակել' }),
     ).not.toBeInTheDocument();
+  });
+
+  describe('Pass 10 (Attraction vertical completion) — "Manage Opening Hours" gating', () => {
+    test('is hidden for a HOTEL listing (ACCOMMODATION group never had it)', async () => {
+      const user = userEvent.setup();
+      renderActions({ listing: listing({ listing_type: 'HOTEL' }) });
+      await user.click(
+        screen.getByRole('button', { name: 'Լրացուցիչ գործողություններ' }),
+      );
+      expect(
+        screen.queryByRole('menuitem', {
+          name: 'Կառավարել աշխատանքային ժամերը',
+        }),
+      ).not.toBeInTheDocument();
+    });
+
+    test('is offered for a RESTAURANT listing (unchanged)', async () => {
+      const user = userEvent.setup();
+      renderActions({ listing: listing({ listing_type: 'RESTAURANT' }) });
+      await user.click(
+        screen.getByRole('button', { name: 'Լրացուցիչ գործողություններ' }),
+      );
+      expect(
+        screen.getByRole('menuitem', { name: 'Կառավարել աշխատանքային ժամերը' }),
+      ).toBeInTheDocument();
+    });
+
+    test('is now also offered for an ATTRACTION listing — the real "exists but partner cannot author" gap this pass closes', async () => {
+      const user = userEvent.setup();
+      const props = renderActions({
+        listing: listing({ listing_type: 'ATTRACTION' }),
+      });
+      await user.click(
+        screen.getByRole('button', { name: 'Լրացուցիչ գործողություններ' }),
+      );
+      const item = screen.getByRole('menuitem', {
+        name: 'Կառավարել աշխատանքային ժամերը',
+      });
+      expect(item).toBeInTheDocument();
+      await user.click(item);
+      expect(props.onManageOpeningHours).toHaveBeenCalledWith(props.listing);
+    });
   });
 
   test('Delete is always offered, styled as a distinct danger item', async () => {
