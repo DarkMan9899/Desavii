@@ -27,12 +27,15 @@
 
 import PropTypes from 'prop-types';
 import { Motif } from '../../../../components/DestinationArt/DestinationArt.jsx';
+import CarRentalTopBackground from './CarRentalTopBackground.jsx';
 import styles from './CategoryTopBackground.module.scss';
 
 // One motif + one dominant-color lean per category — same motif set
 // `categoryHeroArt.js` already established for this category's hero,
 // reused here (not a second motif catalog) so the TOP background and the
 // category hero always agree on this category's own visual identity.
+// `car-rentals` is deliberately absent — it gets its own dedicated
+// `CarRentalTopBackground` above, not this generic treatment.
 const THEME_BY_CATEGORY = {
   hotels: { motif: 'arch', lean: 'navy' },
   apartments: { motif: 'sun-waves', lean: 'royal' },
@@ -40,12 +43,19 @@ const THEME_BY_CATEGORY = {
   'guest-houses': { motif: 'door-key', lean: 'gold' },
   restaurants: { motif: 'fork-knife', lean: 'gold' },
   tours: { motif: 'compass', lean: 'royal' },
-  'car-rentals': { motif: 'road', lean: 'navy' },
   attractions: { motif: 'starburst', lean: 'gold' },
   'entertainment-venues': { motif: 'ticket', lean: 'royal' },
 };
 
 export default function CategoryTopBackground({ categorySlug }) {
+  // Step 2.1 — Car Rental TOP background only: a dedicated, more elaborate
+  // 3D/depth "road" environment replaces the generic gradient+motif
+  // treatment for this one category. Every other category keeps the
+  // exact same shared treatment below, unchanged.
+  if (categorySlug === 'car-rentals') {
+    return <CarRentalTopBackground />;
+  }
+
   const theme = THEME_BY_CATEGORY[categorySlug];
   if (!theme) return null;
 

@@ -1,0 +1,228 @@
+// CarRentalTopBackground — tokens only, consumed from @desavii/ui.
+@use 'tokens' as tokens;
+
+// Same absolute-fill/stacking contract as CategoryTopBackground's own
+// `.background` (this replaces that treatment for car-rentals only, at
+// the same call site) — never intercepts pointer events except for the
+// deliberate parallax listener the JS attaches to this root node itself.
+.environment {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: tokens.$radius-xl;
+  background: tokens.$color-navy;
+}
+
+// --- FAR: atmosphere ------------------------------------------------------
+
+.far {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    tokens.$color-navy 0%,
+    #163a63 55%,
+    #1d4a80 100%
+  );
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 3px),
+    calc(var(--parallax-y, 0) * 2px),
+    0
+  );
+}
+
+.horizonGlow {
+  position: absolute;
+  left: 50%;
+  bottom: 28%;
+  width: 70%;
+  aspect-ratio: 3 / 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(tokens.$color-gold, 0.22) 0%,
+    rgba(tokens.$color-gold, 0) 70%
+  );
+  filter: blur(2px);
+}
+
+// --- MID: the road ----------------------------------------------------
+
+.mid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: rgba(tokens.$color-white, 0.4);
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 7px),
+    calc(var(--parallax-y, 0) * 5px),
+    0
+  );
+}
+
+.grid {
+  fill: none;
+  opacity: 0.5;
+}
+
+.roadEdge {
+  fill: rgba(11, 26, 43, 0.55);
+  stroke: rgba(tokens.$color-white, 0.18);
+  stroke-width: 1;
+}
+
+.roadCenterLine {
+  fill: none;
+  stroke: rgba(tokens.$color-gold, 0.7);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 6 10;
+  // Slow, restrained "traveling forward" read — a full dash cycle every
+  // 6s, not a racing-game blur.
+  animation: car-rental-road-travel 6s linear infinite;
+}
+
+.waypoint {
+  fill: tokens.$color-gold;
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: car-rental-waypoint-pulse 2.4s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+// --- NEAR: foreground light streaks ------------------------------------
+
+.near {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 12px),
+    calc(var(--parallax-y, 0) * 8px),
+    0
+  );
+}
+
+.streak {
+  position: absolute;
+  bottom: 8%;
+  height: 2px;
+  width: 34%;
+  border-radius: tokens.$radius-full;
+  background: linear-gradient(
+    90deg,
+    rgba(tokens.$color-gold, 0) 0%,
+    rgba(tokens.$color-gold, 0.55) 50%,
+    rgba(tokens.$color-gold, 0) 100%
+  );
+  filter: blur(1px);
+  opacity: 0.7;
+}
+
+.streakA {
+  left: -40%;
+  animation: car-rental-streak-drift-a 5s ease-in-out infinite;
+}
+
+.streakB {
+  left: -20%;
+  bottom: 4%;
+  width: 26%;
+  animation: car-rental-streak-drift-b 7s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+@keyframes car-rental-road-travel {
+  from {
+    stroke-dashoffset: 32;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes car-rental-waypoint-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes car-rental-streak-drift-a {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.7;
+  }
+  85% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateX(160%);
+    opacity: 0;
+  }
+}
+
+@keyframes car-rental-streak-drift-b {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.5;
+  }
+  85% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateX(190%);
+    opacity: 0;
+  }
+}
+
+// Reduced motion: a deliberate static frame, not a paused mid-loop one.
+// Every continuous animation is switched off outright and the elements
+// that only exist to *move* (the drifting streaks) are hidden — a
+// motionless light streak sitting at a random opacity would look like a
+// rendering glitch, not a considered static design. The road, its center
+// line, and the waypoint nodes stay fully visible (just not moving) —
+// they're already deliberately positioned/legible at rest.
+.static {
+  .roadCenterLine,
+  .waypoint,
+  .far,
+  .mid,
+  .near {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .waypoint {
+    opacity: 0.85;
+  }
+
+  .streak {
+    display: none;
+  }
+}
+
+// Mobile (brief §6: "simplify decorative layers if needed") — the
+// perspective grid and far-back waypoint are the most detail-dense
+// elements at a size where they'd read as noise rather than depth; the
+// road, its center line, the nearest waypoint, and the horizon glow
+// carry the category read on their own.
+@media (max-width: 767px) {
+  .grid,
+  .streakB {
+    display: none;
+  }
+}
