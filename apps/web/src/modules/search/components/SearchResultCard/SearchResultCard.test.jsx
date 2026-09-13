@@ -218,4 +218,70 @@ describe('SearchResultCard (apps/web/src/modules/search)', () => {
     });
     expect(screen.queryByText('/ գիշեր')).not.toBeInTheDocument();
   });
+
+  // Owner-directed premium card redesign — one real headline metadata
+  // chip per remaining category, from mysqlSearchRepository.js's new
+  // CARD_METADATA_SELECT fields.
+  describe('headline metadata chips (real data only, never fabricated)', () => {
+    test('a Hotel with a real star_rating shows a star-rating chip', () => {
+      renderCard({ ...RESULT, category_slug: 'hotels', star_rating: '4' });
+      expect(screen.getByText('4 աստղ')).toBeInTheDocument();
+    });
+
+    test('a Hotel with no star_rating shows no chip (never fabricated)', () => {
+      renderCard({ ...RESULT, category_slug: 'hotels', star_rating: null });
+      expect(screen.queryByText(/աստղ/)).not.toBeInTheDocument();
+    });
+
+    test('an Apartment/Villa/Guest House with real bedrooms shows a bedrooms chip', () => {
+      renderCard({
+        ...RESULT,
+        category_slug: 'apartments',
+        bedrooms: 3,
+      });
+      expect(screen.getByText('3 ննջասենյակ')).toBeInTheDocument();
+    });
+
+    test('a Tour/Attraction/Entertainment listing with real duration shows a duration chip in minutes', () => {
+      renderCard({
+        ...RESULT,
+        category_slug: 'tours',
+        duration_minutes: 45,
+      });
+      expect(screen.getByText('45 րոպե')).toBeInTheDocument();
+    });
+
+    test('an exact-hour duration renders in hours, not minutes', () => {
+      renderCard({
+        ...RESULT,
+        category_slug: 'attractions',
+        duration_minutes: 120,
+      });
+      expect(screen.getByText('2 ժամ')).toBeInTheDocument();
+    });
+
+    test('a Car Rental with a real transmission shows a transmission chip', () => {
+      renderCard({
+        ...RESULT,
+        category_slug: 'car-rentals',
+        transmission: 'AUTOMATIC',
+      });
+      expect(screen.getByText('Ավտոմատ')).toBeInTheDocument();
+    });
+
+    test("a Restaurant never shows a headline chip from another category's fields", () => {
+      renderCard({
+        ...RESULT,
+        category_slug: 'restaurants',
+        bedrooms: 3,
+        star_rating: '5',
+        transmission: 'MANUAL',
+        duration_minutes: 90,
+      });
+      expect(screen.queryByText(/ննջասենյակ/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/աստղ/)).not.toBeInTheDocument();
+      expect(screen.queryByText('Մեխանիկական')).not.toBeInTheDocument();
+      expect(screen.queryByText(/ժամ|րոպե/)).not.toBeInTheDocument();
+    });
+  });
 });

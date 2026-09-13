@@ -280,6 +280,9 @@
 }
 
 .metaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 2px tokens.$space-2;
   border-radius: tokens.$radius-full;
   background-color: tokens.$color-gray-100;
@@ -287,6 +290,20 @@
   font-size: tokens.$font-size-micro;
   font-weight: 600;
   white-space: nowrap;
+  transition: background-color tokens.$motion-transition tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
+}
+
+// Owner-directed premium card redesign — a chip's own icon responds
+// alongside the card's category accent on hover (the same restrained
+// "icon/chip response" micro-effect requested), never on its own.
+.card:hover .metaChip {
+  background-color: tokens.$color-gray-200;
+}
+
+.metaChipIcon {
+  flex-shrink: 0;
+  color: tokens.$color-gray-400;
 }
 
 // A visual footer, not just the last flex item — a hairline separates

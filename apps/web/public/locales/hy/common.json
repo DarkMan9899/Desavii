@@ -542,7 +542,11 @@
         "perNight": "/ գիշեր",
         "perDay": "/ օր",
         "perPerson": "/ անձի համար"
-      }
+      },
+      "starRating": "{{count}} աստղ",
+      "bedroomsCount": "{{count}} ննջասենյակ",
+      "durationMinutes": "{{count}} րոպե",
+      "durationHours": "{{count}} ժամ"
     }
   },
   "errors": {

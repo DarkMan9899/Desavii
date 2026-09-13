@@ -42,6 +42,15 @@ export function toSearchResultResponse(result) {
     // authored with these attributes, never fabricated.
     cuisine: result.cuisineCodes ?? null,
     price_tier: result.priceTierCode ?? null,
+    // Emergency premium card redesign — one real "headline" attribute
+    // fact per remaining category (Hotels/Car Rentals/Apartments-Villas-
+    // Guest Houses/Tours-Attractions-Entertainment), same "null when never
+    // authored, never fabricated" rule as cuisine/price_tier above. The
+    // frontend picks which single field its own category actually shows.
+    star_rating: result.starRatingCode ?? null,
+    transmission: result.transmissionCode ?? null,
+    bedrooms: result.bedroomsValue ?? null,
+    duration_minutes: result.durationMinutesValue ?? null,
   };
 }
 

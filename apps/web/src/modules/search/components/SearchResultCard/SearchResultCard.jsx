@@ -22,11 +22,73 @@
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { MapPin, Star, BedDouble, Clock, Settings2 } from 'lucide-react';
 import ListingCardBase from '../../../../components/ListingCardBase/ListingCardBase.jsx';
 import { FavoriteButton } from '../../../favorites/index.js';
 import { resolveCardConfig } from '../../../../utils/categoryCardConfig.js';
 import styles from './SearchResultCard.module.scss';
+
+/**
+ * Owner-directed premium card redesign — one real "headline" metadata fact
+ * per category, sourced from `mysqlSearchRepository.js`'s `CARD_METADATA_
+ * SELECT` (the same generic-attribute mechanism cuisine/price_tier already
+ * use). Each entry is `null` on the DTO whenever the attribute was never
+ * authored for that listing — this function only ever renders what's
+ * actually there, never a fabricated default. Kept as ONE chip per
+ * category (not several) per the brief's own "no random chips everywhere"
+ * rule; every other category-flavor cue (icon, motif, effects) lives
+ * elsewhere in the shared card shell.
+ */
+function buildHeadlineChip(result, categoryVisualKey, t) {
+  switch (categoryVisualKey) {
+    case 'hotels':
+      return result.star_rating
+        ? {
+            key: 'headline-star-rating',
+            icon: Star,
+            label: t('search.card.starRating', {
+              count: Number(result.star_rating),
+            }),
+          }
+        : null;
+    case 'apartments':
+    case 'villas':
+    case 'guest-houses':
+      return result.bedrooms
+        ? {
+            key: 'headline-bedrooms',
+            icon: BedDouble,
+            label: t('search.card.bedroomsCount', { count: result.bedrooms }),
+          }
+        : null;
+    case 'tours':
+    case 'attractions':
+    case 'entertainment-venues': {
+      if (!result.duration_minutes) return null;
+      const hours = Math.floor(result.duration_minutes / 60);
+      const label =
+        hours >= 1 && result.duration_minutes % 60 === 0
+          ? t('search.card.durationHours', { count: hours })
+          : t('search.card.durationMinutes', {
+              count: result.duration_minutes,
+            });
+      return { key: 'headline-duration', icon: Clock, label };
+    }
+    case 'car-rentals':
+      return result.transmission
+        ? {
+            key: 'headline-transmission',
+            icon: Settings2,
+            label: t(
+              `search.dynamicFilters.options.${result.transmission}`,
+              result.transmission,
+            ),
+          }
+        : null;
+    default:
+      return null;
+  }
+}
 
 /**
  * P2.2D: carries the customer's own search selections forward into the
@@ -83,7 +145,9 @@ export default function SearchResultCard({
   // `DynamicFilterPanel`'s `FilterControl` already resolves attribute-
   // option codes through, never a second translation table for the same
   // codes.
+  const headlineChip = buildHeadlineChip(result, categoryVisualKey, t);
   const metaChips = [
+    ...(headlineChip ? [headlineChip] : []),
     ...(result.cuisine ?? []).map((code) => ({
       key: `cuisine-${code}`,
       label: t(`search.dynamicFilters.options.${code}`, code),

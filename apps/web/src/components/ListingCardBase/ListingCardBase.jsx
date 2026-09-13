@@ -205,6 +205,13 @@ export default function ListingCardBase({
           <ul className={styles.metaChips}>
             {metaChips.map((chip) => (
               <li key={chip.key} className={styles.metaChip}>
+                {chip.icon && (
+                  <chip.icon
+                    size={12}
+                    aria-hidden="true"
+                    className={styles.metaChipIcon}
+                  />
+                )}
                 {chip.label}
               </li>
             ))}
@@ -266,6 +273,10 @@ ListingCardBase.propTypes = {
     PropTypes.shape({
       key: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       label: PropTypes.node.isRequired,
+      // A lucide-react icon component (a function/forwardRef), never an
+      // element — rendered as `<chip.icon />` so each chip can carry its
+      // own thematic icon without every caller pre-instantiating one.
+      icon: PropTypes.elementType,
     }),
   ),
   categoryVisualKey: PropTypes.string,

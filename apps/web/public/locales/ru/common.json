@@ -542,7 +542,11 @@
         "perNight": "/ ночь",
         "perDay": "/ день",
         "perPerson": "/ с человека"
-      }
+      },
+      "starRating": "{{count}} звёзд",
+      "bedroomsCount": "{{count}} спален",
+      "durationMinutes": "{{count}} мин",
+      "durationHours": "{{count}} ч"
     }
   },
   "errors": {

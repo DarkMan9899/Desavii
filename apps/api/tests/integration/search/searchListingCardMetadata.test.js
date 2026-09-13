@@ -106,6 +106,10 @@ beforeAll(async () => {
         },
       ],
       categoryIds: [hotelCategory.id],
+      // Emergency premium card redesign: Hotels' own real headline
+      // attribute (star_rating), same generic-attribute mechanism as
+      // Restaurant's cuisine/price_tier above.
+      attributeValues: [{ code: 'star_rating', optionCodes: ['4'] }],
     });
   expect(createHotel.status).toBe(201);
   hotelListingId = createHotel.body.data.id;
@@ -147,5 +151,31 @@ describe('GET /search — category_slug/cuisine/price_tier card metadata', () =>
     expect(result.category_slug).toBe(hotelSlug);
     expect(result.cuisine).toBeNull();
     expect(result.price_tier).toBeNull();
+  });
+
+  // Emergency premium card redesign — one more real headline attribute per
+  // remaining category, same CARD_METADATA_SELECT mechanism as cuisine/
+  // price_tier above.
+  test('a Hotel result carries its real star_rating, and null bedrooms/transmission/duration (never fabricated)', async () => {
+    const res = await request(app).get(
+      `/api/v1/search?keyword=Card Metadata Test Hotel`,
+    );
+    expect(res.status).toBe(200);
+    const result = findResult(res.body.data, hotelListingId);
+    expect(result).toBeDefined();
+    expect(result.star_rating).toBe('4');
+    expect(result.bedrooms).toBeNull();
+    expect(result.transmission).toBeNull();
+    expect(result.duration_minutes).toBeNull();
+  });
+
+  test('a Restaurant result (no star_rating authored) carries null star_rating too', async () => {
+    const res = await request(app).get(
+      '/api/v1/search?keyword=Card Metadata Test Restaurant',
+    );
+    expect(res.status).toBe(200);
+    const result = findResult(res.body.data, restaurantListingId);
+    expect(result).toBeDefined();
+    expect(result.star_rating).toBeNull();
   });
 });

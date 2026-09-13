@@ -542,7 +542,13 @@
         "perNight": "/ night",
         "perDay": "/ day",
         "perPerson": "/ person"
-      }
+      },
+      "starRating_one": "{{count}} star",
+      "starRating_other": "{{count}} stars",
+      "bedroomsCount_one": "{{count}} bedroom",
+      "bedroomsCount_other": "{{count}} bedrooms",
+      "durationMinutes": "{{count}} min",
+      "durationHours": "{{count}}h"
     }
   },
   "errors": {

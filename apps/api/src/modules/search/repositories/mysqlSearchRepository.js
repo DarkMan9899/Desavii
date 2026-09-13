@@ -145,7 +145,40 @@ const CARD_METADATA_SELECT = `
          JOIN attribute_definitions ad_tier ON ad_tier.id = ao_tier.attribute_definition_id
          WHERE lao_tier.listing_id = l.id AND ad_tier.code = 'price_tier'
          LIMIT 1
-      ) AS price_tier_code`;
+      ) AS price_tier_code,
+      -- Emergency premium card redesign: one more real, non-fabricated
+      -- "headline" fact per remaining category, following the exact same
+      -- correlated-subquery shape as cuisine/price_tier above -- never a
+      -- second card-metadata mechanism. The frontend (categoryCardConfig.js)
+      -- decides which single field is this listing's category actually
+      -- displays; every field here is SQL NULL whenever that attribute was
+      -- never authored for this listing, never a guessed/default value.
+      (SELECT ao_star.code
+         FROM listing_attribute_option lao_star
+         JOIN attribute_options ao_star ON ao_star.id = lao_star.attribute_option_id
+         JOIN attribute_definitions ad_star ON ad_star.id = ao_star.attribute_definition_id
+         WHERE lao_star.listing_id = l.id AND ad_star.code = 'star_rating'
+         LIMIT 1
+      ) AS star_rating_code,
+      (SELECT ao_trans.code
+         FROM listing_attribute_option lao_trans
+         JOIN attribute_options ao_trans ON ao_trans.id = lao_trans.attribute_option_id
+         JOIN attribute_definitions ad_trans ON ad_trans.id = ao_trans.attribute_definition_id
+         WHERE lao_trans.listing_id = l.id AND ad_trans.code = 'transmission'
+         LIMIT 1
+      ) AS transmission_code,
+      (SELECT lav_bed.value
+         FROM listing_attribute_values_integer lav_bed
+         JOIN attribute_definitions ad_bed ON ad_bed.id = lav_bed.attribute_definition_id
+         WHERE lav_bed.listing_id = l.id AND ad_bed.code = 'bedrooms'
+         LIMIT 1
+      ) AS bedrooms_value,
+      (SELECT lav_dur.value
+         FROM listing_attribute_values_integer lav_dur
+         JOIN attribute_definitions ad_dur ON ad_dur.id = lav_dur.attribute_definition_id
+         WHERE lav_dur.listing_id = l.id AND ad_dur.code = 'duration_minutes'
+         LIMIT 1
+      ) AS duration_minutes_value`;
 
 function toSearchResultDomain(row) {
   return {
@@ -186,6 +219,19 @@ function toSearchResultDomain(row) {
     // genuinely-empty-selection state.
     cuisineCodes: row.cuisine_codes ? row.cuisine_codes.split(',') : null,
     priceTierCode: row.price_tier_code ?? null,
+    // Emergency premium card redesign — same "real value or null, never
+    // guessed" rule as cuisine/price_tier above.
+    starRatingCode: row.star_rating_code ?? null,
+    transmissionCode: row.transmission_code ?? null,
+    bedroomsValue:
+      row.bedrooms_value !== undefined && row.bedrooms_value !== null
+        ? Number(row.bedrooms_value)
+        : null,
+    durationMinutesValue:
+      row.duration_minutes_value !== undefined &&
+      row.duration_minutes_value !== null
+        ? Number(row.duration_minutes_value)
+        : null,
   };
 }
 

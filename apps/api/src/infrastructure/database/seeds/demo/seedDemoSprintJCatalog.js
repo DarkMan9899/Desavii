@@ -634,6 +634,10 @@ const LISTINGS = [
       { code: 'check_in_time', value: '16:00' },
       { code: 'check_out_time', value: '11:00' },
     ],
+    // Owner-directed premium card redesign — extracted verbatim from this
+    // listing's own already-authored summary ("A four-bedroom villa..."),
+    // never invented.
+    attributes: [{ code: 'bedrooms', value: 4 }],
     units: [
       {
         type: 'PROPERTY_UNIT',
@@ -691,6 +695,9 @@ const LISTINGS = [
       { code: 'check_in_time', value: '15:00' },
       { code: 'check_out_time', value: '11:00' },
     ],
+    // Extracted verbatim from this listing's own summary ("A
+    // three-bedroom villa..."), never invented.
+    attributes: [{ code: 'bedrooms', value: 3 }],
     units: [
       {
         type: 'PROPERTY_UNIT',
@@ -741,6 +748,9 @@ const LISTINGS = [
       { code: 'check_in_time', value: '16:00' },
       { code: 'check_out_time', value: '12:00' },
     ],
+    // Extracted verbatim from this listing's own summary ("A
+    // two-bedroom villa..."), never invented.
+    attributes: [{ code: 'bedrooms', value: 2 }],
     units: [
       {
         type: 'PROPERTY_UNIT',
@@ -1391,6 +1401,9 @@ const LISTINGS = [
       { code: 'smoking_allowed', value: 'false' },
       { code: 'cancellation_policy', value: 'MODERATE' },
     ],
+    // Extracted verbatim from this listing's own summary/description
+    // ("manual-transmission compact car"), never invented.
+    attributes: [{ code: 'transmission', optionCodes: ['MANUAL'] }],
     units: [{ type: 'VEHICLE', label: 'Compact Hatchback', capacity: 3 }],
   },
   {
@@ -1469,6 +1482,9 @@ const LISTINGS = [
       { code: 'smoking_allowed', value: 'false' },
       { code: 'cancellation_policy', value: 'MODERATE' },
     ],
+    // Extracted verbatim from this listing's own summary/description
+    // ("automatic transmission"), never invented.
+    attributes: [{ code: 'transmission', optionCodes: ['AUTOMATIC'] }],
     units: [{ type: 'VEHICLE', label: '7-Seat Minivan', capacity: 2 }],
   },
 
