@@ -1,0 +1,85 @@
+// CategoryTopBackground — tokens only, consumed from @desavii/ui.
+@use 'tokens' as tokens;
+
+// Absolutely positioned behind the section's real content (the heading
+// and Showcase carousel, both default-stacked above this via normal
+// document flow) — never intercepts pointer events, never resizes the
+// section itself (`inset: 0` fills whatever height the content already
+// establishes, it never grows the section taller).
+.background {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: tokens.$radius-xl;
+  pointer-events: none;
+}
+
+// Three restrained gradient compositions from the same three brand
+// tokens (navy/royal-blue/gold) — which one "leans" dominant is the
+// category differentiator, never a new hue. Kept deliberately soft
+// (low-alpha over the page's own surface) so the section still reads as
+// premium chrome, not a loud banner competing with the cards on top of it.
+.lean--navy {
+  background:
+    radial-gradient(
+      120% 140% at 15% 0%,
+      rgba(tokens.$color-navy, 0.12) 0%,
+      rgba(tokens.$color-navy, 0) 62%
+    ),
+    radial-gradient(
+      90% 120% at 100% 100%,
+      rgba(tokens.$color-gold, 0.09) 0%,
+      rgba(tokens.$color-gold, 0) 58%
+    ),
+    tokens.$color-gray-100;
+}
+
+.lean--royal {
+  background:
+    radial-gradient(
+      120% 140% at 85% 0%,
+      rgba(tokens.$color-royal-blue, 0.14) 0%,
+      rgba(tokens.$color-royal-blue, 0) 62%
+    ),
+    radial-gradient(
+      90% 120% at 0% 100%,
+      rgba(tokens.$color-navy, 0.08) 0%,
+      rgba(tokens.$color-navy, 0) 58%
+    ),
+    tokens.$color-gray-100;
+}
+
+.lean--gold {
+  background:
+    radial-gradient(
+      120% 140% at 50% -10%,
+      rgba(tokens.$color-gold, 0.16) 0%,
+      rgba(tokens.$color-gold, 0) 62%
+    ),
+    radial-gradient(
+      90% 120% at 100% 100%,
+      rgba(tokens.$color-navy, 0.08) 0%,
+      rgba(tokens.$color-navy, 0) 58%
+    ),
+    tokens.$color-gray-100;
+}
+
+// The reused DestinationArt motif, rendered once, large and faint — a
+// watermark carrying the category's own silhouette, never competing with
+// card content in front of it for attention.
+.motif {
+  position: absolute;
+  right: -6%;
+  bottom: -12%;
+  width: 46%;
+  height: auto;
+  aspect-ratio: 1;
+  color: tokens.$color-navy;
+  opacity: 0.09;
+
+  [dir='rtl'] & {
+    right: auto;
+    left: -6%;
+  }
+}

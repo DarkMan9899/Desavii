@@ -140,6 +140,15 @@ function Motif({ name }) {
 
 Motif.propTypes = { name: PropTypes.oneOf(ALL_MOTIFS).isRequired };
 
+// Owner-directed premium card redesign (§21) — exported so
+// `CategoryTopBackground.jsx` can reuse these exact same per-category
+// line-art paths as a large, low-opacity backdrop watermark behind a
+// Category TOP carousel, rather than duplicating SVG path data for a
+// second illustration set. `ALL_MOTIFS` (the full 9-name list, including
+// the 4 Pass 7B additions) is exported alongside it so that caller can
+// validate/enumerate motifs without re-deriving the union itself.
+export { Motif, ALL_MOTIFS };
+
 /** A numeric id seeds directly; any other value (a title string, when no id is available) is hashed so it still varies instead of collapsing to one shared mesh. */
 function seedToIndex(seed) {
   if (typeof seed === 'number' && Number.isFinite(seed)) {

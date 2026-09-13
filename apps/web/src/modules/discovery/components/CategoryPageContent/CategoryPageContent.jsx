@@ -38,6 +38,7 @@ import {
 import ListingGrid from '../../../../components/ListingGrid/ListingGrid.jsx';
 import EditorialPageHero from '../../../../components/EditorialPageHero/EditorialPageHero.jsx';
 import Showcase from '../../../home/components/Showcase/Showcase.jsx';
+import CategoryTopBackground from './CategoryTopBackground.jsx';
 import { getCategoryIcon } from '../../../../utils/categoryIcons.js';
 import { resolveCategoryHeroArt } from '../../../../utils/categoryHeroArt.js';
 import useSeo from '../../../../seo/useSeo.js';
@@ -229,6 +230,12 @@ export default function CategoryPageContent() {
           className={styles.topSection}
           aria-labelledby="category-top-heading"
         >
+          {/* Owner-directed premium card redesign (brief §21) — the
+              category's own thematic environment lives in this section's
+              background, never in oversized card geometry. Purely
+              decorative, stacked behind the heading/carousel below via
+              z-index, never intercepting focus/pointer events. */}
+          <CategoryTopBackground categorySlug={category.slug} />
           <h2 id="category-top-heading" className={styles.topSectionHeading}>
             {t('discovery.category.topHeading', { category: category.name })}
           </h2>

@@ -15,11 +15,19 @@
 }
 
 // Sprint E (Promotion Engine) — a distinct, but not shouty, heading for
-// the Category TOP section above the normal grid.
+// the Category TOP section above the normal grid. Owner-directed premium
+// card redesign (§21): now the positioning context for
+// `CategoryTopBackground`'s absolutely-positioned themed environment
+// (`position: relative` + padding so the background reads as real
+// section chrome, not content pressed flush against the rest of the
+// page).
 .topSection {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: tokens.$space-3;
+  padding: tokens.$space-6 tokens.$space-4;
+  border-radius: tokens.$radius-xl;
 }
 
 .topSectionHeading {
