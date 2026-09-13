@@ -2,9 +2,9 @@ import { describe, test, expect } from 'vitest';
 import { IMAGE_ASPECT, resolveCardConfig } from './categoryCardConfig.js';
 
 describe('categoryCardConfig', () => {
-  test('Entertainment gets a tall poster crop (brief §13\'s explicit "poster/event imagery")', () => {
+  test('Entertainment uses the standard card aspect, same outer scale as every other category (emergency visual-regression recovery: the previous TALL/3:4 crop made ordinary Entertainment cards balloon into oversized posters)', () => {
     expect(resolveCardConfig('entertainment-venues')).toEqual({
-      imageAspect: IMAGE_ASPECT.TALL,
+      imageAspect: IMAGE_ASPECT.STANDARD,
       priceUnitKey: 'perPerson',
     });
   });

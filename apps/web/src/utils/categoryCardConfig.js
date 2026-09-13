@@ -71,10 +71,20 @@ const CARD_CONFIG_BY_CATEGORY = Object.freeze({
   },
   // Brief §12: "editorial image reveal" — a wide, magazine-spread crop.
   attractions: { imageAspect: IMAGE_ASPECT.WIDE, priceUnitKey: 'perPerson' },
-  // Brief §13: explicitly "poster/event imagery" — a tall, portrait-poster
-  // crop is the one aspect-ratio choice directly named by the brief.
+  // Emergency visual-regression recovery pass: this was IMAGE_ASPECT.TALL
+  // (3:4) — brief §13 originally read "poster/event imagery" as literally
+  // a portrait-poster crop, but a 3:4 image box is ~78% taller than the
+  // 4:3 `standard` every other category uses, and the owner's own
+  // screenshots showed the real result: ordinary Entertainment cards in a
+  // grid becoming "enormous 3:4 posters... two cards consume almost the
+  // entire viewport". The corrected rule (owner-directed): outer card
+  // geometry must be the SAME practical marketplace-card scale across
+  // every category — differentiation belongs to media/art treatment,
+  // motif, and effects (already covered by this category's hover
+  // zoom+brightness in ListingCardBase.module.scss and its TOP depth
+  // motif), never to the outer box shape.
   'entertainment-venues': {
-    imageAspect: IMAGE_ASPECT.TALL,
+    imageAspect: IMAGE_ASPECT.STANDARD,
     priceUnitKey: 'perPerson',
   },
 });

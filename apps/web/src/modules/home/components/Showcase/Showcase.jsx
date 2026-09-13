@@ -25,21 +25,28 @@ import styles from './Showcase.module.scss';
 
 const AUTOPLAY_DELAY_MS = 4500;
 const CLICK_DRAG_THRESHOLD_PX = 8;
-// Scale carries most of the "center card in focus" read — a wide
-// falloff so the active card is unmistakably the dominant element, not
-// just marginally bigger than its neighbors; opacity recedes side cards
-// enough to read as clearly secondary while staying identifiable (the
-// brief's "side-card visibility").
-const SCALE_FALLOFF = 0.32;
-const OPACITY_FALLOFF = 0.45;
+// Emergency visual-regression recovery pass: the previous falloffs here
+// (0.32 scale / 0.45 opacity) meant an edge card shrank to 68% size and
+// faded to 55% opacity relative to the centered one — a real, owner-
+// reported regression ("center/focus scaling dominates the entire
+// section", "cards have inconsistent apparent dimensions", "feels like a
+// poster showcase, not marketplace inventory"). Depth should read through
+// elevation/shadow/tilt (ListingCardBase's own `.cardPromoted` treatment)
+// and this component's tilt below, not through neighboring cards visibly
+// changing size/visibility — every slide keeps materially the same
+// apparent scale now, this is a whisper of emphasis, not the primary
+// effect. Layout box dimensions were never affected by this either way
+// (a transform, not a width/height change) — no layout jump before or
+// after this reduction.
+const SCALE_FALLOFF = 0.03;
+const OPACITY_FALLOFF = 0.1;
 // Redesign phase (2026) — a subtle pointer-following tilt on whichever
 // slide is currently hovered, the "soft perspective tilt on pointer
 // movement" the page-wide depth system asks every slider to share.
-// Capped small deliberately: this rides on top of the existing
-// center-focus scale, not instead of it — a few degrees reads as a
-// premium material response, more would fight the scale/opacity
-// emphasis for attention.
-const MAX_TILT_DEG = 5;
+// Capped small deliberately: a few degrees reads as a premium material
+// response, more would look distracting on its own now that it's no
+// longer riding on top of a much larger scale/opacity emphasis.
+const MAX_TILT_DEG = 3;
 
 export default function Showcase({
   children,
