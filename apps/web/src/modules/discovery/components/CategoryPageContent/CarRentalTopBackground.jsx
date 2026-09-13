@@ -76,10 +76,6 @@ export default function CarRentalTopBackground() {
       className={[styles.environment, prefersReducedMotion && styles.static]
         .filter(Boolean)
         .join(' ')}
-      // A stable, non-hashed hook for CategoryPageContent.module.scss's
-      // `:has()` selector (Step 2.1 correction) — CSS Modules' own hashed
-      // class names aren't a reliable substring match target.
-      data-car-rental-top-background=""
       aria-hidden="true"
       // eslint-disable-next-line react/jsx-props-no-spreading -- forwards the two pointer handlers computed above, or nothing when parallax is disabled
       {...pointerHandlers}

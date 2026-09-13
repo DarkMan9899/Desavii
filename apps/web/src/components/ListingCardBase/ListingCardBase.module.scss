@@ -279,6 +279,18 @@
   display: none;
 }
 
+// Step 2.1 final correction — the 320px-wide `promotedImageAspect: WIDE`
+// media block still measured 180px tall (320 * 9/16) at 1440px, the
+// single largest remaining piece of a still-too-tall section. Capping
+// the height directly (rather than narrowing the card further, which
+// would only make its already-2-line title wrap worse) decouples "how
+// tall the photo is" from "how wide the card is" — `object-fit: cover`
+// on `.image` (already set, unconditionally, above) crops rather than
+// squashing, so the photo still reads correctly, just less of it shows.
+.card[data-category='car-rentals'][data-promoted='true'] .media {
+  max-height: 120px;
+}
+
 // Pass 7 (category-specific visual identity, brief §15) — real per-
 // category metadata (Restaurant cuisine/price-tier today), never
 // decorative. A plain inline list, not `Badge` primitives: these are

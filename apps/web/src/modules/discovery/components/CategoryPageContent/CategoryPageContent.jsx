@@ -197,6 +197,11 @@ export default function CategoryPageContent() {
   // Falls back to the previous accidental-but-stable `category.id` seed
   // hash for a category outside the known 9.
   const heroArt = resolveCategoryHeroArt(category.slug, category.id);
+  // Step 2.1 final correction (Car Rental TOP height + title) — scoped
+  // exactly to this one category, per the brief's own explicit "do not
+  // change other categories" fence; every other category's TOP section
+  // markup/styling below is completely unaffected by this flag being false.
+  const isCarRentalTop = category.slug === 'car-rentals';
 
   return (
     <div className={styles.page}>
@@ -227,7 +232,12 @@ export default function CategoryPageContent() {
 
       {!isTopPending && topListings?.length > 0 && (
         <section
-          className={styles.topSection}
+          className={[
+            styles.topSection,
+            isCarRentalTop && styles.topSectionCarRental,
+          ]
+            .filter(Boolean)
+            .join(' ')}
           aria-labelledby="category-top-heading"
         >
           {/* Owner-directed premium card redesign (brief §21) — the
@@ -236,7 +246,27 @@ export default function CategoryPageContent() {
               decorative, stacked behind the heading/carousel below via
               z-index, never intercepting focus/pointer events. */}
           <CategoryTopBackground categorySlug={category.slug} />
-          <h2 id="category-top-heading" className={styles.topSectionHeading}>
+          {/* Step 2.1 final correction — the heading sits on a dark navy
+              background for Car Rentals only (every other category's
+              CategoryTopBackground is a light wash); reusing the existing
+              "ԹՈՓ" badge label as a small eyebrow (already translated,
+              already used on every promoted card — never new copy) gives
+              it the same premium-editorial anchor the brief asks for
+              without inventing a second string to localize. */}
+          {isCarRentalTop && (
+            <span className={styles.topSectionEyebrow} aria-hidden="true">
+              {t('advertising.topBadge')}
+            </span>
+          )}
+          <h2
+            id="category-top-heading"
+            className={[
+              styles.topSectionHeading,
+              isCarRentalTop && styles.topSectionHeadingCarRental,
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
             {t('discovery.category.topHeading', { category: category.name })}
           </h2>
           {/* Pass 7B (brief §11/§17) — the same premium carousel engine
@@ -251,7 +281,12 @@ export default function CategoryPageContent() {
             ariaLabel={t('discovery.category.topHeading', {
               category: category.name,
             })}
-            slideClassName={styles.topSlide}
+            slideClassName={[
+              styles.topSlide,
+              isCarRentalTop && styles.carRentalTopSlide,
+            ]
+              .filter(Boolean)
+              .join(' ')}
           >
             {topListings.map((listing) => (
               <SearchResultCard
