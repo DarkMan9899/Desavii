@@ -265,6 +265,20 @@
   @include truncate.truncate-lines(2);
 }
 
+// Step 2.1 correction (Car Rental TOP height) — a real, live-measured
+// 728px-tall TOP section at 1440px, driven mostly by the media block
+// (355px) plus this ~44px summary block on top of it. The summary line
+// is genuinely redundant on a PROMOTED car-rental card specifically: the
+// same fact it restates ("manual-transmission compact car...") is
+// already the transmission metaChip a few lines above, unlike other
+// categories' summaries, which don't have that overlap. Scoped to
+// `[data-promoted='true']` only — this category's own ordinary grid card
+// (where the summary is the only place that context appears) is
+// unaffected, and no other category's promoted card is either.
+.card[data-category='car-rentals'][data-promoted='true'] .summary {
+  display: none;
+}
+
 // Pass 7 (category-specific visual identity, brief §15) — real per-
 // category metadata (Restaurant cuisine/price-tier today), never
 // decorative. A plain inline list, not `Badge` primitives: these are

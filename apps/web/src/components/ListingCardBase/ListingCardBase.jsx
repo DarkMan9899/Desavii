@@ -86,6 +86,12 @@ export default function ListingCardBase({
   // `IMAGE_ASPECT`. Kept a plain string here (not that enum import) so
   // this shared shell never depends on `modules/listings` config.
   imageAspect = 'standard',
+  // Step 2.1 correction (Car Rental TOP height) — an optional per-
+  // category override read ONLY when this card is actually promoted (see
+  // `effectiveImageAspect` below), left `undefined` for every category
+  // that doesn't set one in `categoryCardConfig.js`'s
+  // `promotedImageAspect`, so this changes nothing for any of them.
+  promotedImageAspect = undefined,
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   // A real photo (unlike the inline demo SVGs) has a visible network
@@ -110,8 +116,15 @@ export default function ListingCardBase({
   // and still stands out via the depth treatment below, never via being
   // physically bigger than its neighbors in the same row.
   const isPromoted = Boolean(topBadgeLabel);
-  const effectiveImageAspect =
-    isPromoted && imageAspect === 'tall' ? 'standard' : imageAspect;
+  // Step 2.1 correction (Car Rental TOP height) — an explicit per-category
+  // `promotedImageAspect` (e.g. Car Rentals' own standard->wide, a real,
+  // live-measured fix for its 728px-tall TOP section) takes priority when
+  // this card is promoted; otherwise the same "cap tall to standard"
+  // Entertainment-only rule from before still applies.
+  const effectiveImageAspect = isPromoted
+    ? (promotedImageAspect ??
+      (imageAspect === 'tall' ? 'standard' : imageAspect))
+    : imageAspect;
 
   return (
     <Card
@@ -281,4 +294,5 @@ ListingCardBase.propTypes = {
   ),
   categoryVisualKey: PropTypes.string,
   imageAspect: PropTypes.oneOf(['standard', 'wide', 'tall']),
+  promotedImageAspect: PropTypes.oneOf(['standard', 'wide', 'tall']),
 };

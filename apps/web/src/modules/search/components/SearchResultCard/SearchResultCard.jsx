@@ -205,6 +205,7 @@ export default function SearchResultCard({
       metaChips={metaChips}
       categoryVisualKey={categoryVisualKey}
       imageAspect={cardConfig.imageAspect}
+      promotedImageAspect={cardConfig.promotedImageAspect}
     />
   );
 }

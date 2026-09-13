@@ -28,6 +28,15 @@
   gap: tokens.$space-3;
   padding: tokens.$space-6 tokens.$space-4;
   border-radius: tokens.$radius-xl;
+
+  // Step 2.1 correction (Car Rental TOP height) — a small, additional
+  // trim of this section's own chrome, scoped by content (not a JS/class
+  // branch in this shared component) to exactly the one background that
+  // needed it. Every other category's section padding is untouched.
+  &:has([data-car-rental-top-background]) {
+    gap: tokens.$space-2;
+    padding: tokens.$space-4;
+  }
 }
 
 .topSectionHeading {

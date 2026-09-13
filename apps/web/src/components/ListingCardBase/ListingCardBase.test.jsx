@@ -210,6 +210,37 @@ describe('ListingCardBase (apps/web/src/components)', () => {
     });
   });
 
+  describe('Step 2.1 correction (Car Rental TOP height) — promotedImageAspect override', () => {
+    test('a promoted card with a promotedImageAspect override uses it instead of imageAspect', () => {
+      const { container } = renderCard({
+        topBadgeLabel: 'TOP',
+        imageAspect: 'standard',
+        promotedImageAspect: 'wide',
+      });
+      const media = container.querySelector('[class*="media"]');
+      expect(media.className).toMatch(/mediaWide/);
+    });
+
+    test('an ordinary (non-promoted) card ignores promotedImageAspect entirely', () => {
+      const { container } = renderCard({
+        imageAspect: 'standard',
+        promotedImageAspect: 'wide',
+      });
+      const media = container.querySelector('[class*="media"]');
+      expect(media.className).not.toMatch(/mediaWide/);
+    });
+
+    test('with no promotedImageAspect set, a promoted card falls back to the existing tall->standard cap', () => {
+      const { container } = renderCard({
+        topBadgeLabel: 'TOP',
+        imageAspect: 'tall',
+      });
+      const media = container.querySelector('[class*="media"]');
+      expect(media.className).not.toMatch(/mediaTall/);
+      expect(media.className).not.toMatch(/mediaWide/);
+    });
+  });
+
   describe('Pass 8 (Multi-Currency / CBA FX Pricing)', () => {
     test("an AMD priceCurrencyCode converts through the customer's current currency", async () => {
       renderCardWithCurrency({

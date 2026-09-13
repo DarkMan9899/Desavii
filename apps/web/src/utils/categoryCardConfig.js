@@ -65,8 +65,23 @@ const CARD_CONFIG_BY_CATEGORY = Object.freeze({
   tours: { imageAspect: IMAGE_ASPECT.WIDE, priceUnitKey: 'perPerson' },
   // Brief §11: "cleaner, more technical, less editorial" — standard crop,
   // no cinematic treatment; vehicle spec chips carry the differentiation.
+  //
+  // Step 2.1 correction (Car Rental TOP height): a real, live-measured
+  // TOP section at 1440px was 728px tall (81% of a 900px viewport) —
+  // confirmed via the exact same shared `topSlide` width every other
+  // category uses (no oversized-variant bug), but the STANDARD (4:3)
+  // media box alone was 355px, the single largest contributor. `WIDE`
+  // (16:9) is not a new geometry class invented for this fix — Villas/
+  // Tours/Attractions already use it as their normal, everyday aspect —
+  // so using it here for the PROMOTED card only stays inside the already
+  // -established "normal marketplace TOP card geometry" family, never an
+  // oversized one-off. `promotedImageAspect` (read by ListingCardBase.jsx
+  // only when a card is actually promoted) leaves this category's own
+  // ordinary grid card — and every other category's promoted card —
+  // completely unaffected.
   'car-rentals': {
     imageAspect: IMAGE_ASPECT.STANDARD,
+    promotedImageAspect: IMAGE_ASPECT.WIDE,
     priceUnitKey: 'perDay',
   },
   // Brief §12: "editorial image reveal" — a wide, magazine-spread crop.
@@ -92,7 +107,7 @@ const CARD_CONFIG_BY_CATEGORY = Object.freeze({
 /**
  * @param {string} categoryVisualKey - a real category slug, or a
  *   lower-cased `listing_type` fallback when the slug isn't known yet.
- * @returns {{imageAspect: string, priceUnitKey: string|null}}
+ * @returns {{imageAspect: string, promotedImageAspect: string|undefined, priceUnitKey: string|null}}
  */
 export function resolveCardConfig(categoryVisualKey) {
   return CARD_CONFIG_BY_CATEGORY[categoryVisualKey] ?? DEFAULT_CARD_CONFIG;
