@@ -548,11 +548,21 @@ describe('Pass 7B — display_priority ordering and category isolation', () => {
   });
 
   test('an empty placement returns an empty array, never a fabricated fallback', async () => {
-    const [[emptyCategory]] = await pool.query(
-      "SELECT id FROM listing_categories WHERE slug = 'guest-houses'",
+    // Emergency premium card redesign pass: LOCAL/DEV QA now seeds an
+    // active CATEGORY_TOP promotion for every one of the 9 real public
+    // categories (previously only a couple had one) — 'guest-houses' can
+    // no longer stand in as "a real category with nothing promoted".
+    // `getPublicCategoryTop` never validates that `categoryId` refers to
+    // an existing category (a plain `WHERE category_id = ?` filter, no
+    // FK-existence check) — a categoryId with no possible promotions is a
+    // *stronger* proof of "never a fabricated fallback" than a real
+    // category that merely happens to be empty today.
+    const [[maxCategory]] = await pool.query(
+      'SELECT MAX(id) AS id FROM listing_categories',
     );
+    const nonexistentCategoryId = maxCategory.id + 1000;
     const res = await request(app).get(
-      `/api/v1/advertising/public/category-top?categoryId=${emptyCategory.id}&locale=en`,
+      `/api/v1/advertising/public/category-top?categoryId=${nonexistentCategoryId}&locale=en`,
     );
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
