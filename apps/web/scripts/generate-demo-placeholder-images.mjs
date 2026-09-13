@@ -30,6 +30,23 @@ const PALETTE = {
   white: '#ffffff',
 };
 
+// Emergency visual-regression recovery pass: the previous version of this
+// generator produced a saturated navy->royalBlue full-bleed background with
+// a large centered icon and two lines of literal text ("Entertainment",
+// "DESAVII DEMO PLACEHOLDER") burned directly into the SVG. Three real,
+// owner-reported problems traced back to these exact files: (1) the text
+// is English regardless of route locale — a static image asset has no way
+// to read `i18n`, so it leaked untranslated English onto /hy and /ru; (2)
+// a solid dark-navy rectangle repeated across every card in a TOP row read
+// as "a dark oversized carousel stage", not marketplace inventory; (3) the
+// large centered icon + two text lines made every demo photo look like
+// template/placeholder scaffolding rather than a real (if photo-less)
+// listing. Fixed by dropping all baked-in text, moving to a soft light
+// wash (this same brand palette, just inverted toward white) instead of a
+// saturated dark gradient, and shrinking the icon so it reads as a quiet
+// brand mark rather than the card's dominant visual element.
+const ICON_SCALE = 0.55;
+
 const IMAGES_PER_CATEGORY = 8;
 
 const CATEGORIES = [
@@ -48,9 +65,14 @@ const CATEGORIES = [
   { slug: 'entertainment-venues', label: 'Entertainment', icon: 'star' },
 ];
 
+// Base icon-shape fill/stroke, resolved via the `--icon-base` custom
+// property set on each icon's wrapping <g> (buildSvg) — a muted brand navy
+// on this generator's new light background, replacing the old hardcoded
+// solid white that only worked against the previous dark navy->royalBlue
+// fill.
 const ICONS = {
   building: `
-    <rect x="-60" y="-90" width="120" height="180" rx="4" fill="rgba(255,255,255,0.9)" />
+    <rect x="-60" y="-90" width="120" height="180" rx="4" fill="var(--icon-base)" />
     <rect x="-45" y="-75" width="24" height="24" fill="var(--icon-fill)" />
     <rect x="-8" y="-75" width="24" height="24" fill="var(--icon-fill)" />
     <rect x="29" y="-75" width="24" height="24" fill="var(--icon-fill)" />
@@ -62,53 +84,70 @@ const ICONS = {
     <rect x="-16" y="10" width="32" height="80" fill="var(--icon-fill)" />
   `,
   key: `
-    <circle cx="-30" cy="0" r="38" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="14" />
-    <rect x="4" y="-9" width="90" height="18" fill="rgba(255,255,255,0.9)" />
-    <rect x="70" y="9" width="16" height="22" fill="rgba(255,255,255,0.9)" />
-    <rect x="46" y="9" width="16" height="16" fill="rgba(255,255,255,0.9)" />
+    <circle cx="-30" cy="0" r="38" fill="none" stroke="var(--icon-base)" stroke-width="14" />
+    <rect x="4" y="-9" width="90" height="18" fill="var(--icon-base)" />
+    <rect x="70" y="9" width="16" height="22" fill="var(--icon-base)" />
+    <rect x="46" y="9" width="16" height="16" fill="var(--icon-base)" />
   `,
   mountain: `
-    <polygon points="-100,60 -40,-60 10,10 40,-30 100,60" fill="rgba(255,255,255,0.9)" />
+    <polygon points="-100,60 -40,-60 10,10 40,-30 100,60" fill="var(--icon-base)" />
     <circle cx="55" cy="-70" r="20" fill="var(--icon-fill)" />
   `,
   car: `
-    <rect x="-90" y="-10" width="180" height="50" rx="16" fill="rgba(255,255,255,0.9)" />
-    <polygon points="-55,-10 -35,-45 45,-45 65,-10" fill="rgba(255,255,255,0.9)" />
+    <rect x="-90" y="-10" width="180" height="50" rx="16" fill="var(--icon-base)" />
+    <polygon points="-55,-10 -35,-45 45,-45 65,-10" fill="var(--icon-base)" />
     <circle cx="-50" cy="45" r="22" fill="var(--icon-fill)" />
     <circle cx="55" cy="45" r="22" fill="var(--icon-fill)" />
   `,
   compass: `
-    <circle cx="0" cy="0" r="95" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="12" />
-    <polygon points="0,-60 20,10 -20,10" fill="rgba(255,255,255,0.9)" />
+    <circle cx="0" cy="0" r="95" fill="none" stroke="var(--icon-base)" stroke-width="12" />
+    <polygon points="0,-60 20,10 -20,10" fill="var(--icon-base)" />
     <polygon points="0,60 20,-10 -20,-10" fill="var(--icon-fill)" />
   `,
   villa: `
-    <polygon points="-95,15 0,-85 95,15" fill="rgba(255,255,255,0.9)" />
-    <rect x="-70" y="15" width="140" height="85" fill="rgba(255,255,255,0.9)" />
+    <polygon points="-95,15 0,-85 95,15" fill="var(--icon-base)" />
+    <rect x="-70" y="15" width="140" height="85" fill="var(--icon-base)" />
     <rect x="-18" y="55" width="36" height="45" fill="var(--icon-fill)" />
     <rect x="60" y="70" width="45" height="16" rx="8" fill="var(--icon-fill)" opacity="0.55" />
   `,
   guestHouse: `
-    <polygon points="-62,5 0,-62 62,5" fill="rgba(255,255,255,0.9)" />
-    <rect x="-48" y="5" width="96" height="72" fill="rgba(255,255,255,0.9)" />
-    <rect x="28" y="-58" width="14" height="34" fill="rgba(255,255,255,0.9)" />
+    <polygon points="-62,5 0,-62 62,5" fill="var(--icon-base)" />
+    <rect x="-48" y="5" width="96" height="72" fill="var(--icon-base)" />
+    <rect x="28" y="-58" width="14" height="34" fill="var(--icon-base)" />
     <circle cx="0" cy="38" r="15" fill="var(--icon-fill)" />
   `,
   plate: `
-    <circle cx="0" cy="10" r="88" fill="rgba(255,255,255,0.9)" />
+    <circle cx="0" cy="10" r="88" fill="var(--icon-base)" />
     <circle cx="0" cy="10" r="60" fill="none" stroke="var(--icon-fill)" stroke-width="4" />
     <rect x="-58" y="-70" width="10" height="130" fill="var(--icon-fill)" transform="rotate(-18)" />
     <rect x="46" y="-70" width="10" height="130" fill="var(--icon-fill)" transform="rotate(18)" />
   `,
   star: `
-    <polygon points="0,-95 24,-30 92,-28 38,10 58,80 0,40 -58,80 -38,10 -92,-28 -24,-30" fill="rgba(255,255,255,0.9)" />
+    <polygon points="0,-95 24,-30 92,-28 38,10 58,80 0,40 -58,80 -38,10 -92,-28 -24,-30" fill="var(--icon-base)" />
     <circle cx="72" cy="-58" r="9" fill="var(--icon-fill)" />
     <circle cx="-68" cy="52" r="7" fill="var(--icon-fill)" />
     <circle cx="0" cy="-2" r="6" fill="var(--icon-fill)" />
   `,
 };
 
-function buildSvg({ label, index, icon, gradientFrom, gradientTo, iconFill }) {
+// No text at all (no category label, no "DESAVII DEMO PLACEHOLDER" — see
+// this file's header comment for why), and the icon is scaled down
+// (ICON_SCALE) and centered a touch above middle so it reads as a quiet
+// brand mark — "support the card, not become the card" — rather than the
+// dominant element of what should look like an ordinary (if photo-less)
+// listing thumbnail. `role="img"`/`aria-label` stay on the root <svg> for
+// hygiene (a direct `<img src="*.svg">` — this file's only real usage —
+// never exposes an embedded SVG's own accessibility tree to a screen
+// reader; the consuming `<img>` tag's own `alt` is what actually renders).
+function buildSvg({
+  label,
+  index,
+  icon,
+  gradientFrom,
+  gradientTo,
+  iconFill,
+  iconBase,
+}) {
   const gradientId = `g-${label.toLowerCase().replace(/\s+/g, '-')}-${index}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="${label} placeholder photo ${index}">
   <defs>
@@ -118,23 +157,22 @@ function buildSvg({ label, index, icon, gradientFrom, gradientTo, iconFill }) {
     </linearGradient>
   </defs>
   <rect width="800" height="600" fill="url(#${gradientId})" />
-  <circle cx="700" cy="80" r="140" fill="rgba(255,255,255,0.06)" />
-  <circle cx="80" cy="540" r="180" fill="rgba(255,255,255,0.05)" />
-  <g transform="translate(400,250)" style="--icon-fill:${iconFill}">
+  <g transform="translate(400,280) scale(${ICON_SCALE})" style="--icon-fill:${iconFill};--icon-base:${iconBase}">
     ${icon}
   </g>
-  <text x="400" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="34" fill="${PALETTE.white}" opacity="0.95">${label}</text>
-  <text x="400" y="510" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="${PALETTE.gold}">DESAVII DEMO PLACEHOLDER</text>
 </svg>
 `;
 }
 
 function categoryGradient(categoryIndex, imageIndex) {
-  // Alternates between navy->royalBlue and royalBlue->navy per image so a
-  // single category's set isn't visually identical across every listing.
+  // A soft, light wash instead of the previous saturated navy->royalBlue
+  // fill (that dark treatment, repeated across every card in a TOP row,
+  // was a real, reported "dark oversized carousel stage" contributor) —
+  // alternates two light neutrals per image so a single category's set
+  // isn't visually identical across every listing, same intent as before.
   const flipped = imageIndex % 2 === 1;
-  const from = flipped ? PALETTE.royalBlue : PALETTE.navy;
-  const to = flipped ? PALETTE.navy : PALETTE.royalBlue;
+  const from = flipped ? PALETTE.white : PALETTE.gray100;
+  const to = flipped ? PALETTE.gray100 : PALETTE.gray200;
   return { from, to };
 }
 
@@ -153,6 +191,7 @@ function main() {
         gradientFrom: from,
         gradientTo: to,
         iconFill: PALETTE.gold,
+        iconBase: PALETTE.navy,
       });
       writeFileSync(path.join(dir, `${category.slug}-${i}.svg`), svg, 'utf8');
       written += 1;
@@ -161,14 +200,15 @@ function main() {
 
   const partnerDir = path.join(OUTPUT_ROOT, 'partners');
   mkdirSync(partnerDir, { recursive: true });
-  CATEGORIES.forEach((category, categoryIndex) => {
+  CATEGORIES.forEach((category) => {
     const svg = buildSvg({
       label: `${category.label} Partner`,
       index: 1,
       icon: ICONS[category.icon],
       gradientFrom: PALETTE.navy,
       gradientTo: PALETTE.gold,
-      iconFill: PALETTE.navy,
+      iconFill: PALETTE.gold,
+      iconBase: PALETTE.white,
     });
     writeFileSync(
       path.join(partnerDir, `${category.slug}-logo.svg`),

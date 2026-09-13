@@ -6,15 +6,11 @@
     </linearGradient>
   </defs>
   <rect width="800" height="600" fill="url(#g-experience-partner-1)" />
-  <circle cx="700" cy="80" r="140" fill="rgba(255,255,255,0.06)" />
-  <circle cx="80" cy="540" r="180" fill="rgba(255,255,255,0.05)" />
-  <g transform="translate(400,250)" style="--icon-fill:#0f2a4a">
+  <g transform="translate(400,280) scale(0.55)" style="--icon-fill:#c9a24b;--icon-base:#ffffff">
     
-    <circle cx="0" cy="0" r="95" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="12" />
-    <polygon points="0,-60 20,10 -20,10" fill="rgba(255,255,255,0.9)" />
+    <circle cx="0" cy="0" r="95" fill="none" stroke="var(--icon-base)" stroke-width="12" />
+    <polygon points="0,-60 20,10 -20,10" fill="var(--icon-base)" />
     <polygon points="0,60 20,-10 -20,-10" fill="var(--icon-fill)" />
   
   </g>
-  <text x="400" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="34" fill="#ffffff" opacity="0.95">Experience Partner</text>
-  <text x="400" y="510" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="#c9a24b">DESAVII DEMO PLACEHOLDER</text>
 </svg>

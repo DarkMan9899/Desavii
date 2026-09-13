@@ -1,21 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Apartment placeholder photo 1">
   <defs>
     <linearGradient id="g-apartment-1" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1d5fd6" />
-      <stop offset="100%" stop-color="#0f2a4a" />
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f3f5f7" />
     </linearGradient>
   </defs>
   <rect width="800" height="600" fill="url(#g-apartment-1)" />
-  <circle cx="700" cy="80" r="140" fill="rgba(255,255,255,0.06)" />
-  <circle cx="80" cy="540" r="180" fill="rgba(255,255,255,0.05)" />
-  <g transform="translate(400,250)" style="--icon-fill:#c9a24b">
+  <g transform="translate(400,280) scale(0.55)" style="--icon-fill:#c9a24b;--icon-base:#0f2a4a">
     
-    <circle cx="-30" cy="0" r="38" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="14" />
-    <rect x="4" y="-9" width="90" height="18" fill="rgba(255,255,255,0.9)" />
-    <rect x="70" y="9" width="16" height="22" fill="rgba(255,255,255,0.9)" />
-    <rect x="46" y="9" width="16" height="16" fill="rgba(255,255,255,0.9)" />
+    <circle cx="-30" cy="0" r="38" fill="none" stroke="var(--icon-base)" stroke-width="14" />
+    <rect x="4" y="-9" width="90" height="18" fill="var(--icon-base)" />
+    <rect x="70" y="9" width="16" height="22" fill="var(--icon-base)" />
+    <rect x="46" y="9" width="16" height="16" fill="var(--icon-base)" />
   
   </g>
-  <text x="400" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="34" fill="#ffffff" opacity="0.95">Apartment</text>
-  <text x="400" y="510" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="#c9a24b">DESAVII DEMO PLACEHOLDER</text>
 </svg>

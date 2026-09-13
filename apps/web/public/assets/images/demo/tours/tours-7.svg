@@ -1,19 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Tour placeholder photo 7">
   <defs>
     <linearGradient id="g-tour-7" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1d5fd6" />
-      <stop offset="100%" stop-color="#0f2a4a" />
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f3f5f7" />
     </linearGradient>
   </defs>
   <rect width="800" height="600" fill="url(#g-tour-7)" />
-  <circle cx="700" cy="80" r="140" fill="rgba(255,255,255,0.06)" />
-  <circle cx="80" cy="540" r="180" fill="rgba(255,255,255,0.05)" />
-  <g transform="translate(400,250)" style="--icon-fill:#c9a24b">
+  <g transform="translate(400,280) scale(0.55)" style="--icon-fill:#c9a24b;--icon-base:#0f2a4a">
     
-    <polygon points="-100,60 -40,-60 10,10 40,-30 100,60" fill="rgba(255,255,255,0.9)" />
+    <polygon points="-100,60 -40,-60 10,10 40,-30 100,60" fill="var(--icon-base)" />
     <circle cx="55" cy="-70" r="20" fill="var(--icon-fill)" />
   
   </g>
-  <text x="400" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="34" fill="#ffffff" opacity="0.95">Tour</text>
-  <text x="400" y="510" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="#c9a24b">DESAVII DEMO PLACEHOLDER</text>
 </svg>
