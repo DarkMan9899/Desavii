@@ -25,8 +25,13 @@ describe('CarRentalTopBackground (Step 2.1 — Car Rental TOP background only)',
     // three distinct depth layers, per the brief's own explicit
     // FAR/MID/NEAR structure.
     expect(container.querySelector('svg')).toBeInTheDocument();
-    expect(container.querySelectorAll('svg circle')).toHaveLength(3);
+    // Step 2.1 final adjustment — a fourth waypoint node was added for
+    // stronger route/depth read (brief: "more visible route/waypoint
+    // effects").
+    expect(container.querySelectorAll('svg circle')).toHaveLength(4);
     expect(container.querySelector('svg path')).toBeInTheDocument();
+    // The FAR skyline silhouette — real FAR/MID separation.
+    expect(container.querySelector('[class*="skyline"]')).toBeInTheDocument();
   });
 
   test('under prefers-reduced-motion, gets the static modifier class and no drifting light streaks', () => {
@@ -43,5 +48,6 @@ describe('CarRentalTopBackground (Step 2.1 — Car Rental TOP background only)',
     const { container } = render(<CarRentalTopBackground />);
     expect(container.querySelector('[class*="streakA"]')).toBeInTheDocument();
     expect(container.querySelector('[class*="streakB"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="streakC"]')).toBeInTheDocument();
   });
 });

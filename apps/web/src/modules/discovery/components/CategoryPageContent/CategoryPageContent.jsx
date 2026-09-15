@@ -240,63 +240,89 @@ export default function CategoryPageContent() {
             .join(' ')}
           aria-labelledby="category-top-heading"
         >
-          {/* Owner-directed premium card redesign (brief §21) — the
-              category's own thematic environment lives in this section's
-              background, never in oversized card geometry. Purely
-              decorative, stacked behind the heading/carousel below via
-              z-index, never intercepting focus/pointer events. */}
-          <CategoryTopBackground categorySlug={category.slug} />
-          {/* Step 2.1 final correction — the heading sits on a dark navy
-              background for Car Rentals only (every other category's
-              CategoryTopBackground is a light wash); reusing the existing
-              "ԹՈՓ" badge label as a small eyebrow (already translated,
-              already used on every promoted card — never new copy) gives
-              it the same premium-editorial anchor the brief asks for
-              without inventing a second string to localize. */}
-          {isCarRentalTop && (
-            <span className={styles.topSectionEyebrow} aria-hidden="true">
-              {t('advertising.topBadge')}
-            </span>
+          {isCarRentalTop ? (
+            <>
+              {/* Step 2.1 final adjustment — the heading now lives OUTSIDE
+                  the dark "stage" below, on the page's own normal
+                  background, so it reads as a real section header rather
+                  than text floating inside the road-scene composition. */}
+              <span className={styles.topSectionEyebrow} aria-hidden="true">
+                {t('advertising.topBadge')}
+              </span>
+              <h2
+                id="category-top-heading"
+                className={styles.topSectionHeadingCarRental}
+              >
+                {t('discovery.category.topHeading', {
+                  category: category.name,
+                })}
+              </h2>
+              {/* The "stage" — CarRentalTopBackground's road environment
+                  and the carousel, together, own dark chrome now separate
+                  from the heading above. */}
+              <div className={styles.carRentalStage}>
+                <CategoryTopBackground categorySlug={category.slug} />
+                <Showcase
+                  ariaLabel={t('discovery.category.topHeading', {
+                    category: category.name,
+                  })}
+                  slideClassName={[styles.topSlide, styles.carRentalTopSlide]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
+                  {topListings.map((listing) => (
+                    <SearchResultCard
+                      key={listing.id}
+                      result={listing}
+                      hideTypeBadge
+                      topBadgeLabel={t('advertising.topBadge')}
+                    />
+                  ))}
+                </Showcase>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Owner-directed premium card redesign (brief §21) — the
+                  category's own thematic environment lives in this
+                  section's background, never in oversized card geometry.
+                  Purely decorative, stacked behind the heading/carousel
+                  below via z-index, never intercepting focus/pointer
+                  events. */}
+              <CategoryTopBackground categorySlug={category.slug} />
+              <h2
+                id="category-top-heading"
+                className={styles.topSectionHeading}
+              >
+                {t('discovery.category.topHeading', {
+                  category: category.name,
+                })}
+              </h2>
+              {/* Pass 7B (brief §11/§17) — the same premium carousel
+                  engine Home's Featured section uses, not a plain grid:
+                  Category TOP is a paid placement and must visibly feel
+                  more premium than the ordinary inventory grid below it.
+                  Every card already carries this category's own visual
+                  identity (aspect ratio, price unit, real metadata chips)
+                  via `SearchResultCard` — nothing category-specific to add
+                  here beyond the carousel shell itself. */}
+              <Showcase
+                ariaLabel={t('discovery.category.topHeading', {
+                  category: category.name,
+                })}
+                slideClassName={styles.topSlide}
+              >
+                {topListings.map((listing) => (
+                  <SearchResultCard
+                    key={listing.id}
+                    result={listing}
+                    hideTypeBadge
+                    topBadgeLabel={t('advertising.topBadge')}
+                  />
+                ))}
+              </Showcase>
+            </>
           )}
-          <h2
-            id="category-top-heading"
-            className={[
-              styles.topSectionHeading,
-              isCarRentalTop && styles.topSectionHeadingCarRental,
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
-            {t('discovery.category.topHeading', { category: category.name })}
-          </h2>
-          {/* Pass 7B (brief §11/§17) — the same premium carousel engine
-              Home's Featured section uses, not a plain grid: Category TOP
-              is a paid placement and must visibly feel more premium than
-              the ordinary inventory grid below it. Every card already
-              carries this category's own visual identity (aspect ratio,
-              price unit, real metadata chips) via `SearchResultCard` —
-              nothing category-specific to add here beyond the carousel
-              shell itself. */}
-          <Showcase
-            ariaLabel={t('discovery.category.topHeading', {
-              category: category.name,
-            })}
-            slideClassName={[
-              styles.topSlide,
-              isCarRentalTop && styles.carRentalTopSlide,
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
-            {topListings.map((listing) => (
-              <SearchResultCard
-                key={listing.id}
-                result={listing}
-                hideTypeBadge
-                topBadgeLabel={t('advertising.topBadge')}
-              />
-            ))}
-          </Showcase>
         </section>
       )}
 

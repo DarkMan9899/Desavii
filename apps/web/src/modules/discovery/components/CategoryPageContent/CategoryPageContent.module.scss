@@ -30,30 +30,15 @@
   border-radius: tokens.$radius-xl;
 }
 
-// Step 2.1 final correction (Car Rental TOP height) — a real, live-
-// measured problem (728px tall at 1440px, then 558px after the first
-// correction, still well above the 360-420px target): this section's own
-// chrome padding/gap, trimmed via the explicit class
-// `CategoryPageContent.jsx` now applies only for this one category.
-// Every other category keeps `.topSection`'s original padding/gap above,
-// completely untouched.
+// Step 2.1 final adjustment — the heading (eyebrow + h2) now lives
+// directly in `.topSection`'s own flow, on the page's normal light
+// background — see `.carRentalStage` below for the dark "stage" that
+// used to contain it too. `.topSection` needs no extra chrome of its
+// own here beyond a little breathing room between the heading and the
+// stage.
 .topSectionCarRental {
-  gap: tokens.$space-1;
-  padding: tokens.$space-3 tokens.$space-4;
-
-  // Showcase.jsx's own `.container` (padding-block: $space-4, 16px top +
-  // bottom) exists to keep a slide's own center-focus scale-up from
-  // clipping against `.viewport`'s `overflow: hidden` — real headroom
-  // every OTHER category still needs. Car Rentals' scale/opacity emphasis
-  // is already reduced to near-zero (Showcase.jsx's own SCALE_FALLOFF is
-  // 0.03 app-wide), so this much padding is no longer buying anything
-  // here; trimmed via Showcase's own stable, public carousel semantics
-  // (`role="group"`/`aria-roledescription="carousel"`) rather than
-  // touching the shared component file itself, which every other
-  // category's TOP section (and Home) still renders through unchanged.
-  [role='group'][aria-roledescription='carousel'] > div {
-    padding-block: tokens.$space-1;
-  }
+  gap: tokens.$space-2;
+  padding: 0 tokens.$space-4;
 }
 
 .topSectionHeading {
@@ -63,45 +48,100 @@
   color: tokens.$color-gray-900;
 }
 
-// Step 2.1 final correction — a small, restrained "premium eyebrow"
+// Step 2.1 final adjustment — a small, restrained "premium eyebrow"
 // label (reuses the existing, already-translated "ԹՈՓ" badge text — see
 // CategoryPageContent.jsx's own comment — never a new, un-localized
-// string) sitting just above the heading, Car Rental TOP only.
+// string). Now sits on the page's own light background (moved outside
+// the dark stage), so it uses `$color-gold-strong` — this codebase's own
+// WCAG-AA-safe darker gold variant, documented in `_colors.scss` for
+// exactly this "gold text on a light surface" role — rather than the
+// plain `$color-gold` that only reads correctly on a dark ground.
 .topSectionEyebrow {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-1;
   align-self: flex-start;
-  padding: 1px tokens.$space-2;
-  border: 1px solid rgba(tokens.$color-gold, 0.55);
+  padding: 3px tokens.$space-2;
+  border: 1px solid rgba(tokens.$color-gold-strong, 0.4);
   border-radius: tokens.$radius-full;
-  color: tokens.$color-gold;
+  background-color: rgba(tokens.$color-gold, 0.08);
+  color: tokens.$color-gold-strong;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.14em;
+
+  // A small dot echoing the background's own waypoint nodes — ties the
+  // eyebrow back to the road motif without repeating any text.
+  &::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: tokens.$color-gold;
+  }
 }
 
-// Step 2.1 final correction — the real, confirmed root cause of "the
-// title is weak and visually lost": `.topSectionHeading` above is
-// `$color-gray-900` (near-black), styled for the light gray-100-based
-// background every OTHER category's `CategoryTopBackground` renders —
-// but Car Rentals' own background (`CarRentalTopBackground`) is a dark
-// navy road environment, so the same dark text was rendering nearly
-// invisible against it. Fixed with real contrast (white, a soft dark
-// drop-shadow so it stays legible over the busiest part of the road
-// art), a modest size step up (h4->h3, not h2 — a strong visual anchor
-// without spending the extra vertical space a bigger jump would cost),
-// and a touch of letter-spacing for an editorial, not just "bigger",
-// feel. A restrained gold-tinted glow (not a saturated neon one) reads
-// as premium chrome consistent with this codebase's own established
-// "gold = premium placement" accent (Showcase's active-dot ring, the
-// promoted-card depth ring) rather than a new visual language.
+// Step 2.1 final adjustment — real contrast fix, now for the OPPOSITE
+// surface than the previous pass: the heading used to sit on Car
+// Rentals' own dark navy stage (so it was styled white); now that it
+// lives outside that stage, on the page's normal light background, dark
+// navy text reads far more premium here than plain gray — the same
+// brand color the road background itself uses, so the heading and the
+// stage below it read as one considered composition, not two unrelated
+// elements. A slim gold accent underline (a real element, not border-
+// bottom, so its width is independent of the text length) gives it the
+// "elegant accent line" the brief asks for without a second glow effect
+// competing with the stage's own for attention.
 .topSectionHeadingCarRental {
+  position: relative;
+  display: inline-block;
+  padding-bottom: tokens.$space-2;
   font-size: tokens.$font-size-h3;
   font-weight: 800;
   letter-spacing: 0.01em;
-  color: tokens.$color-white;
-  text-shadow:
-    0 2px 10px rgba(11, 26, 43, 0.65),
-    0 0 22px rgba(tokens.$color-gold, 0.25);
+  color: tokens.$color-navy;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 44px;
+    height: 3px;
+    border-radius: tokens.$radius-full;
+    background: linear-gradient(
+      90deg,
+      tokens.$color-gold 0%,
+      rgba(tokens.$color-gold, 0.15) 100%
+    );
+  }
+}
+
+// Step 2.1 final adjustment — the dark "stage" that now holds only the
+// road background and the carousel (never the heading — see above).
+// Sized generously enough to give `CarRentalTopBackground`'s richer
+// depth layers real room (the brief's own "more visible depth layers...
+// clearer perspective... stronger near/mid/far separation" asks for
+// more visual space, not less) while the promoted card itself is
+// unchanged from the prior correction.
+// Step 2.1 final adjustment — the brief's own explicit math: "new height
+// ≈ current height × 1.2", measured against the CURRENT (post-
+// restructuring, heading-already-moved-out) stage height, not the older
+// pre-restructuring number from the previous correction. Live-measured
+// at 371px (1440px viewport) before this change; padding-block increased
+// from 16/24 to 64/48 (+72px total) lands at ~443px — content itself
+// (the promoted card, its media cap, its metadata) is unchanged, so the
+// extra height reads as more breathing room for the richer depth layers
+// the background enhancement above adds, exactly as the brief intends.
+.carRentalStage {
+  position: relative;
+  overflow: hidden;
+  border-radius: tokens.$radius-xl;
+  padding: tokens.$space-16 tokens.$space-4 tokens.$space-12;
+
+  [role='group'][aria-roledescription='carousel'] > div {
+    padding-block: tokens.$space-2;
+  }
 }
 
 // Pass 7B (brief §11/§17) — mirrors `FeaturedListings.module.scss`'s own
