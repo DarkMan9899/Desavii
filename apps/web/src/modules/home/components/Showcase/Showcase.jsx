@@ -307,22 +307,33 @@ export default function Showcase({
         </div>
       </div>
 
-      <button
-        type="button"
-        className={[styles.navButton, styles['navButton--prev']].join(' ')}
-        aria-label={t('home.showcase.previous')}
-        onClick={() => emblaApi?.scrollPrev()}
-      >
-        <ChevronLeft size={24} aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        className={[styles.navButton, styles['navButton--next']].join(' ')}
-        aria-label={t('home.showcase.next')}
-        onClick={() => emblaApi?.scrollNext()}
-      >
-        <ChevronRight size={24} aria-hidden="true" />
-      </button>
+      {/* DESAVII category-closure pass (§1.3) — a single slide has nothing
+          to navigate to, so the prev/next arrows are unconditionally
+          "unnecessary" chrome for it (the brief's own words); `slideCount`
+          (known synchronously from `children`, unlike `scrollSnaps`, which
+          only populates once Embla has initialized) is the correct guard
+          here — mirrors the pagination dots' own existing `length > 1`
+          rule just below. */}
+      {slideCount > 1 && (
+        <>
+          <button
+            type="button"
+            className={[styles.navButton, styles['navButton--prev']].join(' ')}
+            aria-label={t('home.showcase.previous')}
+            onClick={() => emblaApi?.scrollPrev()}
+          >
+            <ChevronLeft size={24} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={[styles.navButton, styles['navButton--next']].join(' ')}
+            aria-label={t('home.showcase.next')}
+            onClick={() => emblaApi?.scrollNext()}
+          >
+            <ChevronRight size={24} aria-hidden="true" />
+          </button>
+        </>
+      )}
 
       {scrollSnaps.length > 1 && (
         <div className={styles.dots}>
