@@ -221,12 +221,16 @@ export default function CategoryPageContent() {
   // again, via its own dedicated classes/branch, never touching Car
   // Rental's, Hotel's, Apartment's, or Villa's.
   const isGuestHouseTop = category.slug === 'guest-houses';
+  // Step 2.6 (Restaurant TOP background only) — same structural rule
+  // again, via its own dedicated classes/branch, never touching Car
+  // Rental's, Hotel's, Apartment's, Villa's, or Guest House's.
+  const isRestaurantTop = category.slug === 'restaurants';
 
   // A plain function (not a nested ternary — eslint's `no-nested-ternary`
-  // rejects a chain of more than 2 branches) covering the 6 possible
-  // TOP-section layouts: Car Rental's, Hotel's, Apartment's, Villa's, and
-  // Guest House's own dedicated stages (each its own classes, never
-  // shared/renamed), or
+  // rejects a chain of more than 2 branches) covering the 7 possible
+  // TOP-section layouts: Car Rental's, Hotel's, Apartment's, Villa's,
+  // Guest House's, and Restaurant's own dedicated stages (each its own
+  // classes, never shared/renamed), or
   // the shared generic treatment every other category still uses.
   function renderTopSectionContent() {
     if (isCarRentalTop) {
@@ -445,6 +449,48 @@ export default function CategoryPageContent() {
       );
     }
 
+    if (isRestaurantTop) {
+      return (
+        <>
+          {/* Step 2.6 — same structural rule again: the heading lives
+              OUTSIDE the dark "stage" below, on the page's own normal
+              background. */}
+          <span className={styles.topSectionEyebrow} aria-hidden="true">
+            {t('advertising.topBadge')}
+          </span>
+          <h2
+            id="category-top-heading"
+            className={styles.topSectionHeadingRestaurant}
+          >
+            {t('discovery.category.topHeading', { category: category.name })}
+          </h2>
+          {/* The "stage" — RestaurantTopBackground's table-setting
+              environment and the carousel, together, own dark chrome now
+              separate from the heading above. Same canonical `topSlide`
+              width every other category's TOP carousel uses — no
+              category-specific card/slide geometry here either. */}
+          <div className={styles.restaurantStage}>
+            <CategoryTopBackground categorySlug={category.slug} />
+            <Showcase
+              ariaLabel={t('discovery.category.topHeading', {
+                category: category.name,
+              })}
+              slideClassName={styles.topSlide}
+            >
+              {topListings.map((listing) => (
+                <SearchResultCard
+                  key={listing.id}
+                  result={listing}
+                  hideTypeBadge
+                  topBadgeLabel={t('advertising.topBadge')}
+                />
+              ))}
+            </Showcase>
+          </div>
+        </>
+      );
+    }
+
     return (
       <>
         {/* Owner-directed premium card redesign (brief §21) — the
@@ -519,6 +565,7 @@ export default function CategoryPageContent() {
             isApartmentTop && styles.topSectionApartment,
             isVillaTop && styles.topSectionVilla,
             isGuestHouseTop && styles.topSectionGuestHouse,
+            isRestaurantTop && styles.topSectionRestaurant,
           ]
             .filter(Boolean)
             .join(' ')}

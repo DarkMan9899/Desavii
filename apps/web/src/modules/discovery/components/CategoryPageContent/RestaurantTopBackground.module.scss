@@ -1,0 +1,292 @@
+// RestaurantTopBackground — tokens only, consumed from @desavii/ui.
+@use 'tokens' as tokens;
+
+// Same absolute-fill/stacking contract as the other dedicated category
+// environments — never intercepts pointer events except for the
+// deliberate parallax listener the JS attaches to this root node itself.
+.environment {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: tokens.$radius-xl;
+  background: tokens.$color-navy;
+}
+
+// --- FAR: dim dining atmosphere + pendant lights --------------------------
+
+.far {
+  position: absolute;
+  inset: 0;
+  // A deep, warm burgundy-brown dusk — a "candlelit dining room" read,
+  // a distinct hue path from Villa's amber sunset and Guest House's
+  // rose dusk.
+  background: linear-gradient(
+    180deg,
+    tokens.$color-navy 0%,
+    #2a2438 50%,
+    #402a30 78%,
+    #4a2f2a 100%
+  );
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 3px),
+    calc(var(--parallax-y, 0) * 2px),
+    0
+  );
+}
+
+.pendants {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 40%;
+  opacity: 0.6;
+}
+
+.pendantCord {
+  stroke: rgba(tokens.$color-white, 0.16);
+  stroke-width: 1;
+}
+
+.pendantLamp {
+  fill: tokens.$color-gold;
+  opacity: 0.55;
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: restaurant-pendant-glow 5s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.horizonGlow {
+  position: absolute;
+  left: 50%;
+  bottom: 28%;
+  width: 58%;
+  aspect-ratio: 3 / 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(tokens.$color-gold, 0.24) 0%,
+    rgba(tokens.$color-gold, 0) 70%
+  );
+  filter: blur(3px);
+}
+
+// --- MID: the table setting -----------------------------------------------
+
+.mid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 6px),
+    calc(var(--parallax-y, 0) * 4px),
+    0
+  );
+}
+
+.tableFar {
+  fill: none;
+  stroke: rgba(tokens.$color-white, 0.1);
+  stroke-width: 1;
+}
+
+.tableNear {
+  fill: rgba(11, 20, 33, 0.55);
+  stroke: rgba(tokens.$color-gold, 0.3);
+  stroke-width: 1;
+}
+
+.plateOuter {
+  fill: rgba(16, 27, 44, 0.65);
+  stroke: rgba(tokens.$color-white, 0.22);
+  stroke-width: 1;
+}
+
+.plateInner {
+  fill: none;
+  stroke: rgba(tokens.$color-white, 0.14);
+  stroke-width: 1;
+}
+
+// Restrained line-art cutlery — small, thin strokes, never a filled
+// icon or a literal illustration.
+.fork,
+.knife {
+  fill: none;
+  stroke: rgba(tokens.$color-gold, 0.5);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.knife path {
+  fill: rgba(tokens.$color-gold, 0.5);
+  stroke: none;
+}
+
+// --- NEAR: candlelight glow + glass glint + haze --------------------------
+
+.near {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 10px),
+    calc(var(--parallax-y, 0) * 7px),
+    0
+  );
+}
+
+.candleGlow {
+  position: absolute;
+  left: 50%;
+  bottom: 24%;
+  width: 70px;
+  height: 70px;
+  transform: translateX(-50%);
+  border-radius: tokens.$radius-full;
+  background: radial-gradient(
+    circle,
+    rgba(tokens.$color-gold, 0.34) 0%,
+    rgba(tokens.$color-gold, 0) 72%
+  );
+  filter: blur(2px);
+  animation: restaurant-candle-breathe 6s ease-in-out infinite;
+}
+
+// A soft vertical glass-reflection glint — restrained, never a hard
+// shape, reads as light catching a wine glass off to one side.
+.glassGlint {
+  position: absolute;
+  right: 26%;
+  bottom: 20%;
+  width: 6px;
+  height: 46px;
+  border-radius: tokens.$radius-full;
+  background: linear-gradient(
+    180deg,
+    rgba(tokens.$color-white, 0) 0%,
+    rgba(tokens.$color-white, 0.35) 45%,
+    rgba(tokens.$color-white, 0) 100%
+  );
+  filter: blur(0.5px);
+  animation: restaurant-glint-shimmer 8s ease-in-out infinite;
+}
+
+.haze {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10%;
+  height: 20%;
+  background: linear-gradient(
+    180deg,
+    rgba(tokens.$color-gold, 0) 0%,
+    rgba(tokens.$color-gold, 0.05) 100%
+  );
+  animation: restaurant-haze-drift 15s ease-in-out infinite;
+}
+
+@keyframes restaurant-pendant-glow {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes restaurant-candle-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: translateX(-50%) scale(1.08);
+  }
+}
+
+@keyframes restaurant-glint-shimmer {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes restaurant-haze-drift {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateX(8px);
+    opacity: 1;
+  }
+}
+
+// Reduced motion: a deliberate static frame — every continuous
+// animation switched off outright, mirroring the sibling environments'
+// own `.static` treatment. The table, plate, cutlery, and glow stay
+// fully visible (just not moving) — already legible and elegant at
+// rest.
+.static {
+  .far,
+  .mid,
+  .near,
+  .pendantLamp,
+  .candleGlow,
+  .glassGlint,
+  .haze {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .pendantLamp {
+    opacity: 0.7;
+  }
+
+  .candleGlow {
+    opacity: 0.65;
+  }
+
+  .glassGlint {
+    opacity: 0.55;
+  }
+}
+
+// Vignette — cinematic framing, purely static (no animation/parallax).
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 62%,
+    rgba(tokens.$color-navy, 0) 45%,
+    rgba(6, 16, 28, 0.32) 100%
+  );
+}
+
+// Mobile (brief §7: "mobile scene simplified cleanly") — the farther
+// table plane and the glass glint are the most detail-dense elements at
+// a size where they'd read as noise; the pendant lights, the nearer
+// table, the plate, and the cutlery still carry the "refined dining"
+// read on their own.
+@media (max-width: 767px) {
+  .tableFar,
+  .glassGlint {
+    display: none;
+  }
+}
