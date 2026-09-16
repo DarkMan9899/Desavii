@@ -34,6 +34,7 @@ import VillaTopBackground from './VillaTopBackground.jsx';
 import GuestHouseTopBackground from './GuestHouseTopBackground.jsx';
 import RestaurantTopBackground from './RestaurantTopBackground.jsx';
 import ToursTopBackground from './ToursTopBackground.jsx';
+import AttractionsTopBackground from './AttractionsTopBackground.jsx';
 import styles from './CategoryTopBackground.module.scss';
 
 // One motif + one dominant-color lean per category — same motif set
@@ -41,10 +42,10 @@ import styles from './CategoryTopBackground.module.scss';
 // reused here (not a second motif catalog) so the TOP background and the
 // category hero always agree on this category's own visual identity.
 // `car-rentals`, `hotels`, `apartments`, `villas`, `guest-houses`,
-// `restaurants`, and `tours` are deliberately absent — they get their
-// own dedicated environments above, not this generic treatment.
+// `restaurants`, `tours`, and `attractions` are deliberately absent —
+// they get their own dedicated environments above, not this generic
+// treatment.
 const THEME_BY_CATEGORY = {
-  attractions: { motif: 'starburst', lean: 'gold' },
   'entertainment-venues': { motif: 'ticket', lean: 'royal' },
 };
 
@@ -103,6 +104,15 @@ export default function CategoryTopBackground({ categorySlug }) {
   // the exact same shared treatment below, unchanged.
   if (categorySlug === 'tours') {
     return <ToursTopBackground />;
+  }
+  // Step 2.8 — Attractions TOP background only: a dedicated heritage-
+  // monument/editorial-travel-guide environment, deliberately distinct
+  // from Hotel's corridor, Car Rental's road, Apartment's window grids,
+  // Villa's mountain retreat, Guest House's village house, Restaurant's
+  // table setting, and Tours' topographic trail. Every other category
+  // keeps the exact same shared treatment below, unchanged.
+  if (categorySlug === 'attractions') {
+    return <AttractionsTopBackground />;
   }
 
   const theme = THEME_BY_CATEGORY[categorySlug];
