@@ -33,17 +33,17 @@ import ApartmentTopBackground from './ApartmentTopBackground.jsx';
 import VillaTopBackground from './VillaTopBackground.jsx';
 import GuestHouseTopBackground from './GuestHouseTopBackground.jsx';
 import RestaurantTopBackground from './RestaurantTopBackground.jsx';
+import ToursTopBackground from './ToursTopBackground.jsx';
 import styles from './CategoryTopBackground.module.scss';
 
 // One motif + one dominant-color lean per category — same motif set
 // `categoryHeroArt.js` already established for this category's hero,
 // reused here (not a second motif catalog) so the TOP background and the
 // category hero always agree on this category's own visual identity.
-// `car-rentals`, `hotels`, `apartments`, `villas`, `guest-houses`, and
-// `restaurants` are deliberately absent — they get their own dedicated
-// environments above, not this generic treatment.
+// `car-rentals`, `hotels`, `apartments`, `villas`, `guest-houses`,
+// `restaurants`, and `tours` are deliberately absent — they get their
+// own dedicated environments above, not this generic treatment.
 const THEME_BY_CATEGORY = {
-  tours: { motif: 'compass', lean: 'royal' },
   attractions: { motif: 'starburst', lean: 'gold' },
   'entertainment-venues': { motif: 'ticket', lean: 'royal' },
 };
@@ -94,6 +94,15 @@ export default function CategoryTopBackground({ categorySlug }) {
   // category keeps the exact same shared treatment below, unchanged.
   if (categorySlug === 'restaurants') {
     return <RestaurantTopBackground />;
+  }
+  // Step 2.7 — Tours TOP background only: a dedicated bird's-eye
+  // topographic-map/winding-trail environment, deliberately distinct
+  // from Hotel's corridor, Car Rental's straight road, Apartment's
+  // window grids, Villa's calm dusk retreat, Guest House's village
+  // house, and Restaurant's table setting. Every other category keeps
+  // the exact same shared treatment below, unchanged.
+  if (categorySlug === 'tours') {
+    return <ToursTopBackground />;
   }
 
   const theme = THEME_BY_CATEGORY[categorySlug];

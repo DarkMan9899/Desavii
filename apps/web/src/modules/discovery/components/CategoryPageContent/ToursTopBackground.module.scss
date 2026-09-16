@@ -1,0 +1,292 @@
+// ToursTopBackground — tokens only, consumed from @desavii/ui.
+@use 'tokens' as tokens;
+
+// Same absolute-fill/stacking contract as the other dedicated category
+// environments — never intercepts pointer events except for the
+// deliberate parallax listener the JS attaches to this root node itself.
+.environment {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: tokens.$radius-xl;
+  background: tokens.$color-navy;
+}
+
+// --- FAR: cool daylight atmosphere + mountain ridges ----------------------
+
+.far {
+  position: absolute;
+  inset: 0;
+  // A cool, deep-blue daylight atmosphere — deliberately never Villa's
+  // warm amber dusk, matching the brief's own "deep blue atmospheric
+  // horizon."
+  background: linear-gradient(
+    180deg,
+    tokens.$color-navy 0%,
+    #163657 50%,
+    #1d4a78 78%,
+    #245a8f 100%
+  );
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 3px),
+    calc(var(--parallax-y, 0) * 2px),
+    0
+  );
+}
+
+.horizonGlow {
+  position: absolute;
+  left: 50%;
+  bottom: 30%;
+  width: 60%;
+  aspect-ratio: 3 / 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(tokens.$color-royal-blue, 0.28) 0%,
+    rgba(tokens.$color-royal-blue, 0) 70%
+  );
+  filter: blur(3px);
+}
+
+.ridgeFar,
+.ridgeNear {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 24%;
+  height: 20%;
+}
+
+.ridgeFar {
+  opacity: 0.24;
+  filter: blur(2px);
+  fill: #2d4a6e;
+}
+
+.ridgeNear {
+  opacity: 0.44;
+  filter: blur(0.5px);
+  fill: #14304d;
+  transform: translate3d(calc(var(--parallax-x, 0) * -2px), 0, 0);
+}
+
+// --- MID: contour lines + winding route + waypoints -----------------------
+
+.mid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 6px),
+    calc(var(--parallax-y, 0) * 4px),
+    0
+  );
+}
+
+.contour,
+.contourInner {
+  fill: none;
+  stroke: rgba(tokens.$color-white, 0.12);
+  stroke-width: 1;
+}
+
+.contourInner {
+  stroke: rgba(tokens.$color-white, 0.16);
+}
+
+// A winding dashed trail — restrained gold, a slow dash-offset read as
+// forward travel, never a racing blur.
+.route {
+  fill: none;
+  stroke: rgba(tokens.$color-gold, 0.65);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 7 9;
+  animation: tours-route-travel 7s linear infinite;
+}
+
+.waypoint {
+  fill: tokens.$color-gold;
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: tours-waypoint-pulse 2.6s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+// --- NEAR: route glow + drifting haze particles ---------------------------
+
+.near {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 10px),
+    calc(var(--parallax-y, 0) * 7px),
+    0
+  );
+}
+
+.routeGlow {
+  position: absolute;
+  left: 42%;
+  bottom: 42%;
+  width: 80px;
+  height: 80px;
+  border-radius: tokens.$radius-full;
+  background: radial-gradient(
+    circle,
+    rgba(tokens.$color-gold, 0.26) 0%,
+    rgba(tokens.$color-gold, 0) 72%
+  );
+  filter: blur(3px);
+  animation: tours-glow-breathe 8s ease-in-out infinite;
+}
+
+.particle {
+  position: absolute;
+  border-radius: tokens.$radius-full;
+  background: rgba(tokens.$color-white, 0.45);
+  filter: blur(0.5px);
+}
+
+.particleA {
+  left: 18%;
+  bottom: 20%;
+  width: 4px;
+  height: 4px;
+  animation: tours-particle-drift-a 10s ease-in-out infinite;
+}
+
+.particleB {
+  left: 60%;
+  bottom: 34%;
+  width: 3px;
+  height: 3px;
+  animation: tours-particle-drift-b 12s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.particleC {
+  left: 78%;
+  bottom: 16%;
+  width: 5px;
+  height: 5px;
+  animation: tours-particle-drift-a 9s ease-in-out infinite;
+  animation-delay: 4s;
+}
+
+@keyframes tours-route-travel {
+  from {
+    stroke-dashoffset: 32;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes tours-waypoint-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes tours-glow-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes tours-particle-drift-a {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(-10px);
+    opacity: 0.8;
+  }
+}
+
+@keyframes tours-particle-drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(6px, -8px);
+    opacity: 0.7;
+  }
+}
+
+// Reduced motion: a deliberate static frame — every continuous
+// animation switched off outright, mirroring the sibling environments'
+// own `.static` treatment. The ridges, contours, route, and waypoints
+// stay fully visible (just not moving/pulsing) — already legible and
+// premium at rest.
+.static {
+  .far,
+  .mid,
+  .near,
+  .ridgeNear,
+  .route,
+  .waypoint,
+  .routeGlow,
+  .particle {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .waypoint {
+    opacity: 0.85;
+  }
+
+  .routeGlow {
+    opacity: 0.6;
+  }
+
+  .particle {
+    display: none;
+  }
+}
+
+// Vignette — cinematic framing, purely static (no animation/parallax).
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 62%,
+    rgba(tokens.$color-navy, 0) 45%,
+    rgba(6, 16, 28, 0.32) 100%
+  );
+}
+
+// Mobile (brief §7: "mobile scene simplified cleanly") — the farther
+// ridge layer, the outermost contour, and two of the three haze
+// particles are the most detail-dense elements at a size where they'd
+// read as noise; the nearer ridge, the route, the waypoints, and one
+// particle still carry the "journey/exploration" read on their own.
+@media (max-width: 767px) {
+  .ridgeFar,
+  .contour:first-of-type,
+  .particleB,
+  .particleC {
+    display: none;
+  }
+}
