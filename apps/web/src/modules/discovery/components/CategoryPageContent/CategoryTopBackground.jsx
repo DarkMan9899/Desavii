@@ -35,19 +35,18 @@ import GuestHouseTopBackground from './GuestHouseTopBackground.jsx';
 import RestaurantTopBackground from './RestaurantTopBackground.jsx';
 import ToursTopBackground from './ToursTopBackground.jsx';
 import AttractionsTopBackground from './AttractionsTopBackground.jsx';
+import EntertainmentTopBackground from './EntertainmentTopBackground.jsx';
 import styles from './CategoryTopBackground.module.scss';
 
 // One motif + one dominant-color lean per category — same motif set
 // `categoryHeroArt.js` already established for this category's hero,
 // reused here (not a second motif catalog) so the TOP background and the
 // category hero always agree on this category's own visual identity.
-// `car-rentals`, `hotels`, `apartments`, `villas`, `guest-houses`,
-// `restaurants`, `tours`, and `attractions` are deliberately absent —
-// they get their own dedicated environments above, not this generic
-// treatment.
-const THEME_BY_CATEGORY = {
-  'entertainment-venues': { motif: 'ticket', lean: 'royal' },
-};
+// All 9 real categories now have their own dedicated environment above
+// — this generic treatment is only reached by an unrecognized category
+// slug outside the known 9, matching `resolveCardConfig`'s own
+// unrecognized-category fallback elsewhere in this app.
+const THEME_BY_CATEGORY = {};
 
 export default function CategoryTopBackground({ categorySlug }) {
   // Step 2.1 — Car Rental TOP background only: a dedicated, more elaborate
@@ -113,6 +112,17 @@ export default function CategoryTopBackground({ categorySlug }) {
   // keeps the exact same shared treatment below, unchanged.
   if (categorySlug === 'attractions') {
     return <AttractionsTopBackground />;
+  }
+  // Step 2.9 — Entertainment TOP background only (the last of the 9
+  // categories): a dedicated stage/spotlight/ticket-stub environment,
+  // deliberately distinct from Hotel's corridor, Car Rental's road,
+  // Apartment's window grids, Villa's mountain retreat, Guest House's
+  // village house, Restaurant's table setting, Tours' topographic
+  // trail, and Attractions' heritage monument. Every other category
+  // (none remain outside the known 9) keeps the exact same shared
+  // treatment below, unchanged.
+  if (categorySlug === 'entertainment-venues') {
+    return <EntertainmentTopBackground />;
   }
 
   const theme = THEME_BY_CATEGORY[categorySlug];

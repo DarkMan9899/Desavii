@@ -1,0 +1,282 @@
+// EntertainmentTopBackground — tokens only, consumed from @desavii/ui.
+@use 'tokens' as tokens;
+
+// Same absolute-fill/stacking contract as the other dedicated category
+// environments — never intercepts pointer events except for the
+// deliberate parallax listener the JS attaches to this root node itself.
+.environment {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: tokens.$radius-xl;
+  background: tokens.$color-navy;
+}
+
+// --- FAR: dark stage atmosphere + curtains --------------------------------
+
+.far {
+  position: absolute;
+  inset: 0;
+  // A dark stage atmosphere — navy toward near-black, deliberately
+  // darker/cooler than every sibling environment's own dusk/daylight
+  // gradients, reading as "house lights down."
+  background: linear-gradient(
+    180deg,
+    tokens.$color-navy 0%,
+    #14192c 55%,
+    #0b0e1a 100%
+  );
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 3px),
+    calc(var(--parallax-y, 0) * 2px),
+    0
+  );
+}
+
+.spotlightGlow {
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  width: 50%;
+  aspect-ratio: 2 / 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(tokens.$color-gold, 0.24) 0%,
+    rgba(tokens.$color-gold, 0) 70%
+  );
+  filter: blur(4px);
+  animation: entertainment-spotlight-breathe 7s ease-in-out infinite;
+}
+
+.curtains {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 42%;
+  opacity: 0.38;
+  fill: #1c2340;
+}
+
+// --- MID: spotlight beams + proscenium + ticket ----------------------------
+
+.mid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: tokens.$color-gold;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 6px),
+    calc(var(--parallax-y, 0) * 4px),
+    0
+  );
+}
+
+.beamGold {
+  transform-origin: top center;
+  animation: entertainment-beam-sway 9s ease-in-out infinite;
+}
+
+.beamBlue {
+  fill: rgba(tokens.$color-royal-blue, 0.16);
+  transform-origin: top center;
+  animation: entertainment-beam-sway 11s ease-in-out infinite reverse;
+}
+
+.proscenium {
+  fill: none;
+  stroke: rgba(tokens.$color-white, 0.14);
+  stroke-width: 1.5;
+}
+
+// A floating ticket-stub plane — restrained line art, never a filled
+// poster illustration.
+.ticket {
+  fill: rgba(11, 20, 33, 0.6);
+  stroke: rgba(tokens.$color-gold, 0.4);
+  stroke-width: 1;
+  animation: entertainment-ticket-float 8s ease-in-out infinite;
+
+  line {
+    stroke: rgba(tokens.$color-gold, 0.4);
+    stroke-width: 1;
+  }
+
+  circle {
+    fill: tokens.$color-navy;
+    stroke: rgba(tokens.$color-gold, 0.4);
+    stroke-width: 1;
+  }
+}
+
+// --- NEAR: particles + stage glow + cool counterpoint ----------------------
+
+.near {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 10px),
+    calc(var(--parallax-y, 0) * 7px),
+    0
+  );
+}
+
+.particle {
+  position: absolute;
+  border-radius: tokens.$radius-full;
+  background: rgba(tokens.$color-gold, 0.5);
+  filter: blur(0.5px);
+  animation: entertainment-particle-drift 10s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.stageGlow {
+  position: absolute;
+  left: 50%;
+  bottom: 14%;
+  width: 90px;
+  height: 60px;
+  transform: translateX(-50%);
+  border-radius: tokens.$radius-full;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(tokens.$color-gold, 0.26) 0%,
+    rgba(tokens.$color-gold, 0) 72%
+  );
+  filter: blur(3px);
+  animation: entertainment-glow-breathe 8s ease-in-out infinite;
+}
+
+.coolGlow {
+  position: absolute;
+  right: 16%;
+  bottom: 22%;
+  width: 64px;
+  height: 64px;
+  border-radius: tokens.$radius-full;
+  background: radial-gradient(
+    circle,
+    rgba(tokens.$color-royal-blue, 0.24) 0%,
+    rgba(tokens.$color-royal-blue, 0) 72%
+  );
+  filter: blur(3px);
+  animation: entertainment-glow-breathe 9s ease-in-out infinite reverse;
+}
+
+@keyframes entertainment-spotlight-breathe {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.06);
+  }
+}
+
+@keyframes entertainment-beam-sway {
+  0%,
+  100% {
+    transform: rotate(-1.5deg);
+  }
+  50% {
+    transform: rotate(1.5deg);
+  }
+}
+
+@keyframes entertainment-ticket-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(1deg);
+  }
+}
+
+@keyframes entertainment-particle-drift {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(-14px);
+    opacity: 0.85;
+  }
+}
+
+@keyframes entertainment-glow-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+// Reduced motion: a deliberate static frame — every continuous
+// animation switched off outright, mirroring the sibling environments'
+// own `.static` treatment. The curtains, beams, ticket, and glows stay
+// fully visible (just not moving) — already legible and premium at
+// rest.
+.static {
+  .far,
+  .mid,
+  .near,
+  .spotlightGlow,
+  .beamGold,
+  .beamBlue,
+  .ticket,
+  .particle,
+  .stageGlow,
+  .coolGlow {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .spotlightGlow {
+    opacity: 0.85;
+  }
+
+  .stageGlow,
+  .coolGlow {
+    opacity: 0.6;
+  }
+
+  .particle {
+    display: none;
+  }
+}
+
+// Vignette — cinematic framing, purely static (no animation/parallax).
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 62%,
+    rgba(tokens.$color-navy, 0) 45%,
+    rgba(6, 16, 28, 0.36) 100%
+  );
+}
+
+// Mobile (brief §7: "mobile scene simplified cleanly") — the ticket
+// plane and two of the four particles are the most detail-dense
+// elements at a size where they'd read as noise; the curtains,
+// spotlight beams, and proscenium frame still carry the "stage/event"
+// read on their own.
+@media (max-width: 767px) {
+  .ticket,
+  .coolGlow,
+  .particle:nth-of-type(3),
+  .particle:nth-of-type(4) {
+    display: none;
+  }
+}
