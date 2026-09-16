@@ -332,6 +332,30 @@
   background-color: rgba(tokens.$color-gold, 0.18);
 }
 
+// Apartment internal-design pass — the bedroom-count chip reads as a
+// structural space/capacity fact here, deliberately never Hotel's warm
+// gold trust-badge treatment (brief: "do not copy the Hotel star/trust
+// treatment" — Apartment's own identity is "space/unit/capacity/
+// residential," not hospitality/trust). Reuses `$color-navy` (this
+// file's own primary brand tone, already dark enough on a light tint to
+// clear WCAG AA text contrast without needing a separate "-strong"
+// pairing the way gold does) for a calm, structured, architectural
+// read. Scoped to `[data-category='apartments']` only; every other
+// category's `.metaChip` (including Hotel's own gold one) is untouched.
+.card[data-category='apartments'] .metaChip {
+  background-color: rgba(tokens.$color-navy, 0.08);
+  color: tokens.$color-navy;
+  font-weight: 700;
+}
+
+.card[data-category='apartments'] .metaChipIcon {
+  color: tokens.$color-navy;
+}
+
+.card[data-category='apartments']:hover .metaChip {
+  background-color: rgba(tokens.$color-navy, 0.14);
+}
+
 // A visual footer, not just the last flex item — a hairline separates
 // price from the descriptive content above it, so it reads as the
 // card's one settled fact rather than another line of prose.
@@ -365,4 +389,14 @@
 // unrelated accent color.
 .card[data-category='hotels'] .priceRow {
   border-block-start-color: rgba(tokens.$color-gold, 0.4);
+}
+
+// Apartment internal-design pass — a cooler, structural navy hairline
+// (never a thicker border — brief §12's shared-geometry law locks every
+// category's card shell, including border widths, to the exact same
+// dimensions, so only the color differs from Hotel's own thin gold
+// one). Reads as architectural/residential rather than a delicate
+// premium accent.
+.card[data-category='apartments'] .priceRow {
+  border-block-start-color: rgba(tokens.$color-navy, 0.28);
 }
