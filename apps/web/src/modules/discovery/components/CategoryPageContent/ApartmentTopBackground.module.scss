@@ -1,0 +1,252 @@
+// ApartmentTopBackground — tokens only, consumed from @desavii/ui.
+@use 'tokens' as tokens;
+
+// Same absolute-fill/stacking contract as the other dedicated category
+// environments (Car Rental/Hotel) — never intercepts pointer events
+// except for the deliberate parallax listener the JS attaches to this
+// root node itself.
+.environment {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: tokens.$radius-xl;
+  background: tokens.$color-navy;
+}
+
+// --- FAR: city atmosphere -----------------------------------------------
+
+.far {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    tokens.$color-navy 0%,
+    #163257 55%,
+    #1c3f68 100%
+  );
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 3px),
+    calc(var(--parallax-y, 0) * 2px),
+    0
+  );
+}
+
+.skyline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 30%;
+  height: 18%;
+  opacity: 0.3;
+  filter: blur(1.5px);
+  fill: #1f4571;
+}
+
+.horizonGlow {
+  position: absolute;
+  left: 50%;
+  bottom: 30%;
+  width: 56%;
+  aspect-ratio: 3 / 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(tokens.$color-royal-blue, 0.2) 0%,
+    rgba(tokens.$color-royal-blue, 0) 70%
+  );
+  filter: blur(3px);
+}
+
+// --- MID: the two building planes ---------------------------------------
+
+.mid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 6px),
+    calc(var(--parallax-y, 0) * 4px),
+    0
+  );
+}
+
+.buildingB {
+  fill: #1a3a63;
+  opacity: 0.85;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * -3px),
+    calc(var(--parallax-y, 0) * -2px),
+    0
+  );
+}
+
+.buildingA {
+  fill: #21497a;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 5px),
+    calc(var(--parallax-y, 0) * 3px),
+    0
+  );
+}
+
+.balconyLine {
+  stroke: rgba(tokens.$color-white, 0.14);
+  stroke-width: 1;
+}
+
+.windowDim,
+.windowDimFar {
+  fill: rgba(tokens.$color-white, 0.1);
+}
+
+.windowDimFar {
+  fill: rgba(tokens.$color-white, 0.07);
+}
+
+.windowLit,
+.windowLitFar {
+  fill: tokens.$color-gold;
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: apartment-window-glow 4.5s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.windowLitFar {
+  opacity: 0.65;
+  animation-duration: 5.5s;
+}
+
+// --- NEAR: soft glow + glass highlight -----------------------------------
+
+.near {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 10px),
+    calc(var(--parallax-y, 0) * 7px),
+    0
+  );
+}
+
+.glow {
+  position: absolute;
+  border-radius: tokens.$radius-full;
+  background: radial-gradient(
+    circle,
+    rgba(tokens.$color-gold, 0.38) 0%,
+    rgba(tokens.$color-gold, 0) 72%
+  );
+  filter: blur(2px);
+  animation: apartment-glow-breathe 7s ease-in-out infinite;
+}
+
+.glowA {
+  left: 16%;
+  bottom: 18%;
+  width: 56px;
+  height: 56px;
+}
+
+.glowB {
+  right: 22%;
+  bottom: 26%;
+  width: 38px;
+  height: 38px;
+  animation-delay: 2.5s;
+}
+
+// A soft, static-leaning translucent panel — reads as light catching a
+// balcony's glass railing, restrained rather than a literal shape.
+.glassPanel {
+  position: absolute;
+  left: 8%;
+  bottom: 10%;
+  width: 120px;
+  height: 40px;
+  border-radius: tokens.$radius-lg;
+  background: linear-gradient(
+    115deg,
+    rgba(tokens.$color-white, 0.06) 0%,
+    rgba(tokens.$color-white, 0) 60%
+  );
+  transform: skewX(-8deg);
+}
+
+@keyframes apartment-window-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes apartment-glow-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.12);
+  }
+}
+
+// Reduced motion: a deliberate static frame — every continuous
+// animation switched off outright, mirroring the other two dedicated
+// environments' own `.static` treatment. The lit windows and glow stay
+// visible (just not pulsing) — already legible and premium at rest.
+.static {
+  .far,
+  .mid,
+  .near,
+  .buildingA,
+  .buildingB,
+  .windowLit,
+  .windowLitFar,
+  .glow {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .windowLit,
+  .windowLitFar {
+    opacity: 0.85;
+  }
+
+  .glow {
+    opacity: 0.55;
+  }
+}
+
+// Vignette — cinematic framing, purely static (no animation/parallax).
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 62%,
+    rgba(tokens.$color-navy, 0) 45%,
+    rgba(6, 16, 28, 0.35) 100%
+  );
+}
+
+// Mobile (brief §7: "mobile background simplified where needed") —
+// Building B (the farther, smaller plane) and the secondary glow/glass
+// highlight are the most detail-dense elements at a size where they'd
+// read as noise; Building A's own window grid and the skyline still
+// carry the "apartment/city" read on their own.
+@media (max-width: 767px) {
+  .buildingB,
+  .glowB,
+  .glassPanel {
+    display: none;
+  }
+}

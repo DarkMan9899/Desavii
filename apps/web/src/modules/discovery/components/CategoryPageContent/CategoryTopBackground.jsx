@@ -29,16 +29,17 @@ import PropTypes from 'prop-types';
 import { Motif } from '../../../../components/DestinationArt/DestinationArt.jsx';
 import CarRentalTopBackground from './CarRentalTopBackground.jsx';
 import HotelTopBackground from './HotelTopBackground.jsx';
+import ApartmentTopBackground from './ApartmentTopBackground.jsx';
 import styles from './CategoryTopBackground.module.scss';
 
 // One motif + one dominant-color lean per category — same motif set
 // `categoryHeroArt.js` already established for this category's hero,
 // reused here (not a second motif catalog) so the TOP background and the
 // category hero always agree on this category's own visual identity.
-// `car-rentals` and `hotels` are deliberately absent — they get their
-// own dedicated environments above, not this generic treatment.
+// `car-rentals`, `hotels`, and `apartments` are deliberately absent —
+// they get their own dedicated environments above, not this generic
+// treatment.
 const THEME_BY_CATEGORY = {
-  apartments: { motif: 'sun-waves', lean: 'royal' },
   villas: { motif: 'peaks', lean: 'navy' },
   'guest-houses': { motif: 'door-key', lean: 'gold' },
   restaurants: { motif: 'fork-knife', lean: 'gold' },
@@ -62,6 +63,13 @@ export default function CategoryTopBackground({ categorySlug }) {
   // shared treatment below, unchanged.
   if (categorySlug === 'hotels') {
     return <HotelTopBackground />;
+  }
+  // Step 2.3 — Apartment TOP background only: a dedicated modern urban-
+  // living/window-grid environment, deliberately distinct from Hotel's
+  // corridor and Car Rental's road. Every other category keeps the exact
+  // same shared treatment below, unchanged.
+  if (categorySlug === 'apartments') {
+    return <ApartmentTopBackground />;
   }
 
   const theme = THEME_BY_CATEGORY[categorySlug];

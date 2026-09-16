@@ -196,6 +196,55 @@
   }
 }
 
+// Step 2.3 (Apartment TOP background only) — dedicated Apartment
+// counterparts of the Car Rental/Hotel classes above. Deliberately
+// separate rule sets (not shared/renamed) so neither of those two
+// categories' own styling is touched by this category's work.
+.topSectionApartment {
+  gap: tokens.$space-2;
+  padding: 0 tokens.$space-4;
+}
+
+.topSectionHeadingApartment {
+  position: relative;
+  display: inline-block;
+  padding-bottom: tokens.$space-2;
+  font-size: tokens.$font-size-h3;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: tokens.$color-navy;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 44px;
+    height: 3px;
+    border-radius: tokens.$radius-full;
+    background: linear-gradient(
+      90deg,
+      tokens.$color-gold 0%,
+      rgba(tokens.$color-gold, 0.15) 100%
+    );
+  }
+}
+
+// The dark "stage" holding only the window-grid background and the
+// carousel (never the heading — see above). Same compact padding family
+// as Car Rental/Hotel's own stages (all three share the exact same
+// canonical card geometry and `topSlide` width system).
+.apartmentStage {
+  position: relative;
+  overflow: hidden;
+  border-radius: tokens.$radius-xl;
+  padding: tokens.$space-2 tokens.$space-4 tokens.$space-3;
+
+  [role='group'][aria-roledescription='carousel'] > div {
+    padding-block: tokens.$space-1;
+  }
+}
+
 // Pass 7B (brief §11/§17) — mirrors `FeaturedListings.module.scss`'s own
 // `.slide` sizing (Home's Featured carousel), so Category TOP reads as
 // the same premium carousel treatment, just scoped to this category's
