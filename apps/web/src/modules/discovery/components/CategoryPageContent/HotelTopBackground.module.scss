@@ -102,6 +102,37 @@
   stroke-width: 1.5;
 }
 
+// Each arch is its own parallax layer now (motion upgrade §5) — nearest/
+// largest reacts most, farthest/smallest reacts least, a real depth-
+// separation cue on top of the shared `.mid` transform.
+.archLayerNear {
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 5px),
+    calc(var(--parallax-y, 0) * 3px),
+    0
+  );
+}
+
+.archLayerMid {
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 3px),
+    calc(var(--parallax-y, 0) * 2px),
+    0
+  );
+}
+
+.archLayerFar {
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 1.5px),
+    calc(var(--parallax-y, 0) * 1px),
+    0
+  );
+}
+
+.lightSweep {
+  pointer-events: none;
+}
+
 .windowLight,
 .windowLightSmall {
   fill: tokens.$color-gold;
@@ -113,6 +144,33 @@
 
 .windowLightSmall {
   opacity: 0.6;
+}
+
+// --- The arriving guest --------------------------------------------
+
+.guest {
+  transform-box: fill-box;
+}
+
+.guestShadow {
+  fill: rgba(4, 10, 18, 0.35);
+  filter: blur(1px);
+}
+
+.guestHead,
+.guestBody {
+  fill: rgba(tokens.$color-white, 0.85);
+}
+
+.guestLuggage {
+  fill: tokens.$color-gold;
+  opacity: 0.9;
+}
+
+.guestLuggageHandle {
+  fill: none;
+  stroke: tokens.$color-gold;
+  stroke-width: 1.2;
 }
 
 // --- NEAR: soft gold light bokeh ---------------------------------------
@@ -209,6 +267,9 @@
   .far,
   .mid,
   .near,
+  .archLayerNear,
+  .archLayerMid,
+  .archLayerFar,
   .windowLight,
   .windowLightSmall,
   .bokeh {
@@ -241,6 +302,15 @@
   .archOutline:first-child,
   .windowLightSmall,
   .bokehC {
+    display: none;
+  }
+}
+
+// The guest stays visible at mobile — it's this category's own primary
+// semantic element (brief §15: "keep category identity obvious"). Only
+// the light-sweep refinement is dropped as the most detail-dense extra.
+@media (max-width: 767px) {
+  .lightSweep {
     display: none;
   }
 }

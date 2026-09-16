@@ -1,39 +1,44 @@
 /**
- * HotelTopBackground — Step 2.2 (Hotel TOP background only). Mirrors
- * `CarRentalTopBackground.jsx`'s own established technique exactly (same
- * FAR/MID/NEAR depth structure, same pointer-parallax pattern via CSS
- * custom properties written straight to a DOM ref, same reduced-motion/
- * coarse-pointer guard) — a proven pattern reused for a second dedicated
- * category environment rather than a new one invented from scratch.
+ * HotelTopBackground — Step 2.2 established the FAR/MID/NEAR archway-
+ * corridor environment; this pass (TOP live-scene motion upgrade,
+ * category 2 of 9) strengthens it into a small directed arrival scene:
  *
- * Visual direction is entirely different from Car Rental's road/route
- * motif, per the brief's "elegant stay, comfort, architecture/interior
- * depth, premium hospitality":
- * - FAR: a deep navy atmosphere with a faint, blurred hotel-facade
- *   silhouette near the horizon (arched windows, a stepped roofline) —
- *   the category read at a glance, before any text.
- * - MID: a receding corridor of nested archways (a hotel lobby/entrance
- *   perspective) traced in restrained line work, with a warm amber glow
- *   pooling at the vanishing point and a few small sconce-style window
- *   lights along the walls that pulse gently (never flash).
- * - NEAR: soft, blurred gold light bokeh — restrained foreground glow,
- *   never a hard shape — drifting slowly.
+ * - ARRIVAL: a restrained guest silhouette (with a small trailing
+ *   luggage silhouette) walks the corridor from the vanishing point
+ *   toward the viewer — "someone arriving at the hotel," the semantic
+ *   read this category should have, mirroring Car Rental's own
+ *   "something approaching you" structure but at a person's unhurried
+ *   walking pace (~7s), never a car's speed.
+ * - LIGHT STORY: the corridor's window lights no longer pulse
+ *   independently — a GSAP timeline lights them in sequence as the
+ *   guest passes, so the corridor feels like it's welcoming them rather
+ *   than just decoratively glowing.
+ * - DEPTH: the three arches now carry their own, distinct parallax
+ *   multipliers (nearest/largest arch reacts most, farthest/smallest
+ *   reacts least) instead of moving together as one flat `.mid` layer —
+ *   a real depth-separation cue, not just a bigger single move.
+ * - AMBIENCE: a slow warm light sweep crosses the corridor glow,
+ *   coordinated with the guest's arrival rather than looping on its own
+ *   unrelated schedule.
  *
- * All continuous motion (the glow breathing, the window-light pulse, the
- * bokeh drift) is slow and low-amplitude by design — the brief's own
- * explicit "no neon, no flashing, no bouncing, no spinning, no giant
- * zoom, no casino aesthetic" — and is switched off entirely (not merely
- * slowed) under `prefers-reduced-motion`, settling into one deliberate
- * static frame, exactly like Car Rental's own `.static` treatment.
+ * The GSAP timeline (`useGsapScene`) is never created under
+ * `prefers-reduced-motion` (the existing CSS `.static` block still
+ * governs that state) and is paused via IntersectionObserver whenever
+ * this stage scrolls out of view — see CarRentalTopBackground.jsx's own
+ * header comment for the identical reasoning, not repeated per category.
  */
 
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import useReducedMotion from '../../../../hooks/useReducedMotion.js';
+import useGsapScene from '../../../../components/SceneKit/useGsapScene.js';
 import styles from './HotelTopBackground.module.scss';
 
 export default function HotelTopBackground() {
   const rootRef = useRef(null);
   const rafRef = useRef(null);
+  const guestRef = useRef(null);
+  const lightSweepRef = useRef(null);
+  const windowLightRefs = useRef([]);
   const prefersReducedMotion = useReducedMotion();
   const isCoarsePointer =
     typeof window !== 'undefined' &&
@@ -70,6 +75,64 @@ export default function HotelTopBackground() {
     };
   }, [parallaxDisabled]);
 
+  const buildTimeline = useCallback((gsap) => {
+    const tl = gsap.timeline({
+      repeat: -1,
+      repeatDelay: 1.8,
+      defaults: { ease: 'power1.inOut' },
+    });
+
+    // Settle: the guest waits at the corridor's vanishing point, faint.
+    gsap.set(guestRef.current, {
+      attr: { transform: 'translate(200 150) scale(0.2)' },
+      opacity: 0,
+    });
+    gsap.set(lightSweepRef.current, { opacity: 0 });
+
+    // Semantic action: the guest walks the corridor toward the viewer.
+    tl.to(
+      guestRef.current,
+      {
+        opacity: 1,
+        attr: { transform: 'translate(200 222) scale(0.85)' },
+        duration: 7,
+        ease: 'power1.in',
+      },
+      0,
+    );
+
+    // Light story: the sconces welcome the guest in sequence as they pass.
+    const lightTimes = [0.2, 2.2, 4.4, 6];
+    windowLightRefs.current.forEach((el, index) => {
+      if (!el) return;
+      tl.fromTo(
+        el,
+        { opacity: 0.4, scale: 1 },
+        {
+          opacity: 1,
+          scale: 1.25,
+          duration: 0.6,
+          yoyo: true,
+          repeat: 1,
+          transformOrigin: 'center',
+        },
+        lightTimes[index],
+      );
+    });
+
+    // Ambience: one slow warm sweep across the corridor glow, timed with
+    // the guest's approach — a lit corridor "noticing" them arrive.
+    tl.to(lightSweepRef.current, { opacity: 0.5, duration: 2.5 }, 1);
+    tl.to(lightSweepRef.current, { opacity: 0, duration: 2 }, 4.5);
+
+    // Ambient hold, then the guest fades before the loop resets.
+    tl.to(guestRef.current, { opacity: 0, duration: 1 }, 6.6);
+
+    return tl;
+  }, []);
+
+  useGsapScene(rootRef, buildTimeline, prefersReducedMotion);
+
   return (
     <div
       ref={rootRef}
@@ -83,8 +146,7 @@ export default function HotelTopBackground() {
       <div className={styles.far}>
         {/* A soft, blurred hotel-facade silhouette — arched windows and a
             stepped roofline read as "hospitality architecture" even
-            before any text, the same FAR/MID separation technique
-            CarRentalTopBackground's own skyline uses. */}
+            before any text. */}
         <svg
           className={styles.facade}
           viewBox="0 0 400 60"
@@ -107,9 +169,14 @@ export default function HotelTopBackground() {
             <stop className={styles.corridorGlowStopInner} offset="0%" />
             <stop className={styles.corridorGlowStopOuter} offset="100%" />
           </radialGradient>
+          <linearGradient id="hotelLightSweep" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#d4af37" stopOpacity="0" />
+            <stop offset="50%" stopColor="#d4af37" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#d4af37" stopOpacity="0" />
+          </linearGradient>
         </defs>
         {/* Warm light pooling at the corridor's vanishing point, behind
-            the archways — the "warm light glow" the brief asks for. */}
+            the archways. */}
         <ellipse
           className={styles.corridorGlow}
           cx="200"
@@ -118,26 +185,46 @@ export default function HotelTopBackground() {
           ry="65"
           fill="url(#hotelCorridorGlow)"
         />
-        {/* A receding corridor of nested archways — restrained
-            architectural line work, largest (nearest) to smallest
-            (farthest, closest to the vanishing point). */}
-        <g className={styles.arches}>
+        {/* A slow warm sweep, coordinated with the guest's arrival rather
+            than looping on its own. */}
+        <rect
+          ref={lightSweepRef}
+          className={styles.lightSweep}
+          x="60"
+          y="110"
+          width="280"
+          height="130"
+          fill="url(#hotelLightSweep)"
+        />
+        {/* A receding corridor of nested archways — each its own
+            parallax layer now, so depth separates by motion, not just
+            by size (motion upgrade §5: "arches react at different
+            parallax rates"). */}
+        <g className={styles.archLayerNear}>
           <path
             className={styles.archOutline}
             d="M40 240 L40 110 A160 100 0 0 1 360 110 L360 240"
           />
+        </g>
+        <g className={styles.archLayerMid}>
           <path
             className={styles.archOutline}
             d="M90 240 L90 125 A110 85 0 0 1 310 125 L310 240"
           />
+        </g>
+        <g className={styles.archLayerFar}>
           <path
             className={styles.archOutlineInner}
             d="M140 240 L140 140 A60 70 0 0 1 260 140 L260 240"
           />
         </g>
-        {/* Sconce-style window lights along the walls, gentle staggered
-            pulse — never a flash. */}
+        {/* Sconce-style window lights — their idle CSS pulse stays as a
+            resting state; the GSAP timeline above drives the sequential
+            "welcoming the guest" activation. */}
         <rect
+          ref={(el) => {
+            windowLightRefs.current[0] = el;
+          }}
           className={styles.windowLight}
           x="62"
           y="170"
@@ -147,6 +234,9 @@ export default function HotelTopBackground() {
           style={{ '--delay': '0s' }}
         />
         <rect
+          ref={(el) => {
+            windowLightRefs.current[1] = el;
+          }}
           className={styles.windowLight}
           x="329"
           y="170"
@@ -156,6 +246,9 @@ export default function HotelTopBackground() {
           style={{ '--delay': '1.1s' }}
         />
         <rect
+          ref={(el) => {
+            windowLightRefs.current[2] = el;
+          }}
           className={styles.windowLightSmall}
           x="112"
           y="188"
@@ -165,6 +258,9 @@ export default function HotelTopBackground() {
           style={{ '--delay': '0.6s' }}
         />
         <rect
+          ref={(el) => {
+            windowLightRefs.current[3] = el;
+          }}
           className={styles.windowLightSmall}
           x="282"
           y="188"
@@ -173,6 +269,37 @@ export default function HotelTopBackground() {
           rx="1.5"
           style={{ '--delay': '1.6s' }}
         />
+        {/* The guest — a restrained walking-figure silhouette with a
+            small trailing luggage silhouette. Default `transform`/no
+            inline opacity below is the considered resting frame (mid-
+            corridor, fully visible) rendered under reduced motion, when
+            the GSAP timeline that would move/fade it is never built. */}
+        <g
+          ref={guestRef}
+          className={styles.guest}
+          transform="translate(200 200) scale(0.7)"
+        >
+          <ellipse
+            className={styles.guestShadow}
+            cx="10"
+            cy="34"
+            rx="13"
+            ry="2"
+          />
+          <circle className={styles.guestHead} cx="6" cy="4" r="4" />
+          <path
+            className={styles.guestBody}
+            d="M2 10 Q6 8 10 10 L11 26 Q9 30 6 30 Q3 30 1 26 Z"
+          />
+          <path
+            className={styles.guestLuggage}
+            d="M16 20 L24 20 Q26 20 26 22 L26 30 Q26 32 24 32 L16 32 Q14 32 14 30 L14 22 Q14 20 16 20 Z"
+          />
+          <path
+            className={styles.guestLuggageHandle}
+            d="M18 20 L18 17 Q18 15 20 15 Q22 15 22 17 L22 20"
+          />
+        </g>
       </svg>
 
       <div className={styles.near}>
@@ -182,8 +309,7 @@ export default function HotelTopBackground() {
       </div>
 
       {/* A restrained cinematic vignette — corners recede so the
-          corridor stays the brightest, most legible part of the frame.
-          Purely static (no animation, no parallax). */}
+          corridor stays the brightest, most legible part of the frame. */}
       <div className={styles.vignette} />
     </div>
   );
