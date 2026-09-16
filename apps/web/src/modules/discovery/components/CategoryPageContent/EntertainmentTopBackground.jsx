@@ -1,41 +1,36 @@
 /**
- * EntertainmentTopBackground — Step 2.9 (Entertainment TOP background
- * only, the last of the 9 categories). Mirrors the eight existing
- * dedicated category environments' own established technique (FAR/MID/
- * NEAR depth, pointer-parallax via CSS custom properties on a DOM ref,
- * reduced-motion/coarse-pointer guard) with a ninth entirely distinct
- * visual identity, per the brief's explicit "must feel clearly
- * different from Restaurant and Attractions":
- * - Restaurant: pendant lights, a table setting — warm dining, at rest.
- * - Attractions: a monument, an editorial card — heritage, at rest.
- * - Entertainment (this file): theater-curtain silhouettes, crossing
- *   gold/blue spotlight beams, a proscenium frame, and a floating
- *   ticket-stub plane — live event, stage, performance energy, never a
- *   dining table or a monument.
+ * EntertainmentTopBackground — Step 2.9 established the theater-curtain/
+ * spotlight/ticket-stub environment; this pass (TOP live-scene motion
+ * upgrade, category 9 of 9, final category) strengthens it into a small
+ * directed "performance about to begin" scene:
  *
- * - FAR: a dark stage atmosphere (navy toward near-black) with two
- *   wavy velvet-curtain silhouettes framing the sides and a warm
- *   spotlight glow pooling center-high (never at the horizon, the way
- *   every other environment's own glow sits).
- * - MID: two crossing spotlight-beam cones (one gold, one blue — the
- *   brief's own "restrained gold/blue highlights"), a restrained
- *   proscenium frame outline, and one floating ticket-stub plane (a
- *   card with a dashed tear line, never a giant poster).
- * - NEAR: 4 soft drifting light particles (stage dust, never confetti),
- *   a warm glow pooling at "stage floor" level, and a cool blue
- *   counterpoint glow.
+ * - PERFORMER: a single, generic silhouette appears center-stage under
+ *   the spotlight, holds a beat, then fades — never a recognizable real
+ *   person, the same "pause not passage" logic every sibling
+ *   resident/visitor/host already established.
+ * - AUDIENCE: a restrained row of silhouettes along the lower edge — the
+ *   house is seated, waiting. Static (no motion needed to read as
+ *   "audience"), never the scene's main subject.
+ * - SPOTLIGHTS: the two beams no longer just sway independently on their
+ *   own unrelated schedules (their old CSS keyframe sway is disabled for
+ *   as long as this timeline runs — see `buildTimeline`'s own comment
+ *   for why) — one GSAP timeline now owns them fully: settled → converge
+ *   toward the performer as they appear (a "focus" beat) → hold → relax
+ *   back to settled before the loop resets. Slow and cinematic, never a
+ *   strobe.
+ * - STAGE: unchanged — far/mid/near already carry distinct parallax
+ *   tiers from Step 2.9.
  *
- * All continuous motion (the spotlight-beam sway, the ticket-plane
- * float, the particle drift) is slow and low-amplitude — the brief's
- * own explicit "no nightclub neon chaos, no strobe/flashing, no fast
- * movement, no giant scale, no gaming effects, no bouncing/spinning" —
- * and switched off entirely under `prefers-reduced-motion`, settling
- * into one deliberate static frame, exactly like the sibling
- * environments' own `.static` treatment.
+ * The GSAP timeline (`useGsapScene`) is never created under
+ * `prefers-reduced-motion` and is paused via IntersectionObserver
+ * whenever this stage scrolls out of view — see CarRentalTopBackground.jsx's
+ * own header comment for the identical reasoning, not repeated per
+ * category.
  */
 
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import useReducedMotion from '../../../../hooks/useReducedMotion.js';
+import useGsapScene from '../../../../components/SceneKit/useGsapScene.js';
 import styles from './EntertainmentTopBackground.module.scss';
 
 // Deterministic drifting light particles — position, size, and stagger.
@@ -49,6 +44,10 @@ const PARTICLES = [
 export default function EntertainmentTopBackground() {
   const rootRef = useRef(null);
   const rafRef = useRef(null);
+  const performerRef = useRef(null);
+  const beamGoldRef = useRef(null);
+  const beamBlueRef = useRef(null);
+  const audienceRef = useRef(null);
   const prefersReducedMotion = useReducedMotion();
   const isCoarsePointer =
     typeof window !== 'undefined' &&
@@ -84,6 +83,61 @@ export default function EntertainmentTopBackground() {
       onPointerLeave: handlePointerLeave,
     };
   }, [parallaxDisabled]);
+
+  const buildTimeline = useCallback((gsap) => {
+    gsap.set(performerRef.current, { opacity: 0, scaleY: 0.85 });
+    gsap.set(audienceRef.current, { opacity: 0 });
+    // The beams' own CSS `entertainment-beam-sway` keyframe animation
+    // (their reduced-motion-compatible resting behavior) would otherwise
+    // fight GSAP's `rotation` tween below every frame — both would be
+    // writing the same `transform` property. Disabling it here (via
+    // `gsap.set`, so `ctx.revert()` restores it on unmount/cleanup) hands
+    // the beams fully to GSAP for as long as this timeline exists.
+    gsap.set([beamGoldRef.current, beamBlueRef.current], {
+      animation: 'none',
+    });
+
+    const tl = gsap.timeline({
+      repeat: -1,
+      repeatDelay: 2.5,
+      defaults: { ease: 'power1.inOut' },
+    });
+
+    // The house settles in, once.
+    tl.to(audienceRef.current, { opacity: 0.6, duration: 1.5 }, 0);
+
+    // Spotlights: converge/focus on the performer as they appear, hold,
+    // then relax — the "choreographed crossing/focus sequence," slow and
+    // cinematic, never a strobe.
+    tl.to(
+      beamGoldRef.current,
+      { rotation: 4, duration: 2.2, transformOrigin: 'top center' },
+      1,
+    );
+    tl.to(
+      beamBlueRef.current,
+      { rotation: -4, duration: 2.2, transformOrigin: 'top center' },
+      1,
+    );
+    tl.to(
+      performerRef.current,
+      { opacity: 0.85, scaleY: 1, duration: 1.6 },
+      1.6,
+    );
+    tl.to(
+      [beamGoldRef.current, beamBlueRef.current],
+      { rotation: 0, duration: 2, delay: 2 },
+      1.6,
+    );
+
+    // Ambient hold, then the performer steps back before the loop resets.
+    tl.to(performerRef.current, { opacity: 0, duration: 1 }, 5.8);
+    tl.to(audienceRef.current, { opacity: 0, duration: 1 }, 5.8);
+
+    return tl;
+  }, []);
+
+  useGsapScene(rootRef, buildTimeline, prefersReducedMotion);
 
   return (
     <div
@@ -129,14 +183,20 @@ export default function EntertainmentTopBackground() {
             <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
           </linearGradient>
         </defs>
-        {/* Two crossing spotlight beams — restrained gold/blue, never a
-            harsh neon wash. */}
+        {/* Two crossing spotlight beams — restrained gold/blue, now
+            choreographed to converge on the performer rather than
+            swaying only on their own independent schedules. */}
         <path
+          ref={beamGoldRef}
           className={styles.beamGold}
           d="M110 0 L30 210 L190 210 Z"
           fill="url(#entertainmentBeamGold)"
         />
-        <path className={styles.beamBlue} d="M300 0 L220 210 L380 210 Z" />
+        <path
+          ref={beamBlueRef}
+          className={styles.beamBlue}
+          d="M300 0 L220 210 L380 210 Z"
+        />
         {/* A restrained proscenium frame outline — the "distant stage
             geometry," never a filled/literal set illustration. */}
         <rect
@@ -147,6 +207,30 @@ export default function EntertainmentTopBackground() {
           height="185"
           rx="4"
         />
+        {/* The audience — a restrained row of silhouettes along the
+            lower edge, the house waiting. Default opacity 0.35 below is
+            the considered resting frame rendered under reduced motion,
+            when the GSAP timeline that would fade it in is never built. */}
+        <g ref={audienceRef} className={styles.audience} opacity="0.35">
+          <path d="M60 225 Q68 215 76 225 Q84 215 92 225 Q100 215 108 225 Q116 215 124 225 Q132 215 140 225 L140 240 L60 240 Z" />
+          <path d="M260 225 Q268 215 276 225 Q284 215 292 225 Q300 215 308 225 Q316 215 324 225 Q332 215 340 225 L340 240 L260 240 Z" />
+        </g>
+        {/* The performer — a single, generic silhouette center-stage.
+            Default opacity 0.3 below is the considered resting frame
+            rendered under reduced motion, when the GSAP timeline that
+            would fade it in/out is never built. */}
+        <g
+          ref={performerRef}
+          className={styles.performer}
+          transform="translate(200 175) scale(0.75)"
+          opacity="0.3"
+        >
+          <circle className={styles.performerHead} cx="0" cy="0" r="4.5" />
+          <path
+            className={styles.performerBody}
+            d="M-5 7 Q0 4 5 7 L6 30 Q3 35 0 35 Q-3 35 -6 30 Z"
+          />
+        </g>
         {/* A floating ticket-stub plane — a card with a dashed tear
             line, never a giant poster. */}
         <g className={styles.ticket}>

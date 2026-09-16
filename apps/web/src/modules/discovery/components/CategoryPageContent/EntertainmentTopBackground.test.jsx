@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, cleanup } from '@testing-library/react';
+import gsap from 'gsap';
 import EntertainmentTopBackground from './EntertainmentTopBackground.jsx';
 
 function mockMatchMedia(matches) {
@@ -13,6 +14,7 @@ function mockMatchMedia(matches) {
 
 describe('EntertainmentTopBackground (Step 2.9 — Entertainment TOP background only)', () => {
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -62,5 +64,53 @@ describe('EntertainmentTopBackground (Step 2.9 — Entertainment TOP background 
     const { container } = render(<EntertainmentTopBackground />);
     const root = container.firstChild;
     expect(root.className).toMatch(/static/);
+  });
+
+  // TOP live-scene motion upgrade — the performer + audience + beams.
+  describe('the performer, the audience, and the spotlight focus', () => {
+    test('the performer and audience render with a considered resting opacity', () => {
+      mockMatchMedia(true);
+      const { container } = render(<EntertainmentTopBackground />);
+      const performer = container.querySelector('g[class*="_performer_"]');
+      const audience = container.querySelector('g[class*="_audience_"]');
+      expect(performer).toBeInTheDocument();
+      expect(performer).toHaveAttribute('opacity', '0.3');
+      expect(performer.style.opacity).toBe('');
+      expect(audience).toBeInTheDocument();
+      expect(audience).toHaveAttribute('opacity', '0.35');
+      expect(audience.style.opacity).toBe('');
+    });
+
+    test('never builds any GSAP animation under prefers-reduced-motion', () => {
+      mockMatchMedia(true);
+      const timelineSpy = vi.spyOn(gsap, 'timeline');
+      render(<EntertainmentTopBackground />);
+      expect(timelineSpy).not.toHaveBeenCalled();
+    });
+
+    test('converges the beams on the performer and seats the audience via one coordinated timeline', () => {
+      mockMatchMedia(false);
+      const timelineSpy = vi.spyOn(gsap, 'timeline');
+      const { container } = render(<EntertainmentTopBackground />);
+      expect(timelineSpy).toHaveBeenCalledTimes(1);
+
+      const timeline = timelineSpy.mock.results[0].value;
+      const performer = container.querySelector('g[class*="_performer_"]');
+      const audience = container.querySelector('g[class*="_audience_"]');
+      const beamGold = container.querySelector('[class*="beamGold"]');
+
+      expect(performer.style.opacity).toBe('0');
+      expect(audience.style.opacity).toBe('0');
+      // The CSS sway animation is disabled for as long as GSAP owns the
+      // beams (see the component's own header/inline comments for why).
+      expect(beamGold.style.animation).toBe('none');
+
+      timeline.progress(0.3);
+      expect(Number(audience.style.opacity)).toBeGreaterThan(0);
+      timeline.progress(0.6);
+      expect(Number(performer.style.opacity)).toBeGreaterThan(0);
+      timeline.progress(1);
+      timeline.kill();
+    });
   });
 });

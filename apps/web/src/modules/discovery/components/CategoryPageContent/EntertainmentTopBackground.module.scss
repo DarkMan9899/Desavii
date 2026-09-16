@@ -92,6 +92,21 @@
   stroke-width: 1.5;
 }
 
+// --- The audience + the performer --------------------------------------
+
+.audience {
+  fill: rgba(4, 8, 16, 0.55);
+}
+
+.performer {
+  transform-box: fill-box;
+}
+
+.performerHead,
+.performerBody {
+  fill: rgba(6, 14, 24, 0.75);
+}
+
 // A floating ticket-stub plane — restrained line art, never a filled
 // poster illustration.
 .ticket {
@@ -272,11 +287,17 @@
 // elements at a size where they'd read as noise; the curtains,
 // spotlight beams, and proscenium frame still carry the "stage/event"
 // read on their own.
+// The performer/audience are secondary/atmospheric cues, not this
+// category's own primary identifier (curtains/beams/ticket already are)
+// — hidden at mobile alongside the other detail-dense extras (brief
+// §15), matching every sibling resident/visitor/host precedent.
 @media (max-width: 767px) {
   .ticket,
   .coolGlow,
   .particle:nth-of-type(3),
-  .particle:nth-of-type(4) {
+  .particle:nth-of-type(4),
+  .performer,
+  .audience {
     display: none;
   }
 }
