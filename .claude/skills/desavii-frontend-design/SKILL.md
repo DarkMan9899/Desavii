@@ -70,4 +70,34 @@ overflow/clipping, check the browser console for errors, check network for
 failed requests, and honestly critique whether the result still looks
 generic before calling it a PASS. A change is not visually verified until
 it has been seen rendering in a real browser at these breakpoints — code
-review alone is not sufficient evidence of a visual PASS.
+review alone is not sufficient evidence of a visual PASS. Screenshot
+evidence at these breakpoints (or the Playwright visual-QA helper,
+`apps/web/tests/e2e/visualQa.js`) is required alongside any handoff that
+claims a visual change is done — a PASS with no screenshot is not a PASS.
+
+## Scene/motion tooling
+
+- CSS/SVG/GSAP first. Reach for `@react-three/fiber`/`drei` only where true
+  3D perspective, depth, or lighting gives a clear visual value a layered
+  2D scene can't — not by default, and never for something a CSS transform
+  or an SVG layer already does well.
+- Any Three.js/R3F usage must stay out of the eagerly-loaded main bundle —
+  load it via a dynamic `import()`/lazy boundary on the one route that
+  needs it, never a top-level import shared code can pull in.
+- A TOP environment's motion must be semantically related to that
+  category — a beam sweep for Entertainment, a route line for Tours, a
+  parallax corridor for Hotels. Never a generic, interchangeable effect
+  bolted onto an unrelated category.
+- No random/ambient opacity pulses added just to "feel alive" — every
+  animated element's motion must read as something in-world (a light, a
+  sign, a flicker with a source), not decoration for its own sake.
+- No neon glow, no gaming-HUD aesthetic, no arcade color saturation —
+  motion stays premium/restrained, matching the Visual direction section
+  above.
+- Card geometry (the canonical 4:3 promoted-card aspect ratio) is locked
+  and never renegotiated by a motion/scene change — a scene animates
+  around the card, never the card itself.
+- Mobile simplification is mandatory: a scene's most detail-dense/least-
+  essential decorative layers must be hidden or simplified below the
+  768px breakpoint (mirrors every existing `*TopBackground.module.scss`'s
+  own `@media (max-width: 767px)` block) — never just scaled down as-is.

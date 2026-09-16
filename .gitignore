@@ -52,3 +52,6 @@ apps/api/uploads/
 # contain real user/payment/connector-credential data)
 backups/
 **/backups/
+
+*storybook.log
+storybook-static
