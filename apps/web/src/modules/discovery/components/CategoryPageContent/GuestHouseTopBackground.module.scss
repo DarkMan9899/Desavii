@@ -1,0 +1,255 @@
+// GuestHouseTopBackground — tokens only, consumed from @desavii/ui.
+@use 'tokens' as tokens;
+
+// Same absolute-fill/stacking contract as the other dedicated category
+// environments — never intercepts pointer events except for the
+// deliberate parallax listener the JS attaches to this root node itself.
+.environment {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: tokens.$radius-xl;
+  background: tokens.$color-navy;
+}
+
+// --- FAR: warm dusk atmosphere + hillside village -------------------------
+
+.far {
+  position: absolute;
+  inset: 0;
+  // A warmer, rosier dusk than Villa's own amber sunset — a lived-in
+  // "village at dusk" read rather than a cinematic mountain horizon.
+  background: linear-gradient(
+    180deg,
+    tokens.$color-navy 0%,
+    #26314f 50%,
+    #4a3244 78%,
+    #5c3a3a 100%
+  );
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 3px),
+    calc(var(--parallax-y, 0) * 2px),
+    0
+  );
+}
+
+.village {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 26%;
+  height: 18%;
+  opacity: 0.3;
+  filter: blur(1.5px);
+  fill: #3a2e42;
+}
+
+.horizonGlow {
+  position: absolute;
+  left: 50%;
+  bottom: 30%;
+  width: 58%;
+  aspect-ratio: 3 / 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(tokens.$color-gold, 0.26) 0%,
+    rgba(tokens.$color-gold, 0) 70%
+  );
+  filter: blur(3px);
+}
+
+// --- MID: the guest house facade ------------------------------------------
+
+.mid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 6px),
+    calc(var(--parallax-y, 0) * 4px),
+    0
+  );
+}
+
+.roof {
+  fill: rgba(11, 20, 33, 0.78);
+  stroke: rgba(tokens.$color-white, 0.16);
+  stroke-width: 1;
+}
+
+// A single restrained zigzag band under the eave — the brief's own
+// "restrained Armenian-inspired geometric detail," one thin decorative
+// line, never a repeating ornament filling the facade.
+.eaveBand {
+  fill: none;
+  stroke: rgba(tokens.$color-gold, 0.5);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.wall {
+  fill: rgba(16, 27, 44, 0.7);
+  stroke: rgba(tokens.$color-white, 0.12);
+  stroke-width: 1;
+}
+
+.door {
+  fill: rgba(6, 14, 24, 0.6);
+  stroke: rgba(tokens.$color-gold, 0.3);
+  stroke-width: 1;
+}
+
+.windowGlow {
+  fill: tokens.$color-gold;
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: guest-house-window-breathe 4s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+// --- NEAR: porch glow + threshold light + haze ----------------------------
+
+.near {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 10px),
+    calc(var(--parallax-y, 0) * 7px),
+    0
+  );
+}
+
+.porchGlow {
+  position: absolute;
+  left: 50%;
+  bottom: 30%;
+  width: 56px;
+  height: 56px;
+  transform: translateX(-50%);
+  border-radius: tokens.$radius-full;
+  background: radial-gradient(
+    circle,
+    rgba(tokens.$color-gold, 0.34) 0%,
+    rgba(tokens.$color-gold, 0) 72%
+  );
+  filter: blur(2px);
+  animation: guest-house-porch-drift 7s ease-in-out infinite;
+}
+
+.threshold {
+  position: absolute;
+  left: 50%;
+  bottom: 24%;
+  width: 60px;
+  height: 2px;
+  transform: translateX(-50%);
+  border-radius: tokens.$radius-full;
+  background: linear-gradient(
+    90deg,
+    rgba(tokens.$color-gold, 0) 0%,
+    rgba(tokens.$color-gold, 0.6) 50%,
+    rgba(tokens.$color-gold, 0) 100%
+  );
+}
+
+.haze {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10%;
+  height: 20%;
+  background: linear-gradient(
+    180deg,
+    rgba(tokens.$color-gold, 0) 0%,
+    rgba(tokens.$color-gold, 0.05) 100%
+  );
+  animation: guest-house-haze-drift 15s ease-in-out infinite;
+}
+
+@keyframes guest-house-window-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes guest-house-porch-drift {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    opacity: 0.85;
+    transform: translateX(-50%) translateY(-6px);
+  }
+}
+
+@keyframes guest-house-haze-drift {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateX(8px);
+    opacity: 1;
+  }
+}
+
+// Reduced motion: a deliberate static frame — every continuous
+// animation switched off outright, mirroring the sibling environments'
+// own `.static` treatment. The house, its windows, and the porch glow
+// stay fully visible (just not moving) — already legible and warm at
+// rest.
+.static {
+  .far,
+  .mid,
+  .near,
+  .windowGlow,
+  .porchGlow,
+  .haze {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .windowGlow {
+    opacity: 0.85;
+  }
+
+  .porchGlow {
+    opacity: 0.6;
+  }
+}
+
+// Vignette — cinematic framing, purely static (no animation/parallax).
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 62%,
+    rgba(tokens.$color-navy, 0) 45%,
+    rgba(6, 16, 28, 0.32) 100%
+  );
+}
+
+// Mobile (brief §7: "mobile scene simplified cleanly") — the hillside
+// village silhouette and the haze band are the most detail-dense
+// elements at a size where they'd read as noise; the house itself, its
+// windows, and the porch glow still carry the "warm local home" read on
+// their own.
+@media (max-width: 767px) {
+  .village,
+  .haze {
+    display: none;
+  }
+}

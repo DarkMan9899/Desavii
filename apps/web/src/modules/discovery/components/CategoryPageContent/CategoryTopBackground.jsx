@@ -31,17 +31,17 @@ import CarRentalTopBackground from './CarRentalTopBackground.jsx';
 import HotelTopBackground from './HotelTopBackground.jsx';
 import ApartmentTopBackground from './ApartmentTopBackground.jsx';
 import VillaTopBackground from './VillaTopBackground.jsx';
+import GuestHouseTopBackground from './GuestHouseTopBackground.jsx';
 import styles from './CategoryTopBackground.module.scss';
 
 // One motif + one dominant-color lean per category — same motif set
 // `categoryHeroArt.js` already established for this category's hero,
 // reused here (not a second motif catalog) so the TOP background and the
 // category hero always agree on this category's own visual identity.
-// `car-rentals`, `hotels`, `apartments`, and `villas` are deliberately
-// absent — they get their own dedicated environments above, not this
-// generic treatment.
+// `car-rentals`, `hotels`, `apartments`, `villas`, and `guest-houses` are
+// deliberately absent — they get their own dedicated environments above,
+// not this generic treatment.
 const THEME_BY_CATEGORY = {
-  'guest-houses': { motif: 'door-key', lean: 'gold' },
   restaurants: { motif: 'fork-knife', lean: 'gold' },
   tours: { motif: 'compass', lean: 'royal' },
   attractions: { motif: 'starburst', lean: 'gold' },
@@ -78,6 +78,14 @@ export default function CategoryTopBackground({ categorySlug }) {
   // unchanged.
   if (categorySlug === 'villas') {
     return <VillaTopBackground />;
+  }
+  // Step 2.5 — Guest House TOP background only: a dedicated warm village-
+  // house environment, deliberately distinct from Hotel's corridor, Car
+  // Rental's road, Apartment's window grids, and Villa's mountain
+  // horizon. Every other category keeps the exact same shared treatment
+  // below, unchanged.
+  if (categorySlug === 'guest-houses') {
+    return <GuestHouseTopBackground />;
   }
 
   const theme = THEME_BY_CATEGORY[categorySlug];
