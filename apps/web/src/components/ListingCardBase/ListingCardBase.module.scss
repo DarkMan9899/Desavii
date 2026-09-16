@@ -445,6 +445,36 @@
   background-color: tokens.$color-ink;
 }
 
+// Tour internal-design pass — the accent palette is fully claimed by now
+// (gold: Hotel fill + Restaurant plaque text; navy: Apartment fill; ink:
+// Restaurant plaque fill; neutral gray: Villa outline) — reusing navy's
+// hue again (like Restaurant reused gold) is fine as long as the FORM is
+// genuinely new. Tours get a DASHED outline, never used by any sibling
+// (Villa's own outline is a solid line) — a dashed line is literally a
+// route/path rendered as line art, brief §10's own "route-line motif"
+// realized structurally rather than as a decorative graphic. Padding
+// compensates for the added 1px border exactly as Villa's own outline
+// does, so the chip's rendered footprint never changes.
+.card[data-category='tours'] .metaChip {
+  padding: 1px 7px;
+  border: 1px dashed rgba(tokens.$color-navy, 0.45);
+  background-color: transparent;
+  color: tokens.$color-navy;
+  font-weight: 600;
+}
+
+.card[data-category='tours'] .metaChipIcon {
+  color: tokens.$color-navy;
+}
+
+// "The route arrives" — the dashed line resolves to a solid one on
+// hover, a restrained, single-property cue (never a bounce/resize),
+// paired with a faint navy tint replacing the generic gray hover fill.
+.card[data-category='tours']:hover .metaChip {
+  border-style: solid;
+  background-color: rgba(tokens.$color-navy, 0.05);
+}
+
 // A visual footer, not just the last flex item — a hairline separates
 // price from the descriptive content above it, so it reads as the
 // card's one settled fact rather than another line of prose.
@@ -528,4 +558,14 @@
   background-color: rgba(tokens.$color-ink, 0.04);
   border-radius: tokens.$radius-sm;
   border-block-start-color: rgba(tokens.$color-gold, 0.3);
+}
+
+// Tour internal-design pass — carries the metaChip's own dashed-line
+// motif down into the footer, so the "route" reads as one continuous
+// visual idea across the card rather than a chip-only detail. Border
+// style/color only — never touches `.priceRow`'s own width/padding/
+// margin, so this stays geometry-safe like every sibling override.
+.card[data-category='tours'] .priceRow {
+  border-block-start-style: dashed;
+  border-block-start-color: rgba(tokens.$color-navy, 0.4);
 }
