@@ -259,8 +259,14 @@ async function main() {
       // reasoning as the manifest fetch above, just for the requests React
       // itself makes while rendering each crawled route.
       // eslint-disable-next-line no-await-in-loop -- sequential by design, see above
-      await page.setExtraHTTPHeaders({
-        'X-Internal-Build-Token': INTERNAL_BUILD_TOKEN,
+      await page.route(`${new URL(API_BASE_URL).origin}/**`, async (route) => {
+        const request = route.request();
+        await route.continue({
+          headers: {
+            ...request.headers(),
+            'X-Internal-Build-Token': INTERNAL_BUILD_TOKEN,
+          },
+        });
       });
     }
     try {
