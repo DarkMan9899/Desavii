@@ -392,6 +392,32 @@
   background-color: rgba(tokens.$color-gray-900, 0.03);
 }
 
+// Guest House internal-design pass — Hotel already claimed gold as a
+// bold "premium trust badge" (filled tint + gold-strong text + 700
+// weight); reusing that exact combination here would read as "Hotel
+// with a different label," not a distinct identity. Guest House's own
+// character is "warm/local/home-style," softer and more personal than
+// Hotel's formal trust signal — so this reuses the SAME gold hue (the
+// only genuinely warm tone this design system defines) but at a much
+// fainter wash (0.06 vs Hotel's 0.12), with plain ink body text (never
+// gold-strong) and the card's own lightest chip weight (500 — softer
+// than Hotel/Apartment's 700 and even Villa's 600, brief §7's own
+// "softer metadata treatment"). Only the icon itself carries the full
+// gold tone, a small warm accent rather than a loud badge fill.
+.card[data-category='guest-houses'] .metaChip {
+  background-color: rgba(tokens.$color-gold, 0.06);
+  color: tokens.$color-gray-900;
+  font-weight: 500;
+}
+
+.card[data-category='guest-houses'] .metaChipIcon {
+  color: tokens.$color-gold;
+}
+
+.card[data-category='guest-houses']:hover .metaChip {
+  background-color: rgba(tokens.$color-gold, 0.1);
+}
+
 // A visual footer, not just the last flex item — a hairline separates
 // price from the descriptive content above it, so it reads as the
 // card's one settled fact rather than another line of prose.
@@ -446,4 +472,20 @@
 // announced.
 .card[data-category='villas'] .priceRow {
   border-block-start-color: rgba(tokens.$color-gray-900, 0.16);
+}
+
+// Guest House internal-design pass — every sibling above only recolors
+// the same hairline-border mechanism; a fourth color on that identical
+// line would be exactly the "recolor without a deliberate semantic
+// reason" brief §8 rules out. Guest House instead gets a genuinely
+// different technique — a soft warm wash filling the footer itself
+// (never changing `.priceRow`'s own padding/size, so this is purely a
+// paint, not a geometry change) — reading as "a warm light under the
+// price" rather than "a premium line above it," matching brief §8's own
+// "warm / welcoming / softer" direction for this one category. The
+// hairline border keeps its shared default gray — the warmth lives in
+// the fill, not the line.
+.card[data-category='guest-houses'] .priceRow {
+  background-color: rgba(tokens.$color-gold, 0.05);
+  border-radius: tokens.$radius-sm;
 }
