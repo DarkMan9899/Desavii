@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, cleanup } from '@testing-library/react';
+import gsap from 'gsap';
 import GuestHouseTopBackground from './GuestHouseTopBackground.jsx';
 
 function mockMatchMedia(matches) {
@@ -13,6 +14,7 @@ function mockMatchMedia(matches) {
 
 describe('GuestHouseTopBackground (Step 2.5 — Guest House TOP background only)', () => {
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -54,5 +56,52 @@ describe('GuestHouseTopBackground (Step 2.5 — Guest House TOP background only)
     const { container } = render(<GuestHouseTopBackground />);
     expect(container.querySelector('[class*="threshold"]')).toBeInTheDocument();
     expect(container.querySelector('[class*="haze"]')).toBeInTheDocument();
+  });
+
+  // TOP live-scene motion upgrade — the host + curtain.
+  describe('the host and the curtain', () => {
+    test('the host renders in the doorway with a considered resting opacity, and the curtain is present', () => {
+      mockMatchMedia(true);
+      const { container } = render(<GuestHouseTopBackground />);
+      const host = container.querySelector('g[class*="_host_"]');
+      expect(host).toBeInTheDocument();
+      expect(host).toHaveAttribute('opacity', '0.75');
+      expect(host.style.opacity).toBe('');
+      expect(container.querySelector('[class*="curtain"]')).toBeInTheDocument();
+    });
+
+    test('never builds any GSAP animation under prefers-reduced-motion', () => {
+      mockMatchMedia(true);
+      const timelineSpy = vi.spyOn(gsap, 'timeline');
+      const toSpy = vi.spyOn(gsap, 'to');
+      render(<GuestHouseTopBackground />);
+      expect(timelineSpy).not.toHaveBeenCalled();
+      expect(toSpy).not.toHaveBeenCalled();
+    });
+
+    test('fades the host in via the main timeline and sways the curtain via an independent continuous tween', () => {
+      mockMatchMedia(false);
+      const timelineSpy = vi.spyOn(gsap, 'timeline');
+      const toSpy = vi.spyOn(gsap, 'to');
+      const { container } = render(<GuestHouseTopBackground />);
+      expect(timelineSpy).toHaveBeenCalledTimes(1);
+
+      const timeline = timelineSpy.mock.results[0].value;
+      const host = container.querySelector('g[class*="_host_"]');
+      const curtain = container.querySelector('[class*="curtain"]');
+
+      expect(host.style.opacity).toBe('0');
+
+      timeline.progress(0.6);
+      expect(Number(host.style.opacity)).toBeGreaterThan(0);
+      timeline.progress(1);
+      timeline.kill();
+
+      const curtainSwayCalls = toSpy.mock.calls.filter(
+        ([target, vars]) => target === curtain && vars.repeat === -1,
+      );
+      expect(curtainSwayCalls).toHaveLength(1);
+      gsap.killTweensOf(curtain);
+    });
   });
 });

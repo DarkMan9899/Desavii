@@ -1,45 +1,40 @@
 /**
- * GuestHouseTopBackground — Step 2.5 (Guest House TOP background only).
- * Mirrors the four existing dedicated category environments' own
- * established technique (FAR/MID/NEAR depth, pointer-parallax via CSS
- * custom properties on a DOM ref, reduced-motion/coarse-pointer guard)
- * with a fifth entirely distinct visual identity, per the brief's
- * explicit "must feel clearly different from Hotel/Apartment/Villa":
- * - Hotel: a corridor of arches — refined hospitality.
- * - Car Rental: a road/route — mobility.
- * - Apartment: layered building window grids — urban residential.
- * - Villa: a dusk mountain horizon — cinematic retreat.
- * - Guest House (this file): a small warm-lit village house facade with
- *   a hillside skyline of smaller homes behind it — local, intimate,
- *   welcoming, never a corridor, road, tower block, or mountain range.
+ * GuestHouseTopBackground — Step 2.5 established the village-house
+ * environment; this pass (TOP live-scene motion upgrade, category 5 of
+ * 9) strengthens it into a small directed "welcome home" scene:
  *
- * - FAR: a warm dusk atmosphere (navy fading to a muted warm rose near
- *   the horizon) with a low, blurred silhouette of several small
- *   pitched-roof houses at varying heights — a hillside village read at
- *   a glance, distinct from every sibling environment's own skyline.
- * - MID: one larger house facade (roof, walls, a door, two glowing
- *   windows) plus a single thin decorative zigzag band along the roof
- *   eave — a restrained nod to Armenian ornamental line-work, never a
- *   busy or "folk-art" pattern filling the scene.
- * - NEAR: two soft warm window-glow blooms, one porch-light glow above
- *   the door, a thin gold threshold-light line at the doorway, and a
- *   faint warm haze.
+ * - HOST: a restrained host silhouette appears in the doorway — greeting,
+ *   lingering, stepping back — the same "pause not passage" logic
+ *   Apartment/Villa's own resident/visitor already established (a
+ *   doorway is a place someone appears, not somewhere they walk through
+ *   toward the viewer).
+ * - HOME LIFE: one window now carries a curtain that sways gently, and
+ *   the two window glows + porch light no longer just pulse
+ *   independently — a GSAP timeline lights them in sequence as the host
+ *   appears, so the house feels like it's welcoming a guest rather than
+ *   just decoratively glowing.
+ * - DEPTH: unchanged — the hillside village/house/porch already carry
+ *   their own distinct parallax tiers from Step 2.5.
  *
- * All continuous motion (the window/porch-light breathing, the haze
- * drift) is slow and low-amplitude — the brief's own explicit "no folk-
- * art overload, no busy ornament, no neon, no flashing, no bouncing, no
- * giant zoom, no fake rustic gimmicks" — and switched off entirely under
- * `prefers-reduced-motion`, settling into one deliberate static frame,
- * exactly like the sibling environments' own `.static` treatment.
+ * The GSAP timeline (`useGsapScene`) is never created under
+ * `prefers-reduced-motion` and is paused via IntersectionObserver
+ * whenever this stage scrolls out of view — see CarRentalTopBackground.jsx's
+ * own header comment for the identical reasoning, not repeated per
+ * category.
  */
 
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import useReducedMotion from '../../../../hooks/useReducedMotion.js';
+import useGsapScene from '../../../../components/SceneKit/useGsapScene.js';
 import styles from './GuestHouseTopBackground.module.scss';
 
 export default function GuestHouseTopBackground() {
   const rootRef = useRef(null);
   const rafRef = useRef(null);
+  const hostRef = useRef(null);
+  const curtainRef = useRef(null);
+  const windowGlowRefs = useRef([]);
+  const porchGlowRef = useRef(null);
   const prefersReducedMotion = useReducedMotion();
   const isCoarsePointer =
     typeof window !== 'undefined' &&
@@ -76,6 +71,63 @@ export default function GuestHouseTopBackground() {
     };
   }, [parallaxDisabled]);
 
+  const buildTimeline = useCallback((gsap) => {
+    const tl = gsap.timeline({
+      repeat: -1,
+      repeatDelay: 2,
+      defaults: { ease: 'power1.inOut' },
+    });
+
+    gsap.set(hostRef.current, { opacity: 0 });
+
+    // Curtain: a slow, continuous, independent sway — never part of the
+    // main timeline's own repeat cycle (see VillaTopBackground.jsx's own
+    // wind-sway precedent/reasoning for why).
+    const curtainSway = gsap.to(curtainRef.current, {
+      skewX: 4,
+      duration: 3.2,
+      yoyo: true,
+      repeat: -1,
+      ease: 'sine.inOut',
+      transformOrigin: '50% 0%',
+    });
+
+    // Home life: the windows and porch light welcome the host in
+    // sequence, rather than pulsing independently.
+    const lightTimes = [0, 1.6];
+    windowGlowRefs.current.forEach((el, index) => {
+      if (!el) return;
+      tl.fromTo(
+        el,
+        { opacity: 0.4, scale: 1 },
+        {
+          opacity: 1,
+          scale: 1.15,
+          duration: 0.7,
+          yoyo: true,
+          repeat: 1,
+          transformOrigin: 'center',
+        },
+        lightTimes[index],
+      );
+    });
+    tl.fromTo(
+      porchGlowRef.current,
+      { opacity: 0.4 },
+      { opacity: 0.85, duration: 1 },
+      2.4,
+    );
+
+    // Host: someone appears at the door to welcome the guest, then steps
+    // back inside.
+    tl.to(hostRef.current, { opacity: 0.85, duration: 1.2 }, 2.6);
+    tl.to(hostRef.current, { opacity: 0, duration: 1 }, 4.8);
+
+    return [tl, curtainSway];
+  }, []);
+
+  useGsapScene(rootRef, buildTimeline, prefersReducedMotion);
+
   return (
     <div
       ref={rootRef}
@@ -88,8 +140,8 @@ export default function GuestHouseTopBackground() {
     >
       <div className={styles.far}>
         {/* A low, blurred hillside-village silhouette — several small
-            pitched-roof houses at varying heights, the "local/home"
-            read at a glance, distinct from every sibling skyline. */}
+            pitched-roof houses at varying heights, the "local/home" read
+            at a glance, distinct from every sibling skyline. */}
         <svg
           className={styles.village}
           viewBox="0 0 400 60"
@@ -138,7 +190,26 @@ export default function GuestHouseTopBackground() {
           height="50"
           rx="2"
         />
+        {/* The host — a restrained silhouette appearing in the doorway.
+            Default opacity 0.75 below is the considered resting frame
+            rendered under reduced motion, when the GSAP timeline that
+            would fade it in/out is never built. */}
+        <g
+          ref={hostRef}
+          className={styles.host}
+          transform="translate(200 205) scale(0.55)"
+          opacity="0.75"
+        >
+          <circle className={styles.hostHead} cx="0" cy="0" r="4" />
+          <path
+            className={styles.hostBody}
+            d="M-4 6 Q0 4 4 6 L5 24 Q3 28 0 28 Q-3 28 -5 24 Z"
+          />
+        </g>
         <rect
+          ref={(el) => {
+            windowGlowRefs.current[0] = el;
+          }}
           className={styles.windowGlow}
           x="163"
           y="153"
@@ -147,19 +218,31 @@ export default function GuestHouseTopBackground() {
           rx="1.5"
           style={{ '--delay': '0s' }}
         />
-        <rect
-          className={styles.windowGlow}
-          x="217"
-          y="153"
-          width="20"
-          height="20"
-          rx="1.5"
-          style={{ '--delay': '1.3s' }}
-        />
+        {/* A second window with a gently swaying curtain — the "home
+            life" read the brief asks for. */}
+        <g>
+          <rect
+            ref={(el) => {
+              windowGlowRefs.current[1] = el;
+            }}
+            className={styles.windowGlow}
+            x="217"
+            y="153"
+            width="20"
+            height="20"
+            rx="1.5"
+            style={{ '--delay': '1.3s' }}
+          />
+          <path
+            ref={curtainRef}
+            className={styles.curtain}
+            d="M219 153 L219 173 L227 173 L223 163 Z"
+          />
+        </g>
       </svg>
 
       <div className={styles.near}>
-        <span className={styles.porchGlow} />
+        <span ref={porchGlowRef} className={styles.porchGlow} />
         <span className={styles.threshold} />
         <div className={styles.haze} />
       </div>
