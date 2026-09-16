@@ -104,6 +104,21 @@
   stroke-width: 1.5;
 }
 
+.monumentHighlight {
+  pointer-events: none;
+}
+
+// --- The visitor: a silhouette pausing at the landmark --------------------
+
+.visitor {
+  transform-box: fill-box;
+}
+
+.visitorHead,
+.visitorBody {
+  fill: rgba(6, 14, 24, 0.7);
+}
+
 // The editorial "travel guide" card — restrained document/map texture,
 // never a busy illustration.
 .card {
@@ -253,9 +268,13 @@
 // card plane and the paper corner are the most detail-dense elements at
 // a size where they'd read as noise; the monument, its pin, and the
 // horizon glow still carry the "landmark/heritage" read on their own.
+// The visitor silhouette is a secondary/atmospheric cue, not this
+// category's own primary identifier (the monument itself is) — hidden
+// at mobile alongside the other detail-dense extras (brief §15).
 @media (max-width: 767px) {
   .card,
-  .paperCorner {
+  .paperCorner,
+  .visitor {
     display: none;
   }
 }

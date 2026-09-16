@@ -1,45 +1,43 @@
 /**
- * AttractionsTopBackground — Step 2.8 (Attractions TOP background
- * only). Mirrors the seven existing dedicated category environments'
- * own established technique (FAR/MID/NEAR depth, pointer-parallax via
- * CSS custom properties on a DOM ref, reduced-motion/coarse-pointer
- * guard) with an eighth entirely distinct visual identity, per the
- * brief's explicit "must feel clearly different from Tours":
- * - Tours: a bird's-eye topographic map, a winding trail, waypoints —
- *   route, movement, exploration, always in motion toward somewhere.
- * - Attractions (this file): a single stepped heritage monument at
- *   rest, framed by an editorial travel-guide card (caption lines, a
- *   folded corner, a landmark pin) — place, culture, story, a
- *   destination itself rather than the path to one.
+ * AttractionsTopBackground — Step 2.8 established the heritage-monument/
+ * editorial-card environment; this pass (TOP live-scene motion upgrade,
+ * category 8 of 9) strengthens it into a small directed "discovering the
+ * landmark" scene:
  *
- * - FAR: a cool stone/editorial atmosphere (navy fading to a muted
- *   stone-beige near the horizon — never Tours' daylight blue or
- *   Villa's warm dusk) with a low, blurred stepped-monument silhouette
- *   and a warm heritage-site horizon glow.
- * - MID: a larger, nearer stepped monument traced in restrained line
- *   art (never filled/literal), a small landmark pin marker, and one
- *   editorial "travel guide" card plane — a rectangle with a folded
- *   corner and three thin caption lines, the brief's own "restrained
- *   document/map texture," never a busy museum-cliché illustration.
- * - NEAR: a soft gold highlight near the monument, a translucent
- *   foreground paper-corner shape, and a faint haze.
+ * - VISITOR: a restrained visitor silhouette appears near the monument,
+ *   pausing to take it in, then fades — the same "pause not passage"
+ *   logic Apartment/Villa/Guest House already established (a visitor
+ *   stands and looks, they don't walk through toward the viewer).
+ * - ARCHITECTURE: the monument outline reveals itself once via
+ *   `stroke-dashoffset` (measured from the real path length at mount,
+ *   the same technique Tours' route-progress overlay uses) — a single
+ *   considered reveal, never a repeatedly-redrawn loop (brief §11: "do
+ *   not repeatedly redraw everything in a distracting loop").
+ * - LIGHT: a slow golden-hour highlight sweeps once across the monument,
+ *   coordinated with the reveal.
+ * - EDITORIAL: the card plane now has its own gentle, independent float
+ *   (alongside the existing `.paperCorner` CSS drift), a subtler depth
+ *   layer than the monument itself.
  *
- * All continuous motion (the horizon glow breathing, the caption-line
- * reveal, the paper-corner drift) is slow and low-amplitude — the
- * brief's own explicit "no museum cliché graphics, no giant landmark
- * icons, no neon, no fast motion, no bouncing, no gaming-map
- * aesthetics" — and switched off entirely under `prefers-reduced-
- * motion`, settling into one deliberate static frame, exactly like the
- * sibling environments' own `.static` treatment.
+ * The GSAP timeline (`useGsapScene`) is never created under
+ * `prefers-reduced-motion` and is paused via IntersectionObserver
+ * whenever this stage scrolls out of view — see CarRentalTopBackground.jsx's
+ * own header comment for the identical reasoning, not repeated per
+ * category.
  */
 
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import useReducedMotion from '../../../../hooks/useReducedMotion.js';
+import useGsapScene from '../../../../components/SceneKit/useGsapScene.js';
 import styles from './AttractionsTopBackground.module.scss';
 
 export default function AttractionsTopBackground() {
   const rootRef = useRef(null);
   const rafRef = useRef(null);
+  const visitorRef = useRef(null);
+  const monumentOutlineRef = useRef(null);
+  const monumentHighlightRef = useRef(null);
+  const cardRef = useRef(null);
   const prefersReducedMotion = useReducedMotion();
   const isCoarsePointer =
     typeof window !== 'undefined' &&
@@ -76,6 +74,64 @@ export default function AttractionsTopBackground() {
     };
   }, [parallaxDisabled]);
 
+  const buildTimeline = useCallback((gsap) => {
+    // `getTotalLength()` isn't implemented in jsdom (this repo's test
+    // environment) — a fixed fallback keeps the timeline buildable there
+    // without special-casing tests; every real browser measures the
+    // actual path (see ToursTopBackground.jsx's identical precedent).
+    const pathLength =
+      typeof monumentOutlineRef.current.getTotalLength === 'function'
+        ? monumentOutlineRef.current.getTotalLength()
+        : 420;
+    gsap.set(monumentOutlineRef.current, {
+      strokeDasharray: pathLength,
+      strokeDashoffset: pathLength,
+    });
+    gsap.set(visitorRef.current, { opacity: 0 });
+    gsap.set(monumentHighlightRef.current, { opacity: 0, xPercent: -110 });
+
+    const tl = gsap.timeline({
+      repeat: -1,
+      repeatDelay: 2.5,
+      defaults: { ease: 'power1.inOut' },
+    });
+
+    // Editorial: the card plane floats gently, independent of the main
+    // timeline — a subtler depth layer than the monument.
+    const cardFloat = gsap.to(cardRef.current, {
+      y: -4,
+      duration: 4.5,
+      yoyo: true,
+      repeat: -1,
+      ease: 'sine.inOut',
+    });
+
+    // Architecture: the outline reveals itself once, considered — never
+    // a repeated redraw.
+    tl.to(monumentOutlineRef.current, {
+      strokeDashoffset: 0,
+      duration: 3.5,
+      ease: 'power1.inOut',
+    });
+
+    // Light: the golden hour catches the monument once, following the
+    // reveal.
+    tl.to(
+      monumentHighlightRef.current,
+      { opacity: 0.5, xPercent: 110, duration: 2.6, ease: 'sine.inOut' },
+      2.8,
+    );
+    tl.to(monumentHighlightRef.current, { opacity: 0, duration: 1 }, 5.2);
+
+    // Visitor: someone pauses to take in the landmark.
+    tl.to(visitorRef.current, { opacity: 0.8, duration: 1.2 }, 1.8);
+    tl.to(visitorRef.current, { opacity: 0, duration: 1 }, 5.6);
+
+    return [tl, cardFloat];
+  }, []);
+
+  useGsapScene(rootRef, buildTimeline, prefersReducedMotion);
+
   return (
     <div
       ref={rootRef}
@@ -108,11 +164,37 @@ export default function AttractionsTopBackground() {
         preserveAspectRatio="xMidYMax slice"
         focusable="false"
       >
-        {/* The nearer monument — restrained architectural line art,
-            never a filled/literal illustration. */}
+        <defs>
+          <linearGradient
+            id="attractionsMonumentHighlight"
+            x1="0"
+            y1="0"
+            x2="1"
+            y2="0"
+          >
+            <stop offset="0%" stopColor="#d4af37" stopOpacity="0" />
+            <stop offset="50%" stopColor="#d4af37" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#d4af37" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {/* The nearer monument — restrained architectural line art, now
+            revealed once via `stroke-dashoffset` rather than appearing
+            instantly. */}
         <path
+          ref={monumentOutlineRef}
           className={styles.monumentOutline}
           d="M120 240 L120 200 L150 200 L150 170 L180 170 L180 145 L220 145 L220 170 L250 170 L250 200 L280 200 L280 240"
+        />
+        {/* The golden-hour highlight sweeping once across the monument. */}
+        <rect
+          ref={monumentHighlightRef}
+          className={styles.monumentHighlight}
+          x="120"
+          y="140"
+          width="160"
+          height="100"
+          fill="url(#attractionsMonumentHighlight)"
+          opacity="0"
         />
         <line
           className={styles.monumentSpire}
@@ -124,10 +206,26 @@ export default function AttractionsTopBackground() {
         {/* A small landmark pin — "discovery," never a giant icon. */}
         <circle className={styles.pin} cx="200" cy="190" r="4" />
         <line className={styles.pinStem} x1="200" y1="194" x2="200" y2="206" />
+        {/* The visitor — a restrained silhouette pausing to take in the
+            landmark. Default opacity 0.7 below is the considered resting
+            frame rendered under reduced motion, when the GSAP timeline
+            that would fade it in/out is never built. */}
+        <g
+          ref={visitorRef}
+          className={styles.visitor}
+          transform="translate(100 205) scale(0.55)"
+          opacity="0.7"
+        >
+          <circle className={styles.visitorHead} cx="0" cy="0" r="4" />
+          <path
+            className={styles.visitorBody}
+            d="M-4 6 Q0 4 4 6 L5 26 Q3 30 0 30 Q-3 30 -5 26 Z"
+          />
+        </g>
         {/* An editorial "travel guide" card plane — a folded-corner
-            rectangle with restrained caption lines, the brief's own
-            "document/map texture." */}
-        <g className={styles.card}>
+            rectangle with restrained caption lines, now with its own
+            gentle independent float. */}
+        <g ref={cardRef} className={styles.card}>
           <path d="M290 66 L360 66 L360 128 L290 128 Z M348 66 L360 78 L348 78 Z" />
           <line className={styles.caption} x1="300" y1="92" x2="350" y2="92" />
           <line
