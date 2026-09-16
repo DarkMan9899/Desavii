@@ -1,40 +1,33 @@
 /**
- * ToursTopBackground — Step 2.7 (Tours TOP background only). Mirrors the
- * six existing dedicated category environments' own established
- * technique (FAR/MID/NEAR depth, pointer-parallax via CSS custom
- * properties on a DOM ref, reduced-motion/coarse-pointer guard) with a
- * seventh entirely distinct visual identity, per the brief's explicit
- * "must feel clearly different from Villa":
- * - Villa: a dusk mountain horizon, a minimal roofline, terrace lines —
- *   calm retreat, landscape, luxury, at rest.
- * - Car Rental: a straight perspective road/highway, driver's-eye
- *   view — mobility, paved travel.
- * - Tours (this file): a bird's-eye topographic map — layered mountain
- *   silhouettes under a cool daylight-blue horizon (never Villa's warm
- *   dusk), nested contour lines tracing a hillside, and a winding
- *   dashed trail with waypoint nodes climbing across it — movement,
- *   discovery, itinerary, never a paved road or a calm retreat.
+ * ToursTopBackground — Step 2.7 established the topographic-map/winding-
+ * trail environment; this pass (TOP live-scene motion upgrade, category
+ * 7 of 9) strengthens it into a small directed "journey unfolding" scene:
  *
- * - FAR: a deep-blue daylight atmosphere with two layered, sharper
- *   mountain-ridge silhouettes and a cool blue horizon glow — distinct
- *   from Villa's warm amber dusk and Car Rental's own atmosphere.
- * - MID: three nested organic contour lines (a topographic map's own
- *   elevation-line language) plus a winding dashed route climbing
- *   across them, with waypoint nodes along its length that pulse
- *   gently.
- * - NEAR: a restrained gold glow along the route, a few soft drifting
- *   haze particles, and a faint cool foreground light wash.
+ * - TRAVELER: a restrained hiker silhouette travels the winding trail,
+ *   stopping briefly at each of the 4 waypoint nodes in turn — an actual
+ *   journey along the existing route, not a generic traversal like Car
+ *   Rental's straight road.
+ * - ROUTE STORY: a second gold overlay stroke (`.routeProgress`, same
+ *   path as the ambient `.route`) reveals itself progressively via
+ *   `stroke-dashoffset` (measured from the real path length at mount),
+ *   timed with the hiker — the trail visibly gets "traveled," not just
+ *   texturally animated. Waypoints activate in sequence as the hiker
+ *   reaches each one, replacing their independent simultaneous pulse.
+ * - TERRAIN: unchanged — ridgeFar/ridgeNear already carry distinct
+ *   parallax tiers from Step 2.7.
+ * - MAP: the three contour lines now carry a very slow, subtle opacity
+ *   drift (a "the map is alive" read), independent of the main timeline.
  *
- * All continuous motion (the route's dash movement, the waypoint pulse,
- * the haze particle drift) is slow and low-amplitude — the brief's own
- * explicit "no racing feel, no gaming map, no neon route lines, no fast
- * motion, no bouncing, no giant zoom" — and switched off entirely under
- * `prefers-reduced-motion`, settling into one deliberate static frame,
- * exactly like the sibling environments' own `.static` treatment.
+ * The GSAP timeline (`useGsapScene`) is never created under
+ * `prefers-reduced-motion` and is paused via IntersectionObserver
+ * whenever this stage scrolls out of view — see CarRentalTopBackground.jsx's
+ * own header comment for the identical reasoning, not repeated per
+ * category.
  */
 
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import useReducedMotion from '../../../../hooks/useReducedMotion.js';
+import useGsapScene from '../../../../components/SceneKit/useGsapScene.js';
 import styles from './ToursTopBackground.module.scss';
 
 // Waypoint nodes along the winding route — deterministic positions and
@@ -49,6 +42,10 @@ const WAYPOINTS = [
 export default function ToursTopBackground() {
   const rootRef = useRef(null);
   const rafRef = useRef(null);
+  const hikerRef = useRef(null);
+  const routeProgressRef = useRef(null);
+  const waypointRefs = useRef([]);
+  const contourRefs = useRef([]);
   const prefersReducedMotion = useReducedMotion();
   const isCoarsePointer =
     typeof window !== 'undefined' &&
@@ -84,6 +81,91 @@ export default function ToursTopBackground() {
       onPointerLeave: handlePointerLeave,
     };
   }, [parallaxDisabled]);
+
+  const buildTimeline = useCallback((gsap) => {
+    // `getTotalLength()` isn't implemented in jsdom (this repo's test
+    // environment) — a fixed fallback keeps the timeline buildable there
+    // without special-casing tests; every real browser measures the
+    // actual path.
+    const pathLength =
+      typeof routeProgressRef.current.getTotalLength === 'function'
+        ? routeProgressRef.current.getTotalLength()
+        : 480;
+    gsap.set(routeProgressRef.current, {
+      opacity: 1,
+      strokeDasharray: pathLength,
+      strokeDashoffset: pathLength,
+    });
+    gsap.set(hikerRef.current, {
+      attr: {
+        transform: `translate(${WAYPOINTS[0].cx} ${WAYPOINTS[0].cy}) scale(0.4)`,
+      },
+      opacity: 0,
+    });
+
+    const tl = gsap.timeline({
+      repeat: -1,
+      repeatDelay: 2,
+      defaults: { ease: 'power1.inOut' },
+    });
+
+    // The map feels alive — a very slow, subtle contour drift,
+    // independent of the main journey timeline.
+    const contourDrift = gsap.to(contourRefs.current.filter(Boolean), {
+      opacity: 0.7,
+      duration: 5,
+      yoyo: true,
+      repeat: -1,
+      stagger: 0.8,
+      ease: 'sine.inOut',
+    });
+
+    tl.to(hikerRef.current, { opacity: 0.7, duration: 0.6 }, 0);
+    tl.to(
+      routeProgressRef.current,
+      { strokeDashoffset: 0, duration: 6.5, ease: 'power1.inOut' },
+      0,
+    );
+
+    // The hiker travels waypoint to waypoint, pausing briefly at each —
+    // the "journey unfolding" read, timed with the route reveal above.
+    const legTimes = [0, 1.8, 3.6, 5.2];
+    WAYPOINTS.forEach((point, index) => {
+      if (index === 0) return;
+      tl.to(
+        hikerRef.current,
+        {
+          attr: { transform: `translate(${point.cx} ${point.cy}) scale(0.4)` },
+          duration: 1.4,
+        },
+        legTimes[index - 1],
+      );
+    });
+
+    // Waypoints activate in sequence as the hiker reaches each one.
+    waypointRefs.current.forEach((el, index) => {
+      if (!el) return;
+      tl.fromTo(
+        el,
+        { opacity: 0.35, scale: 1 },
+        {
+          opacity: 1,
+          scale: 1.5,
+          duration: 0.5,
+          yoyo: true,
+          repeat: 1,
+          transformOrigin: 'center',
+        },
+        legTimes[index],
+      );
+    });
+
+    tl.to(hikerRef.current, { opacity: 0, duration: 0.8 }, 6.4);
+
+    return [tl, contourDrift];
+  }, []);
+
+  useGsapScene(rootRef, buildTimeline, prefersReducedMotion);
 
   return (
     <div
@@ -124,29 +206,50 @@ export default function ToursTopBackground() {
         focusable="false"
       >
         {/* Nested organic contour lines — a topographic map's own
-            elevation-line language, the "map/contour lines" the brief
-            asks for, never a literal illustrated hill. */}
+            elevation-line language, now with a very slow, subtle drift
+            (motion upgrade §10: "the map is alive"). */}
         <path
+          ref={(el) => {
+            contourRefs.current[0] = el;
+          }}
           className={styles.contour}
           d="M80 200 Q120 170 180 180 Q240 190 260 220 Q230 250 160 245 Q100 240 80 200 Z"
         />
         <path
+          ref={(el) => {
+            contourRefs.current[1] = el;
+          }}
           className={styles.contour}
           d="M110 205 Q140 185 180 190 Q220 195 230 215 Q210 235 165 232 Q125 230 110 205 Z"
         />
         <path
+          ref={(el) => {
+            contourRefs.current[2] = el;
+          }}
           className={styles.contourInner}
           d="M140 210 Q160 198 185 200 Q205 203 210 215 Q198 225 170 224 Q148 222 140 210 Z"
         />
-        {/* A winding dashed trail climbing across the terrain — never a
-            straight perspective road. */}
+        {/* A winding dashed trail climbing across the terrain — the
+            ambient texture stays exactly as Step 2.7 built it. */}
         <path
           className={styles.route}
           d="M20 235 Q80 210 100 180 Q130 140 170 130 Q220 118 250 90 Q290 65 340 50"
         />
-        {WAYPOINTS.map((point) => (
+        {/* The traveled portion of the trail — reveals progressively via
+            `strokeDashoffset`, timed with the hiker (motion upgrade §10:
+            "route progresses visibly through waypoints"). */}
+        <path
+          ref={routeProgressRef}
+          className={styles.routeProgress}
+          d="M20 235 Q80 210 100 180 Q130 140 170 130 Q220 118 250 90 Q290 65 340 50"
+          opacity="0"
+        />
+        {WAYPOINTS.map((point, index) => (
           <circle
             key={point.cx}
+            ref={(el) => {
+              waypointRefs.current[index] = el;
+            }}
             className={styles.waypoint}
             cx={point.cx}
             cy={point.cy}
@@ -154,6 +257,23 @@ export default function ToursTopBackground() {
             style={{ '--delay': point.delay }}
           />
         ))}
+        {/* The hiker — a restrained silhouette traveling the trail.
+            Default transform/no inline opacity below is the considered
+            resting frame (waiting at the trailhead, faint) rendered
+            under reduced motion, when the GSAP timeline that would move/
+            fade it is never built. */}
+        <g
+          ref={hikerRef}
+          className={styles.hiker}
+          transform={`translate(${WAYPOINTS[0].cx} ${WAYPOINTS[0].cy}) scale(0.4)`}
+          opacity="0.4"
+        >
+          <circle className={styles.hikerHead} cx="0" cy="0" r="4" />
+          <path
+            className={styles.hikerBody}
+            d="M-4 6 Q0 4 4 6 L5 24 Q3 28 0 28 Q-3 28 -5 24 Z"
+          />
+        </g>
       </svg>
 
       <div className={styles.near}>

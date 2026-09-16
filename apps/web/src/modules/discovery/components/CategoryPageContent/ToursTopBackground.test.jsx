@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, cleanup } from '@testing-library/react';
+import gsap from 'gsap';
 import ToursTopBackground from './ToursTopBackground.jsx';
 
 function mockMatchMedia(matches) {
@@ -13,6 +14,7 @@ function mockMatchMedia(matches) {
 
 describe('ToursTopBackground (Step 2.7 — Tours TOP background only)', () => {
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -59,5 +61,66 @@ describe('ToursTopBackground (Step 2.7 — Tours TOP background only)', () => {
     expect(container.querySelector('[class*="particleA"]')).toBeInTheDocument();
     expect(container.querySelector('[class*="particleB"]')).toBeInTheDocument();
     expect(container.querySelector('[class*="particleC"]')).toBeInTheDocument();
+  });
+
+  // TOP live-scene motion upgrade — the hiker + route progress.
+  describe('the hiker and the route progress', () => {
+    test('the hiker renders at the trailhead with a considered resting opacity, and the route-progress overlay is present', () => {
+      mockMatchMedia(true);
+      const { container } = render(<ToursTopBackground />);
+      const hiker = container.querySelector('g[class*="_hiker_"]');
+      expect(hiker).toBeInTheDocument();
+      expect(hiker).toHaveAttribute(
+        'transform',
+        'translate(20 235) scale(0.4)',
+      );
+      expect(hiker.style.opacity).toBe('');
+      expect(
+        container.querySelector('[class*="routeProgress"]'),
+      ).toBeInTheDocument();
+    });
+
+    test('never builds any GSAP animation under prefers-reduced-motion', () => {
+      mockMatchMedia(true);
+      const timelineSpy = vi.spyOn(gsap, 'timeline');
+      const toSpy = vi.spyOn(gsap, 'to');
+      render(<ToursTopBackground />);
+      expect(timelineSpy).not.toHaveBeenCalled();
+      expect(toSpy).not.toHaveBeenCalled();
+    });
+
+    test('travels the hiker through the waypoints and reveals the route progress via the main timeline; drifts the contours via an independent tween', () => {
+      mockMatchMedia(false);
+      const timelineSpy = vi.spyOn(gsap, 'timeline');
+      const toSpy = vi.spyOn(gsap, 'to');
+      const { container } = render(<ToursTopBackground />);
+      expect(timelineSpy).toHaveBeenCalledTimes(1);
+
+      const timeline = timelineSpy.mock.results[0].value;
+      const hiker = container.querySelector('g[class*="_hiker_"]');
+      const routeProgress = container.querySelector('[class*="routeProgress"]');
+
+      expect(hiker.getAttribute('transform')).toBe(
+        'translate(20 235) scale(0.4)',
+      );
+
+      timeline.progress(0.9);
+      expect(hiker.getAttribute('transform')).not.toBe(
+        'translate(20 235) scale(0.4)',
+      );
+      expect(Number(routeProgress.style.strokeDashoffset)).toBeLessThan(480);
+      timeline.progress(1);
+      timeline.kill();
+
+      const contourNodes = container.querySelectorAll('path[class*="contour"]');
+      const driftCalls = toSpy.mock.calls.filter(
+        ([target, vars]) =>
+          Array.isArray(target) &&
+          vars.repeat === -1 &&
+          target.some((node) => contourNodes[0] === node),
+      );
+      expect(driftCalls).toHaveLength(1);
+      gsap.killTweensOf(Array.from(contourNodes));
+    });
   });
 });
