@@ -120,6 +120,17 @@
   animation-duration: 5.5s;
 }
 
+// --- The living cue: a resident on the balcony --------------------------
+
+.resident {
+  transform-box: fill-box;
+}
+
+.residentHead,
+.residentBody {
+  fill: rgba(6, 14, 24, 0.75);
+}
+
 // --- NEAR: soft glow + glass highlight -----------------------------------
 
 .near {
@@ -243,10 +254,14 @@
 // highlight are the most detail-dense elements at a size where they'd
 // read as noise; Building A's own window grid and the skyline still
 // carry the "apartment/city" read on their own.
+// The resident silhouette is a secondary/atmospheric cue, not this
+// category's own primary identifier (the window grid itself is) — hidden
+// at mobile alongside the other detail-dense extras (brief §15).
 @media (max-width: 767px) {
   .buildingB,
   .glowB,
-  .glassPanel {
+  .glassPanel,
+  .resident {
     display: none;
   }
 }

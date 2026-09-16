@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, cleanup } from '@testing-library/react';
+import gsap from 'gsap';
 import ApartmentTopBackground from './ApartmentTopBackground.jsx';
 
 function mockMatchMedia(matches) {
@@ -13,6 +14,7 @@ function mockMatchMedia(matches) {
 
 describe('ApartmentTopBackground (Step 2.3 — Apartment TOP background only)', () => {
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -55,5 +57,42 @@ describe('ApartmentTopBackground (Step 2.3 — Apartment TOP background only)', 
     expect(
       container.querySelector('[class*="glassPanel"]'),
     ).toBeInTheDocument();
+  });
+
+  // TOP live-scene motion upgrade — the resident living cue.
+  describe('the resident', () => {
+    test('renders on the balcony with a considered resting opacity', () => {
+      mockMatchMedia(true);
+      const { container } = render(<ApartmentTopBackground />);
+      const resident = container.querySelector('g[class*="_resident_"]');
+      expect(resident).toBeInTheDocument();
+      expect(resident).toHaveAttribute('opacity', '0.7');
+      expect(resident.style.opacity).toBe('');
+    });
+
+    test('never builds a GSAP timeline under prefers-reduced-motion', () => {
+      mockMatchMedia(true);
+      const timelineSpy = vi.spyOn(gsap, 'timeline');
+      render(<ApartmentTopBackground />);
+      expect(timelineSpy).not.toHaveBeenCalled();
+    });
+
+    test('builds a coordinated GSAP timeline that fades the resident in on the balcony', () => {
+      mockMatchMedia(false);
+      const timelineSpy = vi.spyOn(gsap, 'timeline');
+      const { container } = render(<ApartmentTopBackground />);
+      expect(timelineSpy).toHaveBeenCalledTimes(1);
+
+      const timeline = timelineSpy.mock.results[0].value;
+      const resident = container.querySelector('g[class*="_resident_"]');
+
+      expect(resident.style.opacity).toBe('0');
+
+      timeline.progress(0.3);
+      expect(Number(resident.style.opacity)).toBeGreaterThan(0);
+
+      timeline.progress(1);
+      timeline.kill();
+    });
   });
 });

@@ -1,37 +1,33 @@
 /**
- * ApartmentTopBackground — Step 2.3 (Apartment TOP background only).
- * Mirrors `CarRentalTopBackground.jsx`/`HotelTopBackground.jsx`'s own
- * established technique (FAR/MID/NEAR depth, pointer-parallax via CSS
- * custom properties on a DOM ref, reduced-motion/coarse-pointer guard) —
- * the same proven pattern reused for a third dedicated category
- * environment, with its own distinct visual identity per the brief's
- * explicit "must feel clearly different from Hotel" requirement:
- * - Hotel: a single corridor of arches — refined hospitality, warmth.
- * - Car Rental: a road/route receding into depth — mobility.
- * - Apartment (this file): two layered building facades, each its own
- *   grid of windows — modern residential city living, never a corridor
- *   or a road.
+ * ApartmentTopBackground — Step 2.3 established the two-building window-
+ * grid environment; this pass (TOP live-scene motion upgrade, category 3
+ * of 9) strengthens it into a small directed "evening at home" scene:
  *
- * - FAR: a deep navy city atmosphere with a low, blurred multi-building
- *   skyline silhouette (several rectangular towers at varying heights —
- *   reads as "city," never a single hospitality facade).
- * - MID: two layered apartment-building planes (nearer/larger and
- *   farther/smaller, the depth cue), each a real grid of windows — most
- *   dim, a handful lit gold and gently pulsing (never flashing), plus a
- *   couple of thin balcony lines on the nearer building.
- * - NEAR: soft gold window-glow bokeh and one translucent glass-panel
- *   highlight — restrained foreground light, never a hard shape.
+ * - LIVING CUE: a restrained person silhouette appears on Building A's
+ *   upper balcony — stepping out, lingering, stepping back in — never a
+ *   traversal like Car Rental's car or Hotel's guest (an apartment
+ *   balcony is a place someone pauses, not passes through).
+ * - WINDOW STORY: Building A's lit windows no longer just pulse
+ *   independently — a GSAP timeline turns them on in a deterministic
+ *   reading-order sequence (top row to bottom), timed with the balcony
+ *   figure's appearance, so it reads as "evening settling in," never
+ *   random blinking.
+ * - REFLECTION: the existing glass-panel highlight now sweeps slowly
+ *   across the facade instead of sitting static.
+ * - DEPTH: unchanged — Building A/B already carry distinct (and
+ *   opposite-direction) parallax multipliers from Step 2.3, already the
+ *   "nearer reacts more" cue this category needs.
  *
- * The window grid is generated (not hand-authored rect-by-rect like the
- * road/arch paths in the sibling files) because a repeating grid is the
- * one shape in this set genuinely suited to a small loop rather than
- * dozens of near-identical hardcoded elements — window positions and
- * which ones are "lit" are fully deterministic (no `Math.random`), so
- * server-rendered and client-rendered markup always match.
+ * The GSAP timeline (`useGsapScene`) is never created under
+ * `prefers-reduced-motion` and is paused via IntersectionObserver
+ * whenever this stage scrolls out of view — see CarRentalTopBackground.jsx's
+ * own header comment for the identical reasoning, not repeated per
+ * category.
  */
 
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import useReducedMotion from '../../../../hooks/useReducedMotion.js';
+import useGsapScene from '../../../../components/SceneKit/useGsapScene.js';
 import styles from './ApartmentTopBackground.module.scss';
 
 // [column, row] pairs that are "lit" — deterministic, hand-picked for a
@@ -39,6 +35,10 @@ import styles from './ApartmentTopBackground.module.scss';
 // regularity.
 const BUILDING_A_LIT = new Set(['0,1', '2,0', '3,2', '1,3']);
 const BUILDING_B_LIT = new Set(['1,0', '2,2']);
+// Reading-order sequence (top row to bottom) the GSAP timeline lights
+// Building A's own lit windows in — a separate, deliberate order from
+// the Set above (insertion order there is arbitrary).
+const BUILDING_A_LIGHT_SEQUENCE = ['2,0', '0,1', '1,3', '3,2'];
 
 function buildWindowGrid({
   columns,
@@ -57,6 +57,7 @@ function buildWindowGrid({
       const isLit = litSet.has(`${col},${row}`);
       windows.push({
         key: `${col}-${row}`,
+        gridKey: `${col},${row}`,
         x: originX + col * (cellWidth + gap),
         y: originY + row * (cellHeight + gap),
         isLit,
@@ -70,6 +71,9 @@ function buildWindowGrid({
 export default function ApartmentTopBackground() {
   const rootRef = useRef(null);
   const rafRef = useRef(null);
+  const residentRef = useRef(null);
+  const glassPanelRef = useRef(null);
+  const buildingAWindowRefs = useRef({});
   const prefersReducedMotion = useReducedMotion();
   const isCoarsePointer =
     typeof window !== 'undefined' &&
@@ -136,6 +140,63 @@ export default function ApartmentTopBackground() {
       onPointerLeave: handlePointerLeave,
     };
   }, [parallaxDisabled]);
+
+  const buildTimeline = useCallback((gsap) => {
+    const tl = gsap.timeline({
+      repeat: -1,
+      repeatDelay: 2,
+      defaults: { ease: 'power1.inOut' },
+    });
+
+    gsap.set(residentRef.current, { opacity: 0 });
+    // `skewX` is repeated in every tween below (not just this initial
+    // `set`) — GSAP composes its own transform properties into one
+    // `transform` value, so once GSAP owns this element's transform, the
+    // static SCSS `skewX(-8deg)` rule is no longer read; the skew has to
+    // travel with every GSAP call that touches this element's transform.
+    gsap.set(glassPanelRef.current, { xPercent: -30, skewX: -8, opacity: 0 });
+
+    // Window story: the evening settles in, top row to bottom.
+    BUILDING_A_LIGHT_SEQUENCE.forEach((gridKey, index) => {
+      const el = buildingAWindowRefs.current[gridKey];
+      if (!el) return;
+      tl.fromTo(
+        el,
+        { opacity: 0.35, scale: 1 },
+        {
+          opacity: 1,
+          scale: 1.15,
+          duration: 0.7,
+          yoyo: true,
+          repeat: 1,
+          transformOrigin: 'center',
+        },
+        index * 0.5,
+      );
+    });
+
+    // Living cue: someone steps onto the balcony, lingers, steps back in.
+    tl.to(residentRef.current, { opacity: 0.9, duration: 1.2 }, 1.2);
+    tl.to(residentRef.current, { opacity: 0, duration: 1 }, 3.6);
+
+    // Reflection: a slow light sweep across the facade.
+    tl.to(
+      glassPanelRef.current,
+      {
+        xPercent: 130,
+        skewX: -8,
+        opacity: 0.6,
+        duration: 4,
+        ease: 'sine.inOut',
+      },
+      0.8,
+    );
+    tl.to(glassPanelRef.current, { opacity: 0, duration: 1 }, 4.4);
+
+    return tl;
+  }, []);
+
+  useGsapScene(rootRef, buildTimeline, prefersReducedMotion);
 
   return (
     <div
@@ -208,6 +269,13 @@ export default function ApartmentTopBackground() {
           {buildingAWindows.map((win) => (
             <rect
               key={win.key}
+              ref={
+                win.isLit
+                  ? (el) => {
+                      buildingAWindowRefs.current[win.gridKey] = el;
+                    }
+                  : undefined
+              }
               className={win.isLit ? styles.windowLit : styles.windowDim}
               x={win.x}
               y={win.y}
@@ -217,15 +285,31 @@ export default function ApartmentTopBackground() {
               style={win.isLit ? { '--delay': win.delay } : undefined}
             />
           ))}
+          {/* The living cue — a restrained resident silhouette on the
+              upper balcony. Default opacity 0.7 below is the considered
+              resting frame rendered under reduced motion, when the GSAP
+              timeline that would fade it in/out is never built. */}
+          <g
+            ref={residentRef}
+            className={styles.resident}
+            transform="translate(150 138) scale(0.6)"
+            opacity="0.7"
+          >
+            <circle className={styles.residentHead} cx="0" cy="0" r="4" />
+            <path
+              className={styles.residentBody}
+              d="M-4 6 Q0 4 4 6 L5 24 Q3 28 0 28 Q-3 28 -5 24 Z"
+            />
+          </g>
         </g>
       </svg>
 
       <div className={styles.near}>
         <span className={[styles.glow, styles.glowA].join(' ')} />
         <span className={[styles.glow, styles.glowB].join(' ')} />
-        {/* A soft translucent glass-panel highlight — the "subtle
-            foreground glass/light shape" the brief asks for. */}
-        <span className={styles.glassPanel} />
+        {/* A soft translucent glass-panel highlight — now sweeps slowly
+            across the facade (motion upgrade §6: "reflection"). */}
+        <span ref={glassPanelRef} className={styles.glassPanel} />
       </div>
 
       <div className={styles.vignette} />
