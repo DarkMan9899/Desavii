@@ -418,6 +418,33 @@
   background-color: rgba(tokens.$color-gold, 0.1);
 }
 
+// Restaurant internal-design pass — the four siblings above have now
+// used every LIGHT treatment this design system's tokens support (gold
+// fill, navy fill, ink outline, gold wash); Restaurant is also the one
+// category that can render 2+ chips at once (cuisine is multi-valued,
+// plus its own price-tier chip — see `buildHeadlineChip`/`SearchResultCard.jsx`'s
+// own cuisine/price_tier handling), so a genuinely different FORM reads
+// better at that density than a fifth light variant. This inverts the
+// pattern instead — a dark ink "plaque" with warm gold text/icon, brief
+// §10's own suggested "dark ink + warm metallic detail... table-service
+// feeling" realized directly with existing tokens (`$color-ink` +
+// `$color-gold`), never an invented burgundy hex. `0.9` alpha (not
+// fully opaque) keeps it from ever reading as a solid black block
+// against the card's own white body.
+.card[data-category='restaurants'] .metaChip {
+  background-color: rgba(tokens.$color-ink, 0.9);
+  color: tokens.$color-gold;
+  font-weight: 600;
+}
+
+.card[data-category='restaurants'] .metaChipIcon {
+  color: tokens.$color-gold;
+}
+
+.card[data-category='restaurants']:hover .metaChip {
+  background-color: tokens.$color-ink;
+}
+
 // A visual footer, not just the last flex item — a hairline separates
 // price from the descriptive content above it, so it reads as the
 // card's one settled fact rather than another line of prose.
@@ -488,4 +515,17 @@
 .card[data-category='guest-houses'] .priceRow {
   background-color: rgba(tokens.$color-gold, 0.05);
   border-radius: tokens.$radius-sm;
+}
+
+// Restaurant internal-design pass — combines both existing techniques
+// (a wash AND a hairline, never used together by a sibling above) so
+// the two-tone identity established by the metaChip treatment — dark
+// ink, warm gold accent — carries through to the price footer too: a
+// faint ink wash for "evening dining room," with a gold hairline for
+// "warm metallic detail," brief §9/§10's own explicit language. Never
+// changes `.priceRow`'s own padding/size — purely paint.
+.card[data-category='restaurants'] .priceRow {
+  background-color: rgba(tokens.$color-ink, 0.04);
+  border-radius: tokens.$radius-sm;
+  border-block-start-color: rgba(tokens.$color-gold, 0.3);
 }

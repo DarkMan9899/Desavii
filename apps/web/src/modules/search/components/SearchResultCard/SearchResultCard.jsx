@@ -22,7 +22,14 @@
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { MapPin, Star, BedDouble, Clock, Settings2 } from 'lucide-react';
+import {
+  MapPin,
+  Star,
+  BedDouble,
+  Clock,
+  Settings2,
+  Utensils,
+} from 'lucide-react';
 import ListingCardBase from '../../../../components/ListingCardBase/ListingCardBase.jsx';
 import { FavoriteButton } from '../../../favorites/index.js';
 import { resolveCardConfig } from '../../../../utils/categoryCardConfig.js';
@@ -150,6 +157,7 @@ export default function SearchResultCard({
     ...(headlineChip ? [headlineChip] : []),
     ...(result.cuisine ?? []).map((code) => ({
       key: `cuisine-${code}`,
+      icon: Utensils,
       label: t(`search.dynamicFilters.options.${code}`, code),
     })),
     ...(result.price_tier
