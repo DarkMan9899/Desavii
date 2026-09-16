@@ -306,6 +306,32 @@
   color: tokens.$color-gray-400;
 }
 
+// Hotel internal-design pass — the star-rating chip is a trust/prestige
+// signal here (a real `star_rating` attribute, see `buildHeadlineChip`
+// in `SearchResultCard.jsx`), not a plain spec fact the way Apartments'
+// bedroom count or Car Rentals' transmission chip is — a warmer,
+// premium-badge treatment distinguishes it, reusing `$color-gold`'s own
+// documented role ("premium/verified badges only") and the
+// `$color-gold-strong`-on-`rgba($color-gold, 0.12)` pairing this file's
+// own tokens already establish as WCAG-AA-verified for exactly this
+// "color as text on the color's own 12%-tint background" role (see
+// `packages/ui/src/tokens/_colors.scss`'s own comment on `-strong`
+// tokens) — never a new/invented color. Scoped to `[data-category=
+// 'hotels']` only; every other category's `.metaChip` is untouched.
+.card[data-category='hotels'] .metaChip {
+  background-color: rgba(tokens.$color-gold, 0.12);
+  color: tokens.$color-gold-strong;
+  font-weight: 700;
+}
+
+.card[data-category='hotels'] .metaChipIcon {
+  color: tokens.$color-gold-strong;
+}
+
+.card[data-category='hotels']:hover .metaChip {
+  background-color: rgba(tokens.$color-gold, 0.18);
+}
+
 // A visual footer, not just the last flex item — a hairline separates
 // price from the descriptive content above it, so it reads as the
 // card's one settled fact rather than another line of prose.
@@ -330,4 +356,13 @@
 .priceSuffix {
   font-size: tokens.$font-size-small;
   color: tokens.$color-gray-600;
+}
+
+// Hotel internal-design pass — the price footer reads as a settled,
+// premium fact at rest (not just on hover, unlike Car Rentals' own
+// hover-only `.priceRow` accent above) — a restrained, always-on gold
+// hairline, matching the chip treatment above rather than a second,
+// unrelated accent color.
+.card[data-category='hotels'] .priceRow {
+  border-block-start-color: rgba(tokens.$color-gold, 0.4);
 }

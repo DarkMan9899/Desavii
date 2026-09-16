@@ -21,3 +21,15 @@
     color: tokens.$color-gray-400;
   }
 }
+
+// Hotel internal-design pass — "where" is one of the first things a
+// hospitality shopper scans for, so it earns a touch more legibility
+// than the plain secondary-text weight every other category keeps.
+// `[data-category='hotels']` is a real DOM attribute `ListingCardBase`
+// sets on the shared card root, not a class this file defines — reaches
+// this `.location` line (rendered inside that same card) without
+// touching any other category's own location row.
+[data-category='hotels'] .location {
+  color: tokens.$color-gray-900;
+  font-weight: 500;
+}
