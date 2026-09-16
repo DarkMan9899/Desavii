@@ -227,6 +227,34 @@ async function main() {
     // survives across crawls.
     // eslint-disable-next-line no-await-in-loop -- sequential by design, see above
     const page = await browser.newPage();
+
+    page.on('requestfailed', (request) => {
+      console.error(
+        `[prerender][requestfailed] ${entry.path} ${request.method()} ${request.url()} :: ${request.failure()?.errorText ?? 'unknown error'}`,
+      );
+    });
+
+    page.on('response', (response) => {
+      if (response.status() >= 400) {
+        console.error(
+          `[prerender][http ${response.status()}] ${entry.path} ${response.request().method()} ${response.url()}`,
+        );
+      }
+    });
+
+    page.on('pageerror', (error) => {
+      console.error(
+        `[prerender][pageerror] ${entry.path} :: ${error.message}`,
+      );
+    });
+
+    page.on('console', (message) => {
+      if (message.type() === 'error') {
+        console.error(
+          `[prerender][console.error] ${entry.path} :: ${message.text()}`,
+        );
+      }
+    });
     if (INTERNAL_BUILD_TOKEN) {
       // Applies to every request the page issues, including the app's own
       // cross-origin fetches to API_BASE_URL — same rate-limit-tier
