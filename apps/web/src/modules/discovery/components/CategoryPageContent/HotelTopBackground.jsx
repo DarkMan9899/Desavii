@@ -195,6 +195,7 @@ export default function HotelTopBackground() {
           width="280"
           height="130"
           fill="url(#hotelLightSweep)"
+          opacity="0"
         />
         {/* A receding corridor of nested archways — each its own
             parallax layer now, so depth separates by motion, not just

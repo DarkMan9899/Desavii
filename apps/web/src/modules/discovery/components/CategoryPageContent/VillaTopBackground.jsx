@@ -1,45 +1,41 @@
 /**
- * VillaTopBackground — Step 2.4 (Villa TOP background only). Mirrors the
- * three existing dedicated category environments' own established
- * technique (FAR/MID/NEAR depth, pointer-parallax via CSS custom
- * properties on a DOM ref, reduced-motion/coarse-pointer guard) with a
- * fourth entirely distinct visual identity, per the brief's explicit
- * "must NOT look like Hotel or Apartment" requirement:
- * - Hotel: a corridor of arches — hospitality, warmth.
- * - Car Rental: a road/route — mobility.
- * - Apartment: layered building window grids — residential city.
- * - Villa (this file): a dusk mountain horizon with a minimal, spacious
- *   villa roofline and terrace — private retreat, calm, landscape, never
- *   a building facade, corridor, or road.
+ * VillaTopBackground — Step 2.4 established the dusk mountain/terrace
+ * environment; this pass (TOP live-scene motion upgrade, category 4 of
+ * 9) strengthens it into a small directed "evening on the terrace" scene:
  *
- * - FAR: a dusk sky (navy fading to a warm amber near the horizon, the
- *   "cinematic escape" read) with two layered mountain-ridge silhouettes
- *   (nearer ridge darker/larger, farther ridge lighter/hazier — the real
- *   depth cue) and a warm sunset glow pooling at the horizon.
- * - MID: a minimal, low-profile villa roofline (a flat roof plane on two
- *   slender supports) and two terrace/infinity-edge lines with a thin
- *   gold accent — restrained geometric architecture, never a detailed
- *   facade, never windows.
- * - NEAR: two soft, blurred foreground foliage silhouettes (dark,
- *   shadowed — never a literal green palm, staying inside the brand's
- *   own navy/gold palette), a warm gold glow drifting slowly, and a
- *   faint atmospheric haze band.
+ * - HUMAN SCALE: a restrained person silhouette appears on the terrace,
+ *   gazing at the mountain view, then fades — a considered pause, never
+ *   a traversal (a villa terrace is a place to stand still and look, not
+ *   somewhere someone walks through, the same "pause not passage" logic
+ *   Apartment's own balcony resident already established).
+ * - NATURE: the two foreground foliage silhouettes now carry a slow,
+ *   subtle wind sway (a gentle rotation, never a shake) — Step 2.4 left
+ *   them entirely static.
+ * - LIGHT: a thin golden edge-highlight sweeps once along the roofline,
+ *   coordinated with the terrace figure's appearance — "the sun catching
+ *   the architecture," not a decorative loop on its own schedule.
+ * - DEPTH: unchanged — the far ridges/mid roofline/near foliage already
+ *   carry their own distinct parallax tiers from Step 2.4.
  *
- * All continuous motion (the sunset glow breathing, the haze drift, the
- * foreground glow) is slow and low-amplitude — the brief's own explicit
- * "no neon, no fast motion, no giant zoom, no bouncing, no fake luxury
- * gimmicks" — and switched off entirely under `prefers-reduced-motion`,
- * settling into one deliberate static frame, exactly like the sibling
- * environments' own `.static` treatment.
+ * The GSAP timeline (`useGsapScene`) is never created under
+ * `prefers-reduced-motion` and is paused via IntersectionObserver
+ * whenever this stage scrolls out of view — see CarRentalTopBackground.jsx's
+ * own header comment for the identical reasoning, not repeated per
+ * category.
  */
 
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import useReducedMotion from '../../../../hooks/useReducedMotion.js';
+import useGsapScene from '../../../../components/SceneKit/useGsapScene.js';
 import styles from './VillaTopBackground.module.scss';
 
 export default function VillaTopBackground() {
   const rootRef = useRef(null);
   const rafRef = useRef(null);
+  const visitorRef = useRef(null);
+  const roofHighlightRef = useRef(null);
+  const foliageARef = useRef(null);
+  const foliageBRef = useRef(null);
   const prefersReducedMotion = useReducedMotion();
   const isCoarsePointer =
     typeof window !== 'undefined' &&
@@ -76,6 +72,57 @@ export default function VillaTopBackground() {
     };
   }, [parallaxDisabled]);
 
+  const buildTimeline = useCallback((gsap) => {
+    const tl = gsap.timeline({
+      repeat: -1,
+      repeatDelay: 2.2,
+      defaults: { ease: 'sine.inOut' },
+    });
+
+    gsap.set(visitorRef.current, { opacity: 0 });
+    gsap.set(roofHighlightRef.current, { opacity: 0, xPercent: -110 });
+
+    // Wind: a slow, subtle sway — never a shake. Independent, continuous
+    // loops (not part of the main timeline — nesting an infinite-repeat
+    // child inside a finite parent would make the parent's own total
+    // duration infinite too), so the wind never pauses/resets with the
+    // visitor/light beats below. Returned alongside `tl` so
+    // `useGsapScene` still pauses them together when off-screen.
+    const windA = gsap.to(foliageARef.current, {
+      rotation: 2.5,
+      duration: 3.6,
+      yoyo: true,
+      repeat: -1,
+      ease: 'sine.inOut',
+      transformOrigin: '50% 100%',
+    });
+    const windB = gsap.to(foliageBRef.current, {
+      rotation: -2,
+      duration: 4.2,
+      yoyo: true,
+      repeat: -1,
+      ease: 'sine.inOut',
+      transformOrigin: '50% 100%',
+      delay: 0.8,
+    });
+
+    // Light: the sun catches the roofline edge once.
+    tl.to(
+      roofHighlightRef.current,
+      { opacity: 0.55, xPercent: 110, duration: 3, ease: 'sine.inOut' },
+      0,
+    );
+    tl.to(roofHighlightRef.current, { opacity: 0, duration: 1 }, 2.6);
+
+    // Human scale: someone steps onto the terrace to take in the view.
+    tl.to(visitorRef.current, { opacity: 0.85, duration: 1.4 }, 1.4);
+    tl.to(visitorRef.current, { opacity: 0, duration: 1.2 }, 4.2);
+
+    return [tl, windA, windB];
+  }, []);
+
+  useGsapScene(rootRef, buildTimeline, prefersReducedMotion);
+
   return (
     <div
       ref={rootRef}
@@ -89,8 +136,8 @@ export default function VillaTopBackground() {
       <div className={styles.far}>
         <div className={styles.horizonGlow} />
         {/* Two layered mountain-ridge silhouettes — the farther ridge
-            lighter/hazier, the nearer ridge darker/larger — a real
-            depth cue, never a building or corridor silhouette. */}
+            lighter/hazier, the nearer ridge darker/larger — a real depth
+            cue, never a building or corridor silhouette. */}
         <svg
           className={styles.ridgeFar}
           viewBox="0 0 400 90"
@@ -115,6 +162,13 @@ export default function VillaTopBackground() {
         preserveAspectRatio="xMidYMax slice"
         focusable="false"
       >
+        <defs>
+          <linearGradient id="villaRoofHighlight" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#d4af37" stopOpacity="0" />
+            <stop offset="50%" stopColor="#d4af37" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#d4af37" stopOpacity="0" />
+          </linearGradient>
+        </defs>
         {/* A minimal, low-profile villa roofline on two slender supports
             — restrained geometric architecture, spacious rather than
             dense. */}
@@ -122,10 +176,22 @@ export default function VillaTopBackground() {
           className={styles.roofPlane}
           d="M110 150 L290 150 L310 172 L90 172 Z"
         />
+        {/* The sun catching the roofline edge — a single coordinated
+            sweep, not a looping decoration. */}
+        <rect
+          ref={roofHighlightRef}
+          className={styles.roofHighlight}
+          x="90"
+          y="150"
+          width="220"
+          height="6"
+          fill="url(#villaRoofHighlight)"
+          opacity="0"
+        />
         <line className={styles.pillar} x1="140" y1="172" x2="140" y2="225" />
         <line className={styles.pillar} x1="260" y1="172" x2="260" y2="225" />
         {/* Two terrace/infinity-edge lines — the nearer one carries the
-            "restrained gold accent" the brief asks for. */}
+            restrained gold accent. */}
         <line
           className={styles.terraceLineFar}
           x1="90"
@@ -140,11 +206,33 @@ export default function VillaTopBackground() {
           x2="360"
           y2="225"
         />
+        {/* The human-scale cue — a restrained visitor silhouette pausing
+            on the terrace. Default opacity 0.65 below is the considered
+            resting frame rendered under reduced motion, when the GSAP
+            timeline that would fade it in/out is never built. */}
+        <g
+          ref={visitorRef}
+          className={styles.visitor}
+          transform="translate(230 200) scale(0.65)"
+          opacity="0.65"
+        >
+          <circle className={styles.visitorHead} cx="0" cy="0" r="4" />
+          <path
+            className={styles.visitorBody}
+            d="M-4 6 Q0 4 4 6 L5 26 Q3 30 0 30 Q-3 30 -5 26 Z"
+          />
+        </g>
       </svg>
 
       <div className={styles.near}>
-        <span className={[styles.foliage, styles.foliageA].join(' ')} />
-        <span className={[styles.foliage, styles.foliageB].join(' ')} />
+        <span
+          ref={foliageARef}
+          className={[styles.foliage, styles.foliageA].join(' ')}
+        />
+        <span
+          ref={foliageBRef}
+          className={[styles.foliage, styles.foliageB].join(' ')}
+        />
         <span className={styles.glow} />
         <div className={styles.haze} />
       </div>
