@@ -117,12 +117,57 @@
   animation: car-rental-road-travel 6s linear infinite;
 }
 
+// The road edges now carry their own, slower dash-travel — a second,
+// subtler "moving toward the vanishing point" cue alongside the center
+// line's own (motion upgrade §4: "lane/light movement toward vanishing
+// point... stronger motion/depth illusion").
+.roadEdgeLeftLine,
+.roadEdgeRightLine {
+  fill: none;
+  stroke: rgba(tokens.$color-white, 0.28);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 14;
+  animation: car-rental-road-travel 9s linear infinite;
+}
+
 .waypoint {
   fill: tokens.$color-gold;
   transform-origin: center;
   transform-box: fill-box;
+  // A faint idle resting pulse — the GSAP timeline's own sequential
+  // "route progress" activation (see the component's own header
+  // comment) layers a much stronger, directed pulse on top of this.
   animation: car-rental-waypoint-pulse 2.4s ease-in-out infinite;
   animation-delay: var(--delay, 0s);
+}
+
+// --- The car ----------------------------------------------------------
+
+.car {
+  transform-box: fill-box;
+}
+
+.carShadow {
+  fill: rgba(4, 10, 18, 0.4);
+  filter: blur(1px);
+}
+
+.carBody {
+  fill: tokens.$color-navy;
+  stroke: rgba(tokens.$color-gold, 0.55);
+  stroke-width: 0.6;
+}
+
+.carWheel {
+  fill: rgba(6, 14, 24, 0.9);
+}
+
+.carHeadlight {
+  fill: #fff4d6;
+}
+
+.carHeadlightGlow {
+  pointer-events: none;
 }
 
 // --- NEAR: foreground light streaks ------------------------------------
@@ -257,6 +302,8 @@
 // they're already deliberately positioned/legible at rest.
 .static {
   .roadCenterLine,
+  .roadEdgeLeftLine,
+  .roadEdgeRightLine,
   .waypoint,
   .far,
   .mid,
@@ -280,12 +327,18 @@
 // where they'd read as noise rather than depth; the road, its center
 // line, the waypoints, and the horizon glow carry the category read on
 // their own.
+// The car stays visible at mobile — it's this category's own primary
+// semantic element, not a secondary decorative silhouette (brief §15:
+// "keep category identity obvious"). Only the edge-line dash travel (a
+// refinement layered on top of the existing center-line dash) is dropped.
 @media (max-width: 767px) {
   .grid,
   .skyline,
   .roadGlow,
   .streakB,
-  .streakC {
+  .streakC,
+  .roadEdgeLeftLine,
+  .roadEdgeRightLine {
     display: none;
   }
 }
