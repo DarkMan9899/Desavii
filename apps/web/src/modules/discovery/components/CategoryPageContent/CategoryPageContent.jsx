@@ -202,6 +202,148 @@ export default function CategoryPageContent() {
   // change other categories" fence; every other category's TOP section
   // markup/styling below is completely unaffected by this flag being false.
   const isCarRentalTop = category.slug === 'car-rentals';
+  // Step 2.2 (Hotel TOP background only) — the same "title outside the
+  // animated stage" structural rule Car Rental established, applied to
+  // Hotels via its own dedicated classes/branch (never reusing or
+  // renaming Car Rental's own `carRentalStage`/`topSectionHeadingCarRental`
+  // classes) so Car Rental's markup and styling stay byte-for-byte
+  // untouched by this change.
+  const isHotelTop = category.slug === 'hotels';
+
+  // A plain function (not a nested ternary — eslint's `no-nested-ternary`
+  // rejects a third branch chained onto `isCarRentalTop ? ... : isHotelTop
+  // ? ... : ...`) covering the 3 possible TOP-section layouts: Car
+  // Rental's own dedicated stage, Hotel's own dedicated stage (Step 2.2,
+  // the same structural rule, separate classes), or the shared generic
+  // treatment every other category still uses.
+  function renderTopSectionContent() {
+    if (isCarRentalTop) {
+      return (
+        <>
+          {/* Step 2.1 final adjustment — the heading now lives OUTSIDE
+              the dark "stage" below, on the page's own normal
+              background, so it reads as a real section header rather
+              than text floating inside the road-scene composition. */}
+          <span className={styles.topSectionEyebrow} aria-hidden="true">
+            {t('advertising.topBadge')}
+          </span>
+          <h2
+            id="category-top-heading"
+            className={styles.topSectionHeadingCarRental}
+          >
+            {t('discovery.category.topHeading', { category: category.name })}
+          </h2>
+          {/* The "stage" — CarRentalTopBackground's road environment and
+              the carousel, together, own dark chrome now separate from
+              the heading above. */}
+          <div className={styles.carRentalStage}>
+            <CategoryTopBackground categorySlug={category.slug} />
+            {/* DESAVII category-closure pass (§2) — `slideClassName` is
+                now the exact same `styles.topSlide` every other
+                category's TOP carousel uses (the earlier
+                `carRentalTopSlide` desktop max-width override is gone):
+                the owner's global card-geometry lock means Car Rentals'
+                TOP slide width must match the canonical system, not a
+                category-specific cap. */}
+            <Showcase
+              ariaLabel={t('discovery.category.topHeading', {
+                category: category.name,
+              })}
+              slideClassName={styles.topSlide}
+            >
+              {topListings.map((listing) => (
+                <SearchResultCard
+                  key={listing.id}
+                  result={listing}
+                  hideTypeBadge
+                  topBadgeLabel={t('advertising.topBadge')}
+                />
+              ))}
+            </Showcase>
+          </div>
+        </>
+      );
+    }
+
+    if (isHotelTop) {
+      return (
+        <>
+          {/* Step 2.2 — same structural rule as Car Rental: the heading
+              lives OUTSIDE the dark "stage" below, on the page's own
+              normal background. */}
+          <span className={styles.topSectionEyebrow} aria-hidden="true">
+            {t('advertising.topBadge')}
+          </span>
+          <h2
+            id="category-top-heading"
+            className={styles.topSectionHeadingHotel}
+          >
+            {t('discovery.category.topHeading', { category: category.name })}
+          </h2>
+          {/* The "stage" — HotelTopBackground's archway environment and
+              the carousel, together, own dark chrome now separate from
+              the heading above. Same canonical `topSlide` width every
+              other category's TOP carousel uses — no category-specific
+              card/slide geometry here either. */}
+          <div className={styles.hotelStage}>
+            <CategoryTopBackground categorySlug={category.slug} />
+            <Showcase
+              ariaLabel={t('discovery.category.topHeading', {
+                category: category.name,
+              })}
+              slideClassName={styles.topSlide}
+            >
+              {topListings.map((listing) => (
+                <SearchResultCard
+                  key={listing.id}
+                  result={listing}
+                  hideTypeBadge
+                  topBadgeLabel={t('advertising.topBadge')}
+                />
+              ))}
+            </Showcase>
+          </div>
+        </>
+      );
+    }
+
+    return (
+      <>
+        {/* Owner-directed premium card redesign (brief §21) — the
+            category's own thematic environment lives in this section's
+            background, never in oversized card geometry. Purely
+            decorative, stacked behind the heading/carousel below via
+            z-index, never intercepting focus/pointer events. */}
+        <CategoryTopBackground categorySlug={category.slug} />
+        <h2 id="category-top-heading" className={styles.topSectionHeading}>
+          {t('discovery.category.topHeading', { category: category.name })}
+        </h2>
+        {/* Pass 7B (brief §11/§17) — the same premium carousel engine
+            Home's Featured section uses, not a plain grid: Category TOP
+            is a paid placement and must visibly feel more premium than
+            the ordinary inventory grid below it. Every card already
+            carries this category's own visual identity (aspect ratio,
+            price unit, real metadata chips) via `SearchResultCard` —
+            nothing category-specific to add here beyond the carousel
+            shell itself. */}
+        <Showcase
+          ariaLabel={t('discovery.category.topHeading', {
+            category: category.name,
+          })}
+          slideClassName={styles.topSlide}
+        >
+          {topListings.map((listing) => (
+            <SearchResultCard
+              key={listing.id}
+              result={listing}
+              hideTypeBadge
+              topBadgeLabel={t('advertising.topBadge')}
+            />
+          ))}
+        </Showcase>
+      </>
+    );
+  }
 
   return (
     <div className={styles.page}>
@@ -235,99 +377,13 @@ export default function CategoryPageContent() {
           className={[
             styles.topSection,
             isCarRentalTop && styles.topSectionCarRental,
+            isHotelTop && styles.topSectionHotel,
           ]
             .filter(Boolean)
             .join(' ')}
           aria-labelledby="category-top-heading"
         >
-          {isCarRentalTop ? (
-            <>
-              {/* Step 2.1 final adjustment — the heading now lives OUTSIDE
-                  the dark "stage" below, on the page's own normal
-                  background, so it reads as a real section header rather
-                  than text floating inside the road-scene composition. */}
-              <span className={styles.topSectionEyebrow} aria-hidden="true">
-                {t('advertising.topBadge')}
-              </span>
-              <h2
-                id="category-top-heading"
-                className={styles.topSectionHeadingCarRental}
-              >
-                {t('discovery.category.topHeading', {
-                  category: category.name,
-                })}
-              </h2>
-              {/* The "stage" — CarRentalTopBackground's road environment
-                  and the carousel, together, own dark chrome now separate
-                  from the heading above. */}
-              <div className={styles.carRentalStage}>
-                <CategoryTopBackground categorySlug={category.slug} />
-                {/* DESAVII category-closure pass (§2) — `slideClassName`
-                    is now the exact same `styles.topSlide` every other
-                    category's TOP carousel uses (the earlier
-                    `carRentalTopSlide` desktop max-width override is
-                    gone): the owner's global card-geometry lock means
-                    Car Rentals' TOP slide width must match the canonical
-                    system, not a category-specific cap. */}
-                <Showcase
-                  ariaLabel={t('discovery.category.topHeading', {
-                    category: category.name,
-                  })}
-                  slideClassName={styles.topSlide}
-                >
-                  {topListings.map((listing) => (
-                    <SearchResultCard
-                      key={listing.id}
-                      result={listing}
-                      hideTypeBadge
-                      topBadgeLabel={t('advertising.topBadge')}
-                    />
-                  ))}
-                </Showcase>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Owner-directed premium card redesign (brief §21) — the
-                  category's own thematic environment lives in this
-                  section's background, never in oversized card geometry.
-                  Purely decorative, stacked behind the heading/carousel
-                  below via z-index, never intercepting focus/pointer
-                  events. */}
-              <CategoryTopBackground categorySlug={category.slug} />
-              <h2
-                id="category-top-heading"
-                className={styles.topSectionHeading}
-              >
-                {t('discovery.category.topHeading', {
-                  category: category.name,
-                })}
-              </h2>
-              {/* Pass 7B (brief §11/§17) — the same premium carousel
-                  engine Home's Featured section uses, not a plain grid:
-                  Category TOP is a paid placement and must visibly feel
-                  more premium than the ordinary inventory grid below it.
-                  Every card already carries this category's own visual
-                  identity (aspect ratio, price unit, real metadata chips)
-                  via `SearchResultCard` — nothing category-specific to add
-                  here beyond the carousel shell itself. */}
-              <Showcase
-                ariaLabel={t('discovery.category.topHeading', {
-                  category: category.name,
-                })}
-                slideClassName={styles.topSlide}
-              >
-                {topListings.map((listing) => (
-                  <SearchResultCard
-                    key={listing.id}
-                    result={listing}
-                    hideTypeBadge
-                    topBadgeLabel={t('advertising.topBadge')}
-                  />
-                ))}
-              </Showcase>
-            </>
-          )}
+          {renderTopSectionContent()}
         </section>
       )}
 

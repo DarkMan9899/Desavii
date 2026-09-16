@@ -1,0 +1,246 @@
+// HotelTopBackground — tokens only, consumed from @desavii/ui.
+@use 'tokens' as tokens;
+
+// Same absolute-fill/stacking contract as CategoryTopBackground's own
+// `.background` (this replaces that treatment for hotels only, at the
+// same call site) — never intercepts pointer events except for the
+// deliberate parallax listener the JS attaches to this root node itself.
+.environment {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: tokens.$radius-xl;
+  background: tokens.$color-navy;
+}
+
+// --- FAR: atmosphere ------------------------------------------------------
+
+.far {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    tokens.$color-navy 0%,
+    #17325a 55%,
+    #1f4570 100%
+  );
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 3px),
+    calc(var(--parallax-y, 0) * 2px),
+    0
+  );
+}
+
+.facade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 26%;
+  height: 16%;
+  opacity: 0.32;
+  filter: blur(1.5px);
+  fill: #23507f;
+}
+
+.horizonGlow {
+  position: absolute;
+  left: 50%;
+  bottom: 28%;
+  width: 60%;
+  aspect-ratio: 3 / 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(tokens.$color-gold, 0.24) 0%,
+    rgba(tokens.$color-gold, 0) 70%
+  );
+  filter: blur(3px);
+}
+
+// --- MID: the archway corridor ---------------------------------------
+
+.mid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 6px),
+    calc(var(--parallax-y, 0) * 4px),
+    0
+  );
+}
+
+.corridorGlow {
+  pointer-events: none;
+}
+
+.corridorGlowStopInner {
+  stop-color: tokens.$color-gold;
+  stop-opacity: 0.32;
+}
+
+.corridorGlowStopOuter {
+  stop-color: tokens.$color-gold;
+  stop-opacity: 0;
+}
+
+// Restrained architectural line work — the two outer arches read as the
+// corridor's structure, hairline gold-on-navy; the innermost arch (right
+// at the warm glow) picks up a touch more warmth to feel lit from within.
+.archOutline {
+  fill: none;
+  stroke: rgba(tokens.$color-white, 0.16);
+  stroke-width: 1.5;
+}
+
+.archOutlineInner {
+  fill: none;
+  stroke: rgba(tokens.$color-gold, 0.55);
+  stroke-width: 1.5;
+}
+
+.windowLight,
+.windowLightSmall {
+  fill: tokens.$color-gold;
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: hotel-window-pulse 3.2s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.windowLightSmall {
+  opacity: 0.6;
+}
+
+// --- NEAR: soft gold light bokeh ---------------------------------------
+
+.near {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 10px),
+    calc(var(--parallax-y, 0) * 7px),
+    0
+  );
+}
+
+.bokeh {
+  position: absolute;
+  border-radius: tokens.$radius-full;
+  background: radial-gradient(
+    circle,
+    rgba(tokens.$color-gold, 0.4) 0%,
+    rgba(tokens.$color-gold, 0) 72%
+  );
+  filter: blur(2px);
+}
+
+.bokehA {
+  left: 20%;
+  bottom: 14%;
+  width: 64px;
+  height: 64px;
+  animation: hotel-bokeh-drift-a 9s ease-in-out infinite;
+}
+
+.bokehB {
+  right: 24%;
+  bottom: 22%;
+  width: 44px;
+  height: 44px;
+  animation: hotel-bokeh-drift-b 11s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.bokehC {
+  left: 46%;
+  bottom: 8%;
+  width: 30px;
+  height: 30px;
+  animation: hotel-bokeh-drift-a 8s ease-in-out infinite;
+  animation-delay: 4s;
+}
+
+@keyframes hotel-window-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes hotel-bokeh-drift-a {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateY(-10px);
+    opacity: 0.85;
+  }
+}
+
+@keyframes hotel-bokeh-drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translate(-6px, -8px);
+    opacity: 0.7;
+  }
+}
+
+// Reduced motion: a deliberate static frame, not a paused mid-loop one —
+// every continuous animation switched off outright, mirroring
+// CarRentalTopBackground's own `.static` treatment exactly. The arches,
+// glow, and window lights stay fully visible (just not moving/pulsing) —
+// already legible and premium at rest.
+.static {
+  .far,
+  .mid,
+  .near,
+  .windowLight,
+  .windowLightSmall,
+  .bokeh {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .windowLight,
+  .windowLightSmall {
+    opacity: 0.85;
+  }
+}
+
+// Vignette — cinematic framing, purely static (no animation/parallax).
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 62%,
+    rgba(tokens.$color-navy, 0) 45%,
+    rgba(6, 16, 28, 0.35) 100%
+  );
+}
+
+// Mobile (brief §7: "mobile composition simplified appropriately") — the
+// outermost arch and the small window lights are the most detail-dense
+// elements at a size where they'd read as noise; the inner two arches,
+// the corridor glow, and the main window lights still carry the read.
+@media (max-width: 767px) {
+  .archOutline:first-child,
+  .windowLightSmall,
+  .bokehC {
+    display: none;
+  }
+}
