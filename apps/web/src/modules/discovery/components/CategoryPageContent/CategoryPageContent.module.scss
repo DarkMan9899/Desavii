@@ -117,25 +117,28 @@
   }
 }
 
-// DESAVII category-closure pass — the dark "stage" that holds only the
-// road background and the carousel (never the heading — see above). The
-// global card-geometry lock (§2) removed Car Rentals' own promoted-card
-// media cap and wide override, so its TOP card is now measurably taller
-// than the old capped variant this padding was last tuned around; padding
-// is reset to a compact baseline here (was 64/16/48, tuned for the old,
-// smaller capped card) and the +20% target is computed fresh off the
-// real current height with THIS card — see the handoff for the exact
-// before/after numbers and why a mechanical +20% on top of the taller,
-// now-canonical card would have reproduced the "near-full-screen"
-// section the brief explicitly forbids.
+// DESAVII category-closure pass, acceptance follow-up — the dark "stage"
+// that holds only the road background and the carousel (never the
+// heading — see above). The global card-geometry lock (§2) removed Car
+// Rentals' own promoted-card media cap and wide override, so its TOP
+// card (now the same canonical geometry as every other category's) is
+// measurably taller than the old capped variant this padding was
+// previously tuned around — the card's own real height (576px at 1440,
+// unchanged and untouched by this rule) is now the dominant driver of
+// this section's height, not this padding. Padding is trimmed to the
+// tightest values that still read as deliberate breathing room (not
+// cramped/clipped) rather than chasing a fixed px target that would
+// require narrowing the card itself — see the handoff for the real
+// measured floor this produces and why it sits above the brief's
+// original approximate aim.
 .carRentalStage {
   position: relative;
   overflow: hidden;
   border-radius: tokens.$radius-xl;
-  padding: tokens.$space-4 tokens.$space-4 tokens.$space-6;
+  padding: tokens.$space-2 tokens.$space-4 tokens.$space-3;
 
   [role='group'][aria-roledescription='carousel'] > div {
-    padding-block: tokens.$space-2;
+    padding-block: tokens.$space-1;
   }
 }
 
