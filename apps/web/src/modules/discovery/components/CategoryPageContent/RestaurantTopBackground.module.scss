@@ -74,6 +74,17 @@
   filter: blur(3px);
 }
 
+// --- The waiter, passing behind the table ----------------------------
+
+.waiter {
+  transform-box: fill-box;
+}
+
+.waiterHead,
+.waiterBody {
+  fill: rgba(6, 14, 24, 0.6);
+}
+
 // --- MID: the table setting -----------------------------------------------
 
 .mid {
@@ -100,6 +111,10 @@
   stroke-width: 1;
 }
 
+.tableSweep {
+  pointer-events: none;
+}
+
 .plateOuter {
   fill: rgba(16, 27, 44, 0.65);
   stroke: rgba(tokens.$color-white, 0.22);
@@ -110,6 +125,15 @@
   fill: none;
   stroke: rgba(tokens.$color-white, 0.14);
   stroke-width: 1;
+}
+
+.candleBody {
+  fill: rgba(tokens.$color-white, 0.85);
+}
+
+.candleFlame {
+  fill: tokens.$color-gold;
+  transform-box: fill-box;
 }
 
 // Restrained line-art cutlery — small, thin strokes, never a filled
@@ -284,9 +308,13 @@
 // a size where they'd read as noise; the pendant lights, the nearer
 // table, the plate, and the cutlery still carry the "refined dining"
 // read on their own.
+// The waiter is a secondary/atmospheric cue, not this category's own
+// primary identifier (the table setting itself is) — hidden at mobile
+// alongside the other detail-dense extras (brief §15).
 @media (max-width: 767px) {
   .tableFar,
-  .glassGlint {
+  .glassGlint,
+  .waiter {
     display: none;
   }
 }

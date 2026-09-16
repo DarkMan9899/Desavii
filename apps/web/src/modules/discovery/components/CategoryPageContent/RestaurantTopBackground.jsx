@@ -1,42 +1,33 @@
 /**
- * RestaurantTopBackground — Step 2.6 (Restaurant TOP background only).
- * Mirrors the five existing dedicated category environments' own
- * established technique (FAR/MID/NEAR depth, pointer-parallax via CSS
- * custom properties on a DOM ref, reduced-motion/coarse-pointer guard)
- * with a sixth entirely distinct visual identity, per the brief's
- * explicit "must NOT look like Hotel or Guest House":
- * - Hotel: a corridor of arches — refined hospitality.
- * - Car Rental: a road/route — mobility.
- * - Apartment: layered building window grids — urban residential.
- * - Villa: a dusk mountain horizon — cinematic retreat.
- * - Guest House: a warm-lit village house facade — local/intimate.
- * - Restaurant (this file): an elegant table setting under hanging
- *   pendant lights — refined dining, never a building, road, or
- *   mountain silhouette.
+ * RestaurantTopBackground — Step 2.6 established the table-setting
+ * environment; this pass (TOP live-scene motion upgrade, category 6 of
+ * 9) strengthens it into a small directed "dinner service" scene:
  *
- * - FAR: a warm, dim dining-room atmosphere (navy fading to a deep
- *   burgundy-brown near the horizon) with a row of small hanging
- *   pendant-light silhouettes at varying heights — a restaurant
- *   interior's own ambient ceiling lighting, read at a glance.
- * - MID: a wide elegant table edge (a stroked ellipse) with a second,
- *   farther/smaller table plane behind it for depth, a plate (two
- *   concentric circles) at its center, and restrained line-art cutlery
- *   (a thin fork and knife, never a literal food photo or a giant
- *   icon) flanking it.
- * - NEAR: a warm amber glow pooling behind the plate (candlelight), one
- *   soft vertical glass-reflection glint, and a faint warm haze.
+ * - WAITER: a restrained, small waiter silhouette crosses slowly in the
+ *   far background, behind the table — service happening, never a
+ *   traversal toward the viewer like Car Rental's car or Hotel's guest
+ *   (a waiter passes through the room, they don't approach the camera).
+ * - LIGHT STORY: the four pendant lights no longer pulse independently —
+ *   a GSAP timeline lights them in sequence, timed with the waiter's
+ *   pass, so the room feels like it's being attended to rather than
+ *   just decoratively glowing.
+ * - DINING: a small candle-flame shape now sits by the plate with a
+ *   restrained flicker (the existing candle glow was ambient light only,
+ *   never an actual flame), and a soft light sweep crosses the table
+ *   edge once, coordinated with the scene.
+ * - DEPTH: unchanged — the pendant/table-far/table-near/near layers
+ *   already carry their own distinct parallax tiers from Step 2.6.
  *
- * All continuous motion (the pendant-light glow breathing, the glass
- * glint shimmer, the haze drift) is slow and low-amplitude — the
- * brief's own explicit "no giant fork/spoon icons, no literal food
- * photos, no neon, no flashing, no bouncing, no fast motion, no
- * nightclub aesthetic" — and switched off entirely under
- * `prefers-reduced-motion`, settling into one deliberate static frame,
- * exactly like the sibling environments' own `.static` treatment.
+ * The GSAP timeline (`useGsapScene`) is never created under
+ * `prefers-reduced-motion` and is paused via IntersectionObserver
+ * whenever this stage scrolls out of view — see CarRentalTopBackground.jsx's
+ * own header comment for the identical reasoning, not repeated per
+ * category.
  */
 
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import useReducedMotion from '../../../../hooks/useReducedMotion.js';
+import useGsapScene from '../../../../components/SceneKit/useGsapScene.js';
 import styles from './RestaurantTopBackground.module.scss';
 
 // [x, lampY, delay] — deterministic pendant-light positions/heights and
@@ -52,6 +43,10 @@ const PENDANTS = [
 export default function RestaurantTopBackground() {
   const rootRef = useRef(null);
   const rafRef = useRef(null);
+  const waiterRef = useRef(null);
+  const flameRef = useRef(null);
+  const tableSweepRef = useRef(null);
+  const pendantRefs = useRef([]);
   const prefersReducedMotion = useReducedMotion();
   const isCoarsePointer =
     typeof window !== 'undefined' &&
@@ -88,6 +83,77 @@ export default function RestaurantTopBackground() {
     };
   }, [parallaxDisabled]);
 
+  const buildTimeline = useCallback((gsap) => {
+    const tl = gsap.timeline({
+      repeat: -1,
+      repeatDelay: 2.4,
+      defaults: { ease: 'power1.inOut' },
+    });
+
+    gsap.set(waiterRef.current, {
+      attr: { transform: 'translate(20 92) scale(0.4)' },
+      opacity: 0,
+    });
+    gsap.set(tableSweepRef.current, { opacity: 0, xPercent: -110 });
+
+    // Candle: a restrained continuous flicker — independent of the main
+    // timeline (never part of its repeat cycle), mirroring the wind-sway/
+    // curtain-sway precedent from Villa/Guest House.
+    const flicker = gsap.to(flameRef.current, {
+      scaleY: 1.15,
+      opacity: 0.85,
+      duration: 0.9,
+      yoyo: true,
+      repeat: -1,
+      ease: 'sine.inOut',
+      transformOrigin: '50% 100%',
+    });
+
+    // Waiter: crosses slowly in the background, behind the table.
+    tl.to(waiterRef.current, { opacity: 0.6, duration: 0.8 }, 0).to(
+      waiterRef.current,
+      {
+        attr: { transform: 'translate(380 92) scale(0.4)' },
+        duration: 7,
+        ease: 'sine.inOut',
+      },
+      0,
+    );
+    tl.to(waiterRef.current, { opacity: 0, duration: 0.8 }, 6.6);
+
+    // Light story: the pendants attend to the room in sequence, timed
+    // with the waiter's pass.
+    const lightTimes = [0.5, 2.4, 4.2, 6];
+    pendantRefs.current.forEach((el, index) => {
+      if (!el) return;
+      tl.fromTo(
+        el,
+        { opacity: 0.4, scale: 1 },
+        {
+          opacity: 1,
+          scale: 1.3,
+          duration: 0.6,
+          yoyo: true,
+          repeat: 1,
+          transformOrigin: 'center',
+        },
+        lightTimes[index],
+      );
+    });
+
+    // Dining: a soft light sweep crosses the table edge once.
+    tl.to(
+      tableSweepRef.current,
+      { opacity: 0.45, xPercent: 110, duration: 3, ease: 'sine.inOut' },
+      2,
+    );
+    tl.to(tableSweepRef.current, { opacity: 0, duration: 1 }, 5.2);
+
+    return [tl, flicker];
+  }, []);
+
+  useGsapScene(rootRef, buildTimeline, prefersReducedMotion);
+
   return (
     <div
       ref={rootRef}
@@ -108,7 +174,7 @@ export default function RestaurantTopBackground() {
           preserveAspectRatio="none"
           focusable="false"
         >
-          {PENDANTS.map(([x, lampY, delay]) => (
+          {PENDANTS.map(([x, lampY, delay], index) => (
             <g key={x} style={{ '--delay': delay }}>
               <line
                 className={styles.pendantCord}
@@ -118,6 +184,9 @@ export default function RestaurantTopBackground() {
                 y2={lampY}
               />
               <circle
+                ref={(el) => {
+                  pendantRefs.current[index] = el;
+                }}
                 className={styles.pendantLamp}
                 cx={x}
                 cy={lampY + 5}
@@ -135,6 +204,30 @@ export default function RestaurantTopBackground() {
         preserveAspectRatio="xMidYMax slice"
         focusable="false"
       >
+        <defs>
+          <linearGradient id="restaurantTableSweep" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#d4af37" stopOpacity="0" />
+            <stop offset="50%" stopColor="#d4af37" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#d4af37" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {/* The waiter — a small, restrained silhouette passing behind the
+            table. Default transform/no inline opacity below is the
+            considered resting frame (standing still, mid-room, faint)
+            rendered under reduced motion, when the GSAP timeline that
+            would move/fade it is never built. */}
+        <g
+          ref={waiterRef}
+          className={styles.waiter}
+          transform="translate(200 92) scale(0.4)"
+          opacity="0.35"
+        >
+          <circle className={styles.waiterHead} cx="0" cy="0" r="4" />
+          <path
+            className={styles.waiterBody}
+            d="M-4 6 Q0 4 4 6 L5 24 Q3 28 0 28 Q-3 28 -5 24 Z"
+          />
+        </g>
         {/* A second, farther/smaller table plane — the "layered dining
             surfaces" depth cue. */}
         <ellipse
@@ -153,9 +246,31 @@ export default function RestaurantTopBackground() {
           rx="150"
           ry="34"
         />
+        {/* A soft light sweep crossing the table edge once. */}
+        <ellipse
+          ref={tableSweepRef}
+          className={styles.tableSweep}
+          cx="200"
+          cy="215"
+          rx="150"
+          ry="34"
+          fill="url(#restaurantTableSweep)"
+          opacity="0"
+        />
         {/* The plate — two concentric circles. */}
         <circle className={styles.plateOuter} cx="200" cy="205" r="34" />
         <circle className={styles.plateInner} cx="200" cy="205" r="24" />
+        {/* A small candle-flame shape by the plate, with a restrained
+            flicker (motion upgrade §9: "candle movement") — the existing
+            `.candleGlow` (NEAR layer) stays as its ambient light pool. */}
+        <g transform="translate(158 195)">
+          <ellipse className={styles.candleBody} cx="0" cy="6" rx="3" ry="8" />
+          <path
+            ref={flameRef}
+            className={styles.candleFlame}
+            d="M0 -8 Q3 -3 0 0 Q-3 -3 0 -8 Z"
+          />
+        </g>
         {/* Restrained line-art cutlery — small, thin, never a giant
             icon. */}
         <g className={styles.fork}>

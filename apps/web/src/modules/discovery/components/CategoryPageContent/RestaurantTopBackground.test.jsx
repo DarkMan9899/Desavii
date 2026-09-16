@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, cleanup } from '@testing-library/react';
+import gsap from 'gsap';
 import RestaurantTopBackground from './RestaurantTopBackground.jsx';
 
 function mockMatchMedia(matches) {
@@ -13,6 +14,7 @@ function mockMatchMedia(matches) {
 
 describe('RestaurantTopBackground (Step 2.6 — Restaurant TOP background only)', () => {
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -64,5 +66,63 @@ describe('RestaurantTopBackground (Step 2.6 — Restaurant TOP background only)'
       container.querySelector('[class*="glassGlint"]'),
     ).toBeInTheDocument();
     expect(container.querySelector('[class*="haze"]')).toBeInTheDocument();
+  });
+
+  // TOP live-scene motion upgrade — the waiter + candle flame.
+  describe('the waiter and the candle', () => {
+    test('the waiter renders with a considered resting frame, and the candle flame is present', () => {
+      mockMatchMedia(true);
+      const { container } = render(<RestaurantTopBackground />);
+      const waiter = container.querySelector('g[class*="_waiter_"]');
+      expect(waiter).toBeInTheDocument();
+      expect(waiter).toHaveAttribute(
+        'transform',
+        'translate(200 92) scale(0.4)',
+      );
+      expect(waiter.style.opacity).toBe('');
+      expect(
+        container.querySelector('[class*="candleFlame"]'),
+      ).toBeInTheDocument();
+    });
+
+    test('never builds any GSAP animation under prefers-reduced-motion', () => {
+      mockMatchMedia(true);
+      const timelineSpy = vi.spyOn(gsap, 'timeline');
+      const toSpy = vi.spyOn(gsap, 'to');
+      render(<RestaurantTopBackground />);
+      expect(timelineSpy).not.toHaveBeenCalled();
+      expect(toSpy).not.toHaveBeenCalled();
+    });
+
+    test('crosses the waiter behind the table via the main timeline and flickers the candle via an independent continuous tween', () => {
+      mockMatchMedia(false);
+      const timelineSpy = vi.spyOn(gsap, 'timeline');
+      const toSpy = vi.spyOn(gsap, 'to');
+      const { container } = render(<RestaurantTopBackground />);
+      expect(timelineSpy).toHaveBeenCalledTimes(1);
+
+      const timeline = timelineSpy.mock.results[0].value;
+      const waiter = container.querySelector('g[class*="_waiter_"]');
+      const flame = container.querySelector('[class*="candleFlame"]');
+
+      expect(waiter.getAttribute('transform')).toBe(
+        'translate(20 92) scale(0.4)',
+      );
+      expect(waiter.style.opacity).toBe('0');
+
+      timeline.progress(0.5);
+      const midX = Number(
+        waiter.getAttribute('transform').match(/translate\(([\d.]+) 92\)/)[1],
+      );
+      expect(midX).toBeGreaterThan(20);
+      timeline.progress(1);
+      timeline.kill();
+
+      const flickerCalls = toSpy.mock.calls.filter(
+        ([target, vars]) => target === flame && vars.repeat === -1,
+      );
+      expect(flickerCalls).toHaveLength(1);
+      gsap.killTweensOf(flame);
+    });
   });
 });
