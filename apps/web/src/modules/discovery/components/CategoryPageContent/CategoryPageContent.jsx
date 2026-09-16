@@ -262,13 +262,18 @@ export default function CategoryPageContent() {
                   from the heading above. */}
               <div className={styles.carRentalStage}>
                 <CategoryTopBackground categorySlug={category.slug} />
+                {/* DESAVII category-closure pass (§2) — `slideClassName`
+                    is now the exact same `styles.topSlide` every other
+                    category's TOP carousel uses (the earlier
+                    `carRentalTopSlide` desktop max-width override is
+                    gone): the owner's global card-geometry lock means
+                    Car Rentals' TOP slide width must match the canonical
+                    system, not a category-specific cap. */}
                 <Showcase
                   ariaLabel={t('discovery.category.topHeading', {
                     category: category.name,
                   })}
-                  slideClassName={[styles.topSlide, styles.carRentalTopSlide]
-                    .filter(Boolean)
-                    .join(' ')}
+                  slideClassName={styles.topSlide}
                 >
                   {topListings.map((listing) => (
                     <SearchResultCard

@@ -48,9 +48,12 @@ const CARD_CONFIG_BY_CATEGORY = Object.freeze({
   // "Hotel cards with a different badge" via a gimmick crop) — its
   // differentiation is the calmer composition/copy, not the image shape.
   apartments: { imageAspect: IMAGE_ASPECT.STANDARD, priceUnitKey: 'perNight' },
-  // Brief §7: "stronger image presence" — a wider crop gives the cover
-  // photo more visual weight than Hotels/Apartments' standard ratio.
-  villas: { imageAspect: IMAGE_ASPECT.WIDE, priceUnitKey: 'perNight' },
+  // DESAVII category-closure pass — the owner locked outer card geometry
+  // to one canonical shape across every category (no per-category media
+  // ratio); this used to be `IMAGE_ASPECT.WIDE` (brief §7's "stronger
+  // image presence"). Differentiation now lives entirely in metadata/
+  // chips/copy, never the outer image crop.
+  villas: { imageAspect: IMAGE_ASPECT.STANDARD, priceUnitKey: 'perNight' },
   'guest-houses': {
     imageAspect: IMAGE_ASPECT.STANDARD,
     priceUnitKey: 'perNight',
@@ -61,31 +64,32 @@ const CARD_CONFIG_BY_CATEGORY = Object.freeze({
     imageAspect: IMAGE_ASPECT.STANDARD,
     priceUnitKey: 'perPerson',
   },
-  // Brief §10: "movement, discovery" — a wide, landscape-journey crop.
-  tours: { imageAspect: IMAGE_ASPECT.WIDE, priceUnitKey: 'perPerson' },
+  // DESAVII category-closure pass — was `IMAGE_ASPECT.WIDE` (brief §10's
+  // "movement, discovery" crop); locked to the canonical standard ratio.
+  tours: { imageAspect: IMAGE_ASPECT.STANDARD, priceUnitKey: 'perPerson' },
   // Brief §11: "cleaner, more technical, less editorial" — standard crop,
   // no cinematic treatment; vehicle spec chips carry the differentiation.
   //
-  // Step 2.1 correction (Car Rental TOP height): a real, live-measured
-  // TOP section at 1440px was 728px tall (81% of a 900px viewport) —
-  // confirmed via the exact same shared `topSlide` width every other
-  // category uses (no oversized-variant bug), but the STANDARD (4:3)
-  // media box alone was 355px, the single largest contributor. `WIDE`
-  // (16:9) is not a new geometry class invented for this fix — Villas/
-  // Tours/Attractions already use it as their normal, everyday aspect —
-  // so using it here for the PROMOTED card only stays inside the already
-  // -established "normal marketplace TOP card geometry" family, never an
-  // oversized one-off. `promotedImageAspect` (read by ListingCardBase.jsx
-  // only when a card is actually promoted) leaves this category's own
-  // ordinary grid card — and every other category's promoted card —
-  // completely unaffected.
+  // DESAVII category-closure pass — the earlier `promotedImageAspect:
+  // IMAGE_ASPECT.WIDE` override (added in the Step 2.1 correction to
+  // shrink an over-tall TOP section) is removed: the owner's global card-
+  // geometry lock requires a promoted/TOP card to use the exact same
+  // geometry as an ordinary card, full stop — differentiation comes from
+  // badge/glow/elevation/section background only, never a different media
+  // ratio. The TOP section's own height is now tuned via
+  // `CategoryPageContent.module.scss`'s `.carRentalStage` padding instead
+  // of by shrinking the card.
   'car-rentals': {
     imageAspect: IMAGE_ASPECT.STANDARD,
-    promotedImageAspect: IMAGE_ASPECT.WIDE,
     priceUnitKey: 'perDay',
   },
-  // Brief §12: "editorial image reveal" — a wide, magazine-spread crop.
-  attractions: { imageAspect: IMAGE_ASPECT.WIDE, priceUnitKey: 'perPerson' },
+  // DESAVII category-closure pass — was `IMAGE_ASPECT.WIDE` (brief §12's
+  // "editorial image reveal" crop); locked to the canonical standard
+  // ratio.
+  attractions: {
+    imageAspect: IMAGE_ASPECT.STANDARD,
+    priceUnitKey: 'perPerson',
+  },
   // Emergency visual-regression recovery pass: this was IMAGE_ASPECT.TALL
   // (3:4) — brief §13 originally read "poster/event imagery" as literally
   // a portrait-poster crop, but a 3:4 image box is ~78% taller than the

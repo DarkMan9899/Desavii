@@ -9,13 +9,20 @@ describe('categoryCardConfig', () => {
     });
   });
 
-  test('Villas and Tours get a wide crop, distinct from the standard Hotel/Apartment ratio', () => {
-    expect(resolveCardConfig('villas').imageAspect).toBe(IMAGE_ASPECT.WIDE);
-    expect(resolveCardConfig('tours').imageAspect).toBe(IMAGE_ASPECT.WIDE);
-    expect(resolveCardConfig('hotels').imageAspect).toBe(IMAGE_ASPECT.STANDARD);
-    expect(resolveCardConfig('apartments').imageAspect).toBe(
-      IMAGE_ASPECT.STANDARD,
-    );
+  test('DESAVII category-closure pass: every real category shares the same canonical standard card aspect (owner-directed global geometry lock — no category-specific outer shape)', () => {
+    [
+      'hotels',
+      'apartments',
+      'villas',
+      'guest-houses',
+      'restaurants',
+      'tours',
+      'car-rentals',
+      'attractions',
+      'entertainment-venues',
+    ].forEach((slug) => {
+      expect(resolveCardConfig(slug).imageAspect).toBe(IMAGE_ASPECT.STANDARD);
+    });
   });
 
   test('every real category has a non-null priceUnitKey mirroring the seeded pricing model', () => {
@@ -24,13 +31,7 @@ describe('categoryCardConfig', () => {
     expect(resolveCardConfig('restaurants').priceUnitKey).toBe('perPerson');
   });
 
-  test('Step 2.1 correction: Car Rentals gets a wide promotedImageAspect override, only for its promoted card (the real, live-measured TOP-height fix) — its ordinary grid card stays standard', () => {
-    const config = resolveCardConfig('car-rentals');
-    expect(config.imageAspect).toBe(IMAGE_ASPECT.STANDARD);
-    expect(config.promotedImageAspect).toBe(IMAGE_ASPECT.WIDE);
-  });
-
-  test('no other category defines a promotedImageAspect override (Car Rentals stays the one scoped exception)', () => {
+  test('DESAVII category-closure pass: no category defines a promotedImageAspect override anymore — a TOP/promoted card must use the exact same geometry as an ordinary card (the earlier Car Rentals wide-promoted exception is removed)', () => {
     [
       'hotels',
       'apartments',
@@ -38,6 +39,7 @@ describe('categoryCardConfig', () => {
       'guest-houses',
       'restaurants',
       'tours',
+      'car-rentals',
       'attractions',
       'entertainment-venues',
     ].forEach((slug) => {

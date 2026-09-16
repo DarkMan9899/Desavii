@@ -117,27 +117,22 @@
   }
 }
 
-// Step 2.1 final adjustment — the dark "stage" that now holds only the
-// road background and the carousel (never the heading — see above).
-// Sized generously enough to give `CarRentalTopBackground`'s richer
-// depth layers real room (the brief's own "more visible depth layers...
-// clearer perspective... stronger near/mid/far separation" asks for
-// more visual space, not less) while the promoted card itself is
-// unchanged from the prior correction.
-// Step 2.1 final adjustment — the brief's own explicit math: "new height
-// ≈ current height × 1.2", measured against the CURRENT (post-
-// restructuring, heading-already-moved-out) stage height, not the older
-// pre-restructuring number from the previous correction. Live-measured
-// at 371px (1440px viewport) before this change; padding-block increased
-// from 16/24 to 64/48 (+72px total) lands at ~443px — content itself
-// (the promoted card, its media cap, its metadata) is unchanged, so the
-// extra height reads as more breathing room for the richer depth layers
-// the background enhancement above adds, exactly as the brief intends.
+// DESAVII category-closure pass — the dark "stage" that holds only the
+// road background and the carousel (never the heading — see above). The
+// global card-geometry lock (§2) removed Car Rentals' own promoted-card
+// media cap and wide override, so its TOP card is now measurably taller
+// than the old capped variant this padding was last tuned around; padding
+// is reset to a compact baseline here (was 64/16/48, tuned for the old,
+// smaller capped card) and the +20% target is computed fresh off the
+// real current height with THIS card — see the handoff for the exact
+// before/after numbers and why a mechanical +20% on top of the taller,
+// now-canonical card would have reproduced the "near-full-screen"
+// section the brief explicitly forbids.
 .carRentalStage {
   position: relative;
   overflow: hidden;
   border-radius: tokens.$radius-xl;
-  padding: tokens.$space-16 tokens.$space-4 tokens.$space-12;
+  padding: tokens.$space-4 tokens.$space-4 tokens.$space-6;
 
   [role='group'][aria-roledescription='carousel'] > div {
     padding-block: tokens.$space-2;
@@ -161,20 +156,6 @@
 
   @include respond.respond(laptop) {
     flex: 0 0 34%;
-  }
-}
-
-// Step 2.1 final correction — Car Rentals' promoted card also needs a
-// smaller desktop footprint (not just a shorter media aspect) to reach
-// the 360-420px section-height target; a sensible fixed max-width at
-// desktop, layered on top of `.topSlide`'s existing responsive
-// flex-basis above (so 390/768 keep the exact same proportions/swipe-
-// hint behavior already verified for every category — only the wider
-// desktop breakpoints, where 34%/46% of a wide container would otherwise
-// still be a large card, are capped).
-.carRentalTopSlide {
-  @include respond.respond(tablet) {
-    max-width: 320px;
   }
 }
 
