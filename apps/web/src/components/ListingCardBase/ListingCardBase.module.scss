@@ -356,6 +356,42 @@
   background-color: rgba(tokens.$color-navy, 0.14);
 }
 
+// Villa internal-design pass — a THIRD filled accent color (after
+// Hotel's gold and Apartment's navy) would exhaust this design system's
+// actual accent palette (`packages/ui/src/tokens/_colors.scss` has
+// exactly two non-neutral, non-semantic tones; `$color-royal-blue` is
+// reserved for interactive affordances only, and success/warning/danger
+// are status colors, not decorative ones — reusing any of them here
+// would be exactly the "recolor without a deliberate semantic reason"
+// brief §8 rules out). Villa's own identity is "private/spacious/
+// retreat," not another badge shouting for attention — so the
+// differentiation is a genuinely different FORM, not a third hue: an
+// unfilled, outlined pill (quiet, restrained, "room to breathe") built
+// from the same neutral ink/gray-900 already used for this card's own
+// title text, at 600 weight (not Hotel/Apartment's 700 — brief §7's
+// "calm and premium," never another shouty badge). `padding`/`border`
+// below are chosen so the chip's total rendered box size exactly
+// matches the base (unbordered) `.metaChip` — 1px border + 7px/1px
+// padding replaces the base rule's 0px border + 8px/2px padding on
+// each axis, so adding an outline never changes this element's own
+// footprint, let alone the card's outer geometry.
+.card[data-category='villas'] .metaChip {
+  padding: 1px 7px;
+  border: 1px solid rgba(tokens.$color-gray-900, 0.22);
+  background-color: transparent;
+  color: tokens.$color-gray-900;
+  font-weight: 600;
+}
+
+.card[data-category='villas'] .metaChipIcon {
+  color: tokens.$color-gray-900;
+}
+
+.card[data-category='villas']:hover .metaChip {
+  border-color: rgba(tokens.$color-gray-900, 0.4);
+  background-color: rgba(tokens.$color-gray-900, 0.03);
+}
+
 // A visual footer, not just the last flex item — a hairline separates
 // price from the descriptive content above it, so it reads as the
 // card's one settled fact rather than another line of prose.
@@ -399,4 +435,15 @@
 // premium accent.
 .card[data-category='apartments'] .priceRow {
   border-block-start-color: rgba(tokens.$color-navy, 0.28);
+}
+
+// Villa internal-design pass — carries the same "quiet, not another
+// badge" reasoning from the metaChip treatment above into the price
+// footer: a soft ink hairline, deliberately quieter/lower-contrast than
+// both Hotel's warm gold and Apartment's cool navy — brief §8's own
+// "do not simply recolor the same rule without a deliberate semantic
+// reason," and a retreat's own price should feel settled, not
+// announced.
+.card[data-category='villas'] .priceRow {
+  border-block-start-color: rgba(tokens.$color-gray-900, 0.16);
 }
