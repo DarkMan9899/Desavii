@@ -243,9 +243,7 @@ async function main() {
     });
 
     page.on('pageerror', (error) => {
-      console.error(
-        `[prerender][pageerror] ${entry.path} :: ${error.message}`,
-      );
+      console.error(`[prerender][pageerror] ${entry.path} :: ${error.message}`);
     });
 
     page.on('console', (message) => {
