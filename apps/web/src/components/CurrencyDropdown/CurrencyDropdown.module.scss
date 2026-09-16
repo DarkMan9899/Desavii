@@ -1,0 +1,80 @@
+// CurrencyDropdown — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+@use 'mixins/focus-ring' as focus;
+
+// A compact pill trigger — "[ AMD ▾ ]" — replacing the old inline
+// AMD/USD/RUB button row with one control that fits the header exactly
+// the same way `UserMenu`'s own trigger does.
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-1;
+  padding: tokens.$space-1 tokens.$space-2;
+  border: 1px solid tokens.$color-gray-200;
+  border-radius: tokens.$radius-full;
+  background: none;
+  color: tokens.$color-gray-900;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    border-color tokens.$motion-micro tokens.$ease-out,
+    background-color tokens.$motion-micro tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
+  @include focus.focus-ring;
+
+  &:hover {
+    border-color: tokens.$color-gray-400;
+    background-color: tokens.$color-gray-100;
+  }
+}
+
+.triggerValue {
+  min-width: 1.6em;
+  text-align: center;
+}
+
+.triggerIcon {
+  color: tokens.$color-gray-600;
+  transition: transform tokens.$motion-micro tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
+}
+
+.triggerIconOpen {
+  transform: rotate(180deg);
+}
+
+// Supplemental to Popover's own `.panel` (position/elevation/z-index) —
+// just the width this menu wants, generous enough for the widest label
+// (RUB) plus comfortable padding without feeling like a stray dropdown.
+.menu {
+  min-width: 96px;
+  padding: tokens.$space-1;
+}
+
+.menuItem {
+  display: block;
+  width: 100%;
+  padding: tokens.$space-2 tokens.$space-3;
+  border: none;
+  background: none;
+  border-radius: tokens.$radius-sm;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: tokens.$color-gray-900;
+  text-align: left;
+  cursor: pointer;
+  @include focus.focus-ring;
+
+  &:hover {
+    background-color: tokens.$color-gray-100;
+  }
+}
+
+.menuItemActive {
+  color: tokens.$color-royal-blue;
+  font-weight: 700;
+  background-color: tokens.$color-gray-100;
+}

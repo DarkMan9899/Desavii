@@ -13,10 +13,12 @@
  * Help Center/Blog/Become a Partner all ship in this same phase — see
  * `docs/` Phase 10 plan). Sticky search remains deferred.
  *
- * Pass 8 (Multi-Currency / CBA FX Pricing): `CurrencySwitcher` fills the
- * "deliberately absent" gap this file's Phase 10 comment used to note —
+ * Pass 8 (Multi-Currency / CBA FX Pricing) added a currency control here,
  * placed right next to `LanguageSwitcher`, the header's other
- * locale-adjacent control.
+ * locale-adjacent control. DESAVII category-closure pass (§3) replaced
+ * that pass's inline "AMD USD RUB" button row (`CurrencySwitcher`) with
+ * `CurrencyDropdown` — a single compact "[ AMD ▾ ]" trigger — at this
+ * same header slot.
  */
 
 import { Outlet, useParams } from 'react-router-dom';
@@ -27,7 +29,7 @@ import BrandLogo from '../components/BrandLogo/BrandLogo.jsx';
 import Footer from '../components/Footer/Footer.jsx';
 import UserMenu from '../components/UserMenu/UserMenu.jsx';
 import LanguageSwitcher from '../components/LanguageSwitcher/LanguageSwitcher.jsx';
-import CurrencySwitcher from '../components/CurrencySwitcher/CurrencySwitcher.jsx';
+import CurrencyDropdown from '../components/CurrencyDropdown/CurrencyDropdown.jsx';
 import HeaderSearch from '../components/HeaderSearch/HeaderSearch.jsx';
 import { useCategoriesQuery } from '../modules/search/index.js';
 import { NotificationBell } from '../modules/notifications/index.js';
@@ -137,7 +139,7 @@ export default function PublicLayout() {
           actions={
             <>
               <HeaderSearch />
-              <CurrencySwitcher />
+              <CurrencyDropdown />
               <LanguageSwitcher />
               <MessagingBell />
               <NotificationBell />
