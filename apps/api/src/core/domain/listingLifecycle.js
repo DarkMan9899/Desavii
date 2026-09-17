@@ -20,6 +20,27 @@
  */
 
 /**
+ * Step B3 — the LOCKED product decision (approved options: 30/90/180/365
+ * days, default 90, no custom day count): the one canonical source of
+ * truth for every layer that needs it (`listingValidators.js`'s publish
+ * schema references this list indirectly via `ListingService`, never a
+ * second copy of the numbers). A manipulated client sending anything
+ * outside this exact set (17, 60, 91, 366, 0, a negative number, non-
+ * numeric input) must be rejected — see `isValidPublicationPeriodDays`.
+ */
+export const PUBLICATION_PERIOD_DAYS_OPTIONS = Object.freeze([
+  30, 90, 180, 365,
+]);
+
+/** The wizard's pre-selected option for a listing entering its first publication cycle — a UI default only, never assumed by the backend when a request omits the field outright (see `ListingService#checkPublishReadiness`'s `PUBLICATION_PERIOD_REQUIRED` issue). */
+export const DEFAULT_PUBLICATION_PERIOD_DAYS = 90;
+
+/** @param {unknown} days @returns {boolean} true only for an exact member of `PUBLICATION_PERIOD_DAYS_OPTIONS` — never a range check, since custom day counts are explicitly disallowed. */
+export function isValidPublicationPeriodDays(days) {
+  return PUBLICATION_PERIOD_DAYS_OPTIONS.includes(days);
+}
+
+/**
  * The canonical "expired, not merely manually unpublished" signal. A
  * soft-deleted listing is never considered frozen — once `deletedAt` is
  * set, the listing has left the lifecycle entirely (Step B7's retention
@@ -40,6 +61,9 @@ export function isLifecycleManaged(listing) {
 }
 
 export default {
+  PUBLICATION_PERIOD_DAYS_OPTIONS,
+  DEFAULT_PUBLICATION_PERIOD_DAYS,
+  isValidPublicationPeriodDays,
   isFrozen,
   hasPublicationExpiry,
   isLifecycleManaged,

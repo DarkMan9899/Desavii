@@ -49,6 +49,10 @@ vi.mock('../../../listings/index.js', () => {
     PRESENTATION_GROUPS,
     resolvePresentationGroup: (code) =>
       GROUP_BY_LISTING_TYPE[code] ?? PRESENTATION_GROUPS.GENERIC,
+    // Listing Lifetime / Renewal, Step B3: the dashboard's quick "Publish"
+    // action has no period-picker UI of its own, so it always sends this
+    // same real default.
+    DEFAULT_PUBLICATION_PERIOD_DAYS: 90,
   };
 });
 
@@ -284,7 +288,12 @@ describe('PartnerListingsList (apps/web/src/modules/partner)', () => {
     });
     await openMoreMenu(user);
     await user.click(screen.getByRole('menuitem', { name: 'Հրապարակել' }));
-    await waitFor(() => expect(publishMutateAsync).toHaveBeenCalledWith(5));
+    await waitFor(() =>
+      expect(publishMutateAsync).toHaveBeenCalledWith({
+        id: 5,
+        publicationPeriodDays: 90,
+      }),
+    );
     expect(
       await screen.findByText('Ձեր հայտարարությունը հրապարակվել է։'),
     ).toBeInTheDocument();

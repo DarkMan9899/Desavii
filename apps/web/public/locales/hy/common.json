@@ -1693,7 +1693,9 @@
         "COMPLETE_LOCATION_REQUIRED": "Հրապարակելուց առաջ նշեք հայտարարության տեղադրությունը։",
         "REQUIRED_ATTRIBUTE_MISSING": "Պարտադիր մանրամասը բացակայում է՝ {{field}}",
         "REQUIRED_POLICY_MISSING": "Պարտադիր կանոնը բացակայում է՝ {{field}}",
-        "AT_LEAST_ONE_BOOKABLE_UNIT_REQUIRED": "Հրապարակելուց առաջ գրանցեք առնվազն մեկ ամրագրվող միավոր։"
+        "AT_LEAST_ONE_BOOKABLE_UNIT_REQUIRED": "Հրապարակելուց առաջ գրանցեք առնվազն մեկ ամրագրվող միավոր։",
+        "PUBLICATION_PERIOD_REQUIRED": "Ընտրեք, թե որքան ժամանակով պետք է հրապարակված մնա այս հայտարարությունը։",
+        "INVALID_PUBLICATION_PERIOD": "Ընտրեք հասանելի հրապարակման ժամկետներից մեկը։"
       },
       "review": {
         "title": "Վերնագիր",
@@ -1704,6 +1706,11 @@
         "amenities": "Հարմարություններ",
         "amenitiesCount": "ընտրված է {{count}}",
         "pricing": "Գնագոյացում"
+      },
+      "publicationPeriod": {
+        "heading": "Հրապարակման ժամկետ",
+        "description": "Ընտրեք, թե որքան ժամանակով այս հայտարարությունը հրապարակավ տեսանելի կմնա։ Ավելի ուշ կարող եք երկարաձգել այն։",
+        "dayCount": "{{count}} օր"
       },
       "bedTypes": {
         "SINGLE": "Մեկտեղանոց",

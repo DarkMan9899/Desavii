@@ -36,6 +36,10 @@ export { default as useListingCalendarQuery } from './queries/useListingCalendar
 export { default as useSetAvailabilityMutation } from './mutations/useSetAvailabilityMutation.js';
 export { default as ListingStatusBadge } from './components/ListingStatusBadge/ListingStatusBadge.jsx';
 export { LISTING_STATUS_KEYS } from './constants/listingStatuses.js';
+export {
+  PUBLICATION_PERIOD_DAYS_OPTIONS,
+  DEFAULT_PUBLICATION_PERIOD_DAYS,
+} from './constants/publicationPeriod.js';
 
 // P2.1 (Admin Listing Detail): the read-only Listing Detail sections,
 // exposed so the admin module can render the same metadata-driven

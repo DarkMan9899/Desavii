@@ -111,7 +111,10 @@ async function publishListing(listingId, bookableUnitType) {
     .send({ listingId, bookableUnitType, capacity: 1 });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`);
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    // Listing Lifetime / Renewal, Step B3: every one of these is a real
+    // first lifecycle-managed publish — a valid period is now required.
+    .send({ publicationPeriodDays: 90 });
 }
 
 beforeAll(async () => {

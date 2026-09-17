@@ -862,7 +862,42 @@ export class MySqlListingRepository extends ListingRepositoryPort {
    * Unpublishing intentionally leaves `published_at` untouched — it
    * records the most recent publish moment, not "currently published."
    */
-  async markPublished(id, statusId, updatedBy, connection = this.#pool) {
+  /**
+   * @param {number} id
+   * @param {number} statusId
+   * @param {number} updatedBy
+   * @param {number|null} [publicationPeriodDays] Listing Lifetime / Renewal,
+   *   Step B3: non-null ONLY on a listing's first lifecycle-managed
+   *   publish (the Service layer decides this from `listing.expiresAt`
+   *   before calling in — never re-derived here). When non-null, this
+   *   single UPDATE atomically assigns the new publication cycle in the
+   *   same statement as the status transition — `UTC_TIMESTAMP(3)` is
+   *   evaluated once per SQL statement in MySQL, so `published_at` and
+   *   `expires_at` are always computed from the identical instant, no
+   *   separate query/round-trip that could partially fail. `null` (an
+   *   ordinary republish of an already-lifecycle-managed listing) leaves
+   *   every lifecycle column exactly as it was — an unpublish/republish
+   *   cycle must never silently grant a fresh publication period.
+   */
+  async markPublished(
+    id,
+    statusId,
+    updatedBy,
+    publicationPeriodDays = null,
+    connection = this.#pool,
+  ) {
+    if (publicationPeriodDays != null) {
+      await connection.query(
+        `UPDATE listings
+         SET status_id = ?, published_at = UTC_TIMESTAMP(3), unpublished_at = NULL, updated_by = ?,
+             publication_period_days = ?,
+             expires_at = DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? DAY),
+             expiry_reminder_sent_at = NULL, frozen_at = NULL, purge_after = NULL
+         WHERE id = ?`,
+        [statusId, updatedBy, publicationPeriodDays, publicationPeriodDays, id],
+      );
+      return;
+    }
     await connection.query(
       `UPDATE listings
        SET status_id = ?, published_at = UTC_TIMESTAMP(3), unpublished_at = NULL, updated_by = ?

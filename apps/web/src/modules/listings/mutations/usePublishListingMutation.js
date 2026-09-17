@@ -15,8 +15,14 @@ export function usePublishListingMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id) => publishListing(id),
-    onSuccess: (_response, id) => {
+    // Listing Lifetime / Renewal, Step B3: `publicationPeriodDays` is
+    // required only on a listing's first lifecycle-managed publish — the
+    // server decides that from its own state, never this call site — and
+    // silently ignored on any later republish, so `ReviewStep` always
+    // passes its current selection regardless of which case applies.
+    mutationFn: ({ id, publicationPeriodDays }) =>
+      publishListing(id, { publicationPeriodDays }),
+    onSuccess: (_response, { id }) => {
       queryClient.invalidateQueries({ queryKey: listingKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: listingKeys.lists() });
       // Phase 9 (Partner Dashboard): the Listings Management table reads

@@ -14,7 +14,10 @@ function Harness() {
   const { mutate, isSuccess, error } = usePublishListingMutation();
   return (
     <div>
-      <button type="button" onClick={() => mutate(7)}>
+      <button
+        type="button"
+        onClick={() => mutate({ id: 7, publicationPeriodDays: 90 })}
+      >
         publish
       </button>
       <p data-testid="status">{isSuccess ? 'success' : 'idle'}</p>
@@ -36,7 +39,7 @@ describe('usePublishListingMutation (apps/web/src/modules/listings)', () => {
     });
   });
 
-  test('calls publishListing(id) and invalidates the detail + lists cache', async () => {
+  test('calls publishListing(id, { publicationPeriodDays }) and invalidates the detail + lists cache', async () => {
     publishListing.mockResolvedValue({
       data: { id: 7, status: 'PUBLISHED' },
     });
@@ -54,7 +57,9 @@ describe('usePublishListingMutation (apps/web/src/modules/listings)', () => {
     await waitFor(() =>
       expect(screen.getByTestId('status')).toHaveTextContent('success'),
     );
-    expect(publishListing).toHaveBeenCalledWith(7);
+    expect(publishListing).toHaveBeenCalledWith(7, {
+      publicationPeriodDays: 90,
+    });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: listingKeys.detail(7),
     });

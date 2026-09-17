@@ -245,7 +245,8 @@ describe('GET /listings/:id — visibility', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
 
     const res = await request(app).get(`/api/v1/listings/${listingId}`);
     expect(res.status).toBe(200);
@@ -263,7 +264,8 @@ describe('GET /listings/:id — visibility', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
 
     const byId = await request(app).get(`/api/v1/listings/${listingId}`);
     const { slug } = byId.body.data;
@@ -312,7 +314,8 @@ describe('GET /listings/:id — company attribution (Step A3)', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
 
     const res = await request(app).get(`/api/v1/listings/${listingId}`);
     expect(res.status).toBe(200);
@@ -332,7 +335,8 @@ describe('GET /listings/:id — company attribution (Step A3)', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
 
     const res = await request(app).get(`/api/v1/listings/${listingId}`);
     expect(Object.keys(res.body.data.company).sort()).toEqual([
@@ -385,7 +389,8 @@ describe('GET /listings/:id — company attribution (Step A3)', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
 
     await pool.query(
       'UPDATE partners SET moderation_status_id = ? WHERE id = ?',
@@ -404,7 +409,7 @@ describe('GET /listings/:id — company attribution (Step A3)', () => {
 // tests prove the migration is safe (every new field defaults NULL,
 // nothing existing behaves differently) and that the raw columns
 // themselves impose no premature product-value constraint.
-describe('Listing publication lifecycle — Step B2 foundation (schema/domain only)', () => {
+describe('Listing publication lifecycle — Step B2 schema foundation', () => {
   async function selectLifecycleColumns(listingId) {
     const [[row]] = await pool.query(
       `SELECT publication_period_days, expires_at, expiry_reminder_sent_at,
@@ -425,43 +430,263 @@ describe('Listing publication lifecycle — Step B2 foundation (schema/domain on
     expect(row.purge_after).toBeNull();
     expect(row.renewed_at).toBeNull();
   });
+});
 
-  test('publishing a listing leaves every new lifecycle field untouched (no expiry is assigned yet)', async () => {
+// Listing Lifetime / Renewal, Step B3: the locked product decision (30/90/
+// 180/365 days, default 90, no custom day count) applied through the ONE
+// shared publish action every one of the 9 categories already goes
+// through — no category-specific test needed, since nothing in
+// `ListingService#publishListing`/`#checkPublishReadiness` branches on
+// category. Uses the same `selectLifecycleColumns` helper as the B2 block
+// above.
+describe('Listing publication lifecycle — Step B3 first-publish expiry assignment', () => {
+  async function selectLifecycleColumns(listingId) {
+    const [[row]] = await pool.query(
+      `SELECT publication_period_days, expires_at, expiry_reminder_sent_at,
+              frozen_at, purge_after, renewed_at, published_at, status_id,
+              (SELECT code FROM listing_statuses WHERE id = listings.status_id) AS status_code
+       FROM listings WHERE id = ?`,
+      [listingId],
+    );
+    return row;
+  }
+
+  // A/B/C/D: every one of the 4 approved periods, on a real first publish.
+  test.each([30, 90, 180, 365])(
+    'first publish with a %i-day period stores that period and computes expires_at exactly %i days after published_at',
+    async (periodDays) => {
+      const created = await createDraftListing();
+      const listingId = created.body.data.id;
+      await makePublishable(listingId);
+
+      const res = await request(app)
+        .post(`/api/v1/listings/${listingId}/publish`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: periodDays });
+
+      expect(res.status).toBe(200);
+      const row = await selectLifecycleColumns(listingId);
+      expect(row.publication_period_days).toBe(periodDays);
+      expect(row.expires_at).not.toBeNull();
+      expect(row.published_at).not.toBeNull();
+      // `published_at`/`expires_at` are both computed from the same
+      // single `UTC_TIMESTAMP(3)` evaluation inside one UPDATE statement
+      // (MySQL evaluates it once per statement) — the gap between them is
+      // deterministically exact, never approximate.
+      const gapMs = row.expires_at.getTime() - row.published_at.getTime();
+      expect(gapMs).toBe(periodDays * 24 * 60 * 60 * 1000);
+      expect(row.expiry_reminder_sent_at).toBeNull();
+      expect(row.frozen_at).toBeNull();
+      expect(row.purge_after).toBeNull();
+    },
+  );
+
+  // E: missing period on a first lifecycle publish.
+  test('a first lifecycle publish with no publicationPeriodDays is rejected with the standard readiness error shape', async () => {
     const created = await createDraftListing();
     const listingId = created.body.data.id;
     await makePublishable(listingId);
-    const publishRes = await request(app)
+
+    const res = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
       .set('Authorization', `Bearer ${vendor.accessToken}`);
-    expect(publishRes.status).toBe(200);
+    // No .send() at all — an empty body.
+
+    expect(res.status).toBe(422);
+    const issue = res.body.error.details.find(
+      (d) => d.field === 'publicationPeriodDays',
+    );
+    expect(issue?.issue).toBe('PUBLICATION_PERIOD_REQUIRED');
 
     const row = await selectLifecycleColumns(listingId);
+    expect(row.status_code).toBe('DRAFT');
     expect(row.expires_at).toBeNull();
-    expect(row.frozen_at).toBeNull();
-    expect(row.purge_after).toBeNull();
   });
 
-  test('publication_period_days accepts any positive value — no product-list constraint at the schema layer yet (Step B3 owns that decision)', async () => {
+  // F: every disallowed value the brief calls out by name.
+  test.each([0, 17, 60, 91, 366, -1, -30])(
+    'a first lifecycle publish with the out-of-list period %i is rejected',
+    async (invalidPeriod) => {
+      const created = await createDraftListing();
+      const listingId = created.body.data.id;
+      await makePublishable(listingId);
+
+      const res = await request(app)
+        .post(`/api/v1/listings/${listingId}/publish`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: invalidPeriod });
+
+      expect(res.status).toBe(422);
+      const issue = res.body.error.details.find(
+        (d) => d.field === 'publicationPeriodDays',
+      );
+      expect(issue?.issue).toBe('INVALID_PUBLICATION_PERIOD');
+
+      const row = await selectLifecycleColumns(listingId);
+      expect(row.expires_at).toBeNull();
+    },
+  );
+
+  test('non-numeric garbage is rejected at the request-validation layer, never reaches the service', async () => {
     const created = await createDraftListing();
     const listingId = created.body.data.id;
-    // No API field exists for this yet — written directly to prove the
-    // column itself has no CHECK/enum restricting it to a future fixed
-    // list (30/90/180/365 or otherwise).
-    await pool.query(
-      'UPDATE listings SET publication_period_days = ? WHERE id = ?',
-      [999, listingId],
-    );
+    await makePublishable(listingId);
+
+    const res = await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 'ninety' });
+
+    expect(res.status).toBe(422);
     const row = await selectLifecycleColumns(listingId);
-    expect(row.publication_period_days).toBe(999);
+    expect(row.expires_at).toBeNull();
   });
 
+  // G: the exploit this step exists to close — unpublish then republish
+  // must never grant a fresh publication period for free.
+  test('manual unpublish then republish preserves the existing publication_period_days/expires_at — does not extend it', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+
+    const firstPublish = await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 30 });
+    expect(firstPublish.status).toBe(200);
+    const afterFirstPublish = await selectLifecycleColumns(listingId);
+
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/unpublish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+
+    // Sending a different, larger period on the republish attempt — if
+    // this were honored, it would prove the exploit; it must not be.
+    const republish = await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 365 });
+    expect(republish.status).toBe(200);
+
+    const afterRepublish = await selectLifecycleColumns(listingId);
+    expect(afterRepublish.publication_period_days).toBe(30);
+    expect(afterRepublish.expires_at.getTime()).toBe(
+      afterFirstPublish.expires_at.getTime(),
+    );
+  });
+
+  // H: the generic content-edit endpoint has no lifecycle fields in its
+  // accepted-fields list at all (see `listingValidators.js`'s
+  // `updateListingSchema`) — this proves that holds even for a listing
+  // already mid-lifecycle, by attempting the extension and confirming
+  // nothing moved.
+  test('PATCH /listings/:id cannot extend an already-assigned expiry', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 30 });
+    const before = await selectLifecycleColumns(listingId);
+
+    await request(app)
+      .patch(`/api/v1/listings/${listingId}`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({
+        // Not real accepted fields — proves the endpoint has no lifecycle
+        // side channel, regardless of what a manipulated client sends.
+        publicationPeriodDays: 365,
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      });
+
+    const after = await selectLifecycleColumns(listingId);
+    expect(after.publication_period_days).toBe(before.publication_period_days);
+    expect(after.expires_at.getTime()).toBe(before.expires_at.getTime());
+  });
+
+  // I: a frozen listing must go through the future B5 Renew flow, never
+  // ordinary Publish. `frozen_at`/`purge_after` are set directly here
+  // (Step B4's real expiry sweep doesn't exist yet) purely as a fixture —
+  // proving Publish itself refuses to act as a substitute for it.
+  test('ordinary publish on a frozen listing is rejected and never clears frozen_at/purge_after', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 30 });
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/unpublish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+
+    const frozenAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const purgeAfter = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
+    await pool.query(
+      'UPDATE listings SET frozen_at = ?, purge_after = ? WHERE id = ?',
+      [frozenAt, purgeAfter, listingId],
+    );
+
+    const res = await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('LISTING_FROZEN_REQUIRES_RENEWAL');
+
+    const row = await selectLifecycleColumns(listingId);
+    expect(row.status_code).toBe('UNPUBLISHED');
+    expect(row.frozen_at).not.toBeNull();
+    expect(row.purge_after).not.toBeNull();
+  });
+
+  // J: Step B3 must not disturb the 113 pre-existing dev listings (or any
+  // other already-PUBLISHED listing with no lifecycle assigned) merely by
+  // existing — they were never republished, so nothing should have
+  // touched them. Simulates one directly, since none of the real seeded
+  // listings are safe to mutate for a test.
+  test('an already-PUBLISHED listing with NULL expiry (created before Step B3) is left alone unless it goes through publish again', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    // Publish it the "legacy" way — directly via SQL, bypassing the API,
+    // the same shape migration-0048-era rows are in: PUBLISHED status,
+    // real published_at, but no lifecycle fields ever assigned.
+    const [[publishedStatus]] = await pool.query(
+      "SELECT id FROM listing_statuses WHERE code = 'PUBLISHED'",
+    );
+    await pool.query(
+      'UPDATE listings SET status_id = ?, published_at = UTC_TIMESTAMP(3) WHERE id = ?',
+      [publishedStatus.id, listingId],
+    );
+
+    const before = await selectLifecycleColumns(listingId);
+    expect(before.status_code).toBe('PUBLISHED');
+    expect(before.expires_at).toBeNull();
+
+    // Confirm it's still fully functional as a normal published listing —
+    // B3 doesn't require touching legacy rows for the public API to keep
+    // working (no expiry enforcement exists until Step B4).
+    const getRes = await request(app).get(`/api/v1/listings/${listingId}`);
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.data.status).toBe('PUBLISHED');
+
+    const after = await selectLifecycleColumns(listingId);
+    expect(after.expires_at).toBeNull();
+    expect(after.publication_period_days).toBeNull();
+  });
+
+  // K: no public DTO exposes any of the 6 lifecycle columns.
   test('GET /listings/:id never exposes any new lifecycle column in the public response', async () => {
     const created = await createDraftListing();
     const listingId = created.body.data.id;
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
 
     const res = await request(app).get(`/api/v1/listings/${listingId}`);
     expect(res.status).toBe(200);
@@ -471,6 +696,23 @@ describe('Listing publication lifecycle — Step B2 foundation (schema/domain on
     expect(res.body.data).not.toHaveProperty('frozen_at');
     expect(res.body.data).not.toHaveProperty('purge_after');
     expect(res.body.data).not.toHaveProperty('renewed_at');
+  });
+
+  test('the raw publication_period_days column still has no DB-level CHECK/enum constraint — the allowlist is enforced at the application layer (ListingService), not the schema layer', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    // Written directly via SQL, bypassing the API entirely — proves the
+    // column itself imposes no CHECK, distinct from the app-layer
+    // enforcement the tests above exercise through the real endpoint.
+    await pool.query(
+      'UPDATE listings SET publication_period_days = ? WHERE id = ?',
+      [999, listingId],
+    );
+    const [[row]] = await pool.query(
+      'SELECT publication_period_days FROM listings WHERE id = ?',
+      [listingId],
+    );
+    expect(row.publication_period_days).toBe(999);
   });
 });
 
@@ -530,7 +772,8 @@ describe('POST /listings/:id/publish — readiness gating', () => {
 
     const res = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
 
     expect(res.status).toBe(422);
     const issues = res.body.error.details.map((d) => d.issue);
@@ -545,7 +788,8 @@ describe('POST /listings/:id/publish — readiness gating', () => {
 
     const res = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('PUBLISHED');
@@ -560,7 +804,8 @@ describe('POST /listings/:id/unpublish', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
 
     const res = await request(app)
       .post(`/api/v1/listings/${listingId}/unpublish`)
@@ -590,7 +835,8 @@ describe('POST /listings/:id/archive (Phase 9: Partner Dashboard)', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
 
     const res = await request(app)
       .post(`/api/v1/listings/${listingId}/archive`)
@@ -607,7 +853,8 @@ describe('POST /listings/:id/archive (Phase 9: Partner Dashboard)', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
     await request(app)
       .post(`/api/v1/listings/${listingId}/unpublish`)
       .set('Authorization', `Bearer ${vendor.accessToken}`);
@@ -638,7 +885,8 @@ describe('POST /listings/:id/archive (Phase 9: Partner Dashboard)', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
     await request(app)
       .post(`/api/v1/listings/${listingId}/archive`)
       .set('Authorization', `Bearer ${vendor.accessToken}`);

@@ -124,7 +124,8 @@ beforeAll(async () => {
 
   const publishRes = await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`);
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({ publicationPeriodDays: 90 });
   if (publishRes.status !== 200) {
     throw new Error(
       `Fixture listing failed to publish: ${JSON.stringify(publishRes.body)}`,

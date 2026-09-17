@@ -253,6 +253,8 @@ export default function PartnerListingWizard({ partnerships }) {
         {wizard.currentStepId === 'review' && listing && (
           <ReviewStep
             listing={listing}
+            publicationPeriodDays={wizard.publicationPeriodDays}
+            onPublicationPeriodDaysChange={wizard.setPublicationPeriodDays}
             onBack={wizard.goToPreviousStep}
             onPublished={() => handlePublished()}
           />

@@ -122,7 +122,8 @@ beforeAll(async () => {
     .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`);
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({ publicationPeriodDays: 90 });
 }, 60_000);
 
 afterAll(async () => {
@@ -390,7 +391,8 @@ async function createPublishedHotel(title) {
     .send({ listingId: id, bookableUnitType: 'HOTEL_ROOM' });
   const publishRes = await request(app)
     .post(`/api/v1/listings/${id}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`);
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({ publicationPeriodDays: 90 });
   if (publishRes.status !== 200) {
     throw new Error(
       `createPublishedHotel: publish failed with ${publishRes.status}: ${JSON.stringify(publishRes.body)}`,

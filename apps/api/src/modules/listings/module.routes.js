@@ -16,6 +16,7 @@ import {
   createListingSchema,
   updateListingSchema,
   listingIdParamsSchema,
+  publishListingSchema,
   listingIdOrSlugParamsSchema,
   listingMediaIdParamsSchema,
   updateListingMediaSchema,
@@ -137,7 +138,7 @@ export default function createListingRoutes({
   router.post(
     '/:id/publish',
     requireAuth,
-    validate(listingIdParamsSchema),
+    validate(publishListingSchema),
     listingController.publish,
   );
 

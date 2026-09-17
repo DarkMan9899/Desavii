@@ -1,0 +1,20 @@
+// ReviewStep — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+// Listing Lifetime / Renewal, Step B3: a compact publication-duration
+// selector, not a pricing table — `ChipGroup` already provides the
+// touch-friendly, wrapping chip row and its own visible label; this
+// section only adds a short lead-in sentence and vertical rhythm
+// consistent with the review summary above it.
+.publicationPeriod {
+  margin-block-start: tokens.$space-6;
+  padding-block-start: tokens.$space-6;
+  border-top: 1px solid tokens.$color-gray-200;
+}
+
+.publicationPeriodDescription {
+  margin: 0 0 tokens.$space-2;
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+}

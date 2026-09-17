@@ -90,7 +90,8 @@ describe('Partner Listing Wizard — full write flow', () => {
     // Publish attempt before anything else is set — every gate should fire.
     const earlyPublish = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
     expect(earlyPublish.status).toBe(422);
     const earlyIssues = earlyPublish.body.error.details.map((d) => d.issue);
     expect(earlyIssues).toContain('AT_LEAST_ONE_IMAGE_REQUIRED');
@@ -177,7 +178,8 @@ describe('Partner Listing Wizard — full write flow', () => {
     // Publish should still fail — policies + media + bookable unit missing.
     const midPublish = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
     expect(midPublish.status).toBe(422);
     const midIssues = midPublish.body.error.details.map((d) => d.issue);
     expect(midIssues).toContain('REQUIRED_POLICY_MISSING');
@@ -219,7 +221,8 @@ describe('Partner Listing Wizard — full write flow', () => {
     // Publish should still fail — only the bookable-unit gate remains.
     const lastGatedPublish = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
     expect(lastGatedPublish.status).toBe(422);
     expect(lastGatedPublish.body.error.details).toEqual([
       { field: 'bookableUnits', issue: 'AT_LEAST_ONE_BOOKABLE_UNIT_REQUIRED' },
@@ -255,7 +258,8 @@ describe('Partner Listing Wizard — full write flow', () => {
     // Step 10: Review & Publish — now fully satisfied.
     const finalPublish = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
     expect(finalPublish.status).toBe(200);
     expect(finalPublish.body.data.status).toBe('PUBLISHED');
 

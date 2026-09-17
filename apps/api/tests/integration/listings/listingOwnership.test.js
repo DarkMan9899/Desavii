@@ -109,7 +109,8 @@ describe('a non-owner without a listing.* permission is rejected (403)', () => {
     const listingId = await createDraftListing();
     const res = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${customer.accessToken}`);
+      .set('Authorization', `Bearer ${customer.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
     expect(res.status).toBe(403);
   });
 });

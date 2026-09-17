@@ -111,7 +111,8 @@ async function publishListing(
     });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`);
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({ publicationPeriodDays: 90 });
   return unitRes.body.data.id;
 }
 

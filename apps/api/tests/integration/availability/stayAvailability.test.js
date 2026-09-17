@@ -71,7 +71,8 @@ async function createListing(title) {
     .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`);
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({ publicationPeriodDays: 90 });
   return listingId;
 }
 
@@ -448,7 +449,8 @@ describe('GET /availability/:listingId/units?checkIn=&checkOut= (Sprint C-3)', (
     const unitId = unitRes.body.data.id;
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
 
     const dateRes = await request(app).get(
       `/api/v1/availability/${listingId}/units?date=2027-12-01`,

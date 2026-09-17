@@ -68,7 +68,8 @@ async function createCompletedBooking() {
 
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`);
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({ publicationPeriodDays: 90 });
 
   const dateFrom = '2027-01-10';
   const dateTo = '2027-01-12';
@@ -225,7 +226,8 @@ describe('POST /reviews', () => {
       .send({ listingId, bookableUnitType: 'HOTEL_ROOM', capacity: 1 });
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
     await request(app)
       .post('/api/v1/availability')
       .set('Authorization', `Bearer ${vendor.accessToken}`)

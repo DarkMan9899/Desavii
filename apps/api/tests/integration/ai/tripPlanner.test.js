@@ -112,7 +112,8 @@ beforeAll(async () => {
 
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`);
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({ publicationPeriodDays: 90 });
 }, 60_000);
 
 afterAll(async () => {

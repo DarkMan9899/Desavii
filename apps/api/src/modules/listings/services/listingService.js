@@ -37,6 +37,10 @@ import { resolveLocaleIds } from '../../../infrastructure/database/repositories/
 import { withTransaction } from '../../../infrastructure/database/transaction.js';
 import { slugify } from '../../../core/domain/slugify.js';
 import { isValidListingStatusTransition } from '../../../core/domain/listingStatusTransitions.js';
+import {
+  isValidPublicationPeriodDays,
+  isFrozen,
+} from '../../../core/domain/listingLifecycle.js';
 import { createNoOpEventBus } from '../../../core/events/domainEventBus.js';
 import { createDomainEvent } from '../../../core/events/createDomainEvent.js';
 import { EVENT_TYPES } from '../../../core/events/eventTypes.js';
@@ -789,8 +793,35 @@ export class ListingService {
    * the Generic Attribute Engine's `is_required` flag (unused for
    * enforcement until now).
    */
-  async #checkPublishReadiness(listing) {
+  /**
+   * Listing Lifetime / Renewal, Step B3: `publicationPeriodDays` joins the
+   * existing checklist as one more readiness requirement — required only
+   * for a listing's FIRST lifecycle-managed publish (`listing.expiresAt`
+   * still `null`; a listing already mid-lifecycle keeps its existing
+   * `expires_at` untouched by ordinary publish, per the B3 brief's own
+   * "no republish-extension exploit" requirement, so no period is needed
+   * or accepted from it). Reported through the exact same `details` array
+   * as every other readiness issue, never a separate error channel — the
+   * UI's `ReviewStep` already renders whichever issues come back from
+   * here identically, whether they're about translations, media, or now
+   * the publication period.
+   */
+  async #checkPublishReadiness(listing, { publicationPeriodDays } = {}) {
     const details = [];
+
+    const isFirstLifecyclePublish = listing.expiresAt == null;
+    if (
+      isFirstLifecyclePublish &&
+      !isValidPublicationPeriodDays(publicationPeriodDays)
+    ) {
+      details.push({
+        field: 'publicationPeriodDays',
+        issue:
+          publicationPeriodDays == null
+            ? 'PUBLICATION_PERIOD_REQUIRED'
+            : 'INVALID_PUBLICATION_PERIOD',
+      });
+    }
 
     if (listing.translations.length === 0) {
       details.push({
@@ -875,7 +906,17 @@ export class ListingService {
     }
   }
 
-  async publishListing(principal, id) {
+  /**
+   * @param {{userId: number, roles: string[]}} principal
+   * @param {number} id
+   * @param {{publicationPeriodDays?: number}} [options] Listing Lifetime /
+   *   Renewal, Step B3: only consulted (and only required) for this
+   *   listing's first lifecycle-managed publish; ignored entirely once
+   *   `expires_at` is already set — see `#checkPublishReadiness`'s own
+   *   doc comment for why a republish can never silently extend an
+   *   existing period.
+   */
+  async publishListing(principal, id, { publicationPeriodDays } = {}) {
     const listing = await this.#listingRepository.findById(id);
     if (!listing) throw new NotFoundError('Listing not found.');
     await this.#assertOwnerOrPermission(
@@ -891,8 +932,23 @@ export class ListingService {
       );
     }
 
-    await this.#checkPublishReadiness(listing);
+    // Step B3: a frozen (expired-without-renewal) listing needs the
+    // future B5 Renew flow, which will re-verify readiness and assign a
+    // fresh period explicitly — ordinary Publish must never be a
+    // side-door back to PUBLISHED that silently clears `frozen_at`/
+    // `purge_after` for it. The domain transition table itself still
+    // allows UNPUBLISHED -> PUBLISHED (that edge is what B5's Renew will
+    // reuse), so this frozen-specific guard has to live here, not there.
+    if (isFrozen(listing)) {
+      throw new ConflictError(
+        'A frozen listing must be renewed, not published directly.',
+        'LISTING_FROZEN_REQUIRES_RENEWAL',
+      );
+    }
 
+    await this.#checkPublishReadiness(listing, { publicationPeriodDays });
+
+    const isFirstLifecyclePublish = listing.expiresAt == null;
     const publishedStatusId =
       await this.#listingRepository.findStatusIdByCode('PUBLISHED');
     await withTransaction((connection) =>
@@ -900,6 +956,7 @@ export class ListingService {
         id,
         publishedStatusId,
         principal.userId,
+        isFirstLifecyclePublish ? publicationPeriodDays : null,
         connection,
       ),
     );

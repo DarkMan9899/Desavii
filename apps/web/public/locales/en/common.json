@@ -1695,7 +1695,9 @@
         "COMPLETE_LOCATION_REQUIRED": "Set the listing's location before publishing.",
         "REQUIRED_ATTRIBUTE_MISSING": "A required detail is missing: {{field}}",
         "REQUIRED_POLICY_MISSING": "A required policy is missing: {{field}}",
-        "AT_LEAST_ONE_BOOKABLE_UNIT_REQUIRED": "Register at least one bookable unit before publishing."
+        "AT_LEAST_ONE_BOOKABLE_UNIT_REQUIRED": "Register at least one bookable unit before publishing.",
+        "PUBLICATION_PERIOD_REQUIRED": "Choose how long this listing should stay published.",
+        "INVALID_PUBLICATION_PERIOD": "Choose one of the available publication periods."
       },
       "review": {
         "title": "Title",
@@ -1706,6 +1708,11 @@
         "amenities": "Amenities",
         "amenitiesCount": "{{count}} selected",
         "pricing": "Pricing"
+      },
+      "publicationPeriod": {
+        "heading": "Publication period",
+        "description": "Choose how long this listing stays publicly published. You can renew it later.",
+        "dayCount": "{{count}} days"
       },
       "bedTypes": {
         "SINGLE": "Single",

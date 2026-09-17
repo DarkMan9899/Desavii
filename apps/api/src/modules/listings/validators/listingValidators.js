@@ -91,6 +91,27 @@ export const listingIdParamsSchema = z.object({
   body: z.any(),
 });
 
+// Listing Lifetime / Renewal, Step B3: `publicationPeriodDays` is optional
+// here on purpose — whether it's actually REQUIRED depends on server-side
+// state (a listing already mid-lifecycle vs. its first lifecycle-managed
+// publish) that this Layer-2 schema has no way to know. This layer only
+// enforces the structural shape (a real integer, if present); the
+// authoritative allowed-value list (`core/domain/listingLifecycle.js`'s
+// `PUBLICATION_PERIOD_DAYS_OPTIONS`) and the "was it required" business
+// rule are both checked in `ListingService#publishListing`, alongside
+// every other publish-readiness requirement, so a rejected value reports
+// through the exact same `error.details` shape as every other readiness
+// issue.
+export const publishListingSchema = z.object({
+  params: idParams,
+  query: passthroughQuery,
+  body: z
+    .object({
+      publicationPeriodDays: z.coerce.number().int().optional(),
+    })
+    .default({}),
+});
+
 export const listingIdOrSlugParamsSchema = z.object({
   params: idOrSlugParams,
   query: passthroughQuery,

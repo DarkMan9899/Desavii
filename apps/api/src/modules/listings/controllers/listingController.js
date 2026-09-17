@@ -174,7 +174,10 @@ export function createListingController(
     async publish(req, res, next) {
       try {
         const { id } = req.validated.params;
-        const listing = await listingService.publishListing(req.principal, id);
+        const { publicationPeriodDays } = req.validated.body;
+        const listing = await listingService.publishListing(req.principal, id, {
+          publicationPeriodDays,
+        });
         res.status(200).json({
           success: true,
           data: toListingResponse(listing),

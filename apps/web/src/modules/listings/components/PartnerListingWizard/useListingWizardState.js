@@ -36,11 +36,21 @@ import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SUPPORTED_LOCALES } from '../../../../translations/i18n.js';
 import { DEFAULT_CONTENT_LOCALE } from '../../utils/getLocalizedItems.js';
+import { DEFAULT_PUBLICATION_PERIOD_DAYS } from '../../constants/publicationPeriod.js';
 import { WIZARD_STEPS } from './wizardSteps.js';
 
 export function useListingWizardState() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [categoryId, setCategoryId] = useState(null);
+  // Listing Lifetime / Renewal, Step B3: same "plain useState, not a URL
+  // param" choice as `categoryId` above — this only matters on the very
+  // last step, right before publish, so it doesn't need to survive a
+  // refresh/shared-link the way step position or listing identity do; a
+  // reload simply re-defaults to 90, which the brief's own §19 explicitly
+  // allows.
+  const [publicationPeriodDays, setPublicationPeriodDays] = useState(
+    DEFAULT_PUBLICATION_PERIOD_DAYS,
+  );
 
   const listingIdParam = searchParams.get('listingId');
   const listingId = listingIdParam ? Number(listingIdParam) : null;
@@ -141,6 +151,8 @@ export function useListingWizardState() {
     completeCreationStep,
     categoryId,
     setCategoryId,
+    publicationPeriodDays,
+    setPublicationPeriodDays,
     authoringLocale,
     setAuthoringLocale,
     completedStepIds,

@@ -7,20 +7,37 @@
  * re-deriving readiness client-side, since the server is the only place
  * that actually knows every rule (required attributes/policies per
  * category, media, location, translation, >=1 bookable unit).
+ *
+ * Listing Lifetime / Renewal, Step B3: adds the publication-period
+ * selector — one shared control for all 9 categories, since this step
+ * itself already is the one shared publish surface every category's
+ * wizard flow ends at (no category branch exists anywhere in this file).
+ * The selection is always sent; the server decides whether it's actually
+ * required (a listing's first lifecycle-managed publish) or silently
+ * ignored (an ordinary republish) — this step never needs to know which
+ * case applies, keeping `PUBLICATION_PERIOD_REQUIRED`/
+ * `INVALID_PUBLICATION_PERIOD` just two more entries in the same
+ * `publishIssues` list every other readiness failure already renders
+ * through.
  */
 
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '@desavii/ui/components/feedback-overlays';
 import { Stack } from '@desavii/ui/components/layout';
+import { ChipGroup } from '@desavii/ui/components/form-controls';
 import { usePublishListingMutation } from '../../../mutations/usePublishListingMutation.js';
 import { PartnerAiToolsPanel, AskAiButton } from '../../../../ai/index.js';
+import { PUBLICATION_PERIOD_DAYS_OPTIONS } from '../../../constants/publicationPeriod.js';
 import ListingCompletenessWidget from '../ListingCompletenessWidget.jsx';
 import TranslationCompletenessWidget from '../TranslationCompletenessWidget.jsx';
 import WizardStepActions from '../WizardStepActions.jsx';
+import styles from './ReviewStep.module.scss';
 
 export default function ReviewStep({
   listing,
+  publicationPeriodDays,
+  onPublicationPeriodDaysChange,
   onBack = undefined,
   onPublished,
 }) {
@@ -30,9 +47,28 @@ export default function ReviewStep({
   const title = listing.translations[0]?.title;
   const issues = publishMutation.error?.details ?? [];
 
+  const periodOptions = PUBLICATION_PERIOD_DAYS_OPTIONS.map((days) => ({
+    value: String(days),
+    label: t('partner.listingWizard.publicationPeriod.dayCount', {
+      count: days,
+    }),
+  }));
+
+  function handlePeriodChange(nextValue) {
+    // The chip group's own "click the selected chip again to deselect"
+    // behavior doesn't apply here — exactly one option must always be
+    // selected (no custom value, no empty state), so a `undefined`
+    // deselect attempt is simply ignored, keeping the previous choice.
+    if (nextValue === undefined) return;
+    onPublicationPeriodDaysChange(Number(nextValue));
+  }
+
   async function handlePublish() {
     try {
-      await publishMutation.mutateAsync(listing.id);
+      await publishMutation.mutateAsync({
+        id: listing.id,
+        publicationPeriodDays,
+      });
       onPublished();
     } catch {
       // Surfaced below via publishMutation.error's `details` — no further
@@ -118,6 +154,18 @@ export default function ReviewStep({
         variant="secondary"
       />
 
+      <section className={styles.publicationPeriod}>
+        <p className={styles.publicationPeriodDescription}>
+          {t('partner.listingWizard.publicationPeriod.description')}
+        </p>
+        <ChipGroup
+          label={t('partner.listingWizard.publicationPeriod.heading')}
+          options={periodOptions}
+          selectedValue={String(publicationPeriodDays)}
+          onChange={(nextValue) => handlePeriodChange(nextValue)}
+        />
+      </section>
+
       <WizardStepActions
         onBack={onBack}
         onContinue={() => handlePublish()}
@@ -164,6 +212,8 @@ ReviewStep.propTypes = {
       pricing_model: PropTypes.string,
     }),
   }).isRequired,
+  publicationPeriodDays: PropTypes.number.isRequired,
+  onPublicationPeriodDaysChange: PropTypes.func.isRequired,
   onBack: PropTypes.func,
   onPublished: PropTypes.func.isRequired,
 };

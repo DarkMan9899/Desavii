@@ -135,7 +135,8 @@ describe('Audit logging: availability + bookings', () => {
       .send(ONE_PX_PNG);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
 
     const dateFrom = '2027-03-01';
     const dateTo = '2027-03-02';

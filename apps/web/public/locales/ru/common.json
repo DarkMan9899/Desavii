@@ -1713,7 +1713,9 @@
         "COMPLETE_LOCATION_REQUIRED": "Укажите местоположение объявления перед публикацией.",
         "REQUIRED_ATTRIBUTE_MISSING": "Отсутствует обязательная характеристика: {{field}}",
         "REQUIRED_POLICY_MISSING": "Отсутствует обязательное правило: {{field}}",
-        "AT_LEAST_ONE_BOOKABLE_UNIT_REQUIRED": "Зарегистрируйте хотя бы одну бронируемую единицу перед публикацией."
+        "AT_LEAST_ONE_BOOKABLE_UNIT_REQUIRED": "Зарегистрируйте хотя бы одну бронируемую единицу перед публикацией.",
+        "PUBLICATION_PERIOD_REQUIRED": "Выберите, как долго это объявление должно оставаться опубликованным.",
+        "INVALID_PUBLICATION_PERIOD": "Выберите один из доступных сроков публикации."
       },
       "review": {
         "title": "Название",
@@ -1724,6 +1726,11 @@
         "amenities": "Удобства",
         "amenitiesCount": "Выбрано: {{count}}",
         "pricing": "Цены"
+      },
+      "publicationPeriod": {
+        "heading": "Срок публикации",
+        "description": "Выберите, как долго это объявление будет видно на сайте. Позже вы сможете продлить его.",
+        "dayCount": "{{count}} дн."
       },
       "bedTypes": {
         "SINGLE": "Односпальная",

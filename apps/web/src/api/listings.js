@@ -56,10 +56,20 @@ export function updateListing(id, payload) {
  * check passes (translation, image, location, required attributes/
  * policies, >=1 bookable unit) — see `ApiError.js` for how validation
  * details surface to callers.
+ *
+ * `publicationPeriodDays` (Step B3): required only on a listing's first
+ * lifecycle-managed publish (the server decides this from its own
+ * `expires_at` state, never the client) — one of the fixed
+ * `PUBLICATION_PERIOD_DAYS_OPTIONS` (30/90/180/365, see
+ * `modules/listings/constants/publicationPeriod.js`), no custom value.
+ * Silently ignored by the server on any later republish, so it's always
+ * safe to send.
+ * @param {number} id
+ * @param {{ publicationPeriodDays?: number }} [options]
  */
-export function publishListing(id) {
+export function publishListing(id, { publicationPeriodDays } = {}) {
   return apiClient
-    .post(`/listings/${id}/publish`)
+    .post(`/listings/${id}/publish`, { publicationPeriodDays })
     .then((response) => response.data);
 }
 

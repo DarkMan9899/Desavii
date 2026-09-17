@@ -20,6 +20,8 @@ function Harness() {
     goToPreviousStep,
     authoringLocale,
     setAuthoringLocale,
+    publicationPeriodDays,
+    setPublicationPeriodDays,
   } = useListingWizardState();
 
   return (
@@ -31,8 +33,12 @@ function Harness() {
       <p data-testid="isFirstStep">{String(isFirstStep)}</p>
       <p data-testid="isLastStep">{String(isLastStep)}</p>
       <p data-testid="authoringLocale">{authoringLocale}</p>
+      <p data-testid="publicationPeriodDays">{publicationPeriodDays}</p>
       <button type="button" onClick={() => setCategoryId(3)}>
         pick category
+      </button>
+      <button type="button" onClick={() => setPublicationPeriodDays(30)}>
+        pick 30-day period
       </button>
       <button type="button" onClick={() => setListingId(42)}>
         create listing
@@ -162,5 +168,23 @@ describe('useListingWizardState (PartnerListingWizard)', () => {
   test('an unrecognized ?contentLocale= value falls back to the platform default', () => {
     renderHarness('/hy/partner/listings/new?contentLocale=fr');
     expect(screen.getByTestId('authoringLocale')).toHaveTextContent('en');
+  });
+
+  // Listing Lifetime / Renewal, Step B3.
+  test('publicationPeriodDays defaults to 90 for a listing entering its first publication cycle', () => {
+    renderHarness();
+    expect(screen.getByTestId('publicationPeriodDays')).toHaveTextContent('90');
+  });
+
+  test('setPublicationPeriodDays updates it and persists across a step navigation, like authoringLocale', async () => {
+    const user = userEvent.setup();
+    renderHarness();
+    await user.click(
+      screen.getByRole('button', { name: 'pick 30-day period' }),
+    );
+    expect(screen.getByTestId('publicationPeriodDays')).toHaveTextContent('30');
+    await user.click(screen.getByRole('button', { name: 'next' }));
+    expect(screen.getByTestId('step')).toHaveTextContent('basicInfo');
+    expect(screen.getByTestId('publicationPeriodDays')).toHaveTextContent('30');
   });
 });

@@ -33,6 +33,7 @@ import {
   useUnpublishListingMutation,
   useArchiveListingMutation,
   useDeleteListingMutation,
+  DEFAULT_PUBLICATION_PERIOD_DAYS,
 } from '../../../listings/index.js';
 import PartnerListingRowActions from '../PartnerListingRowActions/PartnerListingRowActions.jsx';
 import styles from './PartnerListingsList.module.scss';
@@ -69,7 +70,16 @@ export default function PartnerListingsList({
 
   async function handlePublish(listing) {
     try {
-      await publishMutation.mutateAsync(listing.id);
+      // Listing Lifetime / Renewal, Step B3: this quick action has no
+      // period-picker UI of its own (that lives only in the wizard's
+      // Review step) — always offers the same 90-day UI default the
+      // wizard pre-selects. Silently ignored server-side if this listing
+      // already has a lifecycle assigned (an ordinary republish), so this
+      // is safe regardless of which case applies.
+      await publishMutation.mutateAsync({
+        id: listing.id,
+        publicationPeriodDays: DEFAULT_PUBLICATION_PERIOD_DAYS,
+      });
       showToast(t('partner.listings.publishSuccess'), { variant: 'success' });
     } catch (error) {
       showToast(error.message || t('partner.listings.publishError'), {

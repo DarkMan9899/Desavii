@@ -124,7 +124,8 @@ async function publishListing(owner, listingId) {
     .send(ONE_PX_PNG);
   const res = await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${owner.accessToken}`);
+    .set('Authorization', `Bearer ${owner.accessToken}`)
+    .send({ publicationPeriodDays: 90 });
   expect(res.status).toBe(200);
 }
 

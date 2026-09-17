@@ -68,7 +68,8 @@ async function createRestaurantListing(title) {
     .send({ listingId, bookableUnitType: 'RESTAURANT_TABLE', capacity: 10 });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`);
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({ publicationPeriodDays: 90 });
 
   return { listingId, unitId: unitRes.body.data.id };
 }

@@ -71,8 +71,8 @@ export class ListingRepository {
     );
   }
 
-  /** @param {number} id @param {number} statusId @param {number} updatedBy @returns {Promise<void>} */
-  async markPublished(id, statusId, updatedBy) {
+  /** @param {number} id @param {number} statusId @param {number} updatedBy @param {number|null} [publicationPeriodDays] Step B3: non-null only on a listing's first lifecycle-managed publish. @returns {Promise<void>} */
+  async markPublished(id, statusId, updatedBy, publicationPeriodDays = null) {
     throw new Error(
       'ListingRepository.markPublished must be implemented by a concrete adapter.',
     );

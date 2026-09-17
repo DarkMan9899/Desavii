@@ -84,7 +84,8 @@ async function createApprovedReview(customer) {
 
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`);
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({ publicationPeriodDays: 90 });
 
   const dateFrom = '2027-04-10';
   const dateTo = '2027-04-12';
