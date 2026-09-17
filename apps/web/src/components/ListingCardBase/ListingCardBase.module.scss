@@ -173,11 +173,16 @@
 }
 
 // Car Rentals — "spec-chip / vehicle-info interaction": the price row's
-// hairline picks up the brand accent, drawing the eye to the per-day
+// hairline picks up an accent on hover, drawing the eye to the per-day
 // rate/spec area rather than the photo — matches the brief's "cleaner,
-// more technical" character (no image-zoom flourish at all here).
+// more technical" character (no image-zoom flourish at all here). Car
+// Rental internal-design pass (below) establishes navy/steel as this
+// category's own accent (brief §7's "restrained steel/blue"); this
+// pre-existing hover accent is recolored from the old generic gold to
+// match — gold stays Hotel/Restaurant's own claimed hue, never a
+// vehicle-rental one.
 .card[data-category='car-rentals']:hover .priceRow {
-  border-block-start-color: tokens.$color-gold;
+  border-block-start-color: tokens.$color-navy;
 }
 
 // Attractions — "story/fact/highlight reveal": the title itself picks up
@@ -475,6 +480,38 @@
   background-color: rgba(tokens.$color-navy, 0.05);
 }
 
+// Car Rental internal-design pass — every sibling so far is a rounded
+// pill (filled, washed, plaque, or outlined); a sharp-cornered tag is
+// the one FORM none of them use, reading as a spec/data-sheet label
+// rather than a friendly badge — brief §3's own "technical but elegant
+// metadata" realized structurally. Reuses navy a third time (after
+// Apartment's fill and Tours' dashed outline) as this design system's
+// only cool tone, tying Car Rental to Tours as the two "movement"
+// categories while Apartment's own fill stays residential/structural —
+// the FORM (solid-bordered rectangular tag, uppercase micro-label) is
+// what actually differentiates it, never the hue alone. Padding
+// compensates for the added 1px border exactly as Villa/Tours already
+// do, so the chip's footprint never changes.
+.card[data-category='car-rentals'] .metaChip {
+  padding: 1px 7px;
+  border-radius: tokens.$radius-sm;
+  border: 1px solid rgba(tokens.$color-navy, 0.3);
+  background-color: transparent;
+  color: tokens.$color-navy;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.card[data-category='car-rentals'] .metaChipIcon {
+  color: tokens.$color-navy;
+}
+
+.card[data-category='car-rentals']:hover .metaChip {
+  border-color: rgba(tokens.$color-navy, 0.5);
+  background-color: rgba(tokens.$color-navy, 0.05);
+}
+
 // A visual footer, not just the last flex item — a hairline separates
 // price from the descriptive content above it, so it reads as the
 // card's one settled fact rather than another line of prose.
@@ -568,4 +605,16 @@
 .card[data-category='tours'] .priceRow {
   border-block-start-style: dashed;
   border-block-start-color: rgba(tokens.$color-navy, 0.4);
+}
+
+// Car Rental internal-design pass — a quiet, always-visible steel/navy
+// wash (mirroring Guest House's own "wash, not a line" mechanic, but in
+// the cool tone this category claims rather than Guest House's warm
+// gold) — the hairline itself stays the shared default gray at rest,
+// then picks up the navy accent on hover (see this file's own Car
+// Rental `:hover .priceRow` rule above), so the footer reads as settled/
+// technical at rest and draws the eye only on interaction.
+.card[data-category='car-rentals'] .priceRow {
+  background-color: rgba(tokens.$color-navy, 0.04);
+  border-radius: tokens.$radius-sm;
 }
