@@ -399,6 +399,81 @@ describe('GET /listings/:id — company attribution (Step A3)', () => {
   });
 });
 
+// Listing Lifetime / Renewal, Step B2: schema/domain foundation only — no
+// API surface exists yet for any of these columns (that's Step B3+). These
+// tests prove the migration is safe (every new field defaults NULL,
+// nothing existing behaves differently) and that the raw columns
+// themselves impose no premature product-value constraint.
+describe('Listing publication lifecycle — Step B2 foundation (schema/domain only)', () => {
+  async function selectLifecycleColumns(listingId) {
+    const [[row]] = await pool.query(
+      `SELECT publication_period_days, expires_at, expiry_reminder_sent_at,
+              frozen_at, purge_after, renewed_at
+       FROM listings WHERE id = ?`,
+      [listingId],
+    );
+    return row;
+  }
+
+  test('a newly created (DRAFT) listing has every new lifecycle field NULL', async () => {
+    const created = await createDraftListing();
+    const row = await selectLifecycleColumns(created.body.data.id);
+    expect(row.publication_period_days).toBeNull();
+    expect(row.expires_at).toBeNull();
+    expect(row.expiry_reminder_sent_at).toBeNull();
+    expect(row.frozen_at).toBeNull();
+    expect(row.purge_after).toBeNull();
+    expect(row.renewed_at).toBeNull();
+  });
+
+  test('publishing a listing leaves every new lifecycle field untouched (no expiry is assigned yet)', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    const publishRes = await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    expect(publishRes.status).toBe(200);
+
+    const row = await selectLifecycleColumns(listingId);
+    expect(row.expires_at).toBeNull();
+    expect(row.frozen_at).toBeNull();
+    expect(row.purge_after).toBeNull();
+  });
+
+  test('publication_period_days accepts any positive value — no product-list constraint at the schema layer yet (Step B3 owns that decision)', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    // No API field exists for this yet — written directly to prove the
+    // column itself has no CHECK/enum restricting it to a future fixed
+    // list (30/90/180/365 or otherwise).
+    await pool.query(
+      'UPDATE listings SET publication_period_days = ? WHERE id = ?',
+      [999, listingId],
+    );
+    const row = await selectLifecycleColumns(listingId);
+    expect(row.publication_period_days).toBe(999);
+  });
+
+  test('GET /listings/:id never exposes any new lifecycle column in the public response', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+
+    const res = await request(app).get(`/api/v1/listings/${listingId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).not.toHaveProperty('publication_period_days');
+    expect(res.body.data).not.toHaveProperty('expires_at');
+    expect(res.body.data).not.toHaveProperty('expiry_reminder_sent_at');
+    expect(res.body.data).not.toHaveProperty('frozen_at');
+    expect(res.body.data).not.toHaveProperty('purge_after');
+    expect(res.body.data).not.toHaveProperty('renewed_at');
+  });
+});
+
 describe('PATCH /listings/:id — update, slug history', () => {
   test('changing the slug records the old slug in listing_slug_history', async () => {
     const created = await createDraftListing();

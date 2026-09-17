@@ -44,6 +44,7 @@ const LISTING_SELECT_COLUMNS = `
   l.status_id, ls.code AS status_code, l.moderation_status_id, ms.code AS moderation_status_code,
   l.moderation_notes,
   l.is_contact_visible, l.is_featured, l.published_at, l.unpublished_at, l.archived_at,
+  l.publication_period_days, l.expires_at, l.expiry_reminder_sent_at, l.frozen_at, l.purge_after, l.renewed_at,
   l.canonical_url, l.og_image_media_id, l.is_indexable, l.is_sitemap_included,
   l.created_at, l.updated_at, l.deleted_at, l.created_by, l.updated_by
 `;
@@ -90,6 +91,16 @@ function toListingDomain(row) {
     publishedAt: row.published_at,
     unpublishedAt: row.unpublished_at,
     archivedAt: row.archived_at,
+    // Listing Lifetime / Renewal, Step B2 (foundation only — nothing yet
+    // reads these outside the internal domain/repository layer; see
+    // `core/domain/listingLifecycle.js`). Every one of these is `null` for
+    // every listing until Step B3+ starts writing them.
+    publicationPeriodDays: row.publication_period_days,
+    expiresAt: row.expires_at,
+    expiryReminderSentAt: row.expiry_reminder_sent_at,
+    frozenAt: row.frozen_at,
+    purgeAfter: row.purge_after,
+    renewedAt: row.renewed_at,
     canonicalUrl: row.canonical_url,
     ogImageMediaId: row.og_image_media_id,
     isIndexable: Boolean(row.is_indexable),

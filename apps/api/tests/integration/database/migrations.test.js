@@ -228,4 +228,72 @@ describe('Fresh migration from an empty database (Sprint 5 Quality Gate #4)', ()
     }
     await up(undefined, { databaseName: MIGRATION_CHECK_DATABASE });
   });
+
+  // Listing Lifetime / Renewal, Step B2: same pattern as the 0034/0035
+  // proofs above, now for the current most-recent migration. Also proves
+  // the specific real bug this migration's own down.sql was written
+  // around: `idx_listings_status_id_expires_at` silently became the sole
+  // index supporting `fk_listings_status_id` once added (superseding
+  // migration 0005's implicit one), so a naive `DROP INDEX` on it alone
+  // fails with ER_DROP_INDEX_FK — the down script restores a plain
+  // `idx_listings_status_id` index first, in the same statement.
+  test('migration 0048 down.sql cleanly reverses the listing publication-lifecycle columns/indexes', async () => {
+    const connection = await mysql.createConnection({
+      host: config.database.host,
+      port: config.database.port,
+      database: MIGRATION_CHECK_DATABASE,
+      user: config.database.user,
+      password: config.database.password,
+      multipleStatements: true,
+    });
+    try {
+      const downSql = readFileSync(
+        path.join(
+          MIGRATIONS_DIR,
+          '0048_listing_publication_lifecycle.down.sql',
+        ),
+        'utf8',
+      );
+      await expect(connection.query(downSql)).resolves.not.toThrow();
+
+      const [columns] = await connection.query(
+        `SELECT column_name FROM information_schema.columns
+         WHERE table_schema = ? AND table_name = 'listings'`,
+        [MIGRATION_CHECK_DATABASE],
+      );
+      const columnNames = new Set(
+        columns.map((row) => row.column_name ?? row.COLUMN_NAME),
+      );
+      expect(columnNames.has('publication_period_days')).toBe(false);
+      expect(columnNames.has('expires_at')).toBe(false);
+      expect(columnNames.has('expiry_reminder_sent_at')).toBe(false);
+      expect(columnNames.has('frozen_at')).toBe(false);
+      expect(columnNames.has('purge_after')).toBe(false);
+      expect(columnNames.has('renewed_at')).toBe(false);
+      // Pre-existing columns this migration never touched are untouched.
+      expect(columnNames.has('archived_at')).toBe(true);
+      expect(columnNames.has('status_id')).toBe(true);
+
+      const [indexes] = await connection.query(
+        `SELECT DISTINCT index_name FROM information_schema.statistics
+         WHERE table_schema = ? AND table_name = 'listings'`,
+        [MIGRATION_CHECK_DATABASE],
+      );
+      const indexNames = new Set(
+        indexes.map((row) => row.index_name ?? row.INDEX_NAME),
+      );
+      expect(indexNames.has('idx_listings_status_id_expires_at')).toBe(false);
+      expect(indexNames.has('idx_listings_frozen_at_purge_after')).toBe(false);
+      // fk_listings_status_id must still have a supporting index — the
+      // very bug this down script exists to avoid re-introducing.
+      expect(indexNames.has('idx_listings_status_id')).toBe(true);
+
+      await connection.query(
+        `DELETE FROM schema_migrations WHERE version = '0048'`,
+      );
+    } finally {
+      await connection.end();
+    }
+    await up(undefined, { databaseName: MIGRATION_CHECK_DATABASE });
+  });
 });
