@@ -70,4 +70,100 @@ describe('FavoritesPageContent (apps/web/src/modules/favorites)', () => {
       await screen.findByText('Չհաջողվեց բեռնել Ձեր ընտրյալները։'),
     ).toBeInTheDocument();
   });
+
+  // Card-composition-closure fix (cross-category audit) — Favorites now
+  // reuses the exact same `buildCategoryCardMeta` helper `SearchResultCard`
+  // does, so a favorited listing carries the real `data-category`
+  // attribute (activating its own category's `ListingCardBase.module.scss`
+  // design) and category-appropriate price unit/metadata, never a
+  // Favorites-specific 10th visual system.
+  describe('category context (card-composition-closure fix)', () => {
+    test('a favorited Hotel receives the hotel category visual key and per-night price unit', async () => {
+      listFavorites.mockResolvedValue({
+        data: [
+          {
+            ...FAVORITE_ROW,
+            category_slug: 'hotels',
+            price_amount: '99.00',
+            price_currency_code: 'USD',
+          },
+        ],
+        meta: { has_more: false },
+      });
+      const { container } = renderPage();
+      await screen.findByText('Sunset Villa');
+      expect(
+        container.querySelector('[data-category="hotels"]'),
+      ).toBeInTheDocument();
+      expect(screen.getByText('/ գիշեր')).toBeInTheDocument();
+    });
+
+    test('a favorited Car Rental receives the car-rentals category visual key, a transmission chip, and a per-day price unit', async () => {
+      listFavorites.mockResolvedValue({
+        data: [
+          {
+            ...FAVORITE_ROW,
+            listing_type: 'CAR_RENTAL',
+            category_slug: 'car-rentals',
+            transmission: 'AUTOMATIC',
+            price_amount: '30.00',
+            price_currency_code: 'USD',
+          },
+        ],
+        meta: { has_more: false },
+      });
+      const { container } = renderPage();
+      await screen.findByText('Sunset Villa');
+      expect(
+        container.querySelector('[data-category="car-rentals"]'),
+      ).toBeInTheDocument();
+      expect(screen.getByText('Ավտոմատ')).toBeInTheDocument();
+      expect(screen.getByText('/ օր')).toBeInTheDocument();
+    });
+
+    test('renders the real city as a location line when present', async () => {
+      listFavorites.mockResolvedValue({
+        data: [{ ...FAVORITE_ROW, category_slug: 'hotels' }],
+        meta: { has_more: false },
+      });
+      renderPage();
+      // 'Yerevan' also appears as the group heading above the card — the
+      // location line is a second, real occurrence of the same city text.
+      expect((await screen.findAllByText('Yerevan')).length).toBeGreaterThan(1);
+    });
+
+    test('a Car Rental with no real transmission shows no chip (missing metadata degrades cleanly, never fabricated)', async () => {
+      listFavorites.mockResolvedValue({
+        data: [
+          {
+            ...FAVORITE_ROW,
+            listing_type: 'CAR_RENTAL',
+            category_slug: 'car-rentals',
+            transmission: null,
+          },
+        ],
+        meta: { has_more: false },
+      });
+      const { container } = renderPage();
+      await screen.findByText('Sunset Villa');
+      expect(
+        container.querySelector('[data-category="car-rentals"]'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText('Ավտոմատ')).not.toBeInTheDocument();
+      expect(screen.queryByText('Մեխանիկական')).not.toBeInTheDocument();
+    });
+
+    test('a favorite with no category_slug falls back to the coarser listing_type and shows no price-unit suffix (never guessed)', async () => {
+      listFavorites.mockResolvedValue({
+        data: [{ ...FAVORITE_ROW, category_slug: undefined }],
+        meta: { has_more: false },
+      });
+      const { container } = renderPage();
+      await screen.findByText('Sunset Villa');
+      expect(
+        container.querySelector('[data-category="hotel"]'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText('/ գիշեր')).not.toBeInTheDocument();
+    });
+  });
 });

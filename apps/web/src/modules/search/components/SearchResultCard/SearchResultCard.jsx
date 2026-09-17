@@ -22,80 +22,11 @@
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router-dom';
-import {
-  MapPin,
-  Star,
-  BedDouble,
-  Clock,
-  Settings2,
-  Utensils,
-} from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import ListingCardBase from '../../../../components/ListingCardBase/ListingCardBase.jsx';
 import { FavoriteButton } from '../../../favorites/index.js';
-import { resolveCardConfig } from '../../../../utils/categoryCardConfig.js';
+import { buildCategoryCardMeta } from '../../../../utils/buildCategoryCardMeta.js';
 import styles from './SearchResultCard.module.scss';
-
-/**
- * Owner-directed premium card redesign — one real "headline" metadata fact
- * per category, sourced from `mysqlSearchRepository.js`'s `CARD_METADATA_
- * SELECT` (the same generic-attribute mechanism cuisine/price_tier already
- * use). Each entry is `null` on the DTO whenever the attribute was never
- * authored for that listing — this function only ever renders what's
- * actually there, never a fabricated default. Kept as ONE chip per
- * category (not several) per the brief's own "no random chips everywhere"
- * rule; every other category-flavor cue (icon, motif, effects) lives
- * elsewhere in the shared card shell.
- */
-function buildHeadlineChip(result, categoryVisualKey, t) {
-  switch (categoryVisualKey) {
-    case 'hotels':
-      return result.star_rating
-        ? {
-            key: 'headline-star-rating',
-            icon: Star,
-            label: t('search.card.starRating', {
-              count: Number(result.star_rating),
-            }),
-          }
-        : null;
-    case 'apartments':
-    case 'villas':
-    case 'guest-houses':
-      return result.bedrooms
-        ? {
-            key: 'headline-bedrooms',
-            icon: BedDouble,
-            label: t('search.card.bedroomsCount', { count: result.bedrooms }),
-          }
-        : null;
-    case 'tours':
-    case 'attractions':
-    case 'entertainment-venues': {
-      if (!result.duration_minutes) return null;
-      const hours = Math.floor(result.duration_minutes / 60);
-      const label =
-        hours >= 1 && result.duration_minutes % 60 === 0
-          ? t('search.card.durationHours', { count: hours })
-          : t('search.card.durationMinutes', {
-              count: result.duration_minutes,
-            });
-      return { key: 'headline-duration', icon: Clock, label };
-    }
-    case 'car-rentals':
-      return result.transmission
-        ? {
-            key: 'headline-transmission',
-            icon: Settings2,
-            label: t(
-              `search.dynamicFilters.options.${result.transmission}`,
-              result.transmission,
-            ),
-          }
-        : null;
-    default:
-      return null;
-  }
-}
 
 /**
  * P2.2D: carries the customer's own search selections forward into the
@@ -135,46 +66,15 @@ export default function SearchResultCard({
     defaultValue: result.listing_type,
   });
 
-  // Pass 7 (category-specific visual identity, brief §15) — the real
-  // category slug when the search DTO has resolved one, falling back to
-  // the coarser `listing_type` for a DTO shape that predates the new
-  // field (e.g. an older cached response). Never the full `listings`
-  // module's `resolveCategoryVisualKey`/`resolvePresentationGroup`: that
-  // module already depends on `modules/search` (`RelatedListings`), so
-  // importing it back here would close a real module dependency cycle —
-  // this simpler inline fallback needs no such import.
-  const categoryVisualKey =
-    result.category_slug ?? result.listing_type?.toLowerCase();
-  const cardConfig = resolveCardConfig(categoryVisualKey);
-  // Restaurant-only real data today (brief §9/§22's deferred card
-  // metadata) — both fields are `null` for every other category, so this
-  // naturally renders no chips there. Reuses the SAME i18n namespace
-  // `DynamicFilterPanel`'s `FilterControl` already resolves attribute-
-  // option codes through, never a second translation table for the same
-  // codes.
-  const headlineChip = buildHeadlineChip(result, categoryVisualKey, t);
-  const metaChips = [
-    ...(headlineChip ? [headlineChip] : []),
-    ...(result.cuisine ?? []).map((code) => ({
-      key: `cuisine-${code}`,
-      icon: Utensils,
-      label: t(`search.dynamicFilters.options.${code}`, code),
-    })),
-    ...(result.price_tier
-      ? [
-          {
-            key: `price-tier-${result.price_tier}`,
-            label: t(
-              `search.dynamicFilters.options.${result.price_tier}`,
-              result.price_tier,
-            ),
-          },
-        ]
-      : []),
-  ];
-  const priceSuffix = cardConfig.priceUnitKey
-    ? t(`search.card.priceUnit.${cardConfig.priceUnitKey}`)
-    : null;
+  // Pass 7 (category-specific visual identity, brief §15) — never the
+  // full `listings` module's `resolveCategoryVisualKey`/
+  // `resolvePresentationGroup`: that module already depends on
+  // `modules/search` (`RelatedListings`), so importing it back here
+  // would close a real module dependency cycle. `buildCategoryCardMeta`
+  // (dependency-free `utils/`) is also reused by `FavoritesPageContent`
+  // — the same category chip-building logic never lives in two places.
+  const { categoryVisualKey, cardConfig, metaChips, priceSuffix } =
+    buildCategoryCardMeta(result, t);
 
   return (
     <ListingCardBase

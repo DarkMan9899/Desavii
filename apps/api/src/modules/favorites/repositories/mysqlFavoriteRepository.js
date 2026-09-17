@@ -16,6 +16,67 @@ import {
   buildPageMeta,
 } from '../../../infrastructure/database/pagination.js';
 
+/**
+ * Card-composition-closure fix — the 9-category cross-category audit
+ * found Favorites cards never activate any category-specific internal
+ * design because `category_slug` (and the same generic per-category
+ * metadata fields Search's own cards use) never reached this query.
+ * Verbatim copy of `mysqlSearchRepository.js`'s own `CARD_METADATA_
+ * SELECT` — that constant isn't exported, and per this file's own
+ * existing header comment ("duplicating a handful of JOINs here is far
+ * simpler than threading an `listingIds` filter through the search
+ * module's query builder"), duplicating this self-contained SQL
+ * fragment is the established pattern for this repository rather than
+ * importing across modules. Every field here is `NULL` whenever that
+ * attribute was never authored for the listing — never a guessed/
+ * fabricated default, same rule the search module documents.
+ */
+const CARD_METADATA_SELECT = `
+      (SELECT lc.slug FROM listing_category_listing lcl_card
+         JOIN listing_categories lc ON lc.id = lcl_card.category_id
+         WHERE lcl_card.listing_id = l.id
+         ORDER BY lcl_card.category_id ASC LIMIT 1
+      ) AS category_slug,
+      (SELECT GROUP_CONCAT(ao_cuisine.code ORDER BY ao_cuisine.sort_order SEPARATOR ',')
+         FROM listing_attribute_option lao_cuisine
+         JOIN attribute_options ao_cuisine ON ao_cuisine.id = lao_cuisine.attribute_option_id
+         JOIN attribute_definitions ad_cuisine ON ad_cuisine.id = ao_cuisine.attribute_definition_id
+         WHERE lao_cuisine.listing_id = l.id AND ad_cuisine.code = 'cuisine'
+      ) AS cuisine_codes,
+      (SELECT ao_tier.code
+         FROM listing_attribute_option lao_tier
+         JOIN attribute_options ao_tier ON ao_tier.id = lao_tier.attribute_option_id
+         JOIN attribute_definitions ad_tier ON ad_tier.id = ao_tier.attribute_definition_id
+         WHERE lao_tier.listing_id = l.id AND ad_tier.code = 'price_tier'
+         LIMIT 1
+      ) AS price_tier_code,
+      (SELECT ao_star.code
+         FROM listing_attribute_option lao_star
+         JOIN attribute_options ao_star ON ao_star.id = lao_star.attribute_option_id
+         JOIN attribute_definitions ad_star ON ad_star.id = ao_star.attribute_definition_id
+         WHERE lao_star.listing_id = l.id AND ad_star.code = 'star_rating'
+         LIMIT 1
+      ) AS star_rating_code,
+      (SELECT ao_trans.code
+         FROM listing_attribute_option lao_trans
+         JOIN attribute_options ao_trans ON ao_trans.id = lao_trans.attribute_option_id
+         JOIN attribute_definitions ad_trans ON ad_trans.id = ao_trans.attribute_definition_id
+         WHERE lao_trans.listing_id = l.id AND ad_trans.code = 'transmission'
+         LIMIT 1
+      ) AS transmission_code,
+      (SELECT lav_bed.value
+         FROM listing_attribute_values_integer lav_bed
+         JOIN attribute_definitions ad_bed ON ad_bed.id = lav_bed.attribute_definition_id
+         WHERE lav_bed.listing_id = l.id AND ad_bed.code = 'bedrooms'
+         LIMIT 1
+      ) AS bedrooms_value,
+      (SELECT lav_dur.value
+         FROM listing_attribute_values_integer lav_dur
+         JOIN attribute_definitions ad_dur ON ad_dur.id = lav_dur.attribute_definition_id
+         WHERE lav_dur.listing_id = l.id AND ad_dur.code = 'duration_minutes'
+         LIMIT 1
+      ) AS duration_minutes_value`;
+
 function toFavoritedListingDomain(row) {
   return {
     favoriteId: row.favorite_id,
@@ -32,6 +93,24 @@ function toFavoritedListingDomain(row) {
     ratingAverage:
       row.rating_average !== null ? Number(row.rating_average) : null,
     reviewCount: Number(row.review_count),
+    // Same mapping rules as `mysqlSearchRepository.js`'s own
+    // `toSearchResultDomain` — real value or `null`, never guessed;
+    // `cuisine_codes` is GROUP_CONCAT'd into a comma string by the
+    // subquery above, split back into option codes here.
+    categorySlug: row.category_slug ?? null,
+    cuisineCodes: row.cuisine_codes ? row.cuisine_codes.split(',') : null,
+    priceTierCode: row.price_tier_code ?? null,
+    starRatingCode: row.star_rating_code ?? null,
+    transmissionCode: row.transmission_code ?? null,
+    bedroomsValue:
+      row.bedrooms_value !== undefined && row.bedrooms_value !== null
+        ? Number(row.bedrooms_value)
+        : null,
+    durationMinutesValue:
+      row.duration_minutes_value !== undefined &&
+      row.duration_minutes_value !== null
+        ? Number(row.duration_minutes_value)
+        : null,
   };
 }
 
@@ -102,7 +181,8 @@ export class MySqlFavoriteRepository {
          (SELECT COUNT(*) FROM reviews rv
             JOIN moderation_statuses rs ON rs.id = rv.status_id
             WHERE rv.listing_id = l.id AND rs.code = 'APPROVED' AND rv.deleted_at IS NULL
-         ) AS review_count
+         ) AS review_count,
+         ${CARD_METADATA_SELECT}
        FROM favorites f
        JOIN listings l ON l.id = f.listing_id
        JOIN listing_types ltype ON ltype.id = l.listing_type_id

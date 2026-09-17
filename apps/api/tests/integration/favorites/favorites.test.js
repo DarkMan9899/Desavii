@@ -121,6 +121,26 @@ describe('Favorites', () => {
         expect.objectContaining({ listing_id: listingId }),
       ]),
     );
+    // Card-composition-closure fix — `category_slug` and the shared card
+    // metadata fields now reach the live response end to end, same shape
+    // as `GET /search` (`searchDto.js`'s own `toSearchResultResponse`).
+    // This listing carries no explicit category assignment, so the real,
+    // non-fabricated value is `null` — the point is the SQL join doesn't
+    // error and the DTO always exposes the key.
+    const favoritedListing = listRes.body.data.find(
+      (item) => item.listing_id === listingId,
+    );
+    expect(favoritedListing).toEqual(
+      expect.objectContaining({
+        category_slug: null,
+        cuisine: null,
+        price_tier: null,
+        star_rating: null,
+        transmission: null,
+        bedrooms: null,
+        duration_minutes: null,
+      }),
+    );
 
     const removeRes = await request(app)
       .delete(`/api/v1/favorites/${listingId}`)
