@@ -534,7 +534,10 @@ export class ListingService {
     // (`isPubliclyVisible` re-derives "already expired" straight from
     // `expires_at`), so this never has the up-to-an-hour stale-visibility
     // gap a `statusCode === 'PUBLISHED'`-only check would have.
-    if (isPubliclyVisible(listing)) return listing;
+    // Step B6.5: `now` is sourced from the DB, not a JS clock read — see
+    // `isPubliclyVisible`'s own doc comment.
+    const now = await this.#listingRepository.findDbNow();
+    if (isPubliclyVisible(listing, now)) return listing;
 
     const allowed = await this.#isOwnerOrHasPermission(
       principal,
@@ -563,7 +566,10 @@ export class ListingService {
   async assertBookable(listingId) {
     const listing = await this.#listingRepository.findById(listingId);
     if (!listing) throw new NotFoundError('Listing not found.');
-    if (hasLifecycleExpired(listing)) {
+    // Step B6.5: `now` is sourced from the DB, not a JS clock read — see
+    // `hasLifecycleExpired`'s own doc comment.
+    const now = await this.#listingRepository.findDbNow();
+    if (hasLifecycleExpired(listing, now)) {
       throw new ConflictError(
         'This listing is no longer accepting new bookings.',
         'LISTING_NOT_BOOKABLE',
@@ -711,18 +717,24 @@ export class ListingService {
 
     const publishedStatusId =
       await this.#listingRepository.findStatusIdByCode('PUBLISHED');
+    // Step B6.5: `now` is sourced from the DB, not a JS clock read — see
+    // `hasLifecycleExpired`'s own doc comment. This is what makes the
+    // branch chosen here always agree with `extendActivePublication`/
+    // `reactivateExpiredPublication`'s own SQL-side `UTC_TIMESTAMP(3)`
+    // guards, and with `isPubliclyVisible`'s public-detail gate.
+    const now = await this.#listingRepository.findDbNow();
 
     const isStillActive =
       listing.statusCode === 'PUBLISHED' &&
       listing.frozenAt == null &&
       listing.expiresAt != null &&
-      !hasLifecycleExpired(listing);
+      !hasLifecycleExpired(listing, now);
     const isExpiredEligible =
       isFrozen(listing) ||
       (listing.statusCode === 'PUBLISHED' &&
         listing.frozenAt == null &&
         listing.expiresAt != null &&
-        hasLifecycleExpired(listing));
+        hasLifecycleExpired(listing, now));
 
     let affectedRows;
     if (isStillActive) {

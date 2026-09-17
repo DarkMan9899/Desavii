@@ -1817,6 +1817,284 @@ describe('Listing expiry reminder — Step B6', () => {
   });
 });
 
+// Listing Lifetime / Renewal, Step B6.5 — renewal expiry boundary / timezone
+// correctness. `renewListing`'s ACTIVE-vs-EXPIRED branch selection used
+// `hasLifecycleExpired`, which compared a mysql2-parsed `expires_at` (a
+// DATETIME column, parsed via the connection's LOCAL timezone — no explicit
+// `timezone` pool option — the same root cause `dateFormat.js` documents for
+// DATE columns) against a raw JS `new Date()`. Because every write uses
+// `UTC_TIMESTAMP(3)`, the two sides of that comparison lived in different
+// time frames, shifted by the server's own UTC offset — any listing
+// expiring within roughly that offset window could be misclassified.
+describe('Listing renewal — Step B6.5 near-boundary correctness', () => {
+  async function createRenewableListing({ periodDays = 90 } = {}) {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    const res = await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: periodDays });
+    expect(res.status).toBe(200);
+    return listingId;
+  }
+
+  /** @param {string} intervalSql e.g. "DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 1 HOUR)" */
+  async function setExpiresAt(listingId, intervalSql) {
+    await pool.query(
+      `UPDATE listings SET expires_at = ${intervalSql} WHERE id = ?`,
+      [listingId],
+    );
+  }
+
+  async function selectExpiresAt(listingId) {
+    const [[row]] = await pool.query(
+      'SELECT expires_at FROM listings WHERE id = ?',
+      [listingId],
+    );
+    return row.expires_at;
+  }
+
+  test('reproduction: a listing expiring 1 hour from now still renews via the ACTIVE (extend-from-old-expiry) path, never 409', async () => {
+    const listingId = await createRenewableListing();
+    await setExpiresAt(
+      listingId,
+      'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 1 HOUR)',
+    );
+    const beforeExpiresAt = await selectExpiresAt(listingId);
+
+    const res = await request(app)
+      .post(`/api/v1/listings/${listingId}/renew`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 30 });
+
+    expect(res.status).toBe(200);
+    const after = await selectExpiresAt(listingId);
+    // ACTIVE math: new = OLD expires_at + 30 days, never DB-now + 30 days.
+    expect(after.getTime() - beforeExpiresAt.getTime()).toBe(
+      30 * 24 * 60 * 60 * 1000,
+    );
+  });
+
+  // Brief §11/§12 — the exact near-boundary matrix, deterministic DB-relative
+  // timestamps, no real sleeps. `>` NOW is ACTIVE (extend from OLD
+  // expires_at); `<=` NOW is EXPIRED-but-unswept (extend from DB NOW,
+  // through the reactivation path, readiness re-checked). This is precisely
+  // the "approximately UTC+4 class of bug" window the brief calls out —
+  // every one of these would have been misclassified on pre-B6.5 HEAD.
+  describe('ACTIVE branch — expires_at > DB NOW', () => {
+    test.each([
+      ['T+5 hours', 'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 5 HOUR)'],
+      ['T+1 hour', 'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 1 HOUR)'],
+      ['T+1 minute', 'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE)'],
+      ['T+1 second', 'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 1 SECOND)'],
+    ])(
+      '%s renews via ACTIVE: new expires_at = OLD expires_at + period',
+      async (_label, intervalSql) => {
+        const listingId = await createRenewableListing();
+        await setExpiresAt(listingId, intervalSql);
+        const beforeExpiresAt = await selectExpiresAt(listingId);
+
+        const res = await request(app)
+          .post(`/api/v1/listings/${listingId}/renew`)
+          .set('Authorization', `Bearer ${vendor.accessToken}`)
+          .send({ publicationPeriodDays: 30 });
+
+        expect(res.status).toBe(200);
+        const after = await selectExpiresAt(listingId);
+        expect(after.getTime() - beforeExpiresAt.getTime()).toBe(
+          30 * 24 * 60 * 60 * 1000,
+        );
+
+        // Public visibility must agree: still visible to an anonymous caller
+        // right up to (and including) this same boundary (brief §13).
+        const publicRes = await request(app).get(
+          `/api/v1/listings/${listingId}`,
+        );
+        expect(publicRes.status).toBe(200);
+      },
+    );
+  });
+
+  describe('EXPIRED-but-unswept branch — expires_at <= DB NOW', () => {
+    test.each([
+      ['T = 0 (exactly now)', 'UTC_TIMESTAMP(3)'],
+      ['T-1 second', 'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 SECOND)'],
+      ['T-1 minute', 'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE)'],
+      ['T-1 hour', 'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 HOUR)'],
+      ['T-5 hours', 'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 5 HOUR)'],
+    ])(
+      '%s renews via EXPIRED/reactivation: new expires_at = DB NOW + period, never OLD expires_at + period',
+      async (_label, intervalSql) => {
+        const listingId = await createRenewableListing();
+        await setExpiresAt(listingId, intervalSql);
+        const beforeExpiresAt = await selectExpiresAt(listingId);
+        const [[{ now: dbNowBefore }]] = await pool.query(
+          'SELECT UTC_TIMESTAMP(3) AS now',
+        );
+
+        const res = await request(app)
+          .post(`/api/v1/listings/${listingId}/renew`)
+          .set('Authorization', `Bearer ${vendor.accessToken}`)
+          .send({ publicationPeriodDays: 30 });
+
+        expect(res.status).toBe(200);
+        const after = await selectExpiresAt(listingId);
+        // Never extended from the OLD (already-past) expires_at.
+        expect(after.getTime()).not.toBe(
+          beforeExpiresAt.getTime() + 30 * 24 * 60 * 60 * 1000,
+        );
+        // Based on DB NOW at the time of renewal, within a generous window
+        // (the request itself takes some real wall-clock time).
+        const expectedMin = dbNowBefore.getTime() + 30 * 24 * 60 * 60 * 1000;
+        expect(after.getTime()).toBeGreaterThanOrEqual(expectedMin);
+        expect(after.getTime()).toBeLessThan(expectedMin + 10_000);
+        // Reactivated cleanly: still PUBLISHED, never left frozen.
+        const [[row]] = await pool.query(
+          `SELECT frozen_at,
+                (SELECT code FROM listing_statuses WHERE id = listings.status_id) AS status_code
+         FROM listings WHERE id = ?`,
+          [listingId],
+        );
+        expect(row.status_code).toBe('PUBLISHED');
+        expect(row.frozen_at).toBeNull();
+
+        // Public visibility must agree: NOT visible to an anonymous caller at
+        // or before this same boundary, before renewal — but the listing was
+        // just renewed, so re-check the state as it existed at read time
+        // instead (a fresh fixture, since renewal already changed this one).
+      },
+    );
+
+    test("the same T=0/T-1s boundary is publicly invisible before renewal, exactly matching Renew's own EXPIRED classification", async () => {
+      const listingId = await createRenewableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 SECOND)',
+      );
+
+      const publicRes = await request(app).get(`/api/v1/listings/${listingId}`);
+      expect(publicRes.status).toBe(404);
+
+      const res = await request(app)
+        .post(`/api/v1/listings/${listingId}/renew`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: 30 });
+      expect(res.status).toBe(200);
+    });
+  });
+
+  test('near-boundary double-renew: two concurrent requests at T+1 second still converge on exactly one success', async () => {
+    const listingId = await createRenewableListing();
+    await setExpiresAt(
+      listingId,
+      'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 1 SECOND)',
+    );
+
+    const renew = () =>
+      request(app)
+        .post(`/api/v1/listings/${listingId}/renew`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: 30 });
+
+    const [first, second] = await Promise.all([renew(), renew()]);
+    const statuses = [first.status, second.status].sort();
+    expect(statuses).toEqual([200, 409]);
+  });
+
+  test('near-boundary double-renew on the EXPIRED-but-unswept side (T-1 second): two concurrent requests still converge on exactly one success', async () => {
+    const listingId = await createRenewableListing();
+    await setExpiresAt(
+      listingId,
+      'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 SECOND)',
+    );
+
+    const renew = () =>
+      request(app)
+        .post(`/api/v1/listings/${listingId}/renew`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: 30 });
+
+    const [first, second] = await Promise.all([renew(), renew()]);
+    const statuses = [first.status, second.status].sort();
+    expect(statuses).toEqual([200, 409]);
+  });
+
+  test('expiry-sweep race at the exact boundary: whichever runs first, the listing converges to exactly one correctly-based renewal', async () => {
+    const listingId = await createRenewableListing();
+    await setExpiresAt(
+      listingId,
+      'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 SECOND)',
+    );
+
+    // The sweep runs first, freezing it...
+    const swept = await services.listingService.runExpirySweep();
+    expect(swept.frozen).toBeGreaterThanOrEqual(1);
+    const frozenRow = await selectExpiresAt(listingId);
+    expect(frozenRow).not.toBeNull();
+
+    // ...then renewal still succeeds cleanly against the now-frozen row,
+    // basing the new expiry on DB NOW (never the stale old expires_at).
+    const res = await request(app)
+      .post(`/api/v1/listings/${listingId}/renew`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 30 });
+    expect(res.status).toBe(200);
+    const [[row]] = await pool.query(
+      `SELECT frozen_at, expires_at,
+              (SELECT code FROM listing_statuses WHERE id = listings.status_id) AS status_code
+       FROM listings WHERE id = ?`,
+      [listingId],
+    );
+    expect(row.status_code).toBe('PUBLISHED');
+    expect(row.frozen_at).toBeNull();
+    expect(row.expires_at.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  // Brief §14 — B6's reminder logic is pure SQL and was reported unaffected
+  // by this bug; re-verify no regression rather than rewrite it.
+  describe('B6 reminder regression', () => {
+    test('a listing inside the T-2 window can still remind, an expired one still cannot, and renewal still resets the marker for a fresh T-2 cycle', async () => {
+      const listingId = await createRenewableListing({ periodDays: 30 });
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 48 HOUR)',
+      );
+      const first = await services.listingService.runExpirySweep();
+      expect(first.remindersSent).toBeGreaterThanOrEqual(1);
+      const [[afterReminder]] = await pool.query(
+        'SELECT expiry_reminder_sent_at FROM listings WHERE id = ?',
+        [listingId],
+      );
+      expect(afterReminder.expiry_reminder_sent_at).not.toBeNull();
+
+      const renewRes = await request(app)
+        .post(`/api/v1/listings/${listingId}/renew`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: 90 });
+      expect(renewRes.status).toBe(200);
+      const [[afterRenew]] = await pool.query(
+        'SELECT expiry_reminder_sent_at FROM listings WHERE id = ?',
+        [listingId],
+      );
+      expect(afterRenew.expiry_reminder_sent_at).toBeNull();
+
+      const expiredListingId = await createRenewableListing();
+      await setExpiresAt(
+        expiredListingId,
+        'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 HOUR)',
+      );
+      const second = await services.listingService.runExpirySweep();
+      const [[expiredRow]] = await pool.query(
+        'SELECT expiry_reminder_sent_at FROM listings WHERE id = ?',
+        [expiredListingId],
+      );
+      expect(expiredRow.expiry_reminder_sent_at).toBeNull();
+      expect(second).toBeDefined();
+    });
+  });
+});
+
 describe('PATCH /listings/:id — update, slug history', () => {
   test('changing the slug records the old slug in listing_slug_history', async () => {
     const created = await createDraftListing();

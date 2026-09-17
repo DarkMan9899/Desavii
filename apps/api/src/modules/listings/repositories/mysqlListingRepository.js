@@ -930,6 +930,26 @@ export class MySqlListingRepository extends ListingRepositoryPort {
   }
 
   /**
+   * Listing Lifetime / Renewal, Step B6.5 — the one authoritative lifecycle
+   * clock read. Every guarded UPDATE in this file (`freezeExpiredListings`,
+   * `extendActivePublication`, `reactivateExpiredPublication`,
+   * `claimExpiryReminder`) already decides eligibility entirely in SQL via
+   * `UTC_TIMESTAMP(3)`, immune to any JS-side timezone quirk. The domain
+   * layer's own `hasLifecycleExpired`/`isPubliclyVisible` (used for READ-
+   * path decisions that never go through a guarded UPDATE — `getListing`'s
+   * public-detail gate, `assertBookable`, and `renewListing`'s branch
+   * selection) need the exact same authoritative instant, sourced through
+   * this SAME connection, so their `new Date(expiresAt) <= now` comparison
+   * lives in one consistent time frame instead of mixing a mysql2-parsed
+   * value against a plain JS clock read.
+   * @returns {Promise<Date>}
+   */
+  async findDbNow(connection = this.#pool) {
+    const [[row]] = await connection.query('SELECT UTC_TIMESTAMP(3) AS now');
+    return row.now;
+  }
+
+  /**
    * Listing Lifetime / Renewal, Step B4 — the scheduled expiry sweep's
    * only write. One guarded UPDATE, not a per-row loop: the WHERE clause
    * (still PUBLISHED, not already frozen, has a real `expires_at`, and it

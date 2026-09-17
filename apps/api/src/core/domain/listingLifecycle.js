@@ -67,13 +67,42 @@ export function isLifecycleManaged(listing) {
  * wait for `frozen_at` alone: public visibility must never depend solely on
  * scheduler timing (a PUBLISHED row whose `expires_at` already passed but
  * hasn't been swept yet is still "expired" for every purpose this function
- * is used for). Compared against the caller's own clock — every caller of
- * this function runs on the API server, so `new Date()` here is always the
- * server's clock, never a client-supplied value.
+ * is used for).
+ *
+ * Step B6.5 — `now` is a REQUIRED parameter, never an internal `new Date()`
+ * read. `listing.expiresAt` is a DATETIME column value that came through
+ * mysql2 (`ListingRepository#findById`), and this pool has no explicit
+ * `timezone` option set — mysql2's default parses a DATETIME string using
+ * the connection's LOCAL timezone, not UTC, even though every write to this
+ * column uses `UTC_TIMESTAMP(3)` (the exact same root cause
+ * `infrastructure/database/dateFormat.js` already documents for `DATE`
+ * columns, just for a full timestamp instead of a calendar day). Comparing
+ * that mysql2-parsed value against a plain JS `new Date()` mixes two
+ * different time frames whenever the server's local UTC offset is nonzero —
+ * on this platform's own Asia/Yerevan (UTC+4) host, ANY listing expiring
+ * within roughly the next 4 hours could be misclassified as already
+ * expired. The fix is never a manual offset correction (fragile, and this
+ * app already has DST-naive/host-portable code elsewhere) — `now` must
+ * itself be sourced from the SAME mysql2 connection (`ListingRepository
+ * #findDbNow`), so both sides of the comparison go through the identical
+ * parsing path and the distortion cancels out exactly, the same "read the
+ * bound from the DB itself" principle this codebase's own lifecycle tests
+ * already rely on. Passing a real, correct JS `Date` (e.g. in a unit test
+ * building an ISO-string fixture, which mysql2 never touches) is equally
+ * correct, since a `Date` object's internal instant is unambiguous — the
+ * bug only exists at the mysql2 round trip, never within a single,
+ * internally-consistent comparison.
+ * @param {{expiresAt: string|Date|null, frozenAt: string|Date|null, deletedAt: string|Date|null}} listing
+ * @param {Date} now
  */
-export function hasLifecycleExpired(listing) {
+export function hasLifecycleExpired(listing, now) {
+  if (!(now instanceof Date) || Number.isNaN(now.getTime())) {
+    throw new TypeError(
+      'hasLifecycleExpired requires a valid "now" Date — never an implicit new Date() read (Step B6.5).',
+    );
+  }
   if (isFrozen(listing)) return true;
-  return listing.expiresAt != null && new Date(listing.expiresAt) <= new Date();
+  return listing.expiresAt != null && new Date(listing.expiresAt) <= now;
 }
 
 /**
@@ -86,9 +115,15 @@ export function hasLifecycleExpired(listing) {
  * Does not consider `deletedAt` — every caller here only ever reaches a
  * non-deleted row in the first place (soft-delete scoping already happened
  * at the repository read).
+ *
+ * Step B6.5 — `now` is required and forwarded verbatim to
+ * `hasLifecycleExpired`; see that function's own doc comment for why.
+ * @param {Date} now
  */
-export function isPubliclyVisible(listing) {
-  return listing.statusCode === 'PUBLISHED' && !hasLifecycleExpired(listing);
+export function isPubliclyVisible(listing, now) {
+  return (
+    listing.statusCode === 'PUBLISHED' && !hasLifecycleExpired(listing, now)
+  );
 }
 
 export default {

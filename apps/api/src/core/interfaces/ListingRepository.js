@@ -92,6 +92,13 @@ export class ListingRepository {
     );
   }
 
+  /** Step B6.5: the authoritative lifecycle clock — reads `UTC_TIMESTAMP(3)` through the same mysql2 connection every `expires_at`/`frozen_at` read already goes through, so a JS-side comparison against it is never skewed by the connection's local-timezone DATETIME parsing. See `core/domain/listingLifecycle.js`'s `hasLifecycleExpired` for why this exists. @returns {Promise<Date>} */
+  async findDbNow() {
+    throw new Error(
+      'ListingRepository.findDbNow must be implemented by a concrete adapter.',
+    );
+  }
+
   /** Step B4: the scheduled expiry sweep's guarded UPDATE — see the MySQL adapter for the exact idempotency/race-safety contract. @param {{publishedStatusId: number, unpublishedStatusId: number}} ids @returns {Promise<number>} how many listings this run froze */
   async freezeExpiredListings({ publishedStatusId, unpublishedStatusId }) {
     throw new Error(
