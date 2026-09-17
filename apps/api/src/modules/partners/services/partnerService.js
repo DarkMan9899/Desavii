@@ -534,17 +534,28 @@ export class PartnerService {
    * listings. A valid, public company with zero PUBLISHED listings is
    * NOT a 404 — it returns normally with an empty `rows` array, same as
    * `listFavoritedListingIds` does for a customer with none.
+   * Step A4 (closure): `locale` resolves the SAME way
+   * `SearchService`/`mysqlSearchRepository.resolveLocaleIds` already do
+   * (via the shared `languageRepository.js#resolveLocaleIds` this file
+   * already imports for an unrelated write path above) — a requested
+   * locale's title when authored, the server's default language's title
+   * otherwise, never the "any available" scalar-subquery fallback this
+   * endpoint used before Step A4 (which ignored the visitor's locale
+   * entirely).
    * @param {string} slug
-   * @param {{cursor?: string|null, limit?: number}} [paginationOpts]
+   * @param {{cursor?: string|null, limit?: number, locale?: string}} [paginationOpts]
    */
-  async getPublicPartnerListings(slug, { cursor, limit } = {}) {
+  async getPublicPartnerListings(slug, { cursor, limit, locale } = {}) {
     const partner = await this.#partnerRepository.findPublicBySlug(slug);
     if (!partner) {
       throw new NotFoundError('Company not found.');
     }
+    const { localeId, defaultLocaleId } = await resolveLocaleIds(locale);
     return this.#partnerRepository.listPublicListingsForPartner(partner.id, {
       cursor,
       limit,
+      localeId,
+      defaultLocaleId,
     });
   }
 

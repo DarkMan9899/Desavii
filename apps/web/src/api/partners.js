@@ -55,8 +55,11 @@ export function getPartnerBySlug(slug) {
  * `partnerDto.js`'s `toPartnerListingResponse`). No auth required;
  * resolves to a 404 for an unknown/unapproved company slug (same as
  * `getPartnerBySlug`), never for a valid company with zero listings.
+ * `locale` (Step A4): resolves each listing's `title` to that locale
+ * when authored, falling back to the server's default language — same
+ * `locale` param `GET /search` already accepts.
  * @param {string} slug
- * @param {{ cursor?: string, limit?: number }} params
+ * @param {{ cursor?: string, limit?: number, locale?: string }} params
  */
 export function getPartnerListings(slug, params) {
   return apiClient

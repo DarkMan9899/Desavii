@@ -160,10 +160,10 @@ export function createPartnerController(partnerService) {
     async listCompanyListings(req, res, next) {
       try {
         const { slug } = req.validated.params;
-        const { cursor, limit } = req.validated.query;
+        const { cursor, limit, locale } = req.validated.query;
         const { rows, meta } = await partnerService.getPublicPartnerListings(
           slug,
-          { cursor, limit },
+          { cursor, limit, locale },
         );
         res.status(200).json({
           success: true,

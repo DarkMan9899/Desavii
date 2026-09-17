@@ -34,6 +34,13 @@
  * Listings section gets its own, separate loading/error/empty states
  * (never conflated with the company-profile fetch's own) — a valid
  * company with zero public listings is a valid, non-error profile.
+ *
+ * Step A4 (closure): `usePartnerListingsQuery` now also takes this page's
+ * own route `locale`, closing the known Step A2 debt where a listing's
+ * title always rendered in the server's default language regardless of
+ * which locale the company page itself was viewed in — every other card
+ * field was already locale-correct via `SearchResultCard`'s own `t()`
+ * usage, only `title` (resolved server-side) wasn't.
  */
 
 import { useMemo } from 'react';
@@ -96,7 +103,7 @@ export default function CompanyProfilePageContent() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = usePartnerListingsQuery(slug);
+  } = usePartnerListingsQuery(slug, locale);
   const listings = useMemo(
     () => listingsData?.pages.flatMap((page) => page.results) ?? [],
     [listingsData],

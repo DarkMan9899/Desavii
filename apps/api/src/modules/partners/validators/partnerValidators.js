@@ -25,12 +25,15 @@ export const partnerSlugParamsSchema = z.object({
 
 // Company Public Profile (Step A1) — same slug param as
 // `partnerSlugParamsSchema`, same cursor/limit query as
-// `listPublicPartnersQuerySchema`.
+// `listPublicPartnersQuerySchema`. `locale` (Step A4) is the same
+// optional, unrestricted-code declaration `searchValidators.js` uses for
+// every one of its own locale-aware endpoints.
 export const listCompanyListingsSchema = z.object({
   params: z.object({ slug: z.string().trim().min(1).max(180) }),
   query: z.object({
     cursor: z.string().optional(),
     limit: z.coerce.number().int().positive().max(100).optional(),
+    locale: z.string().trim().min(2).max(10).optional(),
   }),
   body: z.any(),
 });

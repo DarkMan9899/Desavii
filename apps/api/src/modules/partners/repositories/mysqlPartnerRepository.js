@@ -860,12 +860,22 @@ export class MySqlPartnerRepository {
    * filtering exists yet — a future Listing Lifetime/Renewal feature can
    * extend the `conditions` array here the same way `status`/`cursor`
    * already do, without changing this method's shape.
+   *
+   * Step A4 (closure): title resolution now mirrors
+   * `mysqlSearchRepository.js`'s own `COALESCE(lt.title, lt2.title, '')`
+   * pattern exactly — `lt` scoped to the caller's resolved `localeId`,
+   * `lt2` scoped to `defaultLocaleId` as the fallback — replacing the
+   * Step A2 fix's "any available" correlated subquery, which fixed the
+   * duplicate-row fan-out bug but never actually respected the visitor's
+   * locale (it always rendered whichever language happened to sort
+   * first). Both joins stay explicitly `language_id = ?`-scoped, never
+   * unscoped, so the original fan-out bug can't reappear either.
    * @param {number} partnerId
-   * @param {{cursor?: string|null, limit?: number}} [paginationOpts]
+   * @param {{cursor?: string|null, limit?: number, localeId?: number|null, defaultLocaleId?: number|null}} [paginationOpts]
    */
   async listPublicListingsForPartner(
     partnerId,
-    { cursor = null, limit = 20 } = {},
+    { cursor = null, limit = 20, localeId = null, defaultLocaleId = null } = {},
   ) {
     const conditions = [
       'l.partner_id = ?',
@@ -881,18 +891,28 @@ export class MySqlPartnerRepository {
       decoded.id !== undefined
     ) {
       conditions.push('(l.created_at, l.id) < (?, ?)');
-      params.push(decoded.createdAt, decoded.id);
+      // Step A4 (closure) — real bug found while re-verifying pagination:
+      // `decoded.createdAt` is a plain string (`encodeCursor`'s
+      // `JSON.stringify` of the Date mysql2 handed back for the previous
+      // page's last row, e.g. `"2026-09-13T09:38:01.148Z"`). Binding that
+      // STRING directly as a query param made MySQL parse it as a naive
+      // literal, silently dropping both the timezone and the
+      // milliseconds (`CAST('...T09:38:01.148Z' AS DATETIME)` →
+      // `2026-09-13 09:38:01`) — four hours off from the real, naive
+      // `created_at` value on a server not running in UTC (this one runs
+      // in Asia/Yerevan, UTC+4), which made the `<` comparison exclude
+      // every remaining row: `has_more: true` on page 1, then an empty
+      // page 2 forever after. Re-wrapping it in `new Date(...)` lets
+      // mysql2 serialize it back through the exact same local-time path
+      // it used to read the column in the first place, round-tripping to
+      // the identical naive value instead of a re-parsed, shifted one.
+      params.push(new Date(decoded.createdAt), decoded.id);
     }
 
     const [rows] = await this.#pool.query(
       `SELECT
          l.id, l.slug, ltype.code AS listing_type_code, l.created_at,
-         COALESCE(
-           lt.title,
-           (SELECT lt_any.title FROM listing_translations lt_any
-              WHERE lt_any.listing_id = l.id ORDER BY lt_any.language_id ASC LIMIT 1),
-           ''
-         ) AS title,
+         COALESCE(lt.title, lt2.title, '') AS title,
          c.name AS city_name,
          m.url AS cover_image_url,
          lp.amount AS price_amount, cur.code AS price_currency_code,
@@ -910,20 +930,15 @@ export class MySqlPartnerRepository {
        JOIN listing_statuses ls ON ls.id = l.status_id
        LEFT JOIN listing_locations loc ON loc.listing_id = l.id
        LEFT JOIN cities c ON c.id = loc.city_id
-       LEFT JOIN listing_translations lt ON lt.listing_id = l.id AND lt.language_id = (SELECT id FROM languages WHERE is_default = 1 LIMIT 1)
-       -- Step A2 fix: the fallback title used to LEFT JOIN listing_translations
-       -- unscoped by language_id, fanning out one row per translation
-       -- (a listing with 3 authored locales rendered as 3 duplicate cards).
-       -- The COALESCE'd correlated subquery above picks one deterministic
-       -- fallback row instead, matching this file's own "any available
-       -- description" subquery convention (see PUBLIC_SELECT_COLUMNS).
+       LEFT JOIN listing_translations lt ON lt.listing_id = l.id AND lt.language_id = ?
+       LEFT JOIN listing_translations lt2 ON lt2.listing_id = l.id AND lt2.language_id = ?
        LEFT JOIN media m ON m.mediable_type = 'listing' AND m.mediable_id = l.id AND m.is_cover = 1 AND m.deleted_at IS NULL
        LEFT JOIN listing_pricing lp ON lp.listing_id = l.id
        LEFT JOIN currencies cur ON cur.id = lp.currency_id
        WHERE ${conditions.join(' AND ')}
        ORDER BY l.created_at DESC, l.id DESC
        LIMIT ?`,
-      [...params, limit + 1],
+      [localeId, defaultLocaleId, ...params, limit + 1],
     );
 
     const { rows: pageRows, meta } = buildPageMeta(rows, limit, (row) => ({

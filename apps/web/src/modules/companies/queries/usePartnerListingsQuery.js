@@ -9,6 +9,11 @@
  * expects. `enabled: Boolean(slug)` mirrors `useCompanyQuery`'s own
  * guard — this hook is only ever called once a company slug is known
  * from the route.
+ *
+ * `locale` (Step A4): forwarded to the API exactly like
+ * `useSearchListingsQuery(filters, { locale })` already does, so listing
+ * titles resolve to the visitor's locale instead of always the server's
+ * default language.
  */
 
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -17,13 +22,14 @@ import companyKeys from '../constants/queryKeys.js';
 
 export const COMPANY_LISTINGS_PAGE_LIMIT = 12;
 
-export function usePartnerListingsQuery(slug) {
+export function usePartnerListingsQuery(slug, locale) {
   return useInfiniteQuery({
-    queryKey: companyKeys.listings(slug),
+    queryKey: companyKeys.listings(slug, locale),
     queryFn: async ({ pageParam }) => {
       const { data, meta } = await getPartnerListings(slug, {
         limit: COMPANY_LISTINGS_PAGE_LIMIT,
         cursor: pageParam ?? undefined,
+        locale,
       });
       return { results: data, meta };
     },

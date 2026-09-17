@@ -9,7 +9,10 @@ const companyKeys = {
   list: () => [...companyKeys.all, 'list'],
   detail: (slug) => [...companyKeys.all, 'detail', slug],
   // Company Public Profile (Step A2) — a company's own public listings.
-  listings: (slug) => [...companyKeys.all, 'listings', slug],
+  // `locale` (Step A4) is part of the key — listing titles are now
+  // locale-aware, so switching locale must fetch a fresh page, not reuse
+  // a cached one rendered in a different language.
+  listings: (slug, locale) => [...companyKeys.all, 'listings', slug, locale],
 };
 
 export default companyKeys;

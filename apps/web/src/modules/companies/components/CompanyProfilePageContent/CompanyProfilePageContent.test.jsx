@@ -81,6 +81,26 @@ describe('CompanyProfilePageContent (apps/web/src/modules/companies)', () => {
     expect(screen.getByText('hello@example.com')).toBeInTheDocument();
   });
 
+  // Step A4 (closure): the known A2 locale debt — listing titles always
+  // rendered in the server's default language regardless of the page's
+  // own locale. Fixed by forwarding the route's `locale` into the query.
+  test("Step A4: fetches company listings with the page's own route locale, so titles resolve to it", () => {
+    useCompanyQuery.mockReturnValue({
+      data: COMPANY,
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    usePartnerListingsQuery.mockReturnValue(NOOP_LISTINGS_QUERY_RESULT);
+    renderPage();
+
+    expect(usePartnerListingsQuery).toHaveBeenCalledWith(
+      'yerevan-boutique-hospitality',
+      'hy',
+    );
+  });
+
   test('renders a not-found EmptyState for a 404', () => {
     useCompanyQuery.mockReturnValue({
       data: undefined,

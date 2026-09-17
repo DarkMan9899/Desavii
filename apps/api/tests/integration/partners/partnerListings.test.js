@@ -369,6 +369,50 @@ describe('GET /partners/:slug/listings (Company Public Profile — Step A1)', ()
     expect(res.body.data.length).toBeLessThanOrEqual(1);
   });
 
+  // Step A4 (closure) regression: a real bug found while re-verifying
+  // pagination — the cursor's `created_at` round-tripped through
+  // `JSON.stringify`/`JSON.parse` as a bare ISO string, and binding that
+  // string directly to the `(l.created_at, l.id) < (?, ?)` comparison
+  // made MySQL parse it as a naive literal (dropping the UTC offset),
+  // which silently excluded every remaining row on any server not
+  // running in UTC — `has_more: true` on page 1, then an empty page 2
+  // forever after (never a duplicate; a *skipped-rows* bug). `limit: 1`
+  // here forces a real multi-page walk across Company A's 3 published
+  // listings, the only way to actually exercise a second/third page.
+  test('walks every real page via the cursor with limit=1 — no page goes empty before has_more is false', async () => {
+    let allRows = [];
+    let cursor;
+    let meta;
+    let pageCount = 0;
+    do {
+      // eslint-disable-next-line no-await-in-loop -- sequential pagination walk, not a hot path
+      const res = await request(app)
+        .get(`/api/v1/partners/${companyASlug}/listings`)
+        .query({ limit: 1, ...(cursor ? { cursor } : {}) });
+      expect(res.status).toBe(200);
+      pageCount += 1;
+      // The real bug's symptom: has_more true but the very next page
+      // comes back empty instead of the next real row.
+      if (meta?.has_more) {
+        expect(res.body.data.length).toBe(1);
+      }
+      allRows = allRows.concat(res.body.data);
+      meta = res.body.meta;
+      cursor = meta.next_cursor;
+    } while (meta.has_more && pageCount < 20);
+
+    expect(pageCount).toBeGreaterThan(1);
+    const ids = allRows.map((row) => row.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        hotelListingId,
+        tourListingId,
+        multiLanguageListingId,
+      ]),
+    );
+  });
+
   test('never exposes partner-internal fields on a listing row', async () => {
     const res = await request(app).get(
       `/api/v1/partners/${companyASlug}/listings`,
@@ -390,6 +434,67 @@ describe('GET /partners/:slug/listings (Company Public Profile — Step A1)', ()
       const res = await request(app)
         .get(`/api/v1/partners/${companyASlug}/listings`)
         .query({ limit: 100, ...(cursor ? { cursor } : {}) });
+      allRows = allRows.concat(res.body.data);
+      meta = res.body.meta;
+      cursor = meta.next_cursor;
+    } while (meta.has_more);
+
+    const matches = allRows.filter((row) => row.id === multiLanguageListingId);
+    expect(matches).toHaveLength(1);
+  });
+
+  // Step A4 (closure): the known A2 locale debt — titles always rendered
+  // in the server's default language regardless of the requested locale.
+  // `multiLanguageListingId` (seeded above) has a real EN title (default
+  // language) and a real HY title authored on it.
+  test("returns the requested locale's title when it has a real authored translation (?locale=hy)", async () => {
+    const res = await request(app)
+      .get(`/api/v1/partners/${companyASlug}/listings`)
+      .query({ locale: 'hy', limit: 100 });
+    expect(res.status).toBe(200);
+    const row = res.body.data.find((r) => r.id === multiLanguageListingId);
+    expect(row.title).toContain('Multilingual Hotel HY');
+  });
+
+  test("falls back to the default language's title when the requested locale has no authored translation (?locale=ru)", async () => {
+    const res = await request(app)
+      .get(`/api/v1/partners/${companyASlug}/listings`)
+      .query({ locale: 'ru', limit: 100 });
+    expect(res.status).toBe(200);
+    const row = res.body.data.find((r) => r.id === multiLanguageListingId);
+    // No RU translation was ever authored for this listing — the real
+    // EN (default-language) title, never blank/garbled/fabricated.
+    expect(row.title).toContain('Multilingual Hotel');
+    expect(row.title).not.toContain('HY');
+  });
+
+  test('defaults to the server default language when no locale param is given (unchanged prior behavior)', async () => {
+    const res = await request(app).get(
+      `/api/v1/partners/${companyASlug}/listings`,
+    );
+    const row = res.body.data.find((r) => r.id === multiLanguageListingId);
+    expect(row.title).toContain('Multilingual Hotel');
+    expect(row.title).not.toContain('HY');
+  });
+
+  test('an unrecognized locale code falls back to the default language rather than erroring', async () => {
+    const res = await request(app)
+      .get(`/api/v1/partners/${companyASlug}/listings`)
+      .query({ locale: 'zz', limit: 100 });
+    expect(res.status).toBe(200);
+    const row = res.body.data.find((r) => r.id === multiLanguageListingId);
+    expect(row.title).toContain('Multilingual Hotel');
+  });
+
+  test('a locale-aware title still appears exactly once per row (the fan-out bug cannot return)', async () => {
+    let allRows = [];
+    let cursor;
+    let meta;
+    do {
+      // eslint-disable-next-line no-await-in-loop -- sequential pagination walk, not a hot path
+      const res = await request(app)
+        .get(`/api/v1/partners/${companyASlug}/listings`)
+        .query({ locale: 'hy', limit: 100, ...(cursor ? { cursor } : {}) });
       allRows = allRows.concat(res.body.data);
       meta = res.body.meta;
       cursor = meta.next_cursor;
