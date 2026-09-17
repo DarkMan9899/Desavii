@@ -15,6 +15,7 @@ import {
   decodeCursor,
   buildPageMeta,
 } from '../../../infrastructure/database/pagination.js';
+import { scopePubliclyVisibleListing } from '../../listings/repositories/listingVisibilitySql.js';
 
 /**
  * Card-composition-closure fix — the 9-category cross-category audit
@@ -152,10 +153,25 @@ export class MySqlFavoriteRepository {
     return rows.map((row) => row.listing_id);
   }
 
-  /** Cursor-paginated, listing-summary-joined — powers the Favorites list page. */
+  /**
+   * Cursor-paginated, listing-summary-joined — powers the Favorites list
+   * page. Step B4 fix: previously this filtered ONLY `deleted_at IS NULL`
+   * — no status check at all — so an UNPUBLISHED/ARCHIVED (and, once
+   * lifecycle expiry existed, an expired/frozen) listing stayed visible in
+   * a customer's public Favorites list forever. Now scoped to the same
+   * canonical public-visibility predicate every other public surface
+   * uses. The underlying `favorites` row itself is never touched here —
+   * only which rows this read returns — so a listing that's later
+   * renewed/republished reappears automatically with no separate
+   * "restore favorite" step.
+   */
   async listForCustomer(customerUserId, { cursor, limit } = {}) {
     const decoded = decodeCursor(cursor);
-    const conditions = ['f.customer_user_id = ?', 'l.deleted_at IS NULL'];
+    const conditions = [
+      'f.customer_user_id = ?',
+      'l.deleted_at IS NULL',
+      scopePubliclyVisibleListing(),
+    ];
     const params = [customerUserId];
     if (
       decoded &&

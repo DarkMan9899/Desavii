@@ -1532,6 +1532,15 @@ export class AvailabilityService {
   ) {
     const unit = await this.#bookableUnitService.findById(unitId);
     if (!unit) throw new NotFoundError('Bookable unit not found.');
+    // Listing Lifetime / Renewal, Step B4: this is the real choke point
+    // for booking safety — a booking can never be created without first
+    // holding capacity here (`BookingService#createBooking` requires
+    // `holdIds` for every item), so gating expired listings out at hold
+    // creation blocks the vast majority of new bookings against them.
+    // `BookingService#createBooking` re-checks this again at booking-
+    // confirmation time for the narrow race window where a listing
+    // freezes after a hold was already granted.
+    await this.#listingService.assertBookable(unit.listingId);
 
     const isVehicle = isVehicleUnitType(unit.bookableUnitTypeCode);
     const isRestaurant = isRestaurantUnitType(unit.bookableUnitTypeCode);

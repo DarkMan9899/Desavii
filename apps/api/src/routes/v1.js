@@ -445,5 +445,9 @@ export default function createV1Router({
     // Sprint H: server.js needs this to register the scheduled-publish
     // sweep — same "app.js/tests never read this" rule.
     blogService: blogContainer.blogService,
+    // Listing Lifetime / Renewal, Step B4: server.js needs this to
+    // register the hourly listing-expiry sweep — same "app.js/tests
+    // never read this" rule as the others above.
+    listingService: listingsContainer.listingService,
   };
 }

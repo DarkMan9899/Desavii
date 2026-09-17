@@ -776,3 +776,119 @@ describe('Lifecycle sweep — reminder dedup (spec §15/§34, deterministic date
     await pool.query('DELETE FROM advertisements WHERE id = ?', [adId]);
   });
 });
+
+// Listing Lifetime / Renewal, Step B4 (brief §12/§13/§26): an active
+// promotion must never resurrect an expired listing publicly, and an
+// expired listing must never cause its still-independent promotion row to
+// be touched. Uses its own dedicated listing (never the shared `listingId`
+// above) so this can freely expire it without affecting any other test in
+// this file.
+describe('Listing Lifetime / Renewal, Step B4 — expired listing cannot appear as a TOP/promoted card', () => {
+  let topListingId;
+  let placementId;
+  let productId;
+  let currencyId;
+
+  beforeAll(async () => {
+    placementId = await pool
+      .query(
+        "SELECT id FROM ad_placement_types WHERE code = 'HOMEPAGE_SECTION'",
+      )
+      .then(([rows]) => rows[0].id);
+    productId = await pool
+      .query(
+        'SELECT id FROM ad_products WHERE ad_placement_type_id = ? AND duration_days = 7',
+        [placementId],
+      )
+      .then(([rows]) => rows[0].id);
+    currencyId = await pool
+      .query("SELECT id FROM currencies WHERE code = 'AMD'")
+      .then(([rows]) => rows[0].id);
+
+    const createRes = await request(app)
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({
+        partnerId,
+        listingType: 'HOTEL',
+        translations: [
+          {
+            languageId,
+            title: `B4 TOP Regression Hotel ${Date.now()}`,
+            description:
+              'A hotel used only to exercise the B4 expiry-vs-promotion contract.',
+          },
+        ],
+        categoryIds: [categoryId],
+        location: { cityId: 1 },
+      });
+    topListingId = createRes.body.data.id;
+
+    await request(app)
+      .patch(`/api/v1/listings/${topListingId}`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({
+        location: { latitude: 40.18, longitude: 44.5 },
+        policyValues: [
+          { code: 'cancellation_policy', value: 'FLEXIBLE' },
+          { code: 'check_in_time', value: '14:00' },
+          { code: 'check_out_time', value: '11:00' },
+        ],
+      });
+    await request(app)
+      .post(`/api/v1/listings/${topListingId}/media`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Content-Type', 'image/png')
+      .send(ONE_PX_PNG);
+    await request(app)
+      .post('/api/v1/availability/units')
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ listingId: topListingId, bookableUnitType: 'HOTEL_ROOM' });
+    await request(app)
+      .post(`/api/v1/listings/${topListingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 30 });
+  }, 60_000);
+
+  test('an active promotion cannot resurrect a listing whose expires_at has already passed, even before the sweep runs; the promotion row itself is left untouched', async () => {
+    const [adResult] = await pool.query(
+      `INSERT INTO advertisements
+        (listing_id, partner_id, ad_placement_type_id, ad_product_id, status_id,
+         price_snapshot_amount, currency_id, start_date, end_date, requested_by, created_by, updated_by)
+       SELECT ?, ?, ?, ?, id, 1000, ?, DATE_SUB(CURDATE(), INTERVAL 1 DAY), DATE_ADD(CURDATE(), INTERVAL 7 DAY), 1, 1, 1
+       FROM advertisement_statuses WHERE code = 'ACTIVE'`,
+      [topListingId, partnerId, placementId, productId, currencyId],
+    );
+    const adId = adResult.insertId;
+
+    // Prove appearance BEFORE expiry, ruling out an unrelated setup bug.
+    const beforeRes = await request(app).get(
+      '/api/v1/advertising/public/home-featured?locale=en',
+    );
+    expect(beforeRes.body.data.some((l) => l.id === topListingId)).toBe(true);
+
+    // Simulate the listing's publication period passing WITHOUT running
+    // the sweep (`frozen_at` stays NULL) — proves the hard gate is the
+    // listing's own `expires_at`, never scheduler timing (brief §9/§21).
+    await pool.query(
+      'UPDATE listings SET expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 HOUR) WHERE id = ?',
+      [topListingId],
+    );
+
+    const afterRes = await request(app).get(
+      '/api/v1/advertising/public/home-featured?locale=en',
+    );
+    expect(afterRes.body.data.some((l) => l.id === topListingId)).toBe(false);
+
+    // The promotion campaign itself is a completely independent record —
+    // an expired listing must never cancel/pause/delete it.
+    const [[adRow]] = await pool.query(
+      `SELECT (SELECT code FROM advertisement_statuses WHERE id = status_id) AS status_code
+       FROM advertisements WHERE id = ?`,
+      [adId],
+    );
+    expect(adRow.status_code).toBe('ACTIVE');
+
+    await pool.query('DELETE FROM advertisements WHERE id = ?', [adId]);
+  });
+});

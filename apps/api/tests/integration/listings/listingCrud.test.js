@@ -11,7 +11,7 @@ import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
 import { up } from '../../../src/infrastructure/database/migrate.js';
 import { seedAll } from '../../../src/infrastructure/database/seeds/index.js';
-import app from '../../../src/app.js';
+import app, { services } from '../../../src/app.js';
 import {
   getMysqlPool,
   closeMysqlPool,
@@ -713,6 +713,170 @@ describe('Listing publication lifecycle — Step B3 first-publish expiry assignm
       [listingId],
     );
     expect(row.publication_period_days).toBe(999);
+  });
+});
+
+// Listing Lifetime / Renewal, Step B4 — the scheduled expiry sweep
+// (`modules/listings/jobs/listingExpirySweep.js`) and its underlying
+// repository-level guarded UPDATE. Calls `services.listingService
+// .runExpirySweep()` directly (the sweep job's own "framework-free
+// function integration tests call directly" convention — see that file's
+// header), never through BullMQ/a timer, so every scenario below is
+// deterministic and instant. Uses deterministic DB-relative timestamps
+// (`DATE_SUB`/direct column writes) throughout — no real-time waiting.
+describe('Listing expiration sweep — Step B4', () => {
+  async function selectSweepColumns(listingId) {
+    const [[row]] = await pool.query(
+      `SELECT frozen_at, purge_after, expires_at, publication_period_days,
+              published_at, deleted_at, status_id,
+              (SELECT code FROM listing_statuses WHERE id = listings.status_id) AS status_code
+       FROM listings WHERE id = ?`,
+      [listingId],
+    );
+    return row;
+  }
+
+  /** Creates a fully publishable listing, publishes it for real (a genuine `expires_at`), then optionally shifts that `expires_at` into the past by direct SQL — deterministic, no waiting for real time to pass. */
+  async function createExpiringListing({ pastByMs = null } = {}) {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 30 });
+    if (pastByMs != null) {
+      await pool.query(
+        'UPDATE listings SET expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL ? MICROSECOND) WHERE id = ?',
+        [pastByMs * 1000, listingId],
+      );
+    }
+    return listingId;
+  }
+
+  /** Mirrors MySQL's `DATE_ADD(date, INTERVAL n MONTH)` calendar-month semantics exactly (including its end-of-month clamping, e.g. Jan 31 + 1 month -> Feb 28), so the purge_after assertion below is correct on every day of the year, never approximated as a fixed day count. */
+  function addCalendarMonths(date, months) {
+    const d = new Date(date.getTime());
+    const day = d.getUTCDate();
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() + months);
+    const daysInTargetMonth = new Date(
+      Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0),
+    ).getUTCDate();
+    d.setUTCDate(Math.min(day, daysInTargetMonth));
+    return d;
+  }
+
+  // A: expires_at still in the future — untouched.
+  test('a PUBLISHED listing whose expires_at is still in the future is left untouched', async () => {
+    const listingId = await createExpiringListing();
+    const before = await selectSweepColumns(listingId);
+
+    await services.listingService.runExpirySweep();
+
+    const after = await selectSweepColumns(listingId);
+    expect(after.status_code).toBe('PUBLISHED');
+    expect(after.frozen_at).toBeNull();
+    expect(after.purge_after).toBeNull();
+    expect(after.expires_at.getTime()).toBe(before.expires_at.getTime());
+  });
+
+  // B: legacy PUBLISHED listing with expires_at = NULL — never frozen
+  // merely because B4 exists (brief §3/§30's explicit requirement).
+  test('a PUBLISHED listing with NULL expires_at (a legacy, non-lifecycle-managed row) is left untouched', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    const [[publishedStatus]] = await pool.query(
+      "SELECT id FROM listing_statuses WHERE code = 'PUBLISHED'",
+    );
+    await pool.query(
+      'UPDATE listings SET status_id = ?, published_at = UTC_TIMESTAMP(3) WHERE id = ?',
+      [publishedStatus.id, listingId],
+    );
+
+    await services.listingService.runExpirySweep();
+
+    const after = await selectSweepColumns(listingId);
+    expect(after.status_code).toBe('PUBLISHED');
+    expect(after.frozen_at).toBeNull();
+    expect(after.expires_at).toBeNull();
+  });
+
+  // C + H: the real freeze transition, and purge_after's exact
+  // six-calendar-month arithmetic (never approximated as 180 days).
+  test('a PUBLISHED listing whose expires_at has passed is frozen: UNPUBLISHED, frozen_at set, purge_after = frozen_at + 6 calendar months', async () => {
+    const listingId = await createExpiringListing({ pastByMs: 60_000 });
+
+    const result = await services.listingService.runExpirySweep();
+    expect(result.frozen).toBeGreaterThanOrEqual(1);
+
+    const after = await selectSweepColumns(listingId);
+    expect(after.status_code).toBe('UNPUBLISHED');
+    expect(after.frozen_at).not.toBeNull();
+    expect(after.purge_after).not.toBeNull();
+    expect(after.purge_after.getTime()).toBe(
+      addCalendarMonths(after.frozen_at, 6).getTime(),
+    );
+    // Every other column is preserved exactly as it was.
+    expect(after.publication_period_days).toBe(30);
+    expect(after.published_at).not.toBeNull();
+    expect(after.deleted_at).toBeNull();
+  });
+
+  // D: already frozen — a second sweep encounter must never reset the
+  // retention clock.
+  test('an already-frozen listing is left untouched by a later sweep run', async () => {
+    const listingId = await createExpiringListing({ pastByMs: 60_000 });
+    await services.listingService.runExpirySweep();
+    const afterFirstFreeze = await selectSweepColumns(listingId);
+    expect(afterFirstFreeze.frozen_at).not.toBeNull();
+
+    const result = await services.listingService.runExpirySweep();
+    expect(result.frozen).toBe(0);
+
+    const afterSecondSweep = await selectSweepColumns(listingId);
+    expect(afterSecondSweep.frozen_at.getTime()).toBe(
+      afterFirstFreeze.frozen_at.getTime(),
+    );
+    expect(afterSecondSweep.purge_after.getTime()).toBe(
+      afterFirstFreeze.purge_after.getTime(),
+    );
+  });
+
+  // E: a soft-deleted row must never be touched, even if it happens to
+  // still carry a PUBLISHED status_id and a past expires_at.
+  test('a soft-deleted listing is never frozen by the sweep', async () => {
+    const listingId = await createExpiringListing({ pastByMs: 60_000 });
+    await request(app)
+      .delete(`/api/v1/listings/${listingId}`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    const beforeSweep = await selectSweepColumns(listingId);
+    expect(beforeSweep.deleted_at).not.toBeNull();
+
+    await services.listingService.runExpirySweep();
+
+    const after = await selectSweepColumns(listingId);
+    expect(after.frozen_at).toBeNull();
+    expect(after.purge_after).toBeNull();
+  });
+
+  // F: a non-PUBLISHED listing is never rewritten, even if it somehow
+  // carries a past expires_at (defensive — never a realistic authored
+  // state, only reachable by direct SQL here).
+  test('a DRAFT listing with a (manually set) past expires_at is never touched by the sweep', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await pool.query(
+      'UPDATE listings SET expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE) WHERE id = ?',
+      [listingId],
+    );
+
+    await services.listingService.runExpirySweep();
+
+    const after = await selectSweepColumns(listingId);
+    expect(after.status_code).toBe('DRAFT');
+    expect(after.frozen_at).toBeNull();
   });
 });
 

@@ -60,6 +60,37 @@ export function isLifecycleManaged(listing) {
   return listing.expiresAt != null || listing.frozenAt != null;
 }
 
+/**
+ * Step B4 — true when this listing's publication period has run out,
+ * whether or not the hourly expiry sweep (`modules/listings/jobs/
+ * listingExpirySweep.js`) has already processed it. Deliberately does NOT
+ * wait for `frozen_at` alone: public visibility must never depend solely on
+ * scheduler timing (a PUBLISHED row whose `expires_at` already passed but
+ * hasn't been swept yet is still "expired" for every purpose this function
+ * is used for). Compared against the caller's own clock — every caller of
+ * this function runs on the API server, so `new Date()` here is always the
+ * server's clock, never a client-supplied value.
+ */
+export function hasLifecycleExpired(listing) {
+  if (isFrozen(listing)) return true;
+  return listing.expiresAt != null && new Date(listing.expiresAt) <= new Date();
+}
+
+/**
+ * Step B4 — the canonical "currently publicly visible" predicate for a
+ * fully-hydrated listing domain object, mirroring `infrastructure/database`
+ * repositories' own SQL-side equivalent (`listingVisibilitySql.js`'s
+ * `scopePubliclyVisibleListing`) exactly. Used by the handful of call sites
+ * that already have a listing object in hand rather than composing a fresh
+ * SQL WHERE clause (e.g. `ListingService#getListing`'s public-detail gate).
+ * Does not consider `deletedAt` — every caller here only ever reaches a
+ * non-deleted row in the first place (soft-delete scoping already happened
+ * at the repository read).
+ */
+export function isPubliclyVisible(listing) {
+  return listing.statusCode === 'PUBLISHED' && !hasLifecycleExpired(listing);
+}
+
 export default {
   PUBLICATION_PERIOD_DAYS_OPTIONS,
   DEFAULT_PUBLICATION_PERIOD_DAYS,
@@ -67,4 +98,6 @@ export default {
   isFrozen,
   hasPublicationExpiry,
   isLifecycleManaged,
+  hasLifecycleExpired,
+  isPubliclyVisible,
 };

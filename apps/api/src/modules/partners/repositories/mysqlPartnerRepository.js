@@ -23,6 +23,7 @@ import {
   decodeCursor,
   buildPageMeta,
 } from '../../../infrastructure/database/pagination.js';
+import { scopePubliclyVisibleListing } from '../../listings/repositories/listingVisibilitySql.js';
 
 /**
  * Company Public Profile (Step A1) — verbatim copy of
@@ -236,7 +237,7 @@ const PUBLIC_SELECT_COLUMNS = `
   lm.url AS logo_url, cm.url AS cover_url, vms.code AS verification_status_code,
   (SELECT COUNT(*) FROM listings l
      JOIN listing_statuses ls ON ls.id = l.status_id
-     WHERE l.partner_id = p.id AND l.deleted_at IS NULL AND ls.code = 'PUBLISHED'
+     WHERE l.partner_id = p.id AND l.deleted_at IS NULL AND ${scopePubliclyVisibleListing()}
   ) AS listing_count,
   -- Phase 18 (Premium Listing Detail — Host/Partner trust section):
   -- aggregate rating across the partner's own listings' approved
@@ -856,10 +857,10 @@ export class MySqlPartnerRepository {
    * exact precedent Favorites already established for the same
    * "real price, simpler source" tradeoff.
    *
-   * Lifecycle note (Step A1 scope): no `expires_at`/frozen-listing
-   * filtering exists yet — a future Listing Lifetime/Renewal feature can
-   * extend the `conditions` array here the same way `status`/`cursor`
-   * already do, without changing this method's shape.
+   * Lifecycle note: Step B4 extended the `conditions` array below with
+   * `scopePubliclyVisibleListing()` — an expired/frozen listing is
+   * excluded from a company's public catalog exactly like a DRAFT one
+   * already was, without changing this method's shape.
    *
    * Step A4 (closure): title resolution now mirrors
    * `mysqlSearchRepository.js`'s own `COALESCE(lt.title, lt2.title, '')`
@@ -880,7 +881,7 @@ export class MySqlPartnerRepository {
     const conditions = [
       'l.partner_id = ?',
       'l.deleted_at IS NULL',
-      "ls.code = 'PUBLISHED'",
+      scopePubliclyVisibleListing(),
     ];
     const params = [partnerId];
 

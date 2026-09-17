@@ -23,6 +23,7 @@ import {
   scopeActive,
   softDeleteAssignment,
 } from '../../../infrastructure/database/softDelete.js';
+import { scopePubliclyVisibleListing } from './listingVisibilitySql.js';
 import {
   decodeCursor,
   buildPageMeta,
@@ -727,7 +728,11 @@ export class MySqlListingRepository extends ListingRepositoryPort {
       conditions.push('ls.code = ?');
       params.push(filters.statusCode);
     } else if (filters.onlyPublished) {
-      conditions.push("ls.code = 'PUBLISHED'");
+      // Step B4: a public/anonymous caller must never see an
+      // expired/frozen listing here either, on the same "expiry sweep
+      // is a convenience sync, not the sole authority" rule every other
+      // public read now applies.
+      conditions.push(scopePubliclyVisibleListing());
     }
 
     const decoded = decodeCursor(cursor);
@@ -922,6 +927,47 @@ export class MySqlListingRepository extends ListingRepositoryPort {
        WHERE id = ?`,
       [statusId, updatedBy, id],
     );
+  }
+
+  /**
+   * Listing Lifetime / Renewal, Step B4 — the scheduled expiry sweep's
+   * only write. One guarded UPDATE, not a per-row loop: the WHERE clause
+   * (still PUBLISHED, not already frozen, has a real `expires_at`, and it
+   * has already passed) is exactly what makes this naturally idempotent —
+   * running it twice, or two overlapping sweep workers racing on the same
+   * row, both converge on mutating a given row at most once, since the
+   * second attempt's WHERE clause no longer matches once the first has
+   * already flipped `status_id` away from PUBLISHED. No separate advisory
+   * lock needed; MySQL's own row-level locking on the UPDATE already
+   * serializes two truly-concurrent attempts at the same row.
+   *
+   * `updated_by` is explicitly set to `NULL` (never left as whatever it
+   * was before) — this is a system-initiated transition, not a user
+   * action, mirroring `AdvertisementService#runLifecycleSweep`'s own
+   * `updatedBy: null` convention for its scheduled status transitions.
+   * `purge_after` uses `INTERVAL 6 MONTH` (real calendar-month arithmetic,
+   * never approximated as 180 days) per the product's six-calendar-month
+   * retention rule. Every other column — `publication_period_days`,
+   * `expires_at`, `published_at`, `moderation_status_id`, content, slug —
+   * is left completely untouched.
+   *
+   * @param {{publishedStatusId: number, unpublishedStatusId: number}} ids
+   * @returns {Promise<number>} how many listings this run froze
+   */
+  async freezeExpiredListings(
+    { publishedStatusId, unpublishedStatusId },
+    connection = this.#pool,
+  ) {
+    const [result] = await connection.query(
+      `UPDATE listings
+       SET status_id = ?, frozen_at = UTC_TIMESTAMP(3),
+           purge_after = DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 6 MONTH),
+           updated_by = NULL
+       WHERE status_id = ? AND deleted_at IS NULL AND frozen_at IS NULL
+         AND expires_at IS NOT NULL AND expires_at <= UTC_TIMESTAMP(3)`,
+      [unpublishedStatusId, publishedStatusId],
+    );
+    return result.affectedRows;
   }
 
   async softDelete(id, deletedByUserId, connection = this.#pool) {

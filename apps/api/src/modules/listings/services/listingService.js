@@ -40,6 +40,8 @@ import { isValidListingStatusTransition } from '../../../core/domain/listingStat
 import {
   isValidPublicationPeriodDays,
   isFrozen,
+  isPubliclyVisible,
+  hasLifecycleExpired,
 } from '../../../core/domain/listingLifecycle.js';
 import { createNoOpEventBus } from '../../../core/events/domainEventBus.js';
 import { createDomainEvent } from '../../../core/events/createDomainEvent.js';
@@ -525,7 +527,14 @@ export class ListingService {
       ? await this.#listingRepository.findById(Number(idOrSlug))
       : await this.#listingRepository.findBySlug(String(idOrSlug));
     if (!listing) throw new NotFoundError('Listing not found.');
-    if (listing.statusCode === 'PUBLISHED') return listing;
+    // Step B4: an expired/frozen listing is masked from the public exactly
+    // like a DRAFT/UNPUBLISHED one — same 404-never-leaks-existence rule,
+    // just a second reason a row can fail the public-visibility check.
+    // Never relies on the hourly sweep having already flipped `status_id`
+    // (`isPubliclyVisible` re-derives "already expired" straight from
+    // `expires_at`), so this never has the up-to-an-hour stale-visibility
+    // gap a `statusCode === 'PUBLISHED'`-only check would have.
+    if (isPubliclyVisible(listing)) return listing;
 
     const allowed = await this.#isOwnerOrHasPermission(
       principal,
@@ -534,6 +543,63 @@ export class ListingService {
     );
     if (!allowed) throw new NotFoundError('Listing not found.');
     return listing;
+  }
+
+  /**
+   * Booking-eligibility guard (Listing Lifetime / Renewal, Step B4) —
+   * deliberately narrower than `getListing`'s visibility masking: this
+   * only rejects a listing whose publication period has already expired
+   * (frozen by the sweep, or past `expires_at` even if the sweep hasn't
+   * run yet — same DB-time, not-scheduler-time rule `isPubliclyVisible`
+   * uses). It never re-checks DRAFT/UNPUBLISHED/moderation status — those
+   * are `getListing`'s existing, unrelated concern, and every caller of
+   * this method already reached the listing through an authorized path
+   * (a hold/booking can only be created against a resolvable
+   * `bookableUnitId`/`listingId`). Never takes a `principal` — booking
+   * eligibility applies uniformly, with no owner/admin exception: nobody
+   * can create a NEW booking against an expired listing, including its
+   * own partner.
+   */
+  async assertBookable(listingId) {
+    const listing = await this.#listingRepository.findById(listingId);
+    if (!listing) throw new NotFoundError('Listing not found.');
+    if (hasLifecycleExpired(listing)) {
+      throw new ConflictError(
+        'This listing is no longer accepting new bookings.',
+        'LISTING_NOT_BOOKABLE',
+      );
+    }
+    return listing;
+  }
+
+  /**
+   * The scheduled listing-expiration sweep's entry point (Listing Lifetime
+   * / Renewal, Step B4) — called only by `modules/listings/jobs/
+   * listingExpirySweep.js`, never by an HTTP route. Convenience/STORED-
+   * state sync only: the public-visibility queries elsewhere (Search,
+   * Category, Company profile, Favorites, TOP hydration — see
+   * `listingVisibilitySql.js`) never rely on this having already run, they
+   * independently re-derive "already expired" straight from `expires_at`.
+   * An hourly cadence here only needs to keep the STORED `status_id`/
+   * Admin-visible state reasonably fresh between runs — exactly mirroring
+   * `AdvertisementService#runLifecycleSweep`'s own "convenience sync,
+   * never the sole authority on public visibility" precedent.
+   *
+   * The repository's own guarded UPDATE (`freezeExpiredListings`) does the
+   * actual work and is what makes this naturally idempotent/race-safe —
+   * see its own doc comment.
+   * @returns {Promise<{frozen: number}>}
+   */
+  async runExpirySweep() {
+    const [publishedStatusId, unpublishedStatusId] = await Promise.all([
+      this.#listingRepository.findStatusIdByCode('PUBLISHED'),
+      this.#listingRepository.findStatusIdByCode('UNPUBLISHED'),
+    ]);
+    const frozen = await this.#listingRepository.freezeExpiredListings({
+      publishedStatusId,
+      unpublishedStatusId,
+    });
+    return { frozen };
   }
 
   async listListings(principal, filters = {}, paginationOpts = {}) {

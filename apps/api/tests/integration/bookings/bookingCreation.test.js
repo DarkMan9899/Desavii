@@ -1392,3 +1392,108 @@ describe('Sprint B (Car Rental Pickup/Return Interval) — booking_items.pickup_
     expect(res.body.data.items[0].return_location).toBeNull();
   });
 });
+
+// Listing Lifetime / Renewal, Step B4 (brief §18/§27) — an expired listing
+// must never accept a NEW booking initiation, at either of the two guard
+// points: hold creation (the real, primary choke point — a booking can't
+// exist without a hold) and booking confirmation itself (defense-in-depth
+// for the narrow race window where a listing expires after its hold was
+// already granted). Historical bookings/retrieval are proven completely
+// unaffected.
+describe('Listing Lifetime / Renewal, Step B4 — expired listings cannot accept new bookings', () => {
+  async function expireListing(listingId) {
+    await pool.query(
+      'UPDATE listings SET expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 HOUR) WHERE id = ?',
+      [listingId],
+    );
+  }
+
+  test('POST /booking-holds rejects a hold against an expired listing with 409 LISTING_NOT_BOOKABLE', async () => {
+    const listingId = await createListing(
+      `B4 Expired Hold Rejection ${Date.now()}`,
+    );
+    const unitId = await registerUnit(listingId);
+    const dateFrom = '2027-03-01';
+    const dateTo = '2027-03-02';
+    await setPrice(unitId, dateFrom, dateTo, 10_000);
+    await expireListing(listingId);
+
+    const res = await request(app)
+      .post('/api/v1/booking-holds')
+      .set('Authorization', `Bearer ${customer.accessToken}`)
+      .send({
+        items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('LISTING_NOT_BOOKABLE');
+  });
+
+  test('POST /bookings rejects confirmation for the narrow race window where the listing expires after its hold was already granted', async () => {
+    const listingId = await createListing(
+      `B4 Expired Booking Race Rejection ${Date.now()}`,
+    );
+    const unitId = await registerUnit(listingId);
+    const dateFrom = '2027-03-05';
+    const dateTo = '2027-03-06';
+    await setPrice(unitId, dateFrom, dateTo, 10_000);
+    // The hold is granted while the listing is still fully bookable.
+    const holdIds = await createHold(customer, unitId, dateFrom, dateTo, 1);
+
+    // The listing expires AFTER the hold already exists — simulating the
+    // sweep (or the expiry instant itself) landing in the gap between
+    // hold creation and booking confirmation.
+    await expireListing(listingId);
+
+    const res = await request(app)
+      .post('/api/v1/bookings')
+      .set('Authorization', `Bearer ${customer.accessToken}`)
+      .send({
+        items: [{ holdIds, guests: [] }],
+        guestContactSnapshot: GUEST_CONTACT,
+      });
+
+    // `BookingService#createBooking` already fetches the listing via
+    // `ListingService#getListing(principal, ...)` before ever reaching
+    // `#assertBookable` — and `getListing`'s own gate now masks an
+    // expired listing exactly like a DRAFT one (404, never leaking that
+    // it used to exist) for a non-owner customer. This is a STRONGER
+    // outcome than a 409 would be (a 409 would confirm the listing still
+    // exists), so this is the actually-correct rejection, not a gap:
+    // `#assertBookable`'s own 409/LISTING_NOT_BOOKABLE only becomes
+    // reachable for a caller `getListing` would otherwise let through
+    // (the listing's own owner/admin) — see the sibling
+    // "hold rejection" test above for that guard firing directly.
+    expect(res.status).toBe(404);
+  });
+
+  test('a booking made before its listing later expires remains fully readable afterward — no retroactive effect on history', async () => {
+    const listingId = await createListing(
+      `B4 Historical Booking Unaffected ${Date.now()}`,
+    );
+    const unitId = await registerUnit(listingId);
+    const dateFrom = '2027-03-10';
+    const dateTo = '2027-03-11';
+    await setPrice(unitId, dateFrom, dateTo, 10_000);
+    const holdIds = await createHold(customer, unitId, dateFrom, dateTo, 1);
+
+    const createRes = await request(app)
+      .post('/api/v1/bookings')
+      .set('Authorization', `Bearer ${customer.accessToken}`)
+      .send({
+        items: [{ holdIds, guests: [] }],
+        guestContactSnapshot: GUEST_CONTACT,
+      });
+    expect(createRes.status).toBe(201);
+    const bookingId = createRes.body.data.id;
+
+    await expireListing(listingId);
+
+    const getRes = await request(app)
+      .get(`/api/v1/bookings/${bookingId}`)
+      .set('Authorization', `Bearer ${customer.accessToken}`);
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.data.id).toBe(bookingId);
+    expect(getRes.body.data.listing_id).toBe(listingId);
+  });
+});

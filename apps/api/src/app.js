@@ -219,6 +219,9 @@ export const services = {
   advertisementService: v1.advertisementService,
   // Sprint H: registers the blog scheduled-publish sweep.
   blogService: v1.blogService,
+  // Listing Lifetime / Renewal, Step B4: registers the hourly listing
+  // expiry sweep.
+  listingService: v1.listingService,
 };
 
 // 7. 404 — no matching route

@@ -21,6 +21,7 @@ import { registerNotificationDeliveryWorker } from './modules/notifications/jobs
 import { registerLocalProviderSettlementWorker } from './modules/payments/jobs/localProviderSettlementQueue.js';
 import { registerAdvertisementLifecycleSweepJob } from './modules/advertising/jobs/advertisementLifecycleSweep.js';
 import { registerScheduledPublishSweepJob } from './modules/blog/jobs/scheduledPublishSweep.js';
+import { registerListingExpirySweepJob } from './modules/listings/jobs/listingExpirySweep.js';
 
 const server = app.listen(config.port, () => {
   logger.info({ port: config.port, env: config.env }, 'desavii-api started');
@@ -100,6 +101,13 @@ const advertisementLifecycleSweep = registerAdvertisementLifecycleSweepJob({
 const blogScheduledPublishSweep = registerScheduledPublishSweepJob({
   blogService: services.blogService,
 });
+// Listing Lifetime / Renewal, Step B4: hourly convenience status sync
+// (PUBLISHED -> UNPUBLISHED + frozen_at/purge_after) — never the sole
+// authority on public visibility, see `listingVisibilitySql.js`'s own
+// header.
+const listingExpirySweep = registerListingExpirySweepJob({
+  listingService: services.listingService,
+});
 
 async function shutdown(signal) {
   logger.info({ signal }, 'Shutting down gracefully');
@@ -119,6 +127,8 @@ async function shutdown(signal) {
       advertisementLifecycleSweep.queue.close(),
       blogScheduledPublishSweep.worker.close(),
       blogScheduledPublishSweep.queue.close(),
+      listingExpirySweep.worker.close(),
+      listingExpirySweep.queue.close(),
     ]);
     await closeMysqlPool();
     await closeRedisConnection();

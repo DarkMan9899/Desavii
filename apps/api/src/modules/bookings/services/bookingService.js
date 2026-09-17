@@ -528,6 +528,14 @@ export class BookingService {
         principal,
         first.listingId,
       );
+      // Listing Lifetime / Renewal, Step B4: `AvailabilityService#reserveCapacity`
+      // already rejects a hold against an expired listing, closing off the
+      // vast majority of this path (a booking can never be created without
+      // a hold — see `#resolveItem`'s `consumeHold` call above). This is
+      // the defense-in-depth re-check for the narrow window where a listing
+      // freezes after its hold was already granted but before this booking
+      // is actually confirmed.
+      await this.#listingService.assertBookable(first.listingId);
 
       let subtotal = Money.zero(first.currencyCode);
       resolvedItems.forEach((resolved) => {

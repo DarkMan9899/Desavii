@@ -92,6 +92,13 @@ export class ListingRepository {
     );
   }
 
+  /** Step B4: the scheduled expiry sweep's guarded UPDATE — see the MySQL adapter for the exact idempotency/race-safety contract. @param {{publishedStatusId: number, unpublishedStatusId: number}} ids @returns {Promise<number>} how many listings this run froze */
+  async freezeExpiredListings({ publishedStatusId, unpublishedStatusId }) {
+    throw new Error(
+      'ListingRepository.freezeExpiredListings must be implemented by a concrete adapter.',
+    );
+  }
+
   /** @param {number} listingId @param {string} oldSlug @returns {Promise<void>} */
   async recordSlugHistory(listingId, oldSlug) {
     throw new Error(

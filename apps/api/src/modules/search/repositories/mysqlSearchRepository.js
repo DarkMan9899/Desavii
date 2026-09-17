@@ -27,6 +27,7 @@
 
 import { getMysqlPool } from '../../../infrastructure/database/mysqlPool.js';
 import { scopeActive } from '../../../infrastructure/database/softDelete.js';
+import { scopePubliclyVisibleListing } from '../../listings/repositories/listingVisibilitySql.js';
 import {
   decodeCursor,
   buildPageMeta,
@@ -372,7 +373,10 @@ export function buildSearchListingsQuery(
     innerConditions.push('ls.code = ?');
     innerParams.push(statusCode);
   } else if (onlyPublished) {
-    innerConditions.push("ls.code = 'PUBLISHED'");
+    // Step B4: an anonymous/public searcher must never see an
+    // expired/frozen listing — the expiry sweep is only a convenience
+    // sync, never the sole authority (see `listingVisibilitySql.js`).
+    innerConditions.push(scopePubliclyVisibleListing());
   }
   if (cityId !== undefined) {
     innerConditions.push('loc.city_id = ?');
@@ -871,7 +875,7 @@ export class MySqlSearchRepository {
       LEFT JOIN media m ON m.mediable_type = 'listing' AND m.mediable_id = l.id AND m.is_cover = 1 AND m.deleted_at IS NULL
       LEFT JOIN listing_pricing lp ON lp.listing_id = l.id
       LEFT JOIN currencies cur ON cur.id = lp.currency_id
-      WHERE ${scopeActive('l')} AND ls.code = 'PUBLISHED' AND l.id IN (${placeholders})
+      WHERE ${scopeActive('l')} AND ${scopePubliclyVisibleListing()} AND l.id IN (${placeholders})
       `,
       [localeId, defaultLocaleId, ...listingIds],
     );
@@ -885,7 +889,7 @@ export class MySqlSearchRepository {
       SELECT
         cat.id, cat.parent_id, cat.slug,
         COALESCE(ct.name, ct2.name, cat.name) AS name,
-        COUNT(DISTINCT CASE WHEN ls.code = 'PUBLISHED' AND l.deleted_at IS NULL THEN l.id END) AS listing_count
+        COUNT(DISTINCT CASE WHEN ${scopePubliclyVisibleListing()} AND l.deleted_at IS NULL THEN l.id END) AS listing_count
       FROM listing_categories cat
       LEFT JOIN listing_category_translations ct ON ct.listing_category_id = cat.id AND ct.language_id = ?
       LEFT JOIN listing_category_translations ct2 ON ct2.listing_category_id = cat.id AND ct2.language_id = ?
@@ -914,7 +918,7 @@ export class MySqlSearchRepository {
       SELECT
         city.id, city.slug, city.latitude, city.longitude,
         COALESCE(ct.name, ct2.name, city.name) AS name,
-        COUNT(DISTINCT CASE WHEN ls.code = 'PUBLISHED' AND l.deleted_at IS NULL THEN l.id END) AS listing_count
+        COUNT(DISTINCT CASE WHEN ${scopePubliclyVisibleListing()} AND l.deleted_at IS NULL THEN l.id END) AS listing_count
       FROM cities city
       LEFT JOIN city_translations ct ON ct.city_id = city.id AND ct.language_id = ?
       LEFT JOIN city_translations ct2 ON ct2.city_id = city.id AND ct2.language_id = ?
@@ -934,8 +938,9 @@ export class MySqlSearchRepository {
    * Typeahead suggestions — `LIKE` prefix match, not FULLTEXT (FULLTEXT's
    * minimum-word-length floor drops short prefixes like "ho"), mirroring
    * `GET /cities/search?q=`'s documented convention
-   * (`API_SPECIFICATION.md` §36). Published, non-deleted listings only —
-   * a public typeahead must never suggest a draft's title.
+   * (`API_SPECIFICATION.md` §36). Published, non-deleted, non-expired
+   * listings only (Step B4) — a public typeahead must never suggest a
+   * draft's title, and never an expired listing's either.
    */
   async suggest(query, { localeId, defaultLocaleId }, limit = 10) {
     const prefix = `${query}%`;
@@ -943,10 +948,10 @@ export class MySqlSearchRepository {
       `
       SELECT DISTINCT l.id, COALESCE(lt.title, lt2.title) AS title, l.slug
       FROM listings l
-      JOIN listing_statuses ls ON ls.id = l.status_id AND ls.code = 'PUBLISHED'
+      JOIN listing_statuses ls ON ls.id = l.status_id
       LEFT JOIN listing_translations lt ON lt.listing_id = l.id AND lt.language_id = ?
       LEFT JOIN listing_translations lt2 ON lt2.listing_id = l.id AND lt2.language_id = ?
-      WHERE ${scopeActive('l')} AND (lt.title LIKE ? OR lt2.title LIKE ?)
+      WHERE ${scopeActive('l')} AND ${scopePubliclyVisibleListing()} AND (lt.title LIKE ? OR lt2.title LIKE ?)
       ORDER BY title ASC
       LIMIT ?
       `,
