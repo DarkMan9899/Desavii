@@ -23,6 +23,7 @@ const KNOWN_EVENT_TYPES = [
   'partner.needs_changes',
   'listing.approved',
   'listing.rejected',
+  'listing.expiring_soon',
   'payment.succeeded',
   'payment.failed',
   'refund.succeeded',

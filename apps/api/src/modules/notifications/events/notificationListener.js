@@ -189,6 +189,27 @@ export function registerNotificationListeners({
     }),
   );
 
+  // Listing Lifetime / Renewal, Step B6 — the listing's own partner
+  // owner, resolved the exact same `notifyPartnerOwner` way every other
+  // LISTING_*/ADVERTISEMENT_* event above already is. `HIGH` priority
+  // mirrors `ADVERTISEMENT_EXPIRING_SOON`'s own choice (an actionable,
+  // time-sensitive reminder, not routine status news). `listingTitle` is
+  // carried on the event's own payload (resolved once, at sweep time, by
+  // `ListingService#runExpirySweep`) rather than re-fetched here — see
+  // that method's own doc comment on why (never a blank listing name).
+  eventBus.subscribe(EVENT_TYPES.LISTING_EXPIRING_SOON, (event) =>
+    notifyPartnerOwner(event, {
+      categoryCode: 'LISTING',
+      priorityCode: PRIORITY.HIGH,
+      payload: {
+        listingId: event.payload.listingId,
+        slug: event.payload.slug,
+        listingTitle: event.payload.listingTitle,
+        expiresAt: event.payload.expiresAt,
+      },
+    }),
+  );
+
   // Phase 14 (Messaging): the FIRST real proof that this module can
   // subscribe to a second business module's events without Messaging
   // knowing anything about Notifications — `conversationService` is used

@@ -971,6 +971,112 @@ export class MySqlListingRepository extends ListingRepositoryPort {
   }
 
   /**
+   * Listing Lifetime / Renewal, Step B6 — read-only candidate list for the
+   * sweep's reminder phase (brief §12's exact T-2 window, DB time only):
+   * still PUBLISHED, not frozen, not deleted, has a real `expires_at`
+   * that's still in the future but falls within the next 2 days, and has
+   * never been reminded this cycle. Deliberately does NOT itself claim
+   * anything — `runExpirySweep` claims each candidate individually via
+   * `claimExpiryReminder` before publishing its event, so a row read here
+   * that a concurrent sweep/claim already took is simply skipped later,
+   * never double-sent (see that method's own doc comment).
+   *
+   * `title` is resolved via the exact same requested-locale-then-default
+   * COALESCE fallback `mysqlSearchRepository.js` already uses for public
+   * card titles — here "requested locale" is always the platform default
+   * (a background sweep has no per-request locale), so `lt`/`lt2` both
+   * join on `defaultLanguageId`; the COALESCE only guards the rare case
+   * where even the default-language translation row is missing, so the
+   * reminder can never carry a blank listing name (brief §20).
+   *
+   * @param {{publishedStatusId: number, defaultLanguageId: number}} args
+   * @returns {Promise<Array<{id: number, partnerId: number, slug: string, title: string, expiresAt: Date}>>}
+   */
+  async listDueForReminder(
+    { publishedStatusId, defaultLanguageId },
+    connection = this.#pool,
+  ) {
+    const [rows] = await connection.query(
+      `SELECT l.id, l.partner_id, l.slug, l.expires_at,
+              COALESCE(lt.title, '') AS title
+       FROM listings l
+       LEFT JOIN listing_translations lt
+         ON lt.listing_id = l.id AND lt.language_id = ?
+       WHERE l.status_id = ? AND l.deleted_at IS NULL AND l.frozen_at IS NULL
+         AND l.expiry_reminder_sent_at IS NULL
+         AND l.expires_at IS NOT NULL
+         AND l.expires_at > UTC_TIMESTAMP(3)
+         AND l.expires_at <= DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 2 DAY)`,
+      [defaultLanguageId, publishedStatusId],
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      partnerId: row.partner_id,
+      slug: row.slug,
+      title: row.title,
+      expiresAt: row.expires_at,
+    }));
+  }
+
+  /**
+   * Listing Lifetime / Renewal, Step B6 — the reminder sweep's only write,
+   * one row at a time (unlike `freezeExpiredListings`'s single bulk
+   * UPDATE) because each successful claim gates one outbound domain-event
+   * publish; a bulk UPDATE could claim N rows in one statement with no
+   * per-row signal to drive N separate `#eventBus.publish` calls from.
+   *
+   * This is the safe claim/guarded-update strategy brief §14 explicitly
+   * asks for, and deliberately NOT a copy of `AdvertisementRepository
+   * .markReminderSent`'s own unconditional `UPDATE ... WHERE id = ?`
+   * (no precondition re-check at write time — two overlapping sweep runs
+   * that both read the same row via `listDueForReminder` could both then
+   * unconditionally mark it and both publish, a genuine duplicate-reminder
+   * race in that existing implementation). Every precondition
+   * `listDueForReminder`'s SELECT used is re-validated here, fresh, at
+   * UPDATE time: only a row that STILL matches every condition (still
+   * PUBLISHED, still not frozen/deleted, still genuinely inside the T-2
+   * window, and still never reminded) gets claimed. Two overlapping
+   * callers racing the same row converge on exactly one successful claim —
+   * MySQL's own row-level locking serializes the two UPDATEs, and whichever
+   * runs second finds the WHERE clause no longer matches (`expiry_reminder
+   * _sent_at` is no longer NULL) and affects zero rows. The caller
+   * (`ListingService#runExpirySweep`) only publishes the event when this
+   * returns 1, never when it returns 0 — claim-then-publish, never the
+   * reverse, so no worker can ever publish before the row is durably
+   * marked.
+   *
+   * Also the mechanism behind brief §18/§19's expiry-race and renew-race
+   * requirements: if the expiry sweep's `freezeExpiredListings` (or a
+   * concurrent `renewListing`) commits first, this row no longer satisfies
+   * `status_id = ? AND frozen_at IS NULL` (frozen) or `expires_at <= NOW()
+   * + 2 DAY` (renewed to a far-future expiry, or `expiry_reminder_sent_at`
+   * already reset to NULL by the renewal but with a new, no-longer-T-2
+   * `expires_at`) — either way this claim matches zero rows and no stale
+   * "expires in 2 days" reminder is ever sent for the old cycle.
+   *
+   * @param {{id: number, publishedStatusId: number}} args
+   * @returns {Promise<number>} 0 or 1 — 0 means the state changed
+   *   concurrently (already reminded, frozen, deleted, renewed, or no
+   *   longer inside the T-2 window) and nothing was written/published.
+   */
+  async claimExpiryReminder(
+    { id, publishedStatusId },
+    connection = this.#pool,
+  ) {
+    const [result] = await connection.query(
+      `UPDATE listings
+       SET expiry_reminder_sent_at = UTC_TIMESTAMP(3)
+       WHERE id = ? AND status_id = ? AND deleted_at IS NULL AND frozen_at IS NULL
+         AND expiry_reminder_sent_at IS NULL
+         AND expires_at IS NOT NULL
+         AND expires_at > UTC_TIMESTAMP(3)
+         AND expires_at <= DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 2 DAY)`,
+      [id, publishedStatusId],
+    );
+    return result.affectedRows;
+  }
+
+  /**
    * Listing Lifetime / Renewal, Step B5 — the ACTIVE-renewal path: a
    * listing that is still genuinely PUBLISHED and not yet expired, renewed
    * BEFORE its current period runs out. Extends from the listing's own

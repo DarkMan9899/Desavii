@@ -76,6 +76,13 @@ const REGISTRY = {
     key: 'notifications.copy.listingRejected',
     params: { notes: payload.notes ?? '' },
   }),
+  // Listing Lifetime / Renewal, Step B6 — always sent to the listing's
+  // partner owner (notificationListener.js's `notifyPartnerOwner`), same
+  // audience/pattern as `listing.approved`/`listing.rejected` above.
+  'listing.expiring_soon': (payload) => ({
+    key: 'notifications.copy.listingExpiringSoon',
+    params: { listingTitle: payload.listingTitle ?? '' },
+  }),
   // apps/api/.../notificationListener.js's `EVENT_TYPES.PAYMENT_SUCCEEDED`
   // subscription — fans out to both the customer and the partner owner,
   // each receiving this same notification shape from their own side.

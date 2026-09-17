@@ -24,6 +24,16 @@
  * (a customer's own notification always resolves to *their* booking
  * view; the same booking id would 404/403 under the wrong audience's
  * route for anyone who isn't also that booking's partner/admin).
+ *
+ * Listing Lifetime / Renewal, Step B6 — `listing.expiring_soon` is the
+ * first LISTING-category event to link anywhere. Unlike the booking
+ * pattern above, it links to the Partner listings LIST page, never a
+ * per-listing id: this codebase has no dedicated `/partner/listings/:id`
+ * detail/edit route (editing/renewing happens inline from that list's own
+ * row actions — see `PartnerListingsList.jsx`), so a deep link to a
+ * specific id would 404. This event is only ever sent to the listing's
+ * partner owner, so — unlike bookings — there is no `audience` variant to
+ * pick between.
  */
 
 import PropTypes from 'prop-types';
@@ -75,6 +85,10 @@ function resolveBookingId(notification) {
   return notification.payload?.bookingId ?? null;
 }
 
+function isListingExpiringSoon(notification) {
+  return notification.event_type === 'listing.expiring_soon';
+}
+
 export default function NotificationRow({
   notification,
   audience = 'customer',
@@ -93,6 +107,10 @@ export default function NotificationRow({
   const bookingHref = bookingId
     ? `/${locale}/${BOOKING_HREF_BASE[audience]}/${bookingId}`
     : null;
+  const listingsHref = isListingExpiringSoon(notification)
+    ? `/${locale}/partner/listings`
+    : null;
+  const actionHref = bookingHref ?? listingsHref;
   const message = copy.isAnnouncement ? (
     <>
       <strong>{copy.title}</strong>
@@ -120,8 +138,8 @@ export default function NotificationRow({
       </span>
       <div className={styles.body}>
         <p className={styles.message}>
-          {bookingHref ? (
-            <RouterLink href={bookingHref}>{message}</RouterLink>
+          {actionHref ? (
+            <RouterLink href={actionHref}>{message}</RouterLink>
           ) : (
             message
           )}

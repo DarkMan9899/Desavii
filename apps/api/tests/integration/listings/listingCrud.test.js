@@ -1233,6 +1233,590 @@ describe('Listing renewal — Step B5', () => {
   });
 });
 
+// Listing Lifetime / Renewal, Step B6 — the T-2-day expiry-reminder phase
+// `ListingService#runExpirySweep` now also runs (see that method's own
+// doc comment for why this stayed one combined sweep, never a second
+// BullMQ worker on the same table). Deterministic DB-relative timestamps
+// throughout, same convention as B3/B4/B5's own lifecycle blocks above —
+// never a real sleep.
+describe('Listing expiry reminder — Step B6', () => {
+  async function selectReminderColumns(listingId) {
+    const [[row]] = await pool.query(
+      `SELECT expiry_reminder_sent_at, expires_at, frozen_at, status_id,
+              (SELECT code FROM listing_statuses WHERE id = listings.status_id) AS status_code
+       FROM listings WHERE id = ?`,
+      [listingId],
+    );
+    return row;
+  }
+
+  async function createReminderableListing({ periodDays = 90 } = {}) {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    const res = await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: periodDays });
+    expect(res.status).toBe(200);
+    return listingId;
+  }
+
+  /** @param {string} intervalSql e.g. "DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 48 HOUR)" */
+  async function setExpiresAt(listingId, intervalSql) {
+    await pool.query(
+      `UPDATE listings SET expires_at = ${intervalSql} WHERE id = ?`,
+      [listingId],
+    );
+  }
+
+  async function findReminderNotification(listingId) {
+    const [[row]] = await pool.query(
+      `SELECT n.recipient_user_id, n.event_type, n.payload,
+              (SELECT code FROM notification_categories WHERE id = n.category_id) AS category_code,
+              (SELECT code FROM notification_priorities WHERE id = n.priority_id) AS priority_code
+       FROM notifications n
+       WHERE n.event_type = 'listing.expiring_soon' AND n.resource_id = ?
+       ORDER BY n.id DESC LIMIT 1`,
+      [listingId],
+    );
+    if (!row) return null;
+    return {
+      ...row,
+      payload:
+        typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
+    };
+  }
+
+  describe('T-2 boundary (brief §12/§24)', () => {
+    test('T-49 hours: not yet eligible, no reminder', async () => {
+      const listingId = await createReminderableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 49 HOUR)',
+      );
+      await services.listingService.runExpirySweep();
+      const after = await selectReminderColumns(listingId);
+      expect(after.expiry_reminder_sent_at).toBeNull();
+      expect(await findReminderNotification(listingId)).toBeNull();
+    });
+
+    test('T-48 hours exactly: eligible, reminder sent', async () => {
+      const listingId = await createReminderableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 48 HOUR)',
+      );
+      const result = await services.listingService.runExpirySweep();
+      expect(result.remindersSent).toBeGreaterThanOrEqual(1);
+      const after = await selectReminderColumns(listingId);
+      expect(after.expiry_reminder_sent_at).not.toBeNull();
+    });
+
+    test('T-47 hours: eligible, reminder sent', async () => {
+      const listingId = await createReminderableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 47 HOUR)',
+      );
+      await services.listingService.runExpirySweep();
+      const after = await selectReminderColumns(listingId);
+      expect(after.expiry_reminder_sent_at).not.toBeNull();
+    });
+
+    test('T-1 hour: eligible, reminder sent', async () => {
+      const listingId = await createReminderableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 1 HOUR)',
+      );
+      await services.listingService.runExpirySweep();
+      const after = await selectReminderColumns(listingId);
+      expect(after.expiry_reminder_sent_at).not.toBeNull();
+    });
+
+    test('already expired: never reminded', async () => {
+      const listingId = await createReminderableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 HOUR)',
+      );
+      await services.listingService.runExpirySweep();
+      const after = await selectReminderColumns(listingId);
+      expect(after.expiry_reminder_sent_at).toBeNull();
+    });
+
+    test('legacy NULL expires_at: never reminded', async () => {
+      const created = await createDraftListing();
+      const listingId = created.body.data.id;
+      await makePublishable(listingId);
+      const [[publishedStatus]] = await pool.query(
+        "SELECT id FROM listing_statuses WHERE code = 'PUBLISHED'",
+      );
+      await pool.query(
+        'UPDATE listings SET status_id = ?, published_at = UTC_TIMESTAMP(3) WHERE id = ?',
+        [publishedStatus.id, listingId],
+      );
+      await services.listingService.runExpirySweep();
+      const after = await selectReminderColumns(listingId);
+      expect(after.expiry_reminder_sent_at).toBeNull();
+      expect(after.expires_at).toBeNull();
+    });
+
+    test('frozen: never reminded even with a (synthetic, direct-SQL-only) expires_at inside the T-2 window', async () => {
+      const listingId = await createReminderableListing();
+      // Defensive/unrealistic-but-illustrative edge state, same framing
+      // as B4's own "manually set past expires_at on a DRAFT" test above —
+      // a genuinely frozen listing's real expires_at is always already in
+      // the past (frozen only happens once expires_at <= NOW()), so this
+      // isolates the `frozen_at IS NULL` guard specifically from the
+      // "already expired" guard the next test below already covers.
+      await pool.query(
+        `UPDATE listings
+         SET frozen_at = UTC_TIMESTAMP(3),
+             purge_after = DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 6 MONTH),
+             expires_at = DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 47 HOUR)
+         WHERE id = ?`,
+        [listingId],
+      );
+      await services.listingService.runExpirySweep();
+      const after = await selectReminderColumns(listingId);
+      expect(after.expiry_reminder_sent_at).toBeNull();
+    });
+
+    test('manually UNPUBLISHED (not frozen): never reminded, even with a still-future expires_at inside the T-2 window', async () => {
+      const listingId = await createReminderableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 47 HOUR)',
+      );
+      const res = await request(app)
+        .post(`/api/v1/listings/${listingId}/unpublish`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`);
+      expect(res.status).toBe(200);
+      await services.listingService.runExpirySweep();
+      const after = await selectReminderColumns(listingId);
+      expect(after.status_code).toBe('UNPUBLISHED');
+      expect(after.frozen_at).toBeNull();
+      expect(after.expiry_reminder_sent_at).toBeNull();
+    });
+
+    test('soft-deleted: never reminded', async () => {
+      const listingId = await createReminderableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 47 HOUR)',
+      );
+      const res = await request(app)
+        .delete(`/api/v1/listings/${listingId}`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`);
+      expect(res.status).toBe(200);
+      await services.listingService.runExpirySweep();
+      const after = await selectReminderColumns(listingId);
+      expect(after.expiry_reminder_sent_at).toBeNull();
+    });
+  });
+
+  describe('Idempotency / dedup (brief §14/§25)', () => {
+    test('a first sweep emits exactly one reminder; an immediate second sweep emits zero more and never rewrites the marker', async () => {
+      const listingId = await createReminderableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 48 HOUR)',
+      );
+
+      const first = await services.listingService.runExpirySweep();
+      expect(first.remindersSent).toBeGreaterThanOrEqual(1);
+      const afterFirst = await selectReminderColumns(listingId);
+      expect(afterFirst.expiry_reminder_sent_at).not.toBeNull();
+
+      // A second, immediate sweep's own return-value count is not asserted
+      // here — it's a whole-table count that may include unrelated
+      // fixtures from other tests in this same suite run; the per-row
+      // marker-stability assertion below is what actually proves no
+      // duplicate for THIS row.
+      await services.listingService.runExpirySweep();
+      const afterSecond = await selectReminderColumns(listingId);
+      expect(afterSecond.expiry_reminder_sent_at.getTime()).toBe(
+        afterFirst.expiry_reminder_sent_at.getTime(),
+      );
+    });
+
+    test('two overlapping sweep calls racing the exact same row converge on exactly one claim, never two', async () => {
+      const listingId = await createReminderableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 48 HOUR)',
+      );
+
+      // Genuinely concurrent, not sequential — both calls' `listDueForReminder`
+      // SELECTs can legitimately both see the row as still eligible; MySQL's
+      // own row-level locking on `claimExpiryReminder`'s guarded UPDATE is
+      // what serializes the two attempts down to exactly one success.
+      await Promise.all([
+        services.listingService.runExpirySweep(),
+        services.listingService.runExpirySweep(),
+      ]);
+
+      const notificationRows = await pool.query(
+        `SELECT id FROM notifications WHERE event_type = 'listing.expiring_soon' AND resource_id = ?`,
+        [listingId],
+      );
+      expect(notificationRows[0]).toHaveLength(1);
+    });
+  });
+
+  describe('Expiry race and Renew race (brief §18/§19)', () => {
+    test('a listing that crosses into "already expired" is frozen and does NOT also get a reminder in that same sweep call', async () => {
+      const listingId = await createReminderableListing();
+      // Simulates the sweep tick landing just after expiry — this listing
+      // may well have been inside the T-2 window moments earlier, but by
+      // the time THIS sweep runs it's already past `expires_at`, so the
+      // freeze phase (which runs first within `runExpirySweep`) claims it
+      // before the reminder phase's `listDueForReminder` SELECT ever sees
+      // it as a PUBLISHED, non-frozen candidate.
+      await setExpiresAt(
+        listingId,
+        'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE)',
+      );
+
+      const result = await services.listingService.runExpirySweep();
+      expect(result.frozen).toBeGreaterThanOrEqual(1);
+
+      const after = await selectReminderColumns(listingId);
+      expect(after.frozen_at).not.toBeNull();
+      expect(after.expiry_reminder_sent_at).toBeNull();
+      expect(await findReminderNotification(listingId)).toBeNull();
+    });
+
+    test('a renewal that commits before the next sweep tick prevents a stale reminder for the old cycle', async () => {
+      const listingId = await createReminderableListing({ periodDays: 30 });
+      // 6 hours: comfortably inside the T-2 reminder window (< 48h) while
+      // staying clear of `ListingService#renewListing`'s own pre-existing,
+      // unrelated `hasLifecycleExpired` JS-Date-vs-DB-Date boundary margin
+      // (this codebase's documented mysql2 local-timezone DATETIME-parsing
+      // quirk — see `infrastructure/database/dateFormat.js`'s own comment
+      // for the DATE-column form of the same root cause) — this reminder
+      // sweep's own eligibility check is pure SQL (`claimExpiryReminder`),
+      // immune to that quirk regardless of margin, as the T-1-hour
+      // threshold test above already proves.
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 6 HOUR)',
+      );
+
+      // Renewal wins the race — extends from the CURRENT expires_at
+      // (Step B5), so the listing is now far outside the T-2 window.
+      const renewRes = await request(app)
+        .post(`/api/v1/listings/${listingId}/renew`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: 90 });
+      expect(renewRes.status).toBe(200);
+
+      await services.listingService.runExpirySweep();
+      const after = await selectReminderColumns(listingId);
+      expect(after.expiry_reminder_sent_at).toBeNull();
+      expect(await findReminderNotification(listingId)).toBeNull();
+    });
+  });
+
+  describe('Renewal resets the marker for a new cycle (brief §17/§26)', () => {
+    test('reminder fires -> Renew resets the marker -> no stale reminder -> a later T-2 threshold can remind again', async () => {
+      const listingId = await createReminderableListing({ periodDays: 30 });
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 48 HOUR)',
+      );
+
+      // 1. Reminder fires for the current cycle.
+      await services.listingService.runExpirySweep();
+      const afterReminder = await selectReminderColumns(listingId);
+      expect(afterReminder.expiry_reminder_sent_at).not.toBeNull();
+      const firstNotification = await findReminderNotification(listingId);
+      expect(firstNotification).not.toBeNull();
+
+      // 2. Renew succeeds -> marker becomes NULL, listing moves outside T-2.
+      const renewRes = await request(app)
+        .post(`/api/v1/listings/${listingId}/renew`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: 90 });
+      expect(renewRes.status).toBe(200);
+      const afterRenew = await selectReminderColumns(listingId);
+      expect(afterRenew.expiry_reminder_sent_at).toBeNull();
+      expect(afterRenew.expires_at.getTime()).toBeGreaterThan(
+        Date.now() + 47 * 60 * 60 * 1000,
+      );
+
+      // 3. No immediate stale reminder for the already-notified old cycle.
+      await services.listingService.runExpirySweep();
+      const stillAfterRenew = await selectReminderColumns(listingId);
+      expect(stillAfterRenew.expiry_reminder_sent_at).toBeNull();
+
+      // 4. Once the NEW cycle later reaches its own T-2 threshold, a fresh
+      // reminder may fire exactly once, independent of the first.
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 47 HOUR)',
+      );
+      await services.listingService.runExpirySweep();
+      const afterSecondCycle = await selectReminderColumns(listingId);
+      expect(afterSecondCycle.expiry_reminder_sent_at).not.toBeNull();
+      const secondNotification = await findReminderNotification(listingId);
+      expect(secondNotification.payload).not.toEqual(firstNotification.payload);
+    });
+  });
+
+  describe('Notification / email (brief §27, categories §31)', () => {
+    test('creates a real in-app notification for the listing owner with the correct category, priority, and payload', async () => {
+      const listingId = await createReminderableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 48 HOUR)',
+      );
+      await services.listingService.runExpirySweep();
+
+      const notification = await findReminderNotification(listingId);
+      expect(notification).not.toBeNull();
+      expect(notification.recipient_user_id).toBe(vendor.userId);
+      expect(notification.category_code).toBe('LISTING');
+      expect(notification.priority_code).toBe('HIGH');
+      expect(notification.payload.listingId).toBe(listingId);
+      expect(notification.payload.listingTitle).toEqual(expect.any(String));
+      expect(notification.payload.listingTitle.length).toBeGreaterThan(0);
+    });
+
+    test('the notification never leaks unrelated private data (staff lists, internal moderation ids, booking/customer data)', async () => {
+      const listingId = await createReminderableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 48 HOUR)',
+      );
+      await services.listingService.runExpirySweep();
+
+      const notification = await findReminderNotification(listingId);
+      const payloadKeys = Object.keys(notification.payload).sort();
+      // `partnerId` deliberately never reaches the stored notification —
+      // `notificationListener.js`'s subscription drops it after using it
+      // only to resolve the recipient, same as `advertisement.expiring_soon`'s
+      // own payload shape never carries an internal id beyond what the
+      // rendered message actually needs.
+      expect(payloadKeys).toEqual(
+        ['expiresAt', 'listingId', 'listingTitle', 'slug'].sort(),
+      );
+    });
+
+    test('an EMAIL delivery job is enqueued and renders a real, localized template via the existing delivery pipeline (never a direct/synchronous send)', async () => {
+      const listingId = await createReminderableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 48 HOUR)',
+      );
+      await services.listingService.runExpirySweep();
+
+      // `deliverViaChannel` is the exact same plain, directly-callable
+      // function the BullMQ Worker invokes (see NotificationDeliveryService's
+      // own doc comment) — calling it here proves the reminder's payload
+      // renders through the real pipeline end to end, without needing a
+      // live Redis worker running inside this test process, and without
+      // ever calling a real email provider (ConsoleEmailProvider is this
+      // app's default — see module.container.js — and is never swapped
+      // for Resend outside an explicit `config.email.provider` override,
+      // which the test environment never sets).
+      const [[notificationRow]] = await pool.query(
+        'SELECT id FROM notifications WHERE event_type = ? AND resource_id = ? ORDER BY id DESC LIMIT 1',
+        ['listing.expiring_soon', listingId],
+      );
+      const result =
+        await services.notificationDeliveryService.deliverViaChannel(
+          notificationRow.id,
+          'EMAIL',
+        );
+      expect(result.delivered).toBe(true);
+      expect(result.provider).toBe('console');
+    });
+
+    test('email is not force-sent when the recipient has EMAIL disabled for the LISTING category (in-app still follows preference semantics)', async () => {
+      const listingId = await createReminderableListing();
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 48 HOUR)',
+      );
+      await pool.query(
+        `INSERT INTO notification_preferences (user_id, category_id, in_app_enabled, email_enabled)
+         SELECT ?, id, 1, 0 FROM notification_categories WHERE code = 'LISTING'
+         ON DUPLICATE KEY UPDATE email_enabled = 0`,
+        [vendor.userId],
+      );
+
+      await services.listingService.runExpirySweep();
+
+      const notification = await findReminderNotification(listingId);
+      expect(notification).not.toBeNull();
+
+      await pool.query(
+        `DELETE FROM notification_preferences
+         WHERE user_id = ? AND category_id = (SELECT id FROM notification_categories WHERE code = 'LISTING')`,
+        [vendor.userId],
+      );
+    });
+  });
+
+  describe('Category-agnostic across listing types (brief §31)', () => {
+    test.each(['HOTEL', 'RESTAURANT', 'TOUR'])(
+      'a %s listing goes through the exact same reminder path as any other type',
+      async (listingType) => {
+        const created = await request(app)
+          .post('/api/v1/listings')
+          .set('Authorization', `Bearer ${vendor.accessToken}`)
+          .send({
+            partnerId,
+            listingType,
+            translations: [
+              {
+                languageId,
+                title: `B6 ${listingType} reminder fixture ${Date.now()}`,
+              },
+            ],
+            categoryIds: [],
+          });
+        const listingId = created.body.data.id;
+        // No `policyValues` here — policy validation requires a category
+        // (`listingValidators.js`'s `CATEGORY_REQUIRED`), and this fixture
+        // deliberately has none (brief §31: category-agnostic, no
+        // category-specific setup) — matches `bookingCreation.test.js`'s
+        // own `createListing()` helper precedent for a category-less
+        // fixture.
+        await request(app)
+          .patch(`/api/v1/listings/${listingId}`)
+          .set('Authorization', `Bearer ${vendor.accessToken}`)
+          .send({ location: { latitude: 40.1772, longitude: 44.5035 } });
+        await request(app)
+          .post(`/api/v1/listings/${listingId}/media`)
+          .set('Authorization', `Bearer ${vendor.accessToken}`)
+          .set('Content-Type', 'image/png')
+          .send(ONE_PX_PNG);
+        await request(app)
+          .post('/api/v1/availability/units')
+          .set('Authorization', `Bearer ${vendor.accessToken}`)
+          .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
+        const publishRes = await request(app)
+          .post(`/api/v1/listings/${listingId}/publish`)
+          .set('Authorization', `Bearer ${vendor.accessToken}`)
+          .send({ publicationPeriodDays: 90 });
+        expect(publishRes.status).toBe(200);
+        await setExpiresAt(
+          listingId,
+          'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 48 HOUR)',
+        );
+
+        await services.listingService.runExpirySweep();
+
+        const after = await selectReminderColumns(listingId);
+        expect(after.expiry_reminder_sent_at).not.toBeNull();
+      },
+    );
+  });
+
+  describe('Missing owner (brief §21)', () => {
+    test('a listing whose partner has no OWNER partner_employee is reminded (marker set) without crashing the sweep or notifying anyone', async () => {
+      const [[approvedStatus]] = await pool.query(
+        "SELECT id FROM moderation_statuses WHERE code = 'APPROVED'",
+      );
+      const [ownerlessPartnerResult] = await pool.query(
+        `INSERT INTO partners
+          (legal_name, display_name, slug, verification_status_id, moderation_status_id, owner_user_id)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          'Ownerless Partner LLC',
+          'Ownerless Partner',
+          `ownerless-partner-${Date.now()}`,
+          approvedStatus.id,
+          approvedStatus.id,
+          vendor.userId,
+        ],
+      );
+      const ownerlessPartnerId = ownerlessPartnerResult.insertId;
+      // A temporary OWNER row — needed only so `vendor` is authorized to
+      // create/publish under this partner (creation/publish authorization
+      // is ownership-based, via this exact table). It's soft-deleted
+      // below, BEFORE the sweep runs, so the reminder step itself sees a
+      // genuinely ownerless partner — exercising `partnerService
+      // .getOwnerUserId` -> `notify()`'s existing
+      // `if (!recipientUserId) return;` guard, never a fabricated
+      // recipient (brief §21).
+      const [[ownerRole]] = await pool.query(
+        "SELECT id FROM partner_employee_roles WHERE code = 'OWNER'",
+      );
+      const [employeeResult] = await pool.query(
+        'INSERT INTO partner_employees (partner_id, user_id, role_id) VALUES (?, ?, ?)',
+        [ownerlessPartnerId, vendor.userId, ownerRole.id],
+      );
+
+      const created = await request(app)
+        .post('/api/v1/listings')
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({
+          partnerId: ownerlessPartnerId,
+          listingType: 'HOTEL',
+          translations: [
+            { languageId, title: `B6 ownerless fixture ${Date.now()}` },
+          ],
+          categoryIds: [],
+        });
+      const listingId = created.body.data.id;
+      await request(app)
+        .patch(`/api/v1/listings/${listingId}`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ location: { latitude: 40.1772, longitude: 44.5035 } });
+      await request(app)
+        .post(`/api/v1/listings/${listingId}/media`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .set('Content-Type', 'image/png')
+        .send(ONE_PX_PNG);
+      await request(app)
+        .post('/api/v1/availability/units')
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
+      const publishRes = await request(app)
+        .post(`/api/v1/listings/${listingId}/publish`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: 90 });
+      expect(publishRes.status).toBe(200);
+      await setExpiresAt(
+        listingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 48 HOUR)',
+      );
+
+      // NOW remove the owner — the sweep below must see a genuinely
+      // ownerless partner, never one merely used to bootstrap the fixture.
+      await pool.query(
+        'UPDATE partner_employees SET deleted_at = UTC_TIMESTAMP(3) WHERE id = ?',
+        [employeeResult.insertId],
+      );
+
+      // A second, normal candidate in the SAME sweep run, to prove the
+      // ownerless row never blocks/crashes processing of the others.
+      const normalListingId = await createReminderableListing();
+      await setExpiresAt(
+        normalListingId,
+        'DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 48 HOUR)',
+      );
+
+      await expect(
+        services.listingService.runExpirySweep(),
+      ).resolves.toBeDefined();
+
+      const after = await selectReminderColumns(listingId);
+      expect(after.expiry_reminder_sent_at).not.toBeNull();
+      expect(await findReminderNotification(listingId)).toBeNull();
+
+      const normalAfter = await selectReminderColumns(normalListingId);
+      expect(normalAfter.expiry_reminder_sent_at).not.toBeNull();
+      expect(await findReminderNotification(normalListingId)).not.toBeNull();
+    });
+  });
+});
+
 describe('PATCH /listings/:id — update, slug history', () => {
   test('changing the slug records the old slug in listing_slug_history', async () => {
     const created = await createDraftListing();

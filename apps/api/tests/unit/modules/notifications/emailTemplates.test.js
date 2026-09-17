@@ -132,4 +132,43 @@ describe('renderEmail', () => {
       expect(body).not.toContain('/account/bookings/');
     });
   });
+
+  describe('Listing Lifetime / Renewal, Step B6 — listing.expiring_soon', () => {
+    const PAYLOAD = {
+      listingTitle: 'Sunset Vanadzor Apartment',
+      expiresAt: '2027-03-01T16:21:42.457Z',
+    };
+
+    test.each(['en', 'hy', 'ru'])(
+      'renders a real, localized subject/body identifying the listing and its expiry date, with a renewal link (%s)',
+      (locale) => {
+        const { subject, body } = renderEmail(
+          'listing.expiring_soon',
+          PAYLOAD,
+          locale,
+        );
+        expect(subject).not.toBe('Notification');
+        expect(body).not.toContain('{"');
+        expect(body).toContain('Sunset Vanadzor Apartment');
+        expect(body).toContain('2027-03-01');
+        expect(body).toContain(`/${locale}/partner/listings`);
+      },
+    );
+
+    test('never claims urgency language ("last chance", "act now") in any locale', () => {
+      for (const locale of ['en', 'hy', 'ru']) {
+        const { body } = renderEmail('listing.expiring_soon', PAYLOAD, locale);
+        expect(body.toLowerCase()).not.toContain('last chance');
+        expect(body.toLowerCase()).not.toContain('act now');
+      }
+    });
+
+    test('renders a blank-safe title rather than throwing when listingTitle is missing', () => {
+      const { subject, body } = renderEmail('listing.expiring_soon', {
+        expiresAt: PAYLOAD.expiresAt,
+      });
+      expect(subject).not.toBe('Notification');
+      expect(body).not.toContain('undefined');
+    });
+  });
 });

@@ -3887,6 +3887,7 @@
       "partnerNeedsChanges": "Ձեր {{partnerName}} հայտում փոփոխություններ են պահանջվում",
       "listingApproved": "Ձեր հայտարարությունը հաստատվել է",
       "listingRejected": "Ձեր հայտարարությունը մերժվել է",
+      "listingExpiringSoon": "Ձեր «{{listingTitle}}» հայտարարության ժամկետը լրանում է 2 օրից․ երկարաձգեք՝ տեսանելի մնալու համար",
       "paymentSucceeded": "{{reference}} վճարումը հաջողվել է",
       "paymentFailed": "{{reference}} վճարումը ձախողվել է",
       "refundSucceeded": "{{reference}} վերադարձը կատարվել է",

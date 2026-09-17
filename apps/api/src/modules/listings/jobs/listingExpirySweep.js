@@ -18,6 +18,12 @@
  * cadence for a day/month-granularity lifecycle, and it stays well clear
  * of the 15-minute inventory-reconciliation sweep's cadence for an
  * unrelated domain.
+ *
+ * Step B6 extended `ListingService#runExpirySweep` itself with a T-2-day
+ * expiry-reminder phase (see that method's own doc comment for why this
+ * stayed one combined sweep rather than a second worker on the same
+ * table) — this job file needed no change beyond surfacing the extra
+ * `remindersSent` count already returned.
  */
 
 import { Queue, Worker } from 'bullmq';
@@ -32,7 +38,7 @@ const REPEATABLE_JOB_ID = 'listing-expiry-sweep';
 const log = getModuleLogger('listings');
 const errorTracker = createErrorTracker();
 
-/** @returns {Promise<{frozen: number}>} */
+/** @returns {Promise<{frozen: number, remindersSent: number}>} */
 export async function sweepListingExpiry(listingService) {
   return listingService.runExpirySweep();
 }
@@ -49,9 +55,10 @@ export function registerListingExpirySweepJob({ listingService }) {
   const worker = new Worker(
     QUEUE_NAME,
     async () => {
-      const { frozen } = await sweepListingExpiry(listingService);
-      if (frozen > 0) {
-        log.info({ frozen }, 'Froze expired listings');
+      const { frozen, remindersSent } =
+        await sweepListingExpiry(listingService);
+      if (frozen > 0 || remindersSent > 0) {
+        log.info({ frozen, remindersSent }, 'Listing expiry sweep completed');
       }
     },
     { connection },

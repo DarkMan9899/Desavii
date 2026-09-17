@@ -47,6 +47,28 @@ function bookingUrl(locale, bookingId) {
   return `${config.webAppUrl}/${locale}/account/bookings/${bookingId}`;
 }
 
+// Step B6 — there is no per-listing Partner detail/edit route in this
+// codebase yet (`PartnerListingsList.jsx` is the one management surface;
+// editing happens inline from its own row actions, never a dedicated
+// `/partner/listings/:id` page), so this deliberately links to the LIST
+// page rather than fabricating a deep link that would 404. The Renew
+// action the reminder is about lives directly on that page.
+function partnerListingsUrl(locale) {
+  return `${config.webAppUrl}/${locale}/partner/listings`;
+}
+
+// `expiresAt` arrives here as whatever `JSON.parse` produced from the
+// notification row's stored payload — an ISO string, never a `Date`
+// instance (the domain event that carried it was JSON-serialized on the
+// way into `notifications.payload`). A calendar date, not a date+time —
+// this app has no per-recipient timezone to render a precise instant in.
+function formatExpiryDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0, 10);
+}
+
 const TEMPLATES = {
   'booking.created': {
     en: ({ bookingReference }) => ({
@@ -257,6 +279,26 @@ const TEMPLATES = {
     ru: ({ listingTitle, notes }) => ({
       subject: 'Объявление отклонено',
       body: `Ваше объявление «${listingTitle ?? ''}» отклонено.${notes ? ` Примечание: ${notes}` : ''}`,
+    }),
+  },
+  // Listing Lifetime / Renewal, Step B6 — sent once per publication cycle
+  // when a listing enters its T-2-day expiry window
+  // (`ListingService#runExpirySweep`'s reminder phase). Concise and
+  // operational per brief §8: identifies the listing, states the real
+  // expiry date, tells the partner how to keep it visible — no fake
+  // urgency ("last chance", "act now").
+  'listing.expiring_soon': {
+    en: ({ listingTitle, expiresAt }) => ({
+      subject: 'Your listing expires soon',
+      body: `Your listing "${listingTitle ?? ''}" expires on ${formatExpiryDate(expiresAt)}. Renew it to keep it publicly visible: ${partnerListingsUrl('en')}`,
+    }),
+    hy: ({ listingTitle, expiresAt }) => ({
+      subject: 'Ձեր հայտարարության ժամկետը շուտով կավարտվի',
+      body: `Ձեր «${listingTitle ?? ''}» հայտարարության հրապարակման ժամկետը լրանում է ${formatExpiryDate(expiresAt)}-ին: Երկարաձգեք այն՝ հրապարակային տեսանելիությունը պահպանելու համար. ${partnerListingsUrl('hy')}`,
+    }),
+    ru: ({ listingTitle, expiresAt }) => ({
+      subject: 'Срок публикации вашего объявления скоро истекает',
+      body: `Срок публикации вашего объявления «${listingTitle ?? ''}» истекает ${formatExpiryDate(expiresAt)}. Продлите его, чтобы оно осталось видимым публично: ${partnerListingsUrl('ru')}`,
     }),
   },
   // Same "sent directly via `emailAdapter`, bypassing the notification

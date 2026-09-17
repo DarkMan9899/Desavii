@@ -3889,6 +3889,7 @@
       "partnerNeedsChanges": "Changes requested on your application for {{partnerName}}",
       "listingApproved": "Your listing was approved",
       "listingRejected": "Your listing was rejected",
+      "listingExpiringSoon": "Your listing \"{{listingTitle}}\" expires in 2 days — renew to keep it visible",
       "paymentSucceeded": "Payment {{reference}} succeeded",
       "paymentFailed": "Payment {{reference}} failed",
       "refundSucceeded": "Refund {{reference}} completed",

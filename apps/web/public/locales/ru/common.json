@@ -3921,6 +3921,7 @@
       "partnerNeedsChanges": "По заявке на {{partnerName}} запрошены изменения",
       "listingApproved": "Ваше объявление одобрено",
       "listingRejected": "Ваше объявление отклонено",
+      "listingExpiringSoon": "Срок публикации объявления «{{listingTitle}}» истекает через 2 дня — продлите, чтобы оно осталось видимым",
       "paymentSucceeded": "Платёж {{reference}} прошёл успешно",
       "paymentFailed": "Платёж {{reference}} не прошёл",
       "refundSucceeded": "Возврат {{reference}} выполнен",

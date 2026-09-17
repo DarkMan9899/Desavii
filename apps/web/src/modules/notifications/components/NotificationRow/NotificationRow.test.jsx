@@ -158,4 +158,17 @@ describe('NotificationRow (apps/web/src/modules/notifications)', () => {
     const link = screen.getByRole('link', { name: /BK-42/ });
     expect(link).toHaveAttribute('href', '/hy/account/bookings/42');
   });
+
+  test('Listing Lifetime / Renewal, Step B6: a listing.expiring_soon notification links to the Partner listings list page, not a per-listing id', () => {
+    renderRow({
+      ...BASE_NOTIFICATION,
+      event_type: 'listing.expiring_soon',
+      category: 'LISTING',
+      payload: { listingId: 9, listingTitle: 'Sunset Vanadzor Apartment' },
+    });
+    const link = screen.getByRole('link', {
+      name: /Sunset Vanadzor Apartment/,
+    });
+    expect(link).toHaveAttribute('href', '/hy/partner/listings');
+  });
 });

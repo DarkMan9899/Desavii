@@ -574,21 +574,31 @@ export class ListingService {
 
   /**
    * The scheduled listing-expiration sweep's entry point (Listing Lifetime
-   * / Renewal, Step B4) — called only by `modules/listings/jobs/
-   * listingExpirySweep.js`, never by an HTTP route. Convenience/STORED-
-   * state sync only: the public-visibility queries elsewhere (Search,
-   * Category, Company profile, Favorites, TOP hydration — see
-   * `listingVisibilitySql.js`) never rely on this having already run, they
-   * independently re-derive "already expired" straight from `expires_at`.
-   * An hourly cadence here only needs to keep the STORED `status_id`/
-   * Admin-visible state reasonably fresh between runs — exactly mirroring
+   * / Renewal, Step B4, extended by Step B6 with a reminder phase) —
+   * called only by `modules/listings/jobs/listingExpirySweep.js`, never by
+   * an HTTP route. Convenience/STORED-state sync only: the public-
+   * visibility queries elsewhere (Search, Category, Company profile,
+   * Favorites, TOP hydration — see `listingVisibilitySql.js`) never rely
+   * on this having already run, they independently re-derive "already
+   * expired" straight from `expires_at`. An hourly cadence here only
+   * needs to keep the STORED `status_id`/Admin-visible state, and outbound
+   * reminders, reasonably fresh between runs — exactly mirroring
    * `AdvertisementService#runLifecycleSweep`'s own "convenience sync,
-   * never the sole authority on public visibility" precedent.
+   * never the sole authority on public visibility" precedent, including
+   * that method's own choice to combine multiple sweep phases into one
+   * scheduled entry point rather than registering a second BullMQ worker
+   * that would otherwise scan this exact same `listings` table on the
+   * exact same hourly cadence for no real benefit (Step B6 brief §10).
    *
    * The repository's own guarded UPDATE (`freezeExpiredListings`) does the
-   * actual work and is what makes this naturally idempotent/race-safe —
-   * see its own doc comment.
-   * @returns {Promise<{frozen: number}>}
+   * freeze work and is what makes that half naturally idempotent/race-safe
+   * — see its own doc comment. The reminder phase is a two-step read-then-
+   * claim (`listDueForReminder` finds candidates, `claimExpiryReminder`
+   * atomically claims one at a time) — see `claimExpiryReminder`'s own doc
+   * comment for exactly why this is safer than `AdvertisementRepository
+   * .markReminderSent`'s un-guarded precedent, and why claiming always
+   * happens BEFORE this method publishes that row's event, never after.
+   * @returns {Promise<{frozen: number, remindersSent: number}>}
    */
   async runExpirySweep() {
     const [publishedStatusId, unpublishedStatusId] = await Promise.all([
@@ -599,7 +609,39 @@ export class ListingService {
       publishedStatusId,
       unpublishedStatusId,
     });
-    return { frozen };
+
+    const { defaultLocaleId } = await resolveLocaleIds(undefined);
+    const dueForReminder = await this.#listingRepository.listDueForReminder({
+      publishedStatusId,
+      defaultLanguageId: defaultLocaleId,
+    });
+    const claimedResults = await Promise.all(
+      dueForReminder.map(async (listing) => {
+        const claimed = await this.#listingRepository.claimExpiryReminder({
+          id: listing.id,
+          publishedStatusId,
+        });
+        if (claimed === 0) return false;
+        await this.#eventBus.publish(
+          createDomainEvent({
+            eventType: EVENT_TYPES.LISTING_EXPIRING_SOON,
+            resourceType: 'listing',
+            resourceId: listing.id,
+            payload: {
+              listingId: listing.id,
+              partnerId: listing.partnerId,
+              listingTitle: listing.title,
+              slug: listing.slug,
+              expiresAt: listing.expiresAt,
+            },
+          }),
+        );
+        return true;
+      }),
+    );
+    const remindersSent = claimedResults.filter(Boolean).length;
+
+    return { frozen, remindersSent };
   }
 
   /**

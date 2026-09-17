@@ -28,6 +28,14 @@ export const EVENT_TYPES = Object.freeze({
   PARTNER_NEEDS_CHANGES: 'partner.needs_changes',
   LISTING_APPROVED: 'listing.approved',
   LISTING_REJECTED: 'listing.rejected',
+  // Listing Lifetime / Renewal, Step B6 — published once per publication
+  // cycle when a lifecycle-managed listing enters its T-2-day expiry
+  // window (`ListingService#runExpirySweep`'s reminder phase). Mirrors
+  // `ADVERTISEMENT_EXPIRING_SOON`'s own naming/shape, but never shares its
+  // event type — a listing's own lifecycle is a distinct domain concern
+  // from a paid promotion's, even though both eventually reuse the same
+  // `notifyPartnerOwner` delivery path.
+  LISTING_EXPIRING_SOON: 'listing.expiring_soon',
   CONVERSATION_CREATED: 'conversation.created',
   CONVERSATION_ARCHIVED: 'conversation.archived',
   MESSAGE_SENT: 'message.sent',

@@ -123,6 +123,20 @@ export class ListingRepository {
     );
   }
 
+  /** Step B6: candidate rows currently inside the T-2-day reminder window and not yet reminded this cycle — read-only, the actual claim happens per-row in `claimExpiryReminder`. @returns {Promise<object[]>} */
+  async listDueForReminder({ publishedStatusId, defaultLanguageId }) {
+    throw new Error(
+      'ListingRepository.listDueForReminder must be implemented by a concrete adapter.',
+    );
+  }
+
+  /** Step B6: the per-row guarded UPDATE that atomically claims a single listing's expiry reminder — see the MySQL adapter for the exact idempotency/race-safety contract. @returns {Promise<number>} 0 or 1 */
+  async claimExpiryReminder({ id, publishedStatusId }) {
+    throw new Error(
+      'ListingRepository.claimExpiryReminder must be implemented by a concrete adapter.',
+    );
+  }
+
   /** @param {number} listingId @param {string} oldSlug @returns {Promise<void>} */
   async recordSlugHistory(listingId, oldSlug) {
     throw new Error(
