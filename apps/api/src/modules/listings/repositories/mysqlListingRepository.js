@@ -597,6 +597,7 @@ export class MySqlListingRepository extends ListingRepositoryPort {
       itinerarySteps,
       includedItems,
       faqs,
+      company,
     ] = await Promise.all([
       connection.query(
         `SELECT lt.*, lang.code AS language_code
@@ -643,6 +644,7 @@ export class MySqlListingRepository extends ListingRepositoryPort {
       this.listItinerarySteps(id, connection),
       this.listIncludedItems(id, connection),
       this.listFaqs(id, connection),
+      this.getPublicCompanySummary(listing.partnerId, connection),
     ]);
 
     const reviewSummaryRow = reviewSummaryRows[0];
@@ -666,6 +668,7 @@ export class MySqlListingRepository extends ListingRepositoryPort {
       itinerarySteps,
       includedItems,
       faqs,
+      company,
     };
   }
 
@@ -1241,6 +1244,41 @@ export class MySqlListingRepository extends ListingRepositoryPort {
       );
     }
     return this.listFaqs(listingId, connection);
+  }
+
+  /**
+   * Step A3 (Listing → Company Linking) — the minimal real public identity
+   * of the listing's owning company, for the detail page's company
+   * attribution block. Narrow, scoped lookup, same "own a small copy
+   * rather than import across modules" precedent as
+   * `getPartnerVerification` right below and `mysqlPartnerRepository.js`'s
+   * own `CARD_METADATA_SELECT` doc comment. Gated on `moderation_status_id
+   * = APPROVED` — the exact same public-visibility rule
+   * `mysqlPartnerRepository.js#findPublicBySlug` already uses — so a
+   * listing whose partner has since been flagged/deleted degrades to
+   * `null` here (the listing itself still renders; it just loses its
+   * attribution block) rather than ever linking to a non-public company
+   * page. Returns only what the block needs: never `email`/`phone`/
+   * `owner_user_id`/`legal_name`/moderation internals.
+   */
+  async getPublicCompanySummary(partnerId, connection = this.#pool) {
+    const [rows] = await connection.query(
+      `SELECT p.slug, p.display_name, lm.url AS logo_url, vms.code AS verification_status_code
+       FROM partners p
+       JOIN moderation_statuses ms ON ms.id = p.moderation_status_id
+       JOIN moderation_statuses vms ON vms.id = p.verification_status_id
+       LEFT JOIN media lm ON lm.id = p.logo_media_id AND lm.deleted_at IS NULL
+       WHERE p.id = ? AND ${scopeActive('p')} AND ms.code = 'APPROVED'
+       LIMIT 1`,
+      [partnerId],
+    );
+    if (rows.length === 0) return null;
+    return {
+      slug: rows[0].slug,
+      displayName: rows[0].display_name,
+      logoUrl: rows[0].logo_url,
+      isVerified: rows[0].verification_status_code === 'APPROVED',
+    };
   }
 
   /**

@@ -131,6 +131,12 @@ const VILLA_LISTING = {
   attribute_values: [{ code: 'bedrooms', value: '3' }],
   policy_values: [{ code: 'pets_allowed', value: 'true' }],
   pricing: { pricing_model: 'PER_NIGHT', amount: '150.00', currency: 'AMD' },
+  company: {
+    slug: 'yerevan-boutique-hospitality',
+    display_name: 'Yerevan Boutique Hospitality',
+    logo_url: null,
+    is_verified: true,
+  },
 };
 
 const VILLA_METADATA = {
@@ -336,6 +342,36 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
     expect(
       screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
     ).toBeInTheDocument();
+    // Step A3 (Listing → Company Linking): the shared `CompanyAttribution`
+    // block, wired from `listing.company`, links to the real company's
+    // public profile with the current locale preserved.
+    expect(
+      screen.getByRole('link', { name: /Yerevan Boutique Hospitality/ }),
+    ).toHaveAttribute('href', '/hy/companies/yerevan-boutique-hospitality');
+  });
+
+  test('Step A3: renders no company attribution block when the listing has no public company context (graceful degrade)', () => {
+    useListingQuery.mockReturnValue({
+      data: { ...VILLA_LISTING, company: null },
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    useListingMetadataQuery.mockReturnValue({
+      data: VILLA_METADATA,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderPage(3);
+
+    expect(
+      screen.getByRole('heading', { name: 'Հրաշալի վիլլա', level: 1 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Yerevan Boutique Hospitality'),
+    ).not.toBeInTheDocument();
   });
 
   test('Pass 10: renders authored opening hours for a non-Restaurant listing (the RESTAURANT-only query gate was a bug, not intentional scoping)', () => {
@@ -485,5 +521,9 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
     expect(
       screen.queryByRole('heading', { name: 'Կանոններ' }),
     ).not.toBeInTheDocument();
+    // Step A3: same shared attribution block, no per-category fork.
+    expect(
+      screen.getByRole('link', { name: /Yerevan Boutique Hospitality/ }),
+    ).toBeInTheDocument();
   });
 });

@@ -3181,6 +3181,9 @@
         "noReviews": "Пока нет отзывов",
         "overview": "Обзор"
       },
+      "companyAttribution": {
+        "label": "Предлагает"
+      },
       "share": {
         "button": "Поделиться",
         "copied": "Ссылка скопирована",

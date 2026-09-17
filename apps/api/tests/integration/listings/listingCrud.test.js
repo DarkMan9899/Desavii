@@ -302,6 +302,103 @@ describe('GET /listings/:id — visibility', () => {
   });
 });
 
+// Step A3 (Listing → Company Linking): the listing detail page's company
+// attribution block reads this `company` field directly off `GET
+// /listings/:id`.
+describe('GET /listings/:id — company attribution (Step A3)', () => {
+  test('a published listing exposes its real, public company identity', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+
+    const res = await request(app).get(`/api/v1/listings/${listingId}`);
+    expect(res.status).toBe(200);
+    // `yerevan-boutique-hospitality` (seeds/005_dev_accounts.js) has no
+    // logo authored — a real `null`, never a fabricated placeholder URL.
+    expect(res.body.data.company).toEqual({
+      slug: 'yerevan-boutique-hospitality',
+      display_name: 'Yerevan Boutique Hospitality',
+      logo_url: null,
+      is_verified: true,
+    });
+  });
+
+  test('never exposes private company fields alongside the public attribution', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+
+    const res = await request(app).get(`/api/v1/listings/${listingId}`);
+    expect(Object.keys(res.body.data.company).sort()).toEqual([
+      'display_name',
+      'is_verified',
+      'logo_url',
+      'slug',
+    ]);
+  });
+
+  // The listing itself never disappears just because its company later
+  // stops being publicly eligible (a real admin "suspend company" action,
+  // `moderation_status_id` → FLAGGED) — only the attribution block does.
+  // A dedicated partner/listing pair, not the shared `partnerId`, so
+  // flagging it can't affect any other test in this file.
+  test('company is null (never a broken link) once the owning partner is no longer publicly eligible, but the listing itself still renders', async () => {
+    const [[approvedStatus]] = await pool.query(
+      "SELECT id FROM moderation_statuses WHERE code = 'APPROVED'",
+    );
+    const [[flaggedStatus]] = await pool.query(
+      "SELECT id FROM moderation_statuses WHERE code = 'FLAGGED'",
+    );
+    const [[ownerRole]] = await pool.query(
+      "SELECT id FROM partner_employee_roles WHERE code = 'OWNER'",
+    );
+    const uniqueSuffix = Date.now();
+    const [toBeFlaggedResult] = await pool.query(
+      `INSERT INTO partners
+        (legal_name, display_name, slug, verification_status_id, moderation_status_id, owner_user_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        'To Be Flagged LLC',
+        'To Be Flagged Company',
+        `to-be-flagged-${uniqueSuffix}`,
+        approvedStatus.id,
+        approvedStatus.id,
+        vendor.userId,
+      ],
+    );
+    const toBeFlaggedPartnerId = toBeFlaggedResult.insertId;
+    await pool.query(
+      'INSERT INTO partner_employees (partner_id, user_id, role_id) VALUES (?, ?, ?)',
+      [toBeFlaggedPartnerId, vendor.userId, ownerRole.id],
+    );
+
+    const created = await createDraftListing({
+      partnerId: toBeFlaggedPartnerId,
+    });
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+
+    await pool.query(
+      'UPDATE partners SET moderation_status_id = ? WHERE id = ?',
+      [flaggedStatus.id, toBeFlaggedPartnerId],
+    );
+
+    const res = await request(app).get(`/api/v1/listings/${listingId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('PUBLISHED');
+    expect(res.body.data.company).toBeNull();
+  });
+});
+
 describe('PATCH /listings/:id — update, slug history', () => {
   test('changing the slug records the old slug in listing_slug_history', async () => {
     const created = await createDraftListing();

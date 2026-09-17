@@ -18,6 +18,13 @@
  * `errors.notFound.*` `EmptyState` `NotFoundPage` itself uses, since
  * that's what this functionally is; any other failure (network, 500)
  * gets the generic retryable `ErrorState`.
+ *
+ * Step A3 (Listing → Company Linking): `CompanyAttribution`, between the
+ * hero and the section nav, so it's visible at every breakpoint (unlike
+ * the reservation sidebar, which is `display: none` below `laptop`).
+ * Same component for all 9 categories — no per-category markup, matching
+ * every other section on this page. Renders nothing when `listing.company`
+ * is `null` (the owning partner isn't currently publicly eligible).
  */
 
 import { useEffect, useState } from 'react';
@@ -32,6 +39,7 @@ import { Section, Stack, Inline } from '@desavii/ui/components/layout';
 import { Breadcrumbs } from '@desavii/ui/components/navigation';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import ShareButton from '../../../../components/ShareButton/ShareButton.jsx';
+import CompanyAttribution from '../../../../components/CompanyAttribution/CompanyAttribution.jsx';
 import useSeo from '../../../../seo/useSeo.js';
 import {
   buildBreadcrumbListSchema,
@@ -545,6 +553,8 @@ export default function ListingDetailPageContent() {
           </Inline>
         }
       />
+
+      <CompanyAttribution company={listing.company} locale={locale} />
 
       <ListingSectionNav sections={orderedSections} />
 

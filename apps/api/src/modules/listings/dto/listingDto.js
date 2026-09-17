@@ -115,6 +115,24 @@ export function toFaqResponse(faq) {
   };
 }
 
+/**
+ * Step A3 (Listing → Company Linking) — the listing detail page's company
+ * attribution block. `null` when the owning partner isn't currently
+ * publicly eligible (see `mysqlListingRepository.js#getPublicCompanySummary`)
+ * — the listing itself still renders, it just loses its attribution.
+ * Deliberately excludes anything not already public elsewhere (no
+ * `email`/`phone`/`owner_user_id`/`legal_name`).
+ */
+export function toCompanyAttributionResponse(company) {
+  if (!company) return null;
+  return {
+    slug: company.slug,
+    display_name: company.displayName,
+    logo_url: company.logoUrl,
+    is_verified: company.isVerified,
+  };
+}
+
 export function toListingResponse(listing) {
   return {
     id: listing.id,
@@ -156,6 +174,11 @@ export function toListingResponse(listing) {
     ),
     included_items: (listing.includedItems ?? []).map(toIncludedItemResponse),
     faqs: (listing.faqs ?? []).map(toFaqResponse),
+    // Step A3 (Listing → Company Linking): `undefined` (not fetched by a
+    // caller that never asked, e.g. some other DTO reusing `listing`'s
+    // shape) stays `undefined`-safe via `?? null`; a real, resolved
+    // lookup is either a company object or `null`.
+    company: toCompanyAttributionResponse(listing.company ?? null),
     created_at: listing.createdAt,
     updated_at: listing.updatedAt,
   };

@@ -1,0 +1,51 @@
+// CompanyAttribution — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+.attribution {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-3;
+  max-width: 100%;
+  padding: tokens.$space-2 tokens.$space-3;
+  border: 1px solid tokens.$color-gray-200;
+  border-radius: tokens.$radius-lg;
+  text-decoration: none;
+  color: inherit;
+
+  &:hover {
+    border-color: tokens.$color-royal-blue;
+  }
+
+  &:focus-visible {
+    outline: 2px solid tokens.$color-royal-blue;
+    outline-offset: 2px;
+  }
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.label {
+  font-size: tokens.$font-size-micro;
+  color: tokens.$color-gray-600;
+}
+
+.name {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-1;
+  font-size: tokens.$font-size-small;
+  font-weight: 700;
+  color: tokens.$color-gray-900;
+  overflow-wrap: anywhere;
+}
+
+.verifiedIcon {
+  flex-shrink: 0;
+  color: tokens.$color-royal-blue;
+}

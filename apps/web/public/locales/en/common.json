@@ -3163,6 +3163,9 @@
         "noReviews": "No reviews yet",
         "overview": "Overview"
       },
+      "companyAttribution": {
+        "label": "Offered by"
+      },
       "share": {
         "button": "Share",
         "copied": "Link copied to clipboard",

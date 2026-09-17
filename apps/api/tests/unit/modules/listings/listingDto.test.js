@@ -12,6 +12,7 @@ import {
   toTranslationResponse,
   toLocationResponse,
   toListingResponse,
+  toCompanyAttributionResponse,
 } from '../../../../src/modules/listings/dto/listingDto.js';
 
 describe('toTranslationResponse', () => {
@@ -121,5 +122,55 @@ describe('toListingResponse (Phase 9: Partner Dashboard)', () => {
   test('archived_at is null for a listing that has never been archived', () => {
     const response = toListingResponse(baseListing({ archivedAt: null }));
     expect(response.archived_at).toBeNull();
+  });
+
+  test('company is null when the repository resolved no public company', () => {
+    const response = toListingResponse(baseListing({ company: null }));
+    expect(response.company).toBeNull();
+  });
+
+  test('company is null when the field was never fetched (undefined)', () => {
+    const response = toListingResponse(baseListing());
+    expect(response.company).toBeNull();
+  });
+});
+
+describe('toCompanyAttributionResponse (Step A3: Listing → Company Linking)', () => {
+  test('returns null for a listing whose partner is not publicly eligible', () => {
+    expect(toCompanyAttributionResponse(null)).toBeNull();
+  });
+
+  test('maps real company fields, and only those fields', () => {
+    const response = toCompanyAttributionResponse({
+      slug: 'ararat-grand-hotels',
+      displayName: 'Ararat Grand Hotels',
+      logoUrl: 'https://cdn.example.com/logo.png',
+      isVerified: true,
+    });
+
+    expect(response).toEqual({
+      slug: 'ararat-grand-hotels',
+      display_name: 'Ararat Grand Hotels',
+      logo_url: 'https://cdn.example.com/logo.png',
+      is_verified: true,
+    });
+    // Never leaks private partner fields (owner/legal/contact/moderation
+    // internals) — the repository never even selects them for this read,
+    // but this asserts the DTO's own contract too.
+    expect(response).not.toHaveProperty('owner_user_id');
+    expect(response).not.toHaveProperty('legal_name');
+    expect(response).not.toHaveProperty('email');
+    expect(response).not.toHaveProperty('phone');
+  });
+
+  test('logo_url is null when the company has no logo, never fabricated', () => {
+    const response = toCompanyAttributionResponse({
+      slug: 'no-logo-co',
+      displayName: 'No Logo Co',
+      logoUrl: null,
+      isVerified: false,
+    });
+    expect(response.logo_url).toBeNull();
+    expect(response.is_verified).toBe(false);
   });
 });
