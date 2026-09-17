@@ -165,3 +165,11 @@
   line-height: tokens.$line-height-h3;
   color: tokens.$color-gray-900;
 }
+
+// Company Public Profile (Step A2) — same "Load more" layout
+// `CompaniesDirectoryPageContent.module.scss`'s own `.loadMore` uses.
+.loadMore {
+  display: flex;
+  justify-content: center;
+  margin-block-start: tokens.$space-8;
+}

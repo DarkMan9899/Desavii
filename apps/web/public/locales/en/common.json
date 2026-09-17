@@ -3378,7 +3378,11 @@
       "loading": "Loading company profile...",
       "errorTitle": "Couldn't load this company",
       "retry": "Try again",
-      "listingsHeading": "Listings"
+      "listingsHeading": "Listings",
+      "loadMore": "Load more",
+      "listingsErrorTitle": "Couldn't load listings",
+      "listingsEmptyTitle": "No listings yet",
+      "listingsEmptyDescription": "This company has no published listings yet — check back soon."
     }
   },
   "partnerOnboarding": {

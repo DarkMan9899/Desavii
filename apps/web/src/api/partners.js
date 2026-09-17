@@ -47,6 +47,24 @@ export function getPartnerBySlug(slug) {
 }
 
 /**
+ * `GET /partners/:slug/listings` — Company Public Profile (Step A1/A2):
+ * a company's currently-public listings across all categories,
+ * cursor-paginated, same flat card-field shape `GET /search` returns
+ * (`category_slug`, `cuisine`, `price_tier`, `star_rating`,
+ * `transmission`, `bedrooms`, `duration_minutes`, etc. —
+ * `partnerDto.js`'s `toPartnerListingResponse`). No auth required;
+ * resolves to a 404 for an unknown/unapproved company slug (same as
+ * `getPartnerBySlug`), never for a valid company with zero listings.
+ * @param {string} slug
+ * @param {{ cursor?: string, limit?: number }} params
+ */
+export function getPartnerListings(slug, params) {
+  return apiClient
+    .get(`/partners/${encodeURIComponent(slug)}/listings`, { params })
+    .then((response) => response.data);
+}
+
+/**
  * `GET /partners/by-user/:userId` — Phase 11 Admin Platform: another
  * user's partner memberships, for the User Management detail page.
  * Requires `user.view`.

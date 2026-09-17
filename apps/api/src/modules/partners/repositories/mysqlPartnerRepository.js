@@ -887,7 +887,12 @@ export class MySqlPartnerRepository {
     const [rows] = await this.#pool.query(
       `SELECT
          l.id, l.slug, ltype.code AS listing_type_code, l.created_at,
-         COALESCE(lt.title, lt2.title, '') AS title,
+         COALESCE(
+           lt.title,
+           (SELECT lt_any.title FROM listing_translations lt_any
+              WHERE lt_any.listing_id = l.id ORDER BY lt_any.language_id ASC LIMIT 1),
+           ''
+         ) AS title,
          c.name AS city_name,
          m.url AS cover_image_url,
          lp.amount AS price_amount, cur.code AS price_currency_code,
@@ -906,7 +911,12 @@ export class MySqlPartnerRepository {
        LEFT JOIN listing_locations loc ON loc.listing_id = l.id
        LEFT JOIN cities c ON c.id = loc.city_id
        LEFT JOIN listing_translations lt ON lt.listing_id = l.id AND lt.language_id = (SELECT id FROM languages WHERE is_default = 1 LIMIT 1)
-       LEFT JOIN listing_translations lt2 ON lt2.listing_id = l.id
+       -- Step A2 fix: the fallback title used to LEFT JOIN listing_translations
+       -- unscoped by language_id, fanning out one row per translation
+       -- (a listing with 3 authored locales rendered as 3 duplicate cards).
+       -- The COALESCE'd correlated subquery above picks one deterministic
+       -- fallback row instead, matching this file's own "any available
+       -- description" subquery convention (see PUBLIC_SELECT_COLUMNS).
        LEFT JOIN media m ON m.mediable_type = 'listing' AND m.mediable_id = l.id AND m.is_cover = 1 AND m.deleted_at IS NULL
        LEFT JOIN listing_pricing lp ON lp.listing_id = l.id
        LEFT JOIN currencies cur ON cur.id = lp.currency_id

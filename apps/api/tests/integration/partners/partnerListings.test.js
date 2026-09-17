@@ -34,6 +34,7 @@ let tourListingId;
 let draftListingId;
 let companyBListingId;
 let emptyCompanySlug;
+let multiLanguageListingId;
 
 async function login(email, password) {
   const res = await request(app)
@@ -228,6 +229,32 @@ beforeAll(async () => {
     categorySlug: 'hotels',
   });
   await publishListing(companyBListingId, 'HOTEL_ROOM');
+
+  // A published listing with translations in more than one language —
+  // the regression fixture for the row-fan-out bug `listPublicListingsForPartner`
+  // used to have (an unscoped `LEFT JOIN listing_translations` duplicated
+  // the row once per authored language).
+  multiLanguageListingId = await createListing({
+    partnerId: companyAPartnerId,
+    listingType: 'HOTEL',
+    title: `Company A Multilingual Hotel ${uniqueSuffix}`,
+    categorySlug: 'hotels',
+  });
+  const [[hyLanguage]] = await pool.query(
+    "SELECT id FROM languages WHERE code = 'hy'",
+  );
+  await request(app)
+    .patch(`/api/v1/listings/${multiLanguageListingId}`)
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({
+      translations: [
+        {
+          languageId: hyLanguage.id,
+          title: `Company A Multilingual Hotel HY ${uniqueSuffix}`,
+        },
+      ],
+    });
+  await publishListing(multiLanguageListingId, 'HOTEL_ROOM');
 }, 90_000);
 
 afterAll(async () => {
@@ -352,6 +379,24 @@ describe('GET /partners/:slug/listings (Company Public Profile — Step A1)', ()
     expect(hotelRow).not.toHaveProperty('legal_name');
     expect(hotelRow).not.toHaveProperty('review_note');
     expect(hotelRow).not.toHaveProperty('partner_id');
+  });
+
+  test('a listing with translations in more than one language appears exactly once (no row fan-out)', async () => {
+    let allRows = [];
+    let cursor;
+    let meta;
+    do {
+      // eslint-disable-next-line no-await-in-loop -- sequential pagination walk, not a hot path
+      const res = await request(app)
+        .get(`/api/v1/partners/${companyASlug}/listings`)
+        .query({ limit: 100, ...(cursor ? { cursor } : {}) });
+      allRows = allRows.concat(res.body.data);
+      meta = res.body.meta;
+      cursor = meta.next_cursor;
+    } while (meta.has_more);
+
+    const matches = allRows.filter((row) => row.id === multiLanguageListingId);
+    expect(matches).toHaveLength(1);
   });
 
   test('response shape is stable: real value or null for every category field, never fabricated', async () => {

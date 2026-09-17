@@ -8,6 +8,8 @@ const companyKeys = {
   all: ['companies'],
   list: () => [...companyKeys.all, 'list'],
   detail: (slug) => [...companyKeys.all, 'detail', slug],
+  // Company Public Profile (Step A2) — a company's own public listings.
+  listings: (slug) => [...companyKeys.all, 'listings', slug],
 };
 
 export default companyKeys;

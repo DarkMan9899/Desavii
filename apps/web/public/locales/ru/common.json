@@ -3406,7 +3406,11 @@
       "loading": "Загрузка профиля компании...",
       "errorTitle": "Не удалось загрузить эту компанию",
       "retry": "Попробовать снова",
-      "listingsHeading": "Объявления"
+      "listingsHeading": "Объявления",
+      "loadMore": "Загрузить ещё",
+      "listingsErrorTitle": "Не удалось загрузить объявления",
+      "listingsEmptyTitle": "Пока нет объявлений",
+      "listingsEmptyDescription": "У этой компании пока нет опубликованных объявлений — загляните позже."
     }
   },
   "partnerOnboarding": {

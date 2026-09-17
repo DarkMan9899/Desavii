@@ -3,25 +3,40 @@
  * redesign; editorial hero + `ListingGrid` in the 2026 public-frontend
  * audit's Company Profile pass). Real `GET /partners/:slug` data (logo/
  * cover/description/contact — Sprint 5 columns no UI had ever surfaced)
- * plus a "Listings" section reusing `search`'s own
- * `useSearchListingsQuery`/`SearchResultCard` filtered by `partnerId`,
- * exactly like `RelatedListings` reuses them filtered by `categoryId` —
- * no new listings-fetching path invented; each listing's rating (Phase
- * 12's Reviews module) already shows up for free via that same
- * `SearchResultCard` reuse. `rating_average`/`review_count` ARE real,
+ * plus a "Listings" section. `rating_average`/`review_count` ARE real,
  * already-returned `GET /partners/:slug` fields (an aggregate across the
  * partner's own reviews, computed server-side — see
- * `mysqlPartnerRepository.js`'s `PUBLIC_SELECT_COLUMNS`) and now surface
- * in the hero; there is still no per-review listing UI at the company
+ * `mysqlPartnerRepository.js`'s `PUBLIC_SELECT_COLUMNS`) and surface in
+ * the hero; there is still no per-review listing UI at the company
  * level (no `GET /partners/:slug/reviews` endpoint exists) — only the
  * aggregate metric, not fabricated further.
+ *
+ * Company Public Profile (Step A2) — the Listings section now calls the
+ * dedicated, properly-paginated `usePartnerListingsQuery` (wrapping the
+ * new `GET /partners/:slug/listings`) instead of the previous
+ * `useSearchListingsQuery({ partnerId })` workaround (single-page-only,
+ * no "load more" for a company's own catalog). Both endpoints return the
+ * identical flat card-field shape `searchDto.js`'s `toSearchResultResponse`
+ * does, so `SearchResultCard` keeps rendering every card unchanged — no
+ * new card component, no category branching here: `categoryVisualKey`/
+ * `buildCategoryCardMeta`/`resolveCardConfig`/Money-FX all keep working
+ * exactly as they do on Search/Category/Home, so a company's Hotel still
+ * looks like a Hotel card, a company's Tour like a Tour card, etc.
+ * Pagination UX mirrors `CompaniesDirectoryPageContent`'s own "Load
+ * more" button pattern exactly (manual button, not scroll-triggered —
+ * the established convention for every cursor-paginated list in this
+ * codebase).
  *
  * Same two-distinct-error-states convention as
  * `ListingDetailPageContent`: a genuine 404 (unapproved/deleted/
  * nonexistent slug) renders the shared `errors.notFound.*` `EmptyState`;
- * any other failure gets the generic retryable `ErrorState`.
+ * any other failure gets the generic retryable `ErrorState`. The
+ * Listings section gets its own, separate loading/error/empty states
+ * (never conflated with the company-profile fetch's own) — a valid
+ * company with zero public listings is a valid, non-error profile.
  */
 
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Globe, Mail, Phone, ShieldCheck } from 'lucide-react';
@@ -32,7 +47,7 @@ import {
 } from '@desavii/ui/components/feedback-overlays';
 import { Breadcrumbs } from '@desavii/ui/components/navigation';
 import { RatingStars } from '@desavii/ui/components/data-display';
-import { Icon } from '@desavii/ui/components/primitives';
+import { Icon, Button } from '@desavii/ui/components/primitives';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import DestinationArt from '../../../../components/DestinationArt/DestinationArt.jsx';
 import CompanyAvatar from '../../../../components/CompanyAvatar/CompanyAvatar.jsx';
@@ -41,11 +56,11 @@ import useSeo from '../../../../seo/useSeo.js';
 import { buildBreadcrumbListSchema } from '../../../../seo/structuredData.js';
 import getLocalizedTranslation from '../../../listings/utils/getLocalizedTranslation.js';
 import { useCompanyQuery } from '../../queries/useCompanyQuery.js';
-import {
-  useSearchListingsQuery,
-  SearchResultCard,
-} from '../../../search/index.js';
+import { usePartnerListingsQuery } from '../../queries/usePartnerListingsQuery.js';
+import { SearchResultCard } from '../../../search/index.js';
 import styles from './CompanyProfilePageContent.module.scss';
+
+const LISTINGS_SKELETON_COUNT = 3;
 
 // Brand names, not translated content — same convention as leaving
 // "Facebook"/"Instagram" untranslated on `PartnerProfilePageContent`'s
@@ -73,11 +88,19 @@ export default function CompanyProfilePageContent() {
     refetch,
   } = useCompanyQuery(slug);
 
-  const { data: listingsData } = useSearchListingsQuery(
-    { partnerId: company?.id },
-    { locale },
+  const {
+    data: listingsData,
+    isPending: isListingsPending,
+    isError: isListingsError,
+    refetch: refetchListings,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = usePartnerListingsQuery(slug);
+  const listings = useMemo(
+    () => listingsData?.pages.flatMap((page) => page.results) ?? [],
+    [listingsData],
   );
-  const listings = listingsData?.pages[0]?.results ?? [];
 
   // P1.3 (Master Roadmap): `description` moved from a flat column to
   // `partner_translations` — resolved for the current locale via the
@@ -257,18 +280,56 @@ export default function CompanyProfilePageContent() {
         </div>
       )}
 
-      {listings.length > 0 && (
-        <section aria-label={t('companies.profile.listingsHeading')}>
-          <h2 className={styles.listingsHeading}>
-            {t('companies.profile.listingsHeading')}
-          </h2>
+      <section aria-label={t('companies.profile.listingsHeading')}>
+        <h2 className={styles.listingsHeading}>
+          {t('companies.profile.listingsHeading')}
+        </h2>
+
+        {isListingsPending && (
           <ListingGrid>
-            {listings.map((listing) => (
-              <SearchResultCard key={listing.id} result={listing} />
+            {Array.from({ length: LISTINGS_SKELETON_COUNT }, (_, index) => (
+              // eslint-disable-next-line react/no-array-index-key -- fixed skeleton count, no real data yet
+              <Skeleton key={index} variant="rect" height={280} />
             ))}
           </ListingGrid>
-        </section>
-      )}
+        )}
+
+        {isListingsError && (
+          <ErrorState
+            title={t('companies.profile.listingsErrorTitle')}
+            retryLabel={t('companies.profile.retry')}
+            onRetry={refetchListings}
+          />
+        )}
+
+        {!isListingsPending && !isListingsError && listings.length === 0 && (
+          <EmptyState
+            title={t('companies.profile.listingsEmptyTitle')}
+            description={t('companies.profile.listingsEmptyDescription')}
+          />
+        )}
+
+        {!isListingsPending && !isListingsError && listings.length > 0 && (
+          <div>
+            <ListingGrid>
+              {listings.map((listing) => (
+                <SearchResultCard key={listing.id} result={listing} />
+              ))}
+            </ListingGrid>
+            {hasNextPage && (
+              <div className={styles.loadMore}>
+                <Button
+                  variant="secondary"
+                  onClick={fetchNextPage}
+                  loading={isFetchingNextPage}
+                >
+                  {t('companies.profile.loadMore')}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
