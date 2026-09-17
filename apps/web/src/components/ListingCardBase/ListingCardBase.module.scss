@@ -512,6 +512,38 @@
   background-color: rgba(tokens.$color-navy, 0.05);
 }
 
+// Attraction internal-design pass — Tours (the other category real
+// `duration_minutes` reaches, via the same `buildHeadlineChip` switch
+// case) already claimed the outline+DASHED+navy combination for its own
+// "route line" read; brief §6 is explicit that Attraction must read as
+// "place/landmark," never a re-skinned Tours card. This is an outlined
+// pill again (like Villa/Tours), but SOLID-bordered (never dashed) and
+// in gold — a restrained "landmark marker" plaque outline, brief §12's
+// own "restrained gold landmark accent," deliberately never a filled
+// badge (Hotel's own claimed form) or a dark plaque (Restaurant's). Text/
+// icon use `$color-gold-strong`, not raw `$color-gold` — this file's own
+// documented "-strong" role for gold as legible text/icon color, exactly
+// matching Hotel's own text choice; the FORM (outline vs Hotel's fill)
+// is what actually differentiates the two, never the color pairing.
+// Padding compensates for the added 1px border exactly as Villa/Tours
+// already do, so the chip's footprint never changes.
+.card[data-category='attractions'] .metaChip {
+  padding: 1px 7px;
+  border: 1px solid rgba(tokens.$color-gold, 0.4);
+  background-color: transparent;
+  color: tokens.$color-gold-strong;
+  font-weight: 600;
+}
+
+.card[data-category='attractions'] .metaChipIcon {
+  color: tokens.$color-gold-strong;
+}
+
+.card[data-category='attractions']:hover .metaChip {
+  border-color: rgba(tokens.$color-gold, 0.6);
+  background-color: rgba(tokens.$color-gold, 0.05);
+}
+
 // A visual footer, not just the last flex item — a hairline separates
 // price from the descriptive content above it, so it reads as the
 // card's one settled fact rather than another line of prose.
@@ -617,4 +649,22 @@
 .card[data-category='car-rentals'] .priceRow {
   background-color: rgba(tokens.$color-navy, 0.04);
   border-radius: tokens.$radius-sm;
+}
+
+// Attraction internal-design pass — every plain-hairline hue is now
+// claimed (Hotel gold, Apartment navy, Villa gray-900, Tours dashed
+// navy) and every wash treatment is claimed too (Guest House gold wash,
+// Restaurant ink wash, Car Rental navy wash) — brief §11's own "distinct
+// from the previous 7" needs a genuinely open combination, not a eighth
+// recolor. `$color-gray-600` (this file's own "secondary text/caption"
+// neutral, cooler and lighter than Villa's near-black gray-900) has
+// never been used as an accent by any sibling; paired with the rounded
+// corner treatment no pure-hairline category has used (radius softening
+// was previously only ever paired with a wash), it reads as a quiet
+// "stone/archival label" line — brief §12's own "editorial/stone...
+// cultured rather than luxurious" — never a wash, never gold, never
+// navy. Never touches `.priceRow`'s own padding/size.
+.card[data-category='attractions'] .priceRow {
+  border-radius: tokens.$radius-sm;
+  border-block-start-color: rgba(tokens.$color-gray-600, 0.35);
 }
