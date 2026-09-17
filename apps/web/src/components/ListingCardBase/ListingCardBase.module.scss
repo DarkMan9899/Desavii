@@ -544,6 +544,41 @@
   background-color: rgba(tokens.$color-gold, 0.05);
 }
 
+// Entertainment internal-design pass (final category) — every sibling
+// chip so far modifies its border/background UNIFORMLY on all sides;
+// this is the one genuinely open form left: a deep navy fill (this
+// system's own "deep navy... event accent," brief §11) carrying a thin
+// GOLD accent edge on the inline-start side only — a restrained "stage-
+// light/ticket-edge" cue, brief's own "clean ticket/stage-line cue,"
+// never a literal ticket graphic. White text (this file's other
+// established "color as text" role — legible white-on-brand-color,
+// already used for filled Badge/Avatar elsewhere in the design system)
+// gives it "slightly stronger contrast" than every light-tint sibling,
+// brief's own explicit ask. `padding-inline-start` is reduced by
+// exactly the accent border's own 2px width (8px base → 6px) so the
+// chip's total footprint never changes — the same compensation
+// principle Villa/Tours/Attraction already use for their own borders,
+// applied to one edge instead of all four since only one edge gains a
+// border here.
+.card[data-category='entertainment-venues'] .metaChip {
+  padding-inline-start: calc(tokens.$space-2 - 2px);
+  border-inline-start: 2px solid rgba(tokens.$color-gold, 0.7);
+  background-color: rgba(tokens.$color-navy, 0.85);
+  color: tokens.$color-white;
+  font-weight: 600;
+}
+
+.card[data-category='entertainment-venues'] .metaChipIcon {
+  color: tokens.$color-gold;
+}
+
+// "The stage light comes up" — a restrained intensity shift, never a
+// flash/pulse (brief §13 explicitly rules those out).
+.card[data-category='entertainment-venues']:hover .metaChip {
+  background-color: rgba(tokens.$color-navy, 0.95);
+  border-inline-start-color: tokens.$color-gold;
+}
+
 // A visual footer, not just the last flex item — a hairline separates
 // price from the descriptive content above it, so it reads as the
 // card's one settled fact rather than another line of prose.
@@ -667,4 +702,20 @@
 .card[data-category='attractions'] .priceRow {
   border-radius: tokens.$radius-sm;
   border-block-start-color: rgba(tokens.$color-gray-600, 0.35);
+}
+
+// Entertainment internal-design pass (final category) — inverts the
+// chip's own two-tone identity (navy FILL + gold EDGE) into the footer
+// (navy WASH + gold HAIRLINE), the same "reflect the chip's motif in the
+// footer" reasoning Restaurant's own ink-wash-plus-gold-hairline pass
+// established, but built from navy rather than ink so it reads as this
+// category's own distinct "stage" identity rather than Restaurant's
+// "dining room" one — and never gated behind hover the way Car Rental's
+// own navy wash is, since Entertainment's brief explicitly wants
+// "slightly stronger contrast" at rest, not a reveal-on-interaction.
+// Never touches `.priceRow`'s own padding/size.
+.card[data-category='entertainment-venues'] .priceRow {
+  background-color: rgba(tokens.$color-navy, 0.05);
+  border-radius: tokens.$radius-sm;
+  border-block-start-color: rgba(tokens.$color-gold, 0.35);
 }
