@@ -9,6 +9,7 @@ import {
   toPartnershipResponse,
   toPartnerSummaryResponse,
   toPartnerDetailResponse,
+  toPartnerListingResponse,
   toAdminPartnerSummaryResponse,
   toAdminPartnerDetailResponse,
 } from '../dto/partnerDto.js';
@@ -147,6 +148,27 @@ export function createPartnerController(partnerService) {
           success: true,
           data: toPartnerDetailResponse(partner),
           meta: null,
+          error: null,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    // Company Public Profile (Step A1) — all of a company's currently
+    // public listings, across every category.
+    async listCompanyListings(req, res, next) {
+      try {
+        const { slug } = req.validated.params;
+        const { cursor, limit } = req.validated.query;
+        const { rows, meta } = await partnerService.getPublicPartnerListings(
+          slug,
+          { cursor, limit },
+        );
+        res.status(200).json({
+          success: true,
+          data: rows.map(toPartnerListingResponse),
+          meta,
           error: null,
         });
       } catch (err) {

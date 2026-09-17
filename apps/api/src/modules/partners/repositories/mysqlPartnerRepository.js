@@ -24,6 +24,98 @@ import {
   buildPageMeta,
 } from '../../../infrastructure/database/pagination.js';
 
+/**
+ * Company Public Profile (Step A1) — verbatim copy of
+ * `mysqlSearchRepository.js`'s own `CARD_METADATA_SELECT` (not exported
+ * there); see `listPublicListingsForPartner`'s own doc comment below for
+ * why this file owns a copy rather than importing across modules. Every
+ * field is `NULL` whenever that attribute was never authored for the
+ * listing — never a guessed/fabricated default.
+ */
+const CARD_METADATA_SELECT = `
+      (SELECT lc.slug FROM listing_category_listing lcl_card
+         JOIN listing_categories lc ON lc.id = lcl_card.category_id
+         WHERE lcl_card.listing_id = l.id
+         ORDER BY lcl_card.category_id ASC LIMIT 1
+      ) AS category_slug,
+      (SELECT GROUP_CONCAT(ao_cuisine.code ORDER BY ao_cuisine.sort_order SEPARATOR ',')
+         FROM listing_attribute_option lao_cuisine
+         JOIN attribute_options ao_cuisine ON ao_cuisine.id = lao_cuisine.attribute_option_id
+         JOIN attribute_definitions ad_cuisine ON ad_cuisine.id = ao_cuisine.attribute_definition_id
+         WHERE lao_cuisine.listing_id = l.id AND ad_cuisine.code = 'cuisine'
+      ) AS cuisine_codes,
+      (SELECT ao_tier.code
+         FROM listing_attribute_option lao_tier
+         JOIN attribute_options ao_tier ON ao_tier.id = lao_tier.attribute_option_id
+         JOIN attribute_definitions ad_tier ON ad_tier.id = ao_tier.attribute_definition_id
+         WHERE lao_tier.listing_id = l.id AND ad_tier.code = 'price_tier'
+         LIMIT 1
+      ) AS price_tier_code,
+      (SELECT ao_star.code
+         FROM listing_attribute_option lao_star
+         JOIN attribute_options ao_star ON ao_star.id = lao_star.attribute_option_id
+         JOIN attribute_definitions ad_star ON ad_star.id = ao_star.attribute_definition_id
+         WHERE lao_star.listing_id = l.id AND ad_star.code = 'star_rating'
+         LIMIT 1
+      ) AS star_rating_code,
+      (SELECT ao_trans.code
+         FROM listing_attribute_option lao_trans
+         JOIN attribute_options ao_trans ON ao_trans.id = lao_trans.attribute_option_id
+         JOIN attribute_definitions ad_trans ON ad_trans.id = ao_trans.attribute_definition_id
+         WHERE lao_trans.listing_id = l.id AND ad_trans.code = 'transmission'
+         LIMIT 1
+      ) AS transmission_code,
+      (SELECT lav_bed.value
+         FROM listing_attribute_values_integer lav_bed
+         JOIN attribute_definitions ad_bed ON ad_bed.id = lav_bed.attribute_definition_id
+         WHERE lav_bed.listing_id = l.id AND ad_bed.code = 'bedrooms'
+         LIMIT 1
+      ) AS bedrooms_value,
+      (SELECT lav_dur.value
+         FROM listing_attribute_values_integer lav_dur
+         JOIN attribute_definitions ad_dur ON ad_dur.id = lav_dur.attribute_definition_id
+         WHERE lav_dur.listing_id = l.id AND ad_dur.code = 'duration_minutes'
+         LIMIT 1
+      ) AS duration_minutes_value`;
+
+/**
+ * Company Public Profile (Step A1) — one row of a partner's public
+ * catalog, same mapping rules as `mysqlSearchRepository.js`'s own
+ * `toSearchResultDomain`: real value or `null`, never guessed.
+ * `cuisine_codes` is GROUP_CONCAT'd into a comma string by the subquery
+ * above, split back into option codes here.
+ */
+function toPartnerListingDomain(row) {
+  return {
+    id: row.id,
+    slug: row.slug,
+    listingTypeCode: row.listing_type_code,
+    createdAt: row.created_at,
+    title: row.title,
+    cityName: row.city_name,
+    coverImageUrl: row.cover_image_url,
+    priceAmount: row.price_amount,
+    priceCurrencyCode: row.price_currency_code,
+    ratingAverage:
+      row.rating_average !== null ? Number(row.rating_average) : null,
+    reviewCount: Number(row.review_count),
+    categorySlug: row.category_slug ?? null,
+    cuisineCodes: row.cuisine_codes ? row.cuisine_codes.split(',') : null,
+    priceTierCode: row.price_tier_code ?? null,
+    starRatingCode: row.star_rating_code ?? null,
+    transmissionCode: row.transmission_code ?? null,
+    bedroomsValue:
+      row.bedrooms_value !== undefined && row.bedrooms_value !== null
+        ? Number(row.bedrooms_value)
+        : null,
+    durationMinutesValue:
+      row.duration_minutes_value !== undefined &&
+      row.duration_minutes_value !== null
+        ? Number(row.duration_minutes_value)
+        : null,
+  };
+}
+
 function toMembershipDomain(row) {
   return {
     partnerId: row.id,
@@ -733,6 +825,102 @@ export class MySqlPartnerRepository {
       [partnerId],
     );
     return rows[0]?.user_id ?? null;
+  }
+
+  /**
+   * Company Public Profile (Step A1) — every currently-PUBLISHED,
+   * non-deleted listing owned by this partner, across all 9 categories,
+   * paginated newest-first. Deliberately does NOT re-check the partner's
+   * own moderation status here (the Service layer already resolved the
+   * partner via `findPublicBySlug`, which is the single source of truth
+   * for "is this company publicly visible" — duplicating that gate on
+   * every listing row would be redundant, not safer).
+   *
+   * `CARD_METADATA_SELECT` below is a verbatim copy of
+   * `mysqlSearchRepository.js`'s own constant of the same name (not
+   * exported there), following the exact same "duplicate this
+   * self-contained SQL fragment rather than couple across modules"
+   * convention `mysqlFavoriteRepository.js` already established for the
+   * identical reason — `modules/partners` has no existing dependency on
+   * `modules/search`, and importing one function from it would be a
+   * heavier, one-off coupling for a handful of correlated subqueries
+   * this file can just as safely own a copy of. Every field is `NULL`
+   * whenever that attribute was never authored for the listing — never a
+   * guessed/fabricated default, same rule search's own copy documents.
+   *
+   * Price intentionally uses the simpler listing-level
+   * `listing_pricing` fallback (like `mysqlFavoriteRepository.js`'s own
+   * listing price column), not `mysqlSearchRepository.js`'s fuller
+   * "MIN across bookable units" resolution — this is a company's own
+   * catalog list, not the primary Search results page, matching the
+   * exact precedent Favorites already established for the same
+   * "real price, simpler source" tradeoff.
+   *
+   * Lifecycle note (Step A1 scope): no `expires_at`/frozen-listing
+   * filtering exists yet — a future Listing Lifetime/Renewal feature can
+   * extend the `conditions` array here the same way `status`/`cursor`
+   * already do, without changing this method's shape.
+   * @param {number} partnerId
+   * @param {{cursor?: string|null, limit?: number}} [paginationOpts]
+   */
+  async listPublicListingsForPartner(
+    partnerId,
+    { cursor = null, limit = 20 } = {},
+  ) {
+    const conditions = [
+      'l.partner_id = ?',
+      'l.deleted_at IS NULL',
+      "ls.code = 'PUBLISHED'",
+    ];
+    const params = [partnerId];
+
+    const decoded = decodeCursor(cursor);
+    if (
+      decoded &&
+      decoded.createdAt !== undefined &&
+      decoded.id !== undefined
+    ) {
+      conditions.push('(l.created_at, l.id) < (?, ?)');
+      params.push(decoded.createdAt, decoded.id);
+    }
+
+    const [rows] = await this.#pool.query(
+      `SELECT
+         l.id, l.slug, ltype.code AS listing_type_code, l.created_at,
+         COALESCE(lt.title, lt2.title, '') AS title,
+         c.name AS city_name,
+         m.url AS cover_image_url,
+         lp.amount AS price_amount, cur.code AS price_currency_code,
+         (SELECT AVG(rv.rating) FROM reviews rv
+            JOIN moderation_statuses rms ON rms.id = rv.status_id
+            WHERE rv.listing_id = l.id AND rms.code = 'APPROVED' AND rv.deleted_at IS NULL
+         ) AS rating_average,
+         (SELECT COUNT(*) FROM reviews rv
+            JOIN moderation_statuses rms ON rms.id = rv.status_id
+            WHERE rv.listing_id = l.id AND rms.code = 'APPROVED' AND rv.deleted_at IS NULL
+         ) AS review_count,
+         ${CARD_METADATA_SELECT}
+       FROM listings l
+       JOIN listing_types ltype ON ltype.id = l.listing_type_id
+       JOIN listing_statuses ls ON ls.id = l.status_id
+       LEFT JOIN listing_locations loc ON loc.listing_id = l.id
+       LEFT JOIN cities c ON c.id = loc.city_id
+       LEFT JOIN listing_translations lt ON lt.listing_id = l.id AND lt.language_id = (SELECT id FROM languages WHERE is_default = 1 LIMIT 1)
+       LEFT JOIN listing_translations lt2 ON lt2.listing_id = l.id
+       LEFT JOIN media m ON m.mediable_type = 'listing' AND m.mediable_id = l.id AND m.is_cover = 1 AND m.deleted_at IS NULL
+       LEFT JOIN listing_pricing lp ON lp.listing_id = l.id
+       LEFT JOIN currencies cur ON cur.id = lp.currency_id
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY l.created_at DESC, l.id DESC
+       LIMIT ?`,
+      [...params, limit + 1],
+    );
+
+    const { rows: pageRows, meta } = buildPageMeta(rows, limit, (row) => ({
+      createdAt: row.created_at,
+      id: row.id,
+    }));
+    return { rows: pageRows.map(toPartnerListingDomain), meta };
   }
 }
 

@@ -16,6 +16,7 @@ import { ALLOWED_IMAGE_MIME_TYPES } from '../media/validators/mediaConstraints.j
 import {
   listPublicPartnersQuerySchema,
   partnerSlugParamsSchema,
+  listCompanyListingsSchema,
   userIdParamsSchema,
   listPartnersAdminQuerySchema,
   partnerIdParamsSchema,
@@ -237,6 +238,16 @@ export default function createPartnerRoutes({
     '/:slug',
     validate(partnerSlugParamsSchema),
     partnerController.getBySlug,
+  );
+
+  // Company Public Profile (Step A1) — two path segments, so this can
+  // never collide with the one-segment `/:slug` above regardless of
+  // registration order; kept directly after it for readability as its
+  // sub-resource.
+  router.get(
+    '/:slug/listings',
+    validate(listCompanyListingsSchema),
+    partnerController.listCompanyListings,
   );
 
   return router;

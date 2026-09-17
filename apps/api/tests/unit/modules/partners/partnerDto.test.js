@@ -8,6 +8,7 @@ import { describe, test, expect } from '@jest/globals';
 import {
   toPartnerSummaryResponse,
   toPartnerDetailResponse,
+  toPartnerListingResponse,
 } from '../../../../src/modules/partners/dto/partnerDto.js';
 
 const SUMMARY_DOMAIN = {
@@ -84,5 +85,124 @@ describe('toPartnerDetailResponse', () => {
       { language_id: 1, language_code: 'en', description: 'In English.' },
       { language_id: 2, language_code: 'hy', description: 'Հայերենով.' },
     ]);
+  });
+});
+
+// Company Public Profile (Step A1) — pure DTO coverage, no database
+// needed, mirroring `favoriteDto.test.js`'s equivalent convention.
+describe('toPartnerListingResponse', () => {
+  const BASE_ITEM = {
+    id: 5,
+    slug: 'sunset-hotel',
+    listingTypeCode: 'HOTEL',
+    title: 'Sunset Hotel',
+    cityName: 'Yerevan',
+    coverImageUrl: null,
+    priceAmount: '99.00',
+    priceCurrencyCode: 'USD',
+    ratingAverage: 4.5,
+    reviewCount: 3,
+  };
+
+  test("maps the same category-metadata fields searchDto.js's toSearchResultResponse does", () => {
+    const response = toPartnerListingResponse({
+      ...BASE_ITEM,
+      categorySlug: 'hotels',
+      cuisineCodes: null,
+      priceTierCode: null,
+      starRatingCode: '4',
+      transmissionCode: null,
+      bedroomsValue: null,
+      durationMinutesValue: null,
+    });
+    expect(response.category_slug).toBe('hotels');
+    expect(response.star_rating).toBe('4');
+    expect(response.cuisine).toBeNull();
+    expect(response.price_tier).toBeNull();
+    expect(response.transmission).toBeNull();
+    expect(response.bedrooms).toBeNull();
+    expect(response.duration_minutes).toBeNull();
+  });
+
+  test('never fabricates a category_slug or metadata value when the domain item has none (real value or null only)', () => {
+    const response = toPartnerListingResponse({
+      ...BASE_ITEM,
+      categorySlug: null,
+      cuisineCodes: null,
+      priceTierCode: null,
+      starRatingCode: null,
+      transmissionCode: null,
+      bedroomsValue: null,
+      durationMinutesValue: null,
+    });
+    expect(response.category_slug).toBeNull();
+    expect(response.cuisine).toBeNull();
+    expect(response.price_tier).toBeNull();
+    expect(response.star_rating).toBeNull();
+    expect(response.transmission).toBeNull();
+    expect(response.bedrooms).toBeNull();
+    expect(response.duration_minutes).toBeNull();
+  });
+
+  test("maps a Restaurant listing's real multi-value cuisine array through", () => {
+    const response = toPartnerListingResponse({
+      ...BASE_ITEM,
+      listingTypeCode: 'RESTAURANT',
+      categorySlug: 'restaurants',
+      cuisineCodes: ['ARMENIAN', 'GEORGIAN'],
+      priceTierCode: '$$',
+    });
+    expect(response.cuisine).toEqual(['ARMENIAN', 'GEORGIAN']);
+    expect(response.price_tier).toBe('$$');
+  });
+
+  test('never exposes partner/internal fields — only the fixed public card shape', () => {
+    const response = toPartnerListingResponse({
+      ...BASE_ITEM,
+      categorySlug: 'hotels',
+    });
+    expect(response).not.toHaveProperty('partnerId');
+    expect(response).not.toHaveProperty('partner_id');
+    expect(response).not.toHaveProperty('ownerUserId');
+    expect(Object.keys(response).sort()).toEqual(
+      [
+        'bedrooms',
+        'category_slug',
+        'cover_image_url',
+        'cuisine',
+        'duration_minutes',
+        'id',
+        'listing_type',
+        'price_amount',
+        'price_currency_code',
+        'price_tier',
+        'rating_average',
+        'review_count',
+        'slug',
+        'star_rating',
+        'title',
+        'transmission',
+        'city_name',
+      ].sort(),
+    );
+  });
+
+  test('still maps the base fields unchanged', () => {
+    const response = toPartnerListingResponse({
+      ...BASE_ITEM,
+      categorySlug: 'hotels',
+    });
+    expect(response).toMatchObject({
+      id: 5,
+      slug: 'sunset-hotel',
+      listing_type: 'HOTEL',
+      title: 'Sunset Hotel',
+      city_name: 'Yerevan',
+      cover_image_url: null,
+      price_amount: '99.00',
+      price_currency_code: 'USD',
+      rating_average: 4.5,
+      review_count: 3,
+    });
   });
 });

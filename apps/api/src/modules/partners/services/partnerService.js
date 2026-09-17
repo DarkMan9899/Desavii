@@ -525,6 +525,30 @@ export class PartnerService {
   }
 
   /**
+   * Company Public Profile (Step A1) — all of a company's currently
+   * PUBLISHED listings, across all categories. Resolves the partner via
+   * the SAME public-visibility gate `getPublicPartnerBySlug` already
+   * uses (`findPublicBySlug` — APPROVED, non-deleted) rather than a
+   * second copy of that check, so an unknown/unapproved/deleted slug
+   * 404s identically whether the caller asked for the profile or its
+   * listings. A valid, public company with zero PUBLISHED listings is
+   * NOT a 404 — it returns normally with an empty `rows` array, same as
+   * `listFavoritedListingIds` does for a customer with none.
+   * @param {string} slug
+   * @param {{cursor?: string|null, limit?: number}} [paginationOpts]
+   */
+  async getPublicPartnerListings(slug, { cursor, limit } = {}) {
+    const partner = await this.#partnerRepository.findPublicBySlug(slug);
+    if (!partner) {
+      throw new NotFoundError('Company not found.');
+    }
+    return this.#partnerRepository.listPublicListingsForPartner(partner.id, {
+      cursor,
+      limit,
+    });
+  }
+
+  /**
    * Phase 11 Admin Platform: `GET /partners/by-user/:userId` — no owner
    * fallback (`user.view`, checked by the route guard) since this is
    * inherently "look up someone else's memberships."

@@ -23,6 +23,18 @@ export const partnerSlugParamsSchema = z.object({
   body: z.any(),
 });
 
+// Company Public Profile (Step A1) — same slug param as
+// `partnerSlugParamsSchema`, same cursor/limit query as
+// `listPublicPartnersQuerySchema`.
+export const listCompanyListingsSchema = z.object({
+  params: z.object({ slug: z.string().trim().min(1).max(180) }),
+  query: z.object({
+    cursor: z.string().optional(),
+    limit: z.coerce.number().int().positive().max(100).optional(),
+  }),
+  body: z.any(),
+});
+
 // Phase 11 Admin Platform.
 export const userIdParamsSchema = z.object({
   params: z.object({ userId: z.coerce.number().int().positive() }),
