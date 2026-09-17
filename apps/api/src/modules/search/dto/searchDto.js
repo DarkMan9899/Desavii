@@ -54,6 +54,30 @@ export function toSearchResultResponse(result) {
   };
 }
 
+/**
+ * Listing Lifetime / Renewal, Step B5 — the Partner listing-management
+ * table's (`PartnerListingsList.jsx`, via `useMyListingsQuery`) own row
+ * shape: everything `toSearchResultResponse` already exposes, plus the 5
+ * lifecycle fields the brief requires for the status badge/countdown/Renew
+ * UI. `searchController.js` only ever calls this for the exact same
+ * elevated population that can already see a non-PUBLISHED listing's card
+ * through this endpoint (`searchService.js`'s own `isOwnerView`) — a
+ * public/anonymous caller always gets `toSearchResultResponse` instead, so
+ * these 5 fields can never reach a public Search/Category/Home response.
+ * `expiry_reminder_sent_at` is deliberately NOT included (brief §14 — no
+ * concrete Partner UX need for it).
+ */
+export function toOwnerSearchResultResponse(result) {
+  return {
+    ...toSearchResultResponse(result),
+    publication_period_days: result.publicationPeriodDays ?? null,
+    expires_at: result.expiresAt ?? null,
+    frozen_at: result.frozenAt ?? null,
+    purge_after: result.purgeAfter ?? null,
+    renewed_at: result.renewedAt ?? null,
+  };
+}
+
 export function toCategoryResultResponse(category) {
   return {
     id: category.id,

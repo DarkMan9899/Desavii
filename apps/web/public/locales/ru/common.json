@@ -1268,7 +1268,32 @@
       "deleteConfirmAction": "Да, удалить",
       "deleteConfirmDismiss": "Отмена",
       "deleteSuccess": "Объявление удалено.",
-      "deleteError": "Что-то пошло не так. Попробуйте ещё раз."
+      "deleteError": "Что-то пошло не так. Попробуйте ещё раз.",
+      "renew": {
+        "action": "Продлить",
+        "modalTitle": "Продлить объявление",
+        "modalDescription": "Выберите, на сколько времени это объявление должно оставаться опубликованным. Оставшееся время добавляется к текущему сроку.",
+        "modalDescriptionFrozen": "Срок публикации этого объявления истёк. Выберите новый период публикации, чтобы восстановить его.",
+        "confirm": "Подтвердить продление",
+        "cancel": "Отмена",
+        "success": "Объявление продлено.",
+        "error": "Что-то пошло не так. Попробуйте ещё раз.",
+        "notRenewable": "Это объявление сейчас нельзя продлить."
+      },
+      "lifecycle": {
+        "expiresOn": "Истекает {{date}}",
+        "expiresInDays_one": "Истекает через {{count}} день",
+        "expiresInDays_few": "Истекает через {{count}} дня",
+        "expiresInDays_many": "Истекает через {{count}} дней",
+        "expiresInDays_other": "Истекает через {{count}} дня",
+        "expiringSoon_one": "Скоро истекает · остался {{count}} день",
+        "expiringSoon_few": "Скоро истекает · осталось {{count}} дня",
+        "expiringSoon_many": "Скоро истекает · осталось {{count}} дней",
+        "expiringSoon_other": "Скоро истекает · осталось {{count}} дня",
+        "expiresToday": "Истекает сегодня",
+        "expiredFrozen": "Истёк / Заморожен",
+        "retainedUntil": "Сохраняется до {{date}}"
+      }
     },
     "listingWizard": {
       "back": "Назад",

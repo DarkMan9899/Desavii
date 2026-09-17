@@ -15,6 +15,7 @@
  * than once per row — no Rules-of-Hooks conflict with the `.map()` below.
  */
 
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -29,6 +30,9 @@ import { useToast } from '../../../../contexts/ToastContext.jsx';
 import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
 import {
   ListingStatusBadge,
+  ListingLifecycleStatus,
+  RenewListingModal,
+  isRenewEligible,
   usePublishListingMutation,
   useUnpublishListingMutation,
   useArchiveListingMutation,
@@ -67,6 +71,12 @@ export default function PartnerListingsList({
   const unpublishMutation = useUnpublishListingMutation();
   const archiveMutation = useArchiveListingMutation();
   const deleteMutation = useDeleteListingMutation();
+
+  // Listing Lifetime / Renewal, Step B5 — unlike the four mutations above,
+  // `RenewListingModal` owns its own `useRenewListingMutation` call
+  // internally (it needs the pending state for its own Confirm button);
+  // this list only tracks WHICH listing the modal is currently open for.
+  const [renewingListing, setRenewingListing] = useState(null);
 
   async function handlePublish(listing) {
     try {
@@ -129,6 +139,10 @@ export default function PartnerListingsList({
     } catch {
       showToast(t('partner.listings.deleteError'), { variant: 'danger' });
     }
+  }
+
+  function handleRenewed() {
+    showToast(t('partner.listings.renew.success'), { variant: 'success' });
   }
 
   if (isPending) {
@@ -195,6 +209,12 @@ export default function PartnerListingsList({
             updatedAtLabel={new Intl.DateTimeFormat(i18n.language, {
               dateStyle: 'medium',
             }).format(new Date(listing.created_at))}
+            lifecycleInfo={
+              <ListingLifecycleStatus
+                listing={listing}
+                locale={i18n.language}
+              />
+            }
             actions={
               <PartnerListingRowActions
                 listing={listing}
@@ -240,6 +260,8 @@ export default function PartnerListingsList({
                 onUnpublish={(row) => handleUnpublish(row)}
                 onArchive={(row) => handleArchive(row)}
                 onDelete={(row) => handleDelete(row)}
+                canRenew={isRenewEligible(listing)}
+                onRenew={(row) => setRenewingListing(row)}
                 canDelete={canDelete}
               />
             }
@@ -256,6 +278,14 @@ export default function PartnerListingsList({
             {t('partner.listings.loadMore')}
           </Button>
         </div>
+      )}
+      {renewingListing && (
+        <RenewListingModal
+          isOpen
+          listing={renewingListing}
+          onClose={() => setRenewingListing(null)}
+          onRenewed={() => handleRenewed()}
+        />
       )}
     </Stack>
   );

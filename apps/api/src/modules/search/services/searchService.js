@@ -113,6 +113,16 @@ export class SearchService {
    * `ListingService.listListings`. Everyone else is silently narrowed to
    * `PUBLISHED` only, the same "never leak via an error, just narrow"
    * philosophy as `ListingService.getListing`'s 404-masking.
+   *
+   * Listing Lifetime / Renewal, Step B5: also returns `elevated` itself
+   * (not just the derived filter) — `searchListings` threads it back to
+   * the controller as `isOwnerView`, which is what decides whether the
+   * response DTO includes the new lifecycle fields
+   * (`publication_period_days`/`expires_at`/`frozen_at`/`purge_after`/
+   * `renewed_at`). The exact same population that can already see a
+   * non-PUBLISHED listing's card through this endpoint is the only
+   * population that gets its lifecycle timestamps too — never a
+   * separately-scoped check, so the two can never drift apart.
    */
   async #resolveVisibility(principal, { partnerId, status }) {
     let elevated = false;
@@ -126,9 +136,9 @@ export class SearchService {
       );
     }
     if (elevated) {
-      return status ? { statusCode: status } : {};
+      return { filters: status ? { statusCode: status } : {}, elevated };
     }
-    return { onlyPublished: true };
+    return { filters: { onlyPublished: true }, elevated };
   }
 
   /**
@@ -226,13 +236,18 @@ export class SearchService {
       amenityIds: amenityIds ? toIdList(amenityIds) : undefined,
       attributeFilters,
       ...availabilityFilter,
-      ...visibility,
+      ...visibility.filters,
     };
 
-    return this.#searchRepository.searchListings(filters, sort, {
-      cursor,
-      limit,
-    });
+    const { rows, meta } = await this.#searchRepository.searchListings(
+      filters,
+      sort,
+      { cursor, limit },
+    );
+    // Step B5: threaded through so `searchController` can pick the
+    // lifecycle-inclusive DTO only for the exact same elevated population
+    // that can already see non-PUBLISHED cards through this endpoint.
+    return { rows, meta, isOwnerView: visibility.elevated };
   }
 
   /**

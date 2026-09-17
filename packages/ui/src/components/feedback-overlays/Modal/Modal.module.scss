@@ -95,6 +95,18 @@
 
 .footer {
   display: flex;
+  // Real bug found via Listing Lifetime / Renewal Step B5's Armenian
+  // Confirm label ("Հաստատել երկարաձգումը"): on a narrow modal
+  // (`modal--sm`), a button-label pair long enough to exceed the
+  // available width had nowhere to go under `justify-content: flex-end`
+  // with no wrap — the row doesn't shrink, so the FIRST button gets
+  // packed off the left edge of `.footer`, only its clipped remainder
+  // (by `.modal`'s own `overflow: hidden`) staying visible/clickable.
+  // `flex-wrap` is fully backward-compatible: any existing footer whose
+  // buttons already fit on one line is completely unaffected — wrapping
+  // only ever activates once content genuinely can't fit, which is
+  // exactly the case that was broken.
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: spacing.$space-3;
   padding: spacing.$space-4 spacing.$space-6 spacing.$space-6;

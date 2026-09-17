@@ -602,6 +602,129 @@ export class ListingService {
     return { frozen };
   }
 
+  /**
+   * Listing Lifetime / Renewal, Step B5 — the explicit, auditable Renew
+   * action (`POST /listings/:id/renew`). Deliberately its own domain
+   * method, never a side effect of ordinary Publish/PATCH (brief §10):
+   * exactly one of two guarded UPDATEs applies, chosen from the listing's
+   * OWN current state, never from client input:
+   *
+   * - ACTIVE (still PUBLISHED, not frozen, `expires_at` still in the
+   *   future): `extendActivePublication` — new expiry = OLD expiry +
+   *   period. Content is already live and already passed readiness at
+   *   some point; renewal changes no content, so no readiness re-check
+   *   applies here (brief §7's own "does not need to republish").
+   * - FROZEN, OR PUBLISHED-but-already-past-`expires_at`-and-not-yet-swept
+   *   (`hasLifecycleExpired` — the same predicate `isPubliclyVisible`/
+   *   `assertBookable` already use, so this method's own idea of "expired"
+   *   can never quietly drift from every other B4 lifecycle check):
+   *   `reactivateExpiredPublication` — new expiry = NOW() + period. A
+   *   frozen listing may have gone stale while dormant, so this path DOES
+   *   re-run `#checkPublishReadiness` (reused verbatim, never a second
+   *   implementation — brief §7) before the guarded UPDATE runs; a
+   *   readiness failure throws before anything is written, so the listing
+   *   stays exactly as frozen as it was (no partial reactivation).
+   * - Anything else (DRAFT, PENDING_REVIEW, ARCHIVED, a manually-
+   *   UNPUBLISHED-but-not-frozen listing, or a legacy listing with no
+   *   `expires_at` ever assigned) is not renewable at all — Renew is
+   *   never a shortcut around ordinary Publish semantics for those states.
+   *
+   * Both guarded UPDATEs independently re-validate their own precondition
+   * at write time (never trusting this method's own earlier read), so a
+   * listing that the expiry sweep concurrently freezes, or a genuinely
+   * duplicate/double-clicked request, safely resolves to
+   * `RENEWAL_STATE_CHANGED` rather than any partial or double-extended
+   * state — see either repository method's own doc comment for the exact
+   * idempotency mechanism (a `renewed_at` debounce guard, since no new
+   * migration/idempotency-key column exists for this).
+   *
+   * `moderation_status_id` is never touched by either path (brief §8) —
+   * neither guarded UPDATE's SET clause mentions it.
+   */
+  async renewListing(principal, id, { publicationPeriodDays }) {
+    if (!isValidPublicationPeriodDays(publicationPeriodDays)) {
+      throw new ValidationError('This publication period is not valid.', [
+        {
+          field: 'publicationPeriodDays',
+          issue:
+            publicationPeriodDays == null
+              ? 'PUBLICATION_PERIOD_REQUIRED'
+              : 'INVALID_PUBLICATION_PERIOD',
+        },
+      ]);
+    }
+
+    const listing = await this.#listingRepository.findById(id);
+    if (!listing) throw new NotFoundError('Listing not found.');
+    // B1's recommendation, reused unmodified — the same permission
+    // `publishListing`/`unpublishListing`/`archiveListing` already gate
+    // on, so Renew's authorized audience (owner, assigned Manager,
+    // `listing.publish` holders) is identical to Publish's, with no
+    // separate `listing.renew` permission invented.
+    await this.#assertOwnerOrPermission(
+      principal,
+      listing.partnerId,
+      'listing.publish',
+    );
+
+    const publishedStatusId =
+      await this.#listingRepository.findStatusIdByCode('PUBLISHED');
+
+    const isStillActive =
+      listing.statusCode === 'PUBLISHED' &&
+      listing.frozenAt == null &&
+      listing.expiresAt != null &&
+      !hasLifecycleExpired(listing);
+    const isExpiredEligible =
+      isFrozen(listing) ||
+      (listing.statusCode === 'PUBLISHED' &&
+        listing.frozenAt == null &&
+        listing.expiresAt != null &&
+        hasLifecycleExpired(listing));
+
+    let affectedRows;
+    if (isStillActive) {
+      affectedRows = await this.#listingRepository.extendActivePublication({
+        id,
+        publishedStatusId,
+        publicationPeriodDays,
+        updatedBy: principal.userId,
+      });
+    } else if (isExpiredEligible) {
+      await this.#checkPublishReadiness(listing);
+      affectedRows = await this.#listingRepository.reactivateExpiredPublication(
+        {
+          id,
+          publishedStatusId,
+          publicationPeriodDays,
+          updatedBy: principal.userId,
+        },
+      );
+    } else {
+      throw new ConflictError(
+        `A listing in status "${listing.statusCode}" cannot be renewed.`,
+        'LISTING_NOT_RENEWABLE',
+      );
+    }
+
+    if (affectedRows === 0) {
+      throw new ConflictError(
+        "This listing's lifecycle state changed before the renewal could be applied — please try again.",
+        'RENEWAL_STATE_CHANGED',
+      );
+    }
+
+    await this.#auditLogger.record({
+      actorId: principal.userId,
+      action: 'listing.renewed',
+      targetType: 'listing',
+      targetId: id,
+      afterSnapshot: { publicationPeriodDays },
+    });
+
+    return this.#listingRepository.findById(id);
+  }
+
   async listListings(principal, filters = {}, paginationOpts = {}) {
     const { partnerId, listingType, status } = filters;
     const effectiveFilters = { partnerId, listingTypeCode: listingType };

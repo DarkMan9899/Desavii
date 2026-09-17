@@ -41,6 +41,19 @@ export {
   DEFAULT_PUBLICATION_PERIOD_DAYS,
 } from './constants/publicationPeriod.js';
 
+// Listing Lifetime / Renewal, Step B5.
+export { default as useRenewListingMutation } from './mutations/useRenewListingMutation.js';
+export { default as RenewListingModal } from './components/RenewListingModal/RenewListingModal.jsx';
+export { default as ListingLifecycleStatus } from './components/ListingLifecycleStatus/ListingLifecycleStatus.jsx';
+export {
+  LISTING_LIFECYCLE_STATES,
+  EXPIRING_SOON_THRESHOLD_DAYS,
+  resolveListingLifecycleState,
+  daysUntilExpiry,
+  isRenewEligible,
+  resolveDefaultRenewalPeriod,
+} from './utils/listingLifecyclePresentation.js';
+
 // P2.1 (Admin Listing Detail): the read-only Listing Detail sections,
 // exposed so the admin module can render the same metadata-driven
 // attribute/amenity/policy/itinerary/content display a customer sees,

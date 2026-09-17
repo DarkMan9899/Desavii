@@ -17,6 +17,7 @@ import {
   updateListingSchema,
   listingIdParamsSchema,
   publishListingSchema,
+  renewListingSchema,
   listingIdOrSlugParamsSchema,
   listingMediaIdParamsSchema,
   updateListingMediaSchema,
@@ -140,6 +141,16 @@ export default function createListingRoutes({
     requireAuth,
     validate(publishListingSchema),
     listingController.publish,
+  );
+
+  // Listing Lifetime / Renewal, Step B5: an explicit, separate action —
+  // never a side effect of ordinary Publish/PATCH (see `ListingService
+  // #renewListing`'s own doc comment for why it needs its own endpoint).
+  router.post(
+    '/:id/renew',
+    requireAuth,
+    validate(renewListingSchema),
+    listingController.renew,
   );
 
   router.post(

@@ -99,6 +99,30 @@ export class ListingRepository {
     );
   }
 
+  /** Step B5: the ACTIVE-renewal guarded UPDATE (extends from the current `expires_at`) — see the MySQL adapter for the exact idempotency/race-safety contract. @returns {Promise<number>} 0 or 1 */
+  async extendActivePublication({
+    id,
+    publishedStatusId,
+    publicationPeriodDays,
+    updatedBy,
+  }) {
+    throw new Error(
+      'ListingRepository.extendActivePublication must be implemented by a concrete adapter.',
+    );
+  }
+
+  /** Step B5: the FROZEN-renewal guarded UPDATE (extends from `NOW()`) — see the MySQL adapter for the exact idempotency/race-safety contract. @returns {Promise<number>} 0 or 1 */
+  async reactivateExpiredPublication({
+    id,
+    publishedStatusId,
+    publicationPeriodDays,
+    updatedBy,
+  }) {
+    throw new Error(
+      'ListingRepository.reactivateExpiredPublication must be implemented by a concrete adapter.',
+    );
+  }
+
   /** @param {number} listingId @param {string} oldSlug @returns {Promise<void>} */
   async recordSlugHistory(listingId, oldSlug) {
     throw new Error(

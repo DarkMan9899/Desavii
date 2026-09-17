@@ -1,0 +1,18 @@
+// ListingLifecycleStatus — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+// A compact block (brief §18: "Do NOT overload the row") — the badge and
+// its exact-date line stack tightly, never wrapping the row taller than
+// the existing status/type badges already do.
+.lifecycle {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: tokens.$space-1;
+}
+
+.dateLine {
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+}

@@ -27,6 +27,17 @@ vi.mock('../../../listings/index.js', () => {
     return <span>{status}</span>;
   }
   MockListingStatusBadge.propTypes = { status: PropTypes.string.isRequired };
+  // Listing Lifetime / Renewal, Step B5 — none of this file's existing
+  // fixtures carry an `expires_at`, so the real `isRenewEligible` would
+  // already return false for every one of them (the LEGACY branch); this
+  // stub keeps that same "no Renew button in these tests" behavior
+  // explicit rather than depending on fixture shape.
+  function MockListingLifecycleStatus() {
+    return null;
+  }
+  function MockRenewListingModal() {
+    return null;
+  }
   const PRESENTATION_GROUPS = Object.freeze({
     ACCOMMODATION: 'ACCOMMODATION',
     EXPERIENCE: 'EXPERIENCE',
@@ -46,6 +57,9 @@ vi.mock('../../../listings/index.js', () => {
     useArchiveListingMutation: vi.fn(),
     useDeleteListingMutation: vi.fn(),
     ListingStatusBadge: MockListingStatusBadge,
+    ListingLifecycleStatus: MockListingLifecycleStatus,
+    RenewListingModal: MockRenewListingModal,
+    isRenewEligible: () => false,
     PRESENTATION_GROUPS,
     resolvePresentationGroup: (code) =>
       GROUP_BY_LISTING_TYPE[code] ?? PRESENTATION_GROUPS.GENERIC,

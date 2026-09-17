@@ -185,6 +185,30 @@ export function toListingResponse(listing) {
 }
 
 /**
+ * Listing Lifetime / Renewal, Step B5 — `POST /listings/:id/renew`'s own
+ * response shape: everything `toListingResponse` already exposes, plus
+ * the 5 lifecycle fields the brief requires for the Partner UI to confirm
+ * the renewal actually took effect. Never used for the public/shared
+ * `GET /listings/:id` route (`listingController.get` still returns
+ * `toListingResponse` unchanged, for either a public visitor or the
+ * owner) — Renew is reachable only by an already-authenticated owner/
+ * Manager/Admin (`ListingService#renewListing`'s own
+ * `#assertOwnerOrPermission` gate), so this is the one mutation response
+ * where returning the fuller shape is always safe. `expiry_reminder_sent_at`
+ * is deliberately NOT included (brief §14 — no concrete Partner UX need).
+ */
+export function toListingOwnerResponse(listing) {
+  return {
+    ...toListingResponse(listing),
+    publication_period_days: listing.publicationPeriodDays ?? null,
+    expires_at: listing.expiresAt ?? null,
+    frozen_at: listing.frozenAt ?? null,
+    purge_after: listing.purgeAfter ?? null,
+    renewed_at: listing.renewedAt ?? null,
+  };
+}
+
+/**
  * P2.1: admin-only variant of `toListingResponse` — adds
  * `moderation_notes` (already fetched by the repository, but never
  * exposed by the shared response, since that DTO also serves the public

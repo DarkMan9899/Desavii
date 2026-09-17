@@ -81,6 +81,22 @@ export function unpublishListing(id) {
 }
 
 /**
+ * Listing Lifetime / Renewal, Step B5 — `POST /listings/:id/renew`.
+ * `publicationPeriodDays` is ALWAYS required (unlike `publishListing`'s
+ * conditional requirement) — one of the fixed
+ * `PUBLICATION_PERIOD_DAYS_OPTIONS`, no custom value. A deliberate,
+ * separate action from `publishListing` — never a side effect of ordinary
+ * Publish/PATCH (see `ListingService#renewListing`'s own doc comment).
+ * @param {number} id
+ * @param {{ publicationPeriodDays: number }} options
+ */
+export function renewListing(id, { publicationPeriodDays }) {
+  return apiClient
+    .post(`/listings/${id}/renew`, { publicationPeriodDays })
+    .then((response) => response.data);
+}
+
+/**
  * `POST /listings/:id/archive` (Phase 9: Partner Dashboard). Exercises
  * the pre-existing PUBLISHED|UNPUBLISHED -> ARCHIVED transition. Terminal
  * — there is no `unarchiveListing`, matching the backend's domain state

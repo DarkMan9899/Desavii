@@ -10,7 +10,7 @@ import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
 import { up } from '../../../src/infrastructure/database/migrate.js';
 import { seedAll } from '../../../src/infrastructure/database/seeds/index.js';
-import app from '../../../src/app.js';
+import app, { services } from '../../../src/app.js';
 import {
   getMysqlPool,
   closeMysqlPool,
@@ -1495,5 +1495,56 @@ describe('Listing Lifetime / Renewal, Step B4 — expired listings cannot accept
     expect(getRes.status).toBe(200);
     expect(getRes.body.data.id).toBe(bookingId);
     expect(getRes.body.data.listing_id).toBe(listingId);
+  });
+});
+
+// Listing Lifetime / Renewal, Step B5 (brief §25): the reappearance half of
+// the B4 block above — once a listing is genuinely frozen (the real sweep,
+// the stronger STORED-state case) and then renewed, `#assertBookable` must
+// let a new hold through again, exactly like a listing that had never
+// expired.
+describe('Listing Lifetime / Renewal, Step B5 — a renewed listing accepts new bookings again', () => {
+  async function expireListing(listingId) {
+    await pool.query(
+      'UPDATE listings SET expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 HOUR) WHERE id = ?',
+      [listingId],
+    );
+  }
+
+  test('POST /booking-holds succeeds again once the frozen listing is renewed', async () => {
+    const listingId = await createListing(
+      `B5 Renewed Booking Eligibility ${Date.now()}`,
+    );
+    const unitId = await registerUnit(listingId);
+    const dateFrom = '2027-03-15';
+    const dateTo = '2027-03-16';
+    await setPrice(unitId, dateFrom, dateTo, 10_000);
+
+    await expireListing(listingId);
+    const sweepResult = await services.listingService.runExpirySweep();
+    expect(sweepResult.frozen).toBeGreaterThanOrEqual(1);
+
+    const rejectedRes = await request(app)
+      .post('/api/v1/booking-holds')
+      .set('Authorization', `Bearer ${customer.accessToken}`)
+      .send({
+        items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
+      });
+    expect(rejectedRes.status).toBe(409);
+    expect(rejectedRes.body.error.code).toBe('LISTING_NOT_BOOKABLE');
+
+    const renewRes = await request(app)
+      .post(`/api/v1/listings/${listingId}/renew`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 30 });
+    expect(renewRes.status).toBe(200);
+
+    const holdRes = await request(app)
+      .post('/api/v1/booking-holds')
+      .set('Authorization', `Bearer ${customer.accessToken}`)
+      .send({
+        items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
+      });
+    expect(holdRes.status).toBe(201);
   });
 });

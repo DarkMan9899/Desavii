@@ -891,4 +891,58 @@ describe('Listing Lifetime / Renewal, Step B4 — expired listing cannot appear 
 
     await pool.query('DELETE FROM advertisements WHERE id = ?', [adId]);
   });
+
+  // Listing Lifetime / Renewal, Step B5 (brief §23): the reappearance half
+  // of the same contract — once a listing carrying a still-ACTIVE promotion
+  // is genuinely frozen (the real sweep, not just a past `expires_at`) and
+  // then renewed, its promoted TOP placement must come back too, and the
+  // promotion campaign row must never have needed to be touched to make
+  // that happen (it was never cancelled/paused by the freeze in the first
+  // place — proven above).
+  test('renewing a frozen listing restores its still-ACTIVE promotion to the public TOP placement', async () => {
+    const [adResult] = await pool.query(
+      `INSERT INTO advertisements
+        (listing_id, partner_id, ad_placement_type_id, ad_product_id, status_id,
+         price_snapshot_amount, currency_id, start_date, end_date, requested_by, created_by, updated_by)
+       SELECT ?, ?, ?, ?, id, 1000, ?, DATE_SUB(CURDATE(), INTERVAL 1 DAY), DATE_ADD(CURDATE(), INTERVAL 7 DAY), 1, 1, 1
+       FROM advertisement_statuses WHERE code = 'ACTIVE'`,
+      [topListingId, partnerId, placementId, productId, currencyId],
+    );
+    const adId = adResult.insertId;
+
+    // `topListingId`'s `expires_at` is already in the past from the test
+    // above; run the real sweep so this exercises the STORED-frozen state
+    // renewal must recover from, not just the un-swept edge case.
+    const sweepResult = await services.listingService.runExpirySweep();
+    expect(sweepResult.frozen).toBeGreaterThanOrEqual(1);
+
+    const frozenRes = await request(app).get(
+      '/api/v1/advertising/public/home-featured?locale=en',
+    );
+    expect(frozenRes.body.data.some((l) => l.id === topListingId)).toBe(false);
+
+    const renewRes = await request(app)
+      .post(`/api/v1/listings/${topListingId}/renew`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 30 });
+    expect(renewRes.status).toBe(200);
+
+    const afterRenewRes = await request(app).get(
+      '/api/v1/advertising/public/home-featured?locale=en',
+    );
+    expect(afterRenewRes.body.data.some((l) => l.id === topListingId)).toBe(
+      true,
+    );
+
+    // The promotion campaign was never cancelled/paused by the freeze, so
+    // renewal did not need to (and must not) touch it either.
+    const [[adRow]] = await pool.query(
+      `SELECT (SELECT code FROM advertisement_statuses WHERE id = status_id) AS status_code
+       FROM advertisements WHERE id = ?`,
+      [adId],
+    );
+    expect(adRow.status_code).toBe('ACTIVE');
+
+    await pool.query('DELETE FROM advertisements WHERE id = ?', [adId]);
+  });
 });

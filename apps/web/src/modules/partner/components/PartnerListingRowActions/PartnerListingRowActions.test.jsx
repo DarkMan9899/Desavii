@@ -59,6 +59,8 @@ function renderActions(overrides = {}) {
     onUnpublish: vi.fn(),
     onArchive: vi.fn(),
     onDelete: vi.fn(),
+    canRenew: false,
+    onRenew: vi.fn(),
     ...overrides,
   };
   render(
@@ -78,6 +80,8 @@ function renderActions(overrides = {}) {
       onUnpublish={props.onUnpublish}
       onArchive={props.onArchive}
       onDelete={props.onDelete}
+      canRenew={props.canRenew}
+      onRenew={props.onRenew}
     />,
   );
   return props;
@@ -152,6 +156,24 @@ describe('PartnerListingRowActions (apps/web/src/modules/partner)', () => {
       expect(item).toBeInTheDocument();
       await user.click(item);
       expect(props.onManageOpeningHours).toHaveBeenCalledWith(props.listing);
+    });
+  });
+
+  describe('Listing Lifetime / Renewal, Step B5 — Renew action', () => {
+    test('is hidden when canRenew is false (the default)', () => {
+      renderActions();
+      expect(
+        screen.queryByRole('button', { name: 'Երկարաձգել' }),
+      ).not.toBeInTheDocument();
+    });
+
+    test('is a visible, always-shown button (not buried in the overflow menu) when canRenew is true, and calls onRenew with the listing', async () => {
+      const user = userEvent.setup();
+      const props = renderActions({ canRenew: true });
+      const renewButton = screen.getByRole('button', { name: 'Երկարաձգել' });
+      expect(renewButton).toBeInTheDocument();
+      await user.click(renewButton);
+      expect(props.onRenew).toHaveBeenCalledWith(props.listing);
     });
   });
 

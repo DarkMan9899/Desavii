@@ -48,6 +48,13 @@ export default function PartnerListingRowActions({
   onUnpublish,
   onArchive,
   onDelete,
+  // Listing Lifetime / Renewal, Step B5 — a visible action, not buried in
+  // the "More" overflow menu (brief §3/§20's own "clear Renew action"/
+  // "Renew is the recovery action" language), shown only when the caller
+  // (`PartnerListingsList.jsx`, via `isRenewEligible`) says this listing
+  // is actually eligible.
+  canRenew = false,
+  onRenew = undefined,
   // Sprint F (Manager Workspace): a company-assigned Manager may
   // create/edit/publish a listing but never hard-delete one (that stays
   // owner/admin-only server-side, `listingService.js`'s
@@ -103,6 +110,11 @@ export default function PartnerListingRowActions({
       <Button variant="ghost" size="sm" onClick={() => onEdit(listing)}>
         {t('partner.listings.actions.edit')}
       </Button>
+      {canRenew && (
+        <Button variant="primary" size="sm" onClick={() => onRenew(listing)}>
+          {t('partner.listings.renew.action')}
+        </Button>
+      )}
       <Popover
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
@@ -221,5 +233,7 @@ PartnerListingRowActions.propTypes = {
   onUnpublish: PropTypes.func.isRequired,
   onArchive: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
+  canRenew: PropTypes.bool,
+  onRenew: PropTypes.func,
   canDelete: PropTypes.bool,
 };

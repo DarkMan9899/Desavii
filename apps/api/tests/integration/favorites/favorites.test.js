@@ -280,4 +280,26 @@ describe('Favorites — Step B4 expiry filtering', () => {
       .set('Authorization', `Bearer ${customer.accessToken}`);
     expect(idsRes.body.data).toContain(expiringListingId);
   });
+
+  // Listing Lifetime / Renewal, Step B5 (brief §22): the reappearance half
+  // of the promise the B4 test above's comment made — renewing the same
+  // now-frozen fixture must make it reappear in Favorites, proving the
+  // preserved `favorites` row was never the problem, only the shared
+  // public-visibility predicate the renewed listing now passes again.
+  test('renewing a frozen listing makes it reappear in Favorites', async () => {
+    const renewRes = await request(app)
+      .post(`/api/v1/listings/${expiringListingId}/renew`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 30 });
+    expect(renewRes.status).toBe(200);
+
+    const afterRenewRes = await request(app)
+      .get('/api/v1/favorites')
+      .set('Authorization', `Bearer ${customer.accessToken}`);
+    expect(
+      afterRenewRes.body.data.some(
+        (item) => item.listing_id === expiringListingId,
+      ),
+    ).toBe(true);
+  });
 });

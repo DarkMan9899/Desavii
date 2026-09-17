@@ -21,6 +21,7 @@ export default function ListingTableRow({
   typeBadge = undefined,
   statusBadge = undefined,
   updatedAtLabel = undefined,
+  lifecycleInfo = undefined,
   actions = undefined,
   isLoading = false,
 }) {
@@ -52,6 +53,9 @@ export default function ListingTableRow({
           {statusBadge}
         </div>
         {updatedAtLabel && <p className={styles.updatedAt}>{updatedAtLabel}</p>}
+        {lifecycleInfo && (
+          <div className={styles.lifecycleInfo}>{lifecycleInfo}</div>
+        )}
       </div>
       {actions && <div className={styles.actions}>{actions}</div>}
     </Card>
@@ -64,6 +68,11 @@ ListingTableRow.propTypes = {
   typeBadge: PropTypes.node,
   statusBadge: PropTypes.node,
   updatedAtLabel: PropTypes.string,
+  // Listing Lifetime / Renewal, Step B5 — a free-form node (unlike
+  // `updatedAtLabel`'s plain string) rendered on its own line, since the
+  // lifecycle status is itself a composed badge + exact-date text, not a
+  // single label string.
+  lifecycleInfo: PropTypes.node,
   actions: PropTypes.node,
   isLoading: PropTypes.bool,
 };

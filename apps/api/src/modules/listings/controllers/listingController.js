@@ -10,6 +10,7 @@
 import { ValidationError } from '../../../errors/AppError.js';
 import {
   toListingResponse,
+  toListingOwnerResponse,
   toListingSummaryResponse,
   toAdminListingSummaryResponse,
   toListingAdminDetailResponse,
@@ -181,6 +182,25 @@ export function createListingController(
         res.status(200).json({
           success: true,
           data: toListingResponse(listing),
+          meta: null,
+          error: null,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    // Listing Lifetime / Renewal, Step B5.
+    async renew(req, res, next) {
+      try {
+        const { id } = req.validated.params;
+        const { publicationPeriodDays } = req.validated.body;
+        const listing = await listingService.renewListing(req.principal, id, {
+          publicationPeriodDays,
+        });
+        res.status(200).json({
+          success: true,
+          data: toListingOwnerResponse(listing),
           meta: null,
           error: null,
         });

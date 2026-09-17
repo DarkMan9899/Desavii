@@ -188,6 +188,16 @@ function toSearchResultDomain(row) {
     listingTypeCode: row.listing_type_code,
     slug: row.slug,
     statusCode: row.status_code,
+    // Listing Lifetime / Renewal, Step B5 — mapped for every caller
+    // (`undefined` on `searchListingsByIds`'s own narrower SELECT, same
+    // "column absent there" precedent `categorySlug` etc. already
+    // document below); the owner-vs-public DTO split happens downstream,
+    // never here.
+    publicationPeriodDays: row.publication_period_days ?? null,
+    expiresAt: row.expires_at ?? null,
+    frozenAt: row.frozen_at ?? null,
+    purgeAfter: row.purge_after ?? null,
+    renewedAt: row.renewed_at ?? null,
     title: row.title,
     summary: row.summary,
     cityId: row.city_id,
@@ -605,6 +615,14 @@ export function buildSearchListingsQuery(
     ${availabilityCtePrefix}
     SELECT
       l.id, l.partner_id, l.created_at,
+      -- Listing Lifetime / Renewal, Step B5: always selected (cheap, and
+      -- selecting them here is not the leak boundary -- toSearchResultDomain
+      -- below always maps them onto the domain object too, same as
+      -- mysqlListingRepository.js's own LISTING_SELECT_COLUMNS precedent).
+      -- The actual public/owner split happens once, at the DTO layer
+      -- (searchDto.js's toSearchResultResponse vs. toOwnerSearchResultResponse),
+      -- never here.
+      l.publication_period_days, l.expires_at, l.frozen_at, l.purge_after, l.renewed_at,
       ltype.code AS listing_type_code,
       ls.code AS status_code,
       l.slug,

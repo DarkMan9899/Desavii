@@ -10,6 +10,7 @@
 
 import {
   toSearchResultResponse,
+  toOwnerSearchResultResponse,
   toCategoryResultResponse,
   toDestinationResultResponse,
   toSuggestionResponse,
@@ -20,13 +21,22 @@ export function createSearchController(searchService) {
   return {
     async searchListings(req, res, next) {
       try {
-        const { rows, meta } = await searchService.searchListings(
+        const { rows, meta, isOwnerView } = await searchService.searchListings(
           req.principal,
           req.validated.query,
         );
+        // Listing Lifetime / Renewal, Step B5: `isOwnerView` is exactly the
+        // same elevated population that can already see a non-PUBLISHED
+        // card through this endpoint (see `searchService.js`'s own
+        // `#resolveVisibility` comment) — only that population gets the
+        // lifecycle-inclusive DTO; a public/anonymous caller keeps getting
+        // the exact same shape it always has.
+        const toResponse = isOwnerView
+          ? toOwnerSearchResultResponse
+          : toSearchResultResponse;
         res.status(200).json({
           success: true,
-          data: rows.map(toSearchResultResponse),
+          data: rows.map(toResponse),
           meta,
           error: null,
         });

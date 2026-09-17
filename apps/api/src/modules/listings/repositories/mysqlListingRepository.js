@@ -970,6 +970,115 @@ export class MySqlListingRepository extends ListingRepositoryPort {
     return result.affectedRows;
   }
 
+  /**
+   * Listing Lifetime / Renewal, Step B5 — the ACTIVE-renewal path: a
+   * listing that is still genuinely PUBLISHED and not yet expired, renewed
+   * BEFORE its current period runs out. Extends from the listing's own
+   * CURRENT `expires_at` (never `NOW()`) — a partner renewing 10 days
+   * before expiry with a 90-day period ends up with 100 days remaining,
+   * never 90 (brief's own explicit example). `status_id`/`frozen_at`/
+   * `purge_after` are untouched — nothing about the listing's PUBLISHED
+   * state changes, this only extends the existing publication period.
+   *
+   * Double-renew / race safety (brief §13, documented choice — no new
+   * migration, so no dedicated idempotency-key column): the WHERE clause
+   * re-validates every ACTIVE-eligibility condition at UPDATE time (not
+   * trusting the Service's earlier read), so a listing the expiry sweep
+   * concurrently froze between that read and this UPDATE simply matches
+   * zero rows here instead of corrupting state. The trailing `renewed_at`
+   * debounce clause is the "duplicate HTTP request" guard specifically:
+   * MySQL's own row-level locking already serializes two truly-
+   * simultaneous UPDATE attempts on the same row, but the SECOND one,
+   * once unblocked, would otherwise still see the row as freshly extended
+   * by the first and match again — the 3-second window (comfortably above
+   * real double-click/network-retry timing, comfortably below any
+   * deliberate distinct renewal) is what actually stops that second
+   * attempt from matching, a "row state/timestamp guard" per the brief's
+   * own explicitly-sanctioned alternative to a dedicated idempotency-key
+   * table.
+   *
+   * @param {{id: number, publishedStatusId: number, publicationPeriodDays: number, updatedBy: number}} args
+   * @returns {Promise<number>} 0 or 1 — 0 means the state changed
+   *   concurrently (already frozen, already renewed moments ago, expired,
+   *   or no longer PUBLISHED) and nothing was written.
+   */
+  async extendActivePublication(
+    { id, publishedStatusId, publicationPeriodDays, updatedBy },
+    connection = this.#pool,
+  ) {
+    const [result] = await connection.query(
+      `UPDATE listings
+       SET publication_period_days = ?,
+           expires_at = DATE_ADD(expires_at, INTERVAL ? DAY),
+           renewed_at = UTC_TIMESTAMP(3),
+           expiry_reminder_sent_at = NULL,
+           updated_by = ?
+       WHERE id = ? AND deleted_at IS NULL AND frozen_at IS NULL
+         AND status_id = ? AND expires_at IS NOT NULL AND expires_at > UTC_TIMESTAMP(3)
+         AND (renewed_at IS NULL OR renewed_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 3 SECOND))`,
+      [
+        publicationPeriodDays,
+        publicationPeriodDays,
+        updatedBy,
+        id,
+        publishedStatusId,
+      ],
+    );
+    return result.affectedRows;
+  }
+
+  /**
+   * Listing Lifetime / Renewal, Step B5 — the FROZEN-renewal path, basis
+   * `NOW()` (never the old, already-passed `expires_at`). Also covers the
+   * up-to-an-hour window where a listing's `expires_at` has already
+   * passed but the hourly sweep (`freezeExpiredListings`) hasn't yet
+   * flipped it to UNPUBLISHED/`frozen_at` — the second WHERE branch below
+   * (`status_id = ? AND expires_at <= NOW()`) matches that state directly,
+   * so a partner renewing in that gap gets the correct NOW()-based expiry
+   * regardless of whether the sweep or this renewal wins the race; if the
+   * sweep DOES run first, the row simply satisfies the OTHER branch
+   * (`frozen_at IS NOT NULL`) instead — either way this UPDATE still
+   * matches exactly once. `status_id` is set to PUBLISHED unconditionally
+   * (a no-op when the row was still PUBLISHED-but-unswept); `frozen_at`/
+   * `purge_after` are cleared unconditionally (already NULL in that same
+   * case). Same double-renew debounce clause as `extendActivePublication`
+   * — see that method's own doc comment for the full reasoning.
+   *
+   * @param {{id: number, publishedStatusId: number, publicationPeriodDays: number, updatedBy: number}} args
+   * @returns {Promise<number>} 0 or 1 — 0 means the state changed
+   *   concurrently (already renewed moments ago, deleted, or no longer
+   *   eligible) and nothing was written.
+   */
+  async reactivateExpiredPublication(
+    { id, publishedStatusId, publicationPeriodDays, updatedBy },
+    connection = this.#pool,
+  ) {
+    const [result] = await connection.query(
+      `UPDATE listings
+       SET status_id = ?, publication_period_days = ?,
+           expires_at = DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? DAY),
+           renewed_at = UTC_TIMESTAMP(3),
+           expiry_reminder_sent_at = NULL,
+           frozen_at = NULL, purge_after = NULL,
+           updated_by = ?
+       WHERE id = ? AND deleted_at IS NULL
+         AND (
+           frozen_at IS NOT NULL
+           OR (status_id = ? AND expires_at IS NOT NULL AND expires_at <= UTC_TIMESTAMP(3))
+         )
+         AND (renewed_at IS NULL OR renewed_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 3 SECOND))`,
+      [
+        publishedStatusId,
+        publicationPeriodDays,
+        publicationPeriodDays,
+        updatedBy,
+        id,
+        publishedStatusId,
+      ],
+    );
+    return result.affectedRows;
+  }
+
   async softDelete(id, deletedByUserId, connection = this.#pool) {
     await connection.query(
       `UPDATE listings SET ${softDeleteAssignment()}, deleted_by = ?, updated_by = ? WHERE id = ?`,

@@ -31,7 +31,7 @@ import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
 import { up } from '../../../src/infrastructure/database/migrate.js';
 import { seedAll } from '../../../src/infrastructure/database/seeds/index.js';
-import app from '../../../src/app.js';
+import app, { services } from '../../../src/app.js';
 import {
   getMysqlPool,
   closeMysqlPool,
@@ -256,5 +256,57 @@ describe('Listing Lifetime / Renewal, Step B4 — public visibility across every
 
     expect(categoryAfter).toBe(categoryBefore - 1);
     expect(companyAfter).toBe(companyBefore - 1);
+  });
+});
+
+// Listing Lifetime / Renewal, Step B5 (brief §24): the reappearance
+// counterpart to the disappearance tests above — renewing a frozen listing
+// must restore it to every one of the same public surfaces, since they all
+// share the one `listingVisibilitySql.js` predicate rather than independent
+// checks that could drift out of sync with each other.
+describe('Listing Lifetime / Renewal, Step B5 — reappearance across every surface after renewal', () => {
+  test('a frozen fixture that gets renewed reappears in search, typeahead, the company profile, and its own public detail page', async () => {
+    // The shared B4 fixture from above is already expired (and, by this
+    // point in the file, `expires_at` is still in the past with `frozen_at`
+    // still NULL — the un-swept case). Run the real sweep first so this
+    // test proves renewal recovers a listing from the STORED-frozen state,
+    // the stronger of the two states renewal must handle (brief §7).
+    const sweepResult = await services.listingService.runExpirySweep();
+    expect(sweepResult.frozen).toBeGreaterThanOrEqual(1);
+
+    const frozenDetailRes = await request(app).get(
+      `/api/v1/listings/${listingId}`,
+    );
+    expect(frozenDetailRes.status).toBe(404);
+
+    const renewRes = await request(app)
+      .post(`/api/v1/listings/${listingId}/renew`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 30 });
+    expect(renewRes.status).toBe(200);
+
+    // SEARCH (also proves Category/Home/Related/Sitemap — see file header).
+    const searchRes = await request(app).get(
+      `/api/v1/search?keyword=${encodeURIComponent(uniqueTitle)}`,
+    );
+    expect(searchRes.body.data.some((l) => l.id === listingId)).toBe(true);
+
+    // TYPEAHEAD.
+    const suggestRes = await request(app).get(
+      `/api/v1/search/suggestions?q=${encodeURIComponent(uniqueTitle.slice(0, 12))}`,
+    );
+    expect(suggestRes.body.data.some((s) => s.id === listingId)).toBe(true);
+
+    // COMPANY PUBLIC PROFILE.
+    const companyListingsRes = await request(app).get(
+      `/api/v1/partners/${partnerSlug}/listings`,
+    );
+    expect(companyListingsRes.body.data.some((l) => l.id === listingId)).toBe(
+      true,
+    );
+
+    // PUBLIC LISTING DETAIL.
+    const detailRes = await request(app).get(`/api/v1/listings/${listingId}`);
+    expect(detailRes.status).toBe(200);
   });
 });

@@ -61,6 +61,10 @@
   color: colors.$color-gray-600;
 }
 
+.lifecycleInfo {
+  margin-top: spacing.$space-1;
+}
+
 .actions {
   flex-shrink: 0;
   display: flex;

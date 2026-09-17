@@ -112,6 +112,24 @@ export const publishListingSchema = z.object({
     .default({}),
 });
 
+// Listing Lifetime / Renewal, Step B5 — `publicationPeriodDays` is
+// ALWAYS required for Renew (unlike `publishListingSchema`'s conditional
+// requirement, which depends on server-side first-publish state) — kept
+// structural-only here regardless, matching the same "the authoritative
+// allowlist and the actual required-ness live in the Service, so a
+// rejected value reports through the exact same `error.details` shape as
+// every other renewal-readiness issue" convention `publishListingSchema`
+// already established.
+export const renewListingSchema = z.object({
+  params: idParams,
+  query: passthroughQuery,
+  body: z
+    .object({
+      publicationPeriodDays: z.coerce.number().int().optional(),
+    })
+    .default({}),
+});
+
 export const listingIdOrSlugParamsSchema = z.object({
   params: idOrSlugParams,
   query: passthroughQuery,

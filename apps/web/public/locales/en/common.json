@@ -1270,7 +1270,28 @@
       "deleteConfirmAction": "Yes, delete",
       "deleteConfirmDismiss": "Cancel",
       "deleteSuccess": "Listing deleted.",
-      "deleteError": "Something went wrong. Please try again."
+      "deleteError": "Something went wrong. Please try again.",
+      "renew": {
+        "action": "Renew",
+        "modalTitle": "Renew listing",
+        "modalDescription": "Choose how long this listing should stay published. Your remaining time is added on top of what's left.",
+        "modalDescriptionFrozen": "This listing has expired. Choose a new publication period to bring it back.",
+        "confirm": "Confirm renewal",
+        "cancel": "Cancel",
+        "success": "Listing renewed.",
+        "error": "Something went wrong. Please try again.",
+        "notRenewable": "This listing can't be renewed right now."
+      },
+      "lifecycle": {
+        "expiresOn": "Expires on {{date}}",
+        "expiresInDays_one": "Expires in {{count}} day",
+        "expiresInDays_other": "Expires in {{count}} days",
+        "expiringSoon_one": "Expiring soon · {{count}} day left",
+        "expiringSoon_other": "Expiring soon · {{count}} days left",
+        "expiresToday": "Expires today",
+        "expiredFrozen": "Expired / Frozen",
+        "retainedUntil": "Retained until {{date}}"
+      }
     },
     "listingWizard": {
       "back": "Back",

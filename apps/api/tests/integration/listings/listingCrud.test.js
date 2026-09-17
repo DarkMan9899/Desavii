@@ -880,6 +880,359 @@ describe('Listing expiration sweep — Step B4', () => {
   });
 });
 
+// Listing Lifetime / Renewal, Step B5 — `POST /listings/:id/renew`. Uses
+// deterministic DB-relative timestamps throughout, same convention as B3/
+// B4's own lifecycle blocks above; the 3-second double-renew debounce
+// guard (`mysqlListingRepository.js`'s own doc comment) means any test
+// here that deliberately exercises "repeated request" must NOT sleep for
+// real time — it asserts the immediate second attempt is rejected.
+describe('Listing renewal — Step B5', () => {
+  async function selectRenewalColumns(listingId) {
+    const [[row]] = await pool.query(
+      `SELECT publication_period_days, expires_at, frozen_at, purge_after,
+              renewed_at, expiry_reminder_sent_at, published_at, status_id,
+              moderation_status_id, slug, deleted_at,
+              (SELECT code FROM listing_statuses WHERE id = listings.status_id) AS status_code
+       FROM listings WHERE id = ?`,
+      [listingId],
+    );
+    return row;
+  }
+
+  async function createActiveListing({ periodDays = 30 } = {}) {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    const res = await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: periodDays });
+    expect(res.status).toBe(200);
+    return listingId;
+  }
+
+  async function createFrozenListing() {
+    const listingId = await createActiveListing({ periodDays: 30 });
+    // Real sweep-driven freeze, not a hand-crafted fixture — proves the
+    // renewal path works against the actual state the B4 sweep produces.
+    await pool.query(
+      'UPDATE listings SET expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE) WHERE id = ?',
+      [listingId],
+    );
+    const swept = await services.listingService.runExpirySweep();
+    expect(swept.frozen).toBeGreaterThanOrEqual(1);
+    return listingId;
+  }
+
+  async function renew(listingId, publicationPeriodDays) {
+    return request(app)
+      .post(`/api/v1/listings/${listingId}/renew`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays });
+  }
+
+  // The server does not run in UTC (a known, pre-existing environmental
+  // quirk already documented for this codebase's other lifecycle tests —
+  // mysql2 parses a DATETIME column in the connection's LOCAL timezone,
+  // not UTC, so a raw JS `new Date()` and a DB-sourced Date differ by the
+  // server's own UTC offset). Reading the bound from the DB itself, the
+  // same way `expires_at` is read, makes both sides go through the
+  // identical parsing path so the offset cancels out.
+  async function dbNow() {
+    const [[row]] = await pool.query('SELECT UTC_TIMESTAMP(3) AS now');
+    return row.now;
+  }
+
+  // ACTIVE RENEW — A/B/C/D: every one of the 4 approved periods.
+  test.each([30, 90, 180, 365])(
+    'ACTIVE renewal with a %i-day period extends from the CURRENT expires_at, never NOW()',
+    async (periodDays) => {
+      const listingId = await createActiveListing();
+      // A dedup marker deliberately set BEFORE renewal, to prove it gets
+      // cleared — a fresh publish already leaves it NULL, so a non-null
+      // starting value is the only way to prove renewal actually resets it.
+      await pool.query(
+        'UPDATE listings SET expiry_reminder_sent_at = UTC_TIMESTAMP(3) WHERE id = ?',
+        [listingId],
+      );
+      const before = await selectRenewalColumns(listingId);
+
+      const res = await renew(listingId, periodDays);
+      expect(res.status).toBe(200);
+
+      const after = await selectRenewalColumns(listingId);
+      expect(after.status_code).toBe('PUBLISHED');
+      expect(after.expires_at.getTime() - before.expires_at.getTime()).toBe(
+        periodDays * 24 * 60 * 60 * 1000,
+      );
+      expect(after.publication_period_days).toBe(periodDays);
+      expect(after.renewed_at).not.toBeNull();
+      expect(after.expiry_reminder_sent_at).toBeNull();
+      expect(after.frozen_at).toBeNull();
+      expect(after.purge_after).toBeNull();
+      expect(after.moderation_status_id).toBe(before.moderation_status_id);
+      expect(after.slug).toBe(before.slug);
+    },
+  );
+
+  // FROZEN RENEW — A/B/C/D: every one of the 4 approved periods.
+  test.each([30, 90, 180, 365])(
+    'FROZEN renewal with a %i-day period extends from DB NOW(), never the old expires_at',
+    async (periodDays) => {
+      const listingId = await createFrozenListing();
+      const before = await selectRenewalColumns(listingId);
+      expect(before.status_code).toBe('UNPUBLISHED');
+      expect(before.frozen_at).not.toBeNull();
+
+      const beforeRenewAt = await dbNow();
+      const res = await renew(listingId, periodDays);
+      const afterRenewAt = await dbNow();
+      expect(res.status).toBe(200);
+
+      const after = await selectRenewalColumns(listingId);
+      expect(after.status_code).toBe('PUBLISHED');
+      // "DB now, not old expires_at": bounded by the request's own
+      // wall-clock window rather than an exact match, since the DB's
+      // UTC_TIMESTAMP(3) at write time can't be read independently — the
+      // key assertion is that it is NOT anywhere near `before.expires_at`
+      // (which already passed a full minute before this test even ran).
+      const expectedMin = beforeRenewAt.getTime() + periodDays * 86400000;
+      const expectedMax = afterRenewAt.getTime() + periodDays * 86400000;
+      expect(after.expires_at.getTime()).toBeGreaterThanOrEqual(expectedMin);
+      expect(after.expires_at.getTime()).toBeLessThanOrEqual(expectedMax);
+      expect(after.publication_period_days).toBe(periodDays);
+      expect(after.renewed_at).not.toBeNull();
+      expect(after.expiry_reminder_sent_at).toBeNull();
+      expect(after.frozen_at).toBeNull();
+      expect(after.purge_after).toBeNull();
+      expect(after.moderation_status_id).toBe(before.moderation_status_id);
+      expect(after.slug).toBe(before.slug);
+    },
+  );
+
+  test('renewing in the up-to-an-hour gap after expires_at passes but before the sweep runs also uses NOW(), and the listing was never actually frozen', async () => {
+    const listingId = await createActiveListing();
+    await pool.query(
+      'UPDATE listings SET expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE) WHERE id = ?',
+      [listingId],
+    );
+    const stillUnswept = await selectRenewalColumns(listingId);
+    expect(stillUnswept.status_code).toBe('PUBLISHED');
+    expect(stillUnswept.frozen_at).toBeNull();
+
+    const res = await renew(listingId, 90);
+    expect(res.status).toBe(200);
+
+    const after = await selectRenewalColumns(listingId);
+    expect(after.status_code).toBe('PUBLISHED');
+    expect(after.expires_at.getTime()).toBeGreaterThan(Date.now());
+    expect(after.frozen_at).toBeNull();
+  });
+
+  // INVALID — missing/out-of-allowlist periods.
+  test('missing publicationPeriodDays is rejected with PUBLICATION_PERIOD_REQUIRED', async () => {
+    const listingId = await createActiveListing();
+    const res = await request(app)
+      .post(`/api/v1/listings/${listingId}/renew`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    expect(res.status).toBe(422);
+    const issue = res.body.error.details.find(
+      (d) => d.field === 'publicationPeriodDays',
+    );
+    expect(issue?.issue).toBe('PUBLICATION_PERIOD_REQUIRED');
+  });
+
+  test.each([0, 17, 60, 91, 366, -1, -30])(
+    'the out-of-allowlist period %i is rejected with INVALID_PUBLICATION_PERIOD',
+    async (invalidPeriod) => {
+      const listingId = await createActiveListing();
+      const res = await renew(listingId, invalidPeriod);
+      expect(res.status).toBe(422);
+      const issue = res.body.error.details.find(
+        (d) => d.field === 'publicationPeriodDays',
+      );
+      expect(issue?.issue).toBe('INVALID_PUBLICATION_PERIOD');
+    },
+  );
+
+  // INVALID — ineligible listing states.
+  test('a deleted listing 404s on renew', async () => {
+    const listingId = await createActiveListing();
+    await request(app)
+      .delete(`/api/v1/listings/${listingId}`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    const res = await renew(listingId, 90);
+    expect(res.status).toBe(404);
+  });
+
+  test('an ARCHIVED listing cannot be renewed', async () => {
+    const listingId = await createActiveListing();
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/unpublish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/archive`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    const res = await renew(listingId, 90);
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('LISTING_NOT_RENEWABLE');
+  });
+
+  test('a DRAFT listing cannot be renewed', async () => {
+    const created = await createDraftListing();
+    const res = await renew(created.body.data.id, 90);
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('LISTING_NOT_RENEWABLE');
+  });
+
+  // The exact shortcut-around-Publish this rule exists to close: a
+  // partner manually unpublishes a still-current (non-expired,
+  // non-frozen) listing, then must use ordinary Publish to bring it back
+  // — never Renew.
+  test('a manually-UNPUBLISHED, non-frozen listing cannot be renewed (must use ordinary Publish instead)', async () => {
+    const listingId = await createActiveListing();
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/unpublish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+
+    const res = await renew(listingId, 90);
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('LISTING_NOT_RENEWABLE');
+
+    // Confirm ordinary Publish is still the correct recovery path, and it
+    // preserves (never extends) the existing expiry — B3's own rule,
+    // unaffected by B5's addition.
+    const before = await selectRenewalColumns(listingId);
+    const republish = await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 365 });
+    expect(republish.status).toBe(200);
+    const after = await selectRenewalColumns(listingId);
+    expect(after.expires_at.getTime()).toBe(before.expires_at.getTime());
+  });
+
+  test('a legacy PUBLISHED listing with no expires_at ever assigned cannot be renewed', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    const [[publishedStatus]] = await pool.query(
+      "SELECT id FROM listing_statuses WHERE code = 'PUBLISHED'",
+    );
+    await pool.query(
+      'UPDATE listings SET status_id = ?, published_at = UTC_TIMESTAMP(3) WHERE id = ?',
+      [publishedStatus.id, listingId],
+    );
+
+    const res = await renew(listingId, 90);
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('LISTING_NOT_RENEWABLE');
+  });
+
+  // K: public DTO safety.
+  test('renewal response and public GET /listings/:id never leak lifecycle fields to the wrong audience', async () => {
+    const listingId = await createFrozenListing();
+    const res = await renew(listingId, 90);
+    expect(res.status).toBe(200);
+    // The renewal RESPONSE (owner-authenticated-only) is EXPECTED to
+    // include the lifecycle fields — that's the whole point of B5's DTO.
+    expect(res.body.data).toHaveProperty('expires_at');
+    expect(res.body.data).toHaveProperty('publication_period_days');
+
+    // The PUBLIC detail route must still never expose them, for anyone.
+    const publicRes = await request(app).get(`/api/v1/listings/${listingId}`);
+    expect(publicRes.status).toBe(200);
+    expect(publicRes.body.data).not.toHaveProperty('expires_at');
+    expect(publicRes.body.data).not.toHaveProperty('frozen_at');
+    expect(publicRes.body.data).not.toHaveProperty('purge_after');
+    expect(publicRes.body.data).not.toHaveProperty('renewed_at');
+    expect(publicRes.body.data).not.toHaveProperty('publication_period_days');
+  });
+
+  // --- Race / idempotency tests (brief §31) ---
+
+  test('a duplicate/double-clicked renewal request within the debounce window is safely rejected, never double-extending', async () => {
+    const listingId = await createActiveListing();
+    const first = await renew(listingId, 90);
+    expect(first.status).toBe(200);
+    const afterFirst = await selectRenewalColumns(listingId);
+
+    // Fired immediately after — well inside the 3-second debounce guard.
+    const second = await renew(listingId, 90);
+    expect(second.status).toBe(409);
+    expect(second.body.error.code).toBe('RENEWAL_STATE_CHANGED');
+
+    const afterSecond = await selectRenewalColumns(listingId);
+    expect(afterSecond.expires_at.getTime()).toBe(
+      afterFirst.expires_at.getTime(),
+    );
+  });
+
+  test('renew racing the expiry sweep: whichever runs first, the listing converges to exactly one correctly-based renewal, never a partial state', async () => {
+    const listingId = await createActiveListing();
+    await pool.query(
+      'UPDATE listings SET expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE) WHERE id = ?',
+      [listingId],
+    );
+
+    // The sweep runs FIRST, freezing it...
+    await services.listingService.runExpirySweep();
+    const frozen = await selectRenewalColumns(listingId);
+    expect(frozen.status_code).toBe('UNPUBLISHED');
+    expect(frozen.frozen_at).not.toBeNull();
+
+    // ...then renewal still succeeds cleanly against the now-frozen row.
+    const res = await renew(listingId, 90);
+    expect(res.status).toBe(200);
+    const after = await selectRenewalColumns(listingId);
+    expect(after.status_code).toBe('PUBLISHED');
+    expect(after.frozen_at).toBeNull();
+    expect(after.purge_after).toBeNull();
+    expect(after.expires_at.getTime()).toBeGreaterThan(Date.now());
+
+    // A later sweep run must never re-freeze the just-renewed listing.
+    await services.listingService.runExpirySweep();
+    const afterSweep = await selectRenewalColumns(listingId);
+    expect(afterSweep.status_code).toBe('PUBLISHED');
+    expect(afterSweep.frozen_at).toBeNull();
+  });
+
+  test('a frozen renewal that fails readiness leaves the listing exactly as frozen as before — no partial reactivation', async () => {
+    const listingId = await createFrozenListing();
+    const before = await selectRenewalColumns(listingId);
+
+    // Strip the one thing #checkPublishReadiness requires that this
+    // fixture already has — its cover image — making the frozen listing
+    // "stale" (brief §7's own scenario).
+    await pool.query(
+      "UPDATE media SET deleted_at = UTC_TIMESTAMP(3) WHERE mediable_type = 'listing' AND mediable_id = ?",
+      [listingId],
+    );
+
+    const res = await renew(listingId, 90);
+    expect(res.status).toBe(422);
+    const issue = res.body.error.details.find((d) => d.field === 'media');
+    expect(issue?.issue).toBe('AT_LEAST_ONE_IMAGE_REQUIRED');
+
+    const after = await selectRenewalColumns(listingId);
+    expect(after.status_code).toBe('UNPUBLISHED');
+    expect(after.frozen_at.getTime()).toBe(before.frozen_at.getTime());
+    expect(after.purge_after.getTime()).toBe(before.purge_after.getTime());
+    expect(after.publication_period_days).toBe(before.publication_period_days);
+    expect(after.expires_at.getTime()).toBe(before.expires_at.getTime());
+    expect(after.renewed_at).toBeNull();
+  });
+
+  test('repeating an already-successful renewal request immediately after is rejected, not silently re-applied', async () => {
+    const listingId = await createFrozenListing();
+    const res1 = await renew(listingId, 30);
+    expect(res1.status).toBe(200);
+    const res2 = await renew(listingId, 30);
+    expect(res2.status).toBe(409);
+    expect(res2.body.error.code).toBe('RENEWAL_STATE_CHANGED');
+  });
+});
+
 describe('PATCH /listings/:id — update, slug history', () => {
   test('changing the slug records the old slug in listing_slug_history', async () => {
     const created = await createDraftListing();
