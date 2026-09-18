@@ -44,11 +44,18 @@ function buildService(overrides = {}) {
       .mockResolvedValue({ id: 3, partnerId: 9, placement: 'home_featured' }),
     ...overrides.advertisementService,
   };
+  // A2.1: no active partner_employees row by default (i.e. this
+  // (userId, partnerId) pair is never internal unless a test overrides
+  // it) — matches `getPartnerEmployeeRoleCode`'s real "no active
+  // membership" return value.
+  const getPartnerEmployeeRoleCode =
+    overrides.getPartnerEmployeeRoleCode ?? jest.fn().mockResolvedValue(null);
   const service = new EngagementAnalyticsService({
     engagementAnalyticsRepository,
     listingService,
     partnerService,
     advertisementService,
+    getPartnerEmployeeRoleCode,
   });
   return {
     service,
@@ -56,6 +63,7 @@ function buildService(overrides = {}) {
     listingService,
     partnerService,
     advertisementService,
+    getPartnerEmployeeRoleCode,
   };
 }
 
@@ -261,21 +269,33 @@ describe('EngagementAnalyticsService#ingestClientEvents', () => {
       expect(engagementAnalyticsRepository.insertBatch).not.toHaveBeenCalled();
     });
 
-    test("a PARTNER principal viewing their OWN partner's listing is filtered", async () => {
-      const { service, engagementAnalyticsRepository } = buildService();
+    test('a PARTNER principal with an active partner_employees row for the resolved target partner is filtered — never from a JWT claim', async () => {
+      const {
+        service,
+        engagementAnalyticsRepository,
+        getPartnerEmployeeRoleCode,
+      } = buildService({
+        getPartnerEmployeeRoleCode: jest.fn().mockResolvedValue('OWNER'),
+      });
       await service.ingestClientEvents({
-        principal: { userId: 2, roles: ['CUSTOMER'], partnerId: 9 },
+        // A2.1: principal.partnerId is never read — the real access
+        // token hardcodes it null anyway (authenticationService.js
+        // #issueTokenPair). Filtering must work with it absent.
+        principal: { userId: 2, roles: ['CUSTOMER'], partnerId: null },
         events: [BASE_EVENT], // resolves to partnerId 9
         userAgent: 'test',
         referer: undefined,
       });
+      expect(getPartnerEmployeeRoleCode).toHaveBeenCalledWith(2, 9);
       expect(engagementAnalyticsRepository.insertBatch).not.toHaveBeenCalled();
     });
 
-    test("a PARTNER principal browsing a DIFFERENT partner's listing still counts", async () => {
-      const { service, engagementAnalyticsRepository } = buildService();
+    test('a PARTNER principal with no active membership in the resolved target partner still counts', async () => {
+      const { service, engagementAnalyticsRepository } = buildService({
+        getPartnerEmployeeRoleCode: jest.fn().mockResolvedValue(null),
+      });
       await service.ingestClientEvents({
-        principal: { userId: 2, roles: ['CUSTOMER'], partnerId: 42 },
+        principal: { userId: 2, roles: ['CUSTOMER'], partnerId: null },
         events: [BASE_EVENT], // resolves to partnerId 9
         userAgent: 'test',
         referer: undefined,
@@ -285,8 +305,12 @@ describe('EngagementAnalyticsService#ingestClientEvents', () => {
       );
     });
 
-    test('CUSTOMER and anonymous traffic always counts', async () => {
-      const { service, engagementAnalyticsRepository } = buildService();
+    test('CUSTOMER and anonymous traffic always counts, and never triggers a membership lookup', async () => {
+      const {
+        service,
+        engagementAnalyticsRepository,
+        getPartnerEmployeeRoleCode,
+      } = buildService();
       await service.ingestClientEvents({
         principal: null,
         events: [BASE_EVENT],
@@ -296,18 +320,36 @@ describe('EngagementAnalyticsService#ingestClientEvents', () => {
       expect(engagementAnalyticsRepository.insertBatch).toHaveBeenCalledTimes(
         1,
       );
+      expect(getPartnerEmployeeRoleCode).not.toHaveBeenCalled();
+    });
+
+    test('ADMIN/SUPER_ADMIN filtering never triggers a membership lookup either', async () => {
+      const { service, getPartnerEmployeeRoleCode } = buildService();
+      await service.ingestClientEvents({
+        principal: { userId: 1, roles: ['ADMIN'], partnerId: null },
+        events: [BASE_EVENT],
+        userAgent: 'test',
+        referer: undefined,
+      });
+      expect(getPartnerEmployeeRoleCode).not.toHaveBeenCalled();
     });
 
     test('filtering is per-event within a batch — one internal event never suppresses a genuine one', async () => {
       const { service, engagementAnalyticsRepository, listingService } =
-        buildService();
+        buildService({
+          getPartnerEmployeeRoleCode: jest
+            .fn()
+            .mockImplementation((userId, partnerId) =>
+              Promise.resolve(partnerId === 9 ? 'OWNER' : null),
+            ),
+        });
       listingService.getListing.mockImplementation((principal, id) =>
         Promise.resolve({ id, partnerId: id === 5 ? 9 : 42 }),
       );
       await service.ingestClientEvents({
-        principal: { userId: 2, roles: ['CUSTOMER'], partnerId: 9 },
+        principal: { userId: 2, roles: ['CUSTOMER'], partnerId: null },
         events: [
-          BASE_EVENT, // listingId 5 -> partnerId 9 (own) -> filtered
+          BASE_EVENT, // listingId 5 -> partnerId 9 (member) -> filtered
           { ...BASE_EVENT, eventId: 'e2', listingId: 6 }, // partnerId 42 -> counts
         ],
         userAgent: 'test',
@@ -316,6 +358,42 @@ describe('EngagementAnalyticsService#ingestClientEvents', () => {
       const [rows] = engagementAnalyticsRepository.insertBatch.mock.calls[0];
       expect(rows).toHaveLength(1);
       expect(rows[0].listingId).toBe(6);
+    });
+
+    test('memoizes the membership lookup within one request — same (userId, partnerId) pair queried only once across the whole batch', async () => {
+      const { service, getPartnerEmployeeRoleCode, listingService } =
+        buildService({
+          getPartnerEmployeeRoleCode: jest.fn().mockResolvedValue('EDITOR'),
+        });
+      listingService.getListing.mockResolvedValue({ id: 5, partnerId: 9 });
+      await service.ingestClientEvents({
+        principal: { userId: 2, roles: ['CUSTOMER'], partnerId: null },
+        events: [
+          BASE_EVENT,
+          { ...BASE_EVENT, eventId: 'e2' },
+          { ...BASE_EVENT, eventId: 'e3' },
+        ],
+        userAgent: 'test',
+        referer: undefined,
+      });
+      expect(getPartnerEmployeeRoleCode).toHaveBeenCalledTimes(1);
+    });
+
+    test('a membership lookup failure fails CLOSED — the event is filtered, never thrown, never counted', async () => {
+      const { service, engagementAnalyticsRepository } = buildService({
+        getPartnerEmployeeRoleCode: jest
+          .fn()
+          .mockRejectedValue(new Error('connection reset')),
+      });
+      await expect(
+        service.ingestClientEvents({
+          principal: { userId: 2, roles: ['CUSTOMER'], partnerId: null },
+          events: [BASE_EVENT],
+          userAgent: 'test',
+          referer: undefined,
+        }),
+      ).resolves.toBeUndefined();
+      expect(engagementAnalyticsRepository.insertBatch).not.toHaveBeenCalled();
     });
   });
 });

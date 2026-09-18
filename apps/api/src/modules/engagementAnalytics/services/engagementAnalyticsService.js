@@ -28,12 +28,16 @@
 import { randomUUID } from 'node:crypto';
 import { ValidationError, NotFoundError } from '../../../errors/AppError.js';
 import config from '../../../config/index.js';
+import { getPartnerEmployeeRoleCode as defaultGetPartnerEmployeeRoleCode } from '../../../infrastructure/database/repositories/partnerEmployeeRepository.js';
+import { getModuleLogger } from '../../../logging/logger.js';
 import {
   computeDedupKey,
   classifyDeviceClass,
   classifyTrafficSource,
 } from '../models/eventContext.js';
 import { ANALYTICS_EVENTS } from '../constants/engagementAnalyticsConstants.js';
+
+const log = getModuleLogger('engagementAnalytics');
 
 const GENERIC_TARGET_ERROR = 'One or more events reference an invalid target.';
 
@@ -64,38 +68,81 @@ export class EngagementAnalyticsService {
 
   #advertisementService;
 
+  #getPartnerEmployeeRoleCode;
+
   constructor({
     engagementAnalyticsRepository,
     listingService,
     partnerService,
     advertisementService,
+    getPartnerEmployeeRoleCode = defaultGetPartnerEmployeeRoleCode,
   }) {
     this.#engagementAnalyticsRepository = engagementAnalyticsRepository;
     this.#listingService = listingService;
     this.#partnerService = partnerService;
     this.#advertisementService = advertisementService;
+    this.#getPartnerEmployeeRoleCode = getPartnerEmployeeRoleCode;
   }
 
   /**
+   * Step A2.1 fix: self-traffic exclusion is decided from AUTHORITATIVE
+   * current `partner_employees` membership (looked up fresh, per target
+   * partner), never from a JWT claim. `authenticate.js`'s issued access
+   * token hardcodes `partnerId: null` today — and even if it didn't, a
+   * single user can hold ACTIVE membership in more than one partner
+   * simultaneously (`partner_employees` has no unique constraint on
+   * `user_id` alone, only on the soft-delete-safe `(partner_id, user_id)`
+   * pair — confirmed in migration 0003) — so a single-valued token claim
+   * could never correctly represent "internal to THIS target partner"
+   * for a multi-partner account. `getPartnerEmployeeRoleCode` already
+   * scopes to `deleted_at IS NULL` (former/removed membership never
+   * counts as internal) and returns `null` for a partner the user has no
+   * active relationship with at all (OWNER included — every OWNER row is
+   * itself a `partner_employees` row, per `partnerService.js`'s own
+   * `isPartnerOwner` precedent).
+   *
    * True when `principal` represents traffic that must never count —
-   * ADMIN/SUPER_ADMIN outright, or a PARTNER OWNER/EMPLOYEE viewing/
-   * acting on their OWN partner's target (browsing another partner's
-   * content still counts). CUSTOMER and anonymous (no principal) traffic
-   * always counts.
+   * ADMIN/SUPER_ADMIN outright, or an active OWNER/employee of the
+   * resolved target partner (browsing another partner's content still
+   * counts). CUSTOMER and anonymous (no principal) traffic always
+   * counts. `membershipCache` is a `Map<string, boolean>` scoped to one
+   * `ingestClientEvents` call — memoizes the (userId, partnerId) lookup
+   * so a 25-event batch never issues 25 identical queries (A2.1 §11).
+   *
+   * Fails CLOSED (brief §12): if the membership lookup itself throws, the
+   * event is treated as internal (filtered, not stored) rather than risk
+   * counting possibly-internal traffic as genuine — logged, never thrown
+   * into the caller.
    */
-  #isInternalTraffic(principal, targetPartnerId) {
+  async #isInternalTraffic(principal, targetPartnerId, membershipCache) {
     if (!principal) return false;
     if (principal.roles?.some((role) => INTERNAL_ROLE_CODES.has(role))) {
       return true;
     }
-    if (
-      principal.partnerId != null &&
-      targetPartnerId != null &&
-      principal.partnerId === targetPartnerId
-    ) {
-      return true;
+    if (targetPartnerId == null) return false;
+
+    const cacheKey = `${principal.userId}:${targetPartnerId}`;
+    if (membershipCache.has(cacheKey)) {
+      return membershipCache.get(cacheKey);
     }
-    return false;
+
+    let isMember;
+    try {
+      const roleCode = await this.#getPartnerEmployeeRoleCode(
+        principal.userId,
+        targetPartnerId,
+      );
+      isMember = roleCode !== null;
+    } catch (err) {
+      log.warn(
+        { err, userId: principal.userId, partnerId: targetPartnerId },
+        'Partner membership lookup failed during analytics self-traffic filtering — filtering the event conservatively',
+      );
+      isMember = true;
+    }
+
+    membershipCache.set(cacheKey, isMember);
+    return isMember;
   }
 
   /**
@@ -193,46 +240,54 @@ export class EngagementAnalyticsService {
       throw err;
     }
 
+    // Scoped to this single request/batch only — never persisted, never
+    // shared across requests (A2.1 §11's "no persistent cache complexity").
+    const membershipCache = new Map();
+
     const rows = [];
-    events.forEach((event, index) => {
+    for (const [index, event] of events.entries()) {
       const target = resolvedTargets[index];
-      if (this.#isInternalTraffic(principal, target.partnerId ?? null)) {
-        // Silent per-event filter — never leaked in the response which
-        // event was internal, and never affects any other event in the
-        // same batch (A0.1 §22).
-        return;
+      // eslint-disable-next-line no-await-in-loop -- sequential so the shared membershipCache is actually reused across events in this batch, not raced.
+      const isInternal = await this.#isInternalTraffic(
+        principal,
+        target.partnerId ?? null,
+        membershipCache,
+      );
+      // Silent per-event filter — never leaked in the response which
+      // event was internal, and never affects any other event in the
+      // same batch (A0.1 §22).
+      if (!isInternal) {
+        const dedupContext = {
+          sessionId: event.sessionId,
+          listingId: target.listingId ?? null,
+          promotionId: target.promotionId ?? null,
+          partnerId: target.partnerId ?? null,
+          placement: event.placement ?? null,
+        };
+
+        rows.push({
+          eventId: event.eventId,
+          dedupKey: computeDedupKey(event.eventName, dedupContext),
+          eventName: event.eventName,
+          anonymousVisitorId: event.anonymousVisitorId ?? null,
+          sessionId: event.sessionId,
+          userId: principal?.userId ?? null,
+          listingId: target.listingId ?? null,
+          partnerId: target.partnerId ?? null,
+          promotionId: target.promotionId ?? null,
+          bookingId: null,
+          placement: event.placement ?? null,
+          position: event.position ?? null,
+          categoryCode: event.categoryCode ?? null,
+          queryText: event.queryText ?? null,
+          resultCount: event.resultCount ?? null,
+          locale: event.locale ?? null,
+          deviceClass,
+          trafficSource,
+          contactMethod: event.contactMethod ?? null,
+        });
       }
-
-      const dedupContext = {
-        sessionId: event.sessionId,
-        listingId: target.listingId ?? null,
-        promotionId: target.promotionId ?? null,
-        partnerId: target.partnerId ?? null,
-        placement: event.placement ?? null,
-      };
-
-      rows.push({
-        eventId: event.eventId,
-        dedupKey: computeDedupKey(event.eventName, dedupContext),
-        eventName: event.eventName,
-        anonymousVisitorId: event.anonymousVisitorId ?? null,
-        sessionId: event.sessionId,
-        userId: principal?.userId ?? null,
-        listingId: target.listingId ?? null,
-        partnerId: target.partnerId ?? null,
-        promotionId: target.promotionId ?? null,
-        bookingId: null,
-        placement: event.placement ?? null,
-        position: event.position ?? null,
-        categoryCode: event.categoryCode ?? null,
-        queryText: event.queryText ?? null,
-        resultCount: event.resultCount ?? null,
-        locale: event.locale ?? null,
-        deviceClass,
-        trafficSource,
-        contactMethod: event.contactMethod ?? null,
-      });
-    });
+    }
 
     if (rows.length === 0) return;
     await this.#engagementAnalyticsRepository.insertBatch(rows);
