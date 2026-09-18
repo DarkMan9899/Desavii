@@ -44,6 +44,7 @@ import {
 import SectionHeader from '../SectionHeader/SectionHeader.jsx';
 import Showcase from '../Showcase/Showcase.jsx';
 import ScrollReveal from '../ScrollReveal/ScrollReveal.jsx';
+import { PLACEMENTS } from '../../../../analytics/index.js';
 import styles from './PopularExperiences.module.scss';
 
 const HEADING_ID = 'popular-experiences-heading';
@@ -119,8 +120,13 @@ export default function PopularExperiences() {
             ariaLabel={t('home.experiences.title')}
             slideClassName={styles.slide}
           >
-            {experiences.map((experience) => (
-              <SearchResultCard key={experience.id} result={experience} />
+            {experiences.map((experience, index) => (
+              <SearchResultCard
+                key={experience.id}
+                result={experience}
+                placement={PLACEMENTS.SEARCH_RESULTS}
+                position={index}
+              />
             ))}
           </Showcase>
         )}

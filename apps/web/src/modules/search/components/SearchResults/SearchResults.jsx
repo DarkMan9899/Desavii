@@ -18,6 +18,7 @@ import {
 } from '@desavii/ui/components/feedback-overlays';
 import { Button } from '@desavii/ui/components/primitives';
 import SearchResultCard from '../SearchResultCard/SearchResultCard.jsx';
+import { PLACEMENTS } from '../../../../analytics/index.js';
 import styles from './SearchResults.module.scss';
 
 const SKELETON_COUNT = 8;
@@ -30,6 +31,14 @@ export default function SearchResults({
   hasNextPage,
   isFetchingNextPage,
   onLoadMore,
+  // Step A3 (engagement analytics) — this same component renders Search
+  // results, Category/Destination organic grids, and Home's
+  // PopularExperiences carousel, all through `useSearchListingsQuery` —
+  // every one of them is `search_results` placement per A1's own locked
+  // rule (see `analytics/constants.js`'s own comment), so the caller
+  // only ever needs to override `searchContext` (queryText/categoryCode),
+  // never `placement` itself.
+  searchContext = undefined,
 }) {
   const { t } = useTranslation();
 
@@ -78,8 +87,14 @@ export default function SearchResults({
         {t('search.results.count', { count: results.length })}
       </p>
       <div className={styles.grid}>
-        {results.map((result) => (
-          <SearchResultCard key={result.id} result={result} />
+        {results.map((result, index) => (
+          <SearchResultCard
+            key={result.id}
+            result={result}
+            placement={PLACEMENTS.SEARCH_RESULTS}
+            position={index}
+            searchContext={searchContext}
+          />
         ))}
       </div>
       {hasNextPage && (
@@ -108,4 +123,8 @@ SearchResults.propTypes = {
   hasNextPage: PropTypes.bool.isRequired,
   isFetchingNextPage: PropTypes.bool.isRequired,
   onLoadMore: PropTypes.func.isRequired,
+  searchContext: PropTypes.shape({
+    queryText: PropTypes.string,
+    categoryCode: PropTypes.string,
+  }),
 };

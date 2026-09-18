@@ -50,6 +50,7 @@ import {
   DynamicFilterPanel,
 } from '../../../search/index.js';
 import { usePublicCategoryTopQuery } from '../../../advertising/index.js';
+import { PLACEMENTS } from '../../../../analytics/index.js';
 import styles from './CategoryPageContent.module.scss';
 
 export default function CategoryPageContent() {
@@ -286,6 +287,7 @@ export default function CategoryPageContent() {
                   result={listing}
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
+                  placement={PLACEMENTS.CATEGORY_TOP}
                 />
               ))}
             </Showcase>
@@ -328,6 +330,7 @@ export default function CategoryPageContent() {
                   result={listing}
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
+                  placement={PLACEMENTS.CATEGORY_TOP}
                 />
               ))}
             </Showcase>
@@ -370,6 +373,7 @@ export default function CategoryPageContent() {
                   result={listing}
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
+                  placement={PLACEMENTS.CATEGORY_TOP}
                 />
               ))}
             </Showcase>
@@ -412,6 +416,7 @@ export default function CategoryPageContent() {
                   result={listing}
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
+                  placement={PLACEMENTS.CATEGORY_TOP}
                 />
               ))}
             </Showcase>
@@ -454,6 +459,7 @@ export default function CategoryPageContent() {
                   result={listing}
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
+                  placement={PLACEMENTS.CATEGORY_TOP}
                 />
               ))}
             </Showcase>
@@ -496,6 +502,7 @@ export default function CategoryPageContent() {
                   result={listing}
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
+                  placement={PLACEMENTS.CATEGORY_TOP}
                 />
               ))}
             </Showcase>
@@ -538,6 +545,7 @@ export default function CategoryPageContent() {
                   result={listing}
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
+                  placement={PLACEMENTS.CATEGORY_TOP}
                 />
               ))}
             </Showcase>
@@ -580,6 +588,7 @@ export default function CategoryPageContent() {
                   result={listing}
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
+                  placement={PLACEMENTS.CATEGORY_TOP}
                 />
               ))}
             </Showcase>
@@ -622,6 +631,7 @@ export default function CategoryPageContent() {
                   result={listing}
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
+                  placement={PLACEMENTS.CATEGORY_TOP}
                 />
               ))}
             </Showcase>
@@ -661,6 +671,7 @@ export default function CategoryPageContent() {
               result={listing}
               hideTypeBadge
               topBadgeLabel={t('advertising.topBadge')}
+              placement={PLACEMENTS.CATEGORY_TOP}
             />
           ))}
         </Showcase>
@@ -746,6 +757,8 @@ export default function CategoryPageContent() {
               // Delay alone was 70% of a 4.7s LCP) — only the first card
               // opts out of the default lazy behavior.
               priorityImage={index === 0}
+              placement={PLACEMENTS.SEARCH_RESULTS}
+              position={index}
             />
           ))}
         </ListingGrid>

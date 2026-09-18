@@ -76,6 +76,7 @@ import ListingOpeningHoursSection from './ListingOpeningHoursSection/ListingOpen
 import RelatedListings from './RelatedListings/RelatedListings.jsx';
 import { FavoriteButton } from '../../../favorites/index.js';
 import { AskAiButton } from '../../../ai/index.js';
+import { trackListingViewed } from '../../../../analytics/index.js';
 import ScrollReveal from '../../../../components/ScrollRevealLite/ScrollRevealLite.jsx';
 import {
   resolveCategoryVisualKey,
@@ -135,6 +136,24 @@ export default function ListingDetailPageContent() {
     error,
     refetch,
   } = useListingQuery(id);
+
+  // Step A3 (engagement analytics) — once per genuinely PUBLIC render:
+  // never before the listing has loaded, never on a 404/error, and
+  // never for the owner/admin visibility-fallback case (a non-owner
+  // visitor can only ever receive a PUBLISHED listing here at all — see
+  // `listingService.js#getListing`'s own visibility rule — but the
+  // owner/admin viewing their OWN draft/unpublished listing through this
+  // same public page also successfully receives it, via the fallback;
+  // `status !== 'PUBLISHED'` is the same signal `useSeo`'s own
+  // `noindex` check below already uses to detect that case). This page
+  // is also the ONLY route that renders `ListingDetailPageContent` — the
+  // Partner/Admin listing detail views are separate components under
+  // separate routes, so no extra guard is needed for those.
+  useEffect(() => {
+    if (isPending || isError || !listing) return;
+    if (listing.status !== 'PUBLISHED') return;
+    trackListingViewed({ listingId: listing.id });
+  }, [isPending, isError, listing]);
 
   const categoryId = listing?.category_ids?.[0];
   const {

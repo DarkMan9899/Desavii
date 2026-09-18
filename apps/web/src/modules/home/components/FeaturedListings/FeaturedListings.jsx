@@ -25,6 +25,7 @@ import {
 } from '@desavii/ui/components/feedback-overlays';
 import { SearchResultCard } from '../../../search/index.js';
 import { usePublicHomeFeaturedQuery } from '../../../advertising/index.js';
+import { PLACEMENTS } from '../../../../analytics/index.js';
 import SectionHeader from '../SectionHeader/SectionHeader.jsx';
 import Showcase from '../Showcase/Showcase.jsx';
 import ScrollReveal from '../ScrollReveal/ScrollReveal.jsx';
@@ -93,11 +94,13 @@ export default function FeaturedListings() {
             ariaLabel={t('home.featured.title')}
             slideClassName={styles.slide}
           >
-            {listings.map((listing) => (
+            {listings.map((listing, index) => (
               <SearchResultCard
                 key={listing.id}
                 result={listing}
                 topBadgeLabel={t('advertising.topBadge')}
+                placement={PLACEMENTS.HOME_FEATURED}
+                position={index}
               />
             ))}
           </Showcase>

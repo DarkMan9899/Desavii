@@ -28,6 +28,7 @@ import {
   useSearchListingsQuery,
   SearchResultCard,
 } from '../../../search/index.js';
+import { PLACEMENTS } from '../../../../analytics/index.js';
 import styles from './DestinationPageContent.module.scss';
 
 export default function DestinationPageContent() {
@@ -178,6 +179,8 @@ export default function DestinationPageContent() {
               // identical grid — the first card's image is this page's real
               // LCP candidate too.
               priorityImage={index === 0}
+              placement={PLACEMENTS.SEARCH_RESULTS}
+              position={index}
             />
           ))}
         </ListingGrid>

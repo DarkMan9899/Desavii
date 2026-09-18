@@ -6,7 +6,7 @@
  * the same "prove zero hardcoded category logic" contract the wizard's
  * own browser walkthrough already established for the write side.
  */
-import { describe, test, expect, vi, beforeEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom';
@@ -26,6 +26,12 @@ import { useListingDayStatusQuery } from '../../queries/useListingDayStatusQuery
 import { useCreateBookingHoldMutation } from '../../../bookings/mutations/useCreateBookingHoldMutation.js';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
 import { useSearchListingsQuery } from '../../../search/index.js';
+import {
+  resetQueueForTests,
+  peekQueueForTests,
+} from '../../../../analytics/analyticsQueue.js';
+import { resetDedupForTests } from '../../../../analytics/analyticsClient.js';
+import { resetInMemoryIdentityForTests } from '../../../../analytics/analyticsIdentity.js';
 
 vi.mock('../../../../api/fx.js', () => ({
   getRates: vi.fn().mockResolvedValue({
@@ -251,6 +257,11 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
         { id: 6, slug: 'tours', name: 'Շրջայցեր' },
       ],
     });
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    resetInMemoryIdentityForTests();
+    resetQueueForTests();
+    resetDedupForTests();
   });
 
   test('shows a loading state while the listing is fetching', () => {
@@ -525,5 +536,97 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
     expect(
       screen.getByRole('link', { name: /Yerevan Boutique Hospitality/ }),
     ).toBeInTheDocument();
+  });
+
+  describe('engagement analytics — listing_viewed (brief §20/§43)', () => {
+    beforeEach(() => {
+      vi.stubEnv('VITE_ANALYTICS_COLLECTION_ENABLED', 'true');
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    test('a successful PUBLISHED render fires exactly one listing_viewed', () => {
+      useListingQuery.mockReturnValue({
+        data: { ...VILLA_LISTING, status: 'PUBLISHED' },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      useListingMetadataQuery.mockReturnValue({
+        data: VILLA_METADATA,
+        isPending: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderPage(3);
+
+      const events = peekQueueForTests().filter(
+        (event) => event.eventName === 'listing_viewed',
+      );
+      expect(events).toHaveLength(1);
+      expect(events[0].listingId).toBe(3);
+    });
+
+    test('a rerender of the same listing never fires a second listing_viewed', () => {
+      useListingQuery.mockReturnValue({
+        data: { ...VILLA_LISTING, status: 'PUBLISHED' },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      useListingMetadataQuery.mockReturnValue({
+        data: VILLA_METADATA,
+        isPending: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      const { rerender } = renderPage(3);
+      rerender(
+        <QueryClientProvider client={new QueryClient()}>
+          <MemoryRouter initialEntries={['/hy/listings/3']}>
+            <ToastProvider>
+              <Routes>
+                <Route
+                  path="/:locale/listings/:id"
+                  element={<RouteScopedPage />}
+                />
+              </Routes>
+            </ToastProvider>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      const events = peekQueueForTests().filter(
+        (event) => event.eventName === 'listing_viewed',
+      );
+      expect(events).toHaveLength(1);
+    });
+
+    test('never fires while pending, on error, or for a non-PUBLISHED (owner-fallback) listing', () => {
+      useListingQuery.mockReturnValue({
+        data: { ...VILLA_LISTING, status: 'DRAFT' },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      useListingMetadataQuery.mockReturnValue({
+        data: VILLA_METADATA,
+        isPending: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderPage(3);
+
+      expect(
+        peekQueueForTests().filter(
+          (event) => event.eventName === 'listing_viewed',
+        ),
+      ).toHaveLength(0);
+    });
   });
 });

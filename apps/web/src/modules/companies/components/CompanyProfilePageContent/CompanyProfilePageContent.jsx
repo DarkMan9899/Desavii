@@ -43,7 +43,7 @@
  * usage, only `title` (resolved server-side) wasn't.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Globe, Mail, Phone, ShieldCheck } from 'lucide-react';
@@ -65,6 +65,11 @@ import getLocalizedTranslation from '../../../listings/utils/getLocalizedTransla
 import { useCompanyQuery } from '../../queries/useCompanyQuery.js';
 import { usePartnerListingsQuery } from '../../queries/usePartnerListingsQuery.js';
 import { SearchResultCard } from '../../../search/index.js';
+import {
+  trackCompanyProfileView,
+  trackContactClick,
+  PLACEMENTS,
+} from '../../../../analytics/index.js';
 import styles from './CompanyProfilePageContent.module.scss';
 
 const LISTINGS_SKELETON_COUNT = 3;
@@ -94,6 +99,16 @@ export default function CompanyProfilePageContent() {
     error,
     refetch,
   } = useCompanyQuery(slug);
+
+  // Step A3 (engagement analytics) — once per genuinely public company
+  // profile render (never before it loads, never on a 404/other error —
+  // `isError` covers both, and the 404 branch below never reaches this
+  // effect's render at all since it returns early beforehand; the
+  // successful-render deps here mirror that same gate).
+  useEffect(() => {
+    if (isPending || isError || !company) return;
+    trackCompanyProfileView({ companySlug: slug });
+  }, [isPending, isError, company, slug]);
 
   const {
     data: listingsData,
@@ -250,13 +265,25 @@ export default function CompanyProfilePageContent() {
         socialLinks.length > 0) && (
         <div className={styles.contactRow}>
           {company.email && (
-            <a href={`mailto:${company.email}`} className={styles.contactChip}>
+            <a
+              href={`mailto:${company.email}`}
+              className={styles.contactChip}
+              onClick={() =>
+                trackContactClick({ companySlug: slug, contactMethod: 'email' })
+              }
+            >
               <Icon icon={Mail} size="sm" />
               {company.email}
             </a>
           )}
           {company.phone && (
-            <a href={`tel:${company.phone}`} className={styles.contactChip}>
+            <a
+              href={`tel:${company.phone}`}
+              className={styles.contactChip}
+              onClick={() =>
+                trackContactClick({ companySlug: slug, contactMethod: 'phone' })
+              }
+            >
               <Icon icon={Phone} size="sm" />
               {company.phone}
             </a>
@@ -267,6 +294,12 @@ export default function CompanyProfilePageContent() {
               target="_blank"
               rel="noreferrer"
               className={styles.contactChip}
+              onClick={() =>
+                trackContactClick({
+                  companySlug: slug,
+                  contactMethod: 'website',
+                })
+              }
             >
               <Icon icon={Globe} size="sm" />
               {company.website}
@@ -279,6 +312,12 @@ export default function CompanyProfilePageContent() {
               target="_blank"
               rel="noreferrer"
               className={styles.contactChip}
+              onClick={() =>
+                trackContactClick({
+                  companySlug: slug,
+                  contactMethod: platform,
+                })
+              }
             >
               <Icon icon={Globe} size="sm" />
               {SOCIAL_PLATFORM_LABELS[platform] ?? platform}
@@ -320,7 +359,12 @@ export default function CompanyProfilePageContent() {
           <div>
             <ListingGrid>
               {listings.map((listing) => (
-                <SearchResultCard key={listing.id} result={listing} />
+                <SearchResultCard
+                  key={listing.id}
+                  result={listing}
+                  placement={PLACEMENTS.COMPANY_PROFILE}
+                  companySlug={slug}
+                />
               ))}
             </ListingGrid>
             {hasNextPage && (

@@ -30,6 +30,7 @@ import SearchFilters from '../SearchFilters/SearchFilters.jsx';
 import SearchResults from '../SearchResults/SearchResults.jsx';
 import DynamicFilterPanel from '../DynamicFilterPanel/DynamicFilterPanel.jsx';
 import { AiSearchBar } from '../../../ai/index.js';
+import { trackSearchImpression } from '../../../../analytics/index.js';
 
 export default function SearchPageContent() {
   const { t, i18n } = useTranslation();
@@ -80,6 +81,53 @@ export default function SearchPageContent() {
     [data],
   );
 
+  // Step A3 (engagement analytics) — a code-shaped identifier for
+  // `search_impression.categoryCode`, resolved from the already-loaded
+  // `categories` list rather than the numeric `filters.categoryId` the
+  // URL carries.
+  const activeCategorySlug = categories?.find(
+    (category) => category.id === filters.categoryId,
+  )?.slug;
+
+  // One `search_impression` per genuinely NEW resolved search state
+  // (brief §24) — the dedup key is the exact same query-param
+  // serialization `useSearchListingsQuery` already uses for its own
+  // React Query cache key, so "Load more" (same filters, another page)
+  // never re-fires this, but a real filter/query change does. The
+  // client-side dedup inside `trackSearchImpression` (session_id +
+  // this key) is also what makes this StrictMode-safe (brief §35) — the
+  // effect may run twice, the second call is a silent no-op.
+  useEffect(() => {
+    if (isPending || isError) return;
+    trackSearchImpression(
+      {
+        queryText: filters.destination || undefined,
+        categoryCode: activeCategorySlug,
+        resultCount: results.length,
+        locale,
+      },
+      JSON.stringify({
+        destination: filters.destination ?? null,
+        categoryId: filters.categoryId ?? null,
+        sort: filters.sort ?? null,
+        dateFrom: filters.dateFrom ?? null,
+        dateTo: filters.dateTo ?? null,
+        guests: filters.guests ?? null,
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on the same filter fields serialized into the dedup key above, not on `results`/`activeCategorySlug` (recomputing the impression payload every "Load more" page would be wrong, not just redundant).
+  }, [
+    isPending,
+    isError,
+    filters.destination,
+    filters.categoryId,
+    filters.sort,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.guests,
+    locale,
+  ]);
+
   // Phase 20 (SEO) §9: arbitrary filter-param combinations are a crawl
   // trap — Search is deliberately `noindex`. Category/Destination landing
   // pages (`/categories/:slug`, `/destinations/:slug`) are the real
@@ -121,6 +169,10 @@ export default function SearchPageContent() {
         hasNextPage={Boolean(hasNextPage)}
         isFetchingNextPage={isFetchingNextPage}
         onLoadMore={fetchNextPage}
+        searchContext={{
+          queryText: filters.destination || undefined,
+          categoryCode: activeCategorySlug,
+        }}
       />
     </Section>
   );

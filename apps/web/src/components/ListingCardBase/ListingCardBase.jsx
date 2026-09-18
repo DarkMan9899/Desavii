@@ -31,7 +31,7 @@
  * `<FavoriteButton listingId={...} />` and passes it down instead.
  */
 
-import { useState } from 'react';
+import { forwardRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Images } from 'lucide-react';
 import { Card, Badge, Icon } from '@desavii/ui/components/primitives';
@@ -41,58 +41,65 @@ import DestinationArt from '../DestinationArt/DestinationArt.jsx';
 import Money from '../Money/Money.jsx';
 import styles from './ListingCardBase.module.scss';
 
-export default function ListingCardBase({
-  href,
-  ariaLabel = undefined,
-  imageUrl = undefined,
-  imageAlt = '',
-  typeLabel,
-  hideTypeBadge = false,
-  favoriteButton = null,
-  galleryCount = 0,
-  title,
-  location = null,
-  summary = undefined,
-  ratingAverage = undefined,
-  reviewCount = 0,
-  priceAmount = undefined,
-  priceCurrencyCode = undefined,
-  pricePrefix = null,
-  // Pass 7 (category-specific visual identity, brief §15): a per-unit
-  // suffix ("/ night", "/ per day") — generic, caller-resolved, never a
-  // category name baked into this shared shell.
-  priceSuffix = null,
-  locale = undefined,
-  artSeed = undefined,
-  priorityImage = false,
-  // Sprint E (Promotion Engine): an active Home/Category promotion's
-  // card gets this label — bottom-left, the one media-block corner
-  // `typeBadge`/`favoriteButton`/`galleryBadge` don't already use. Text-
-  // labeled (never a bare color swatch), so it reads correctly without
-  // relying on color alone.
-  topBadgeLabel = undefined,
-  // Pass 7 (category-specific visual identity, brief §15's acceptance
-  // test: "if the badge were hidden, could you still tell the category?")
-  // — short real-data chips (e.g. Restaurant cuisine/price-tier), never
-  // decorative. Each entry is a `{key, label}` pair; `key` only backs
-  // React's list identity, never rendered.
-  metaChips = [],
-  // Sets `data-category` on the card root for CSS-only aspect-ratio/
-  // motion hooks (`ListingCardBase.module.scss`) — a category slug or the
-  // coarser presentation-group fallback from `resolveCategoryVisualKey`,
-  // never a hardcoded category name inside this shared component.
-  categoryVisualKey = undefined,
-  // 'standard' | 'wide' | 'tall' — see `categoryCardConfig.js`'s
-  // `IMAGE_ASPECT`. Kept a plain string here (not that enum import) so
-  // this shared shell never depends on `modules/listings` config.
-  imageAspect = 'standard',
-  // Step 2.1 correction (Car Rental TOP height) — an optional per-
-  // category override read ONLY when this card is actually promoted (see
-  // `effectiveImageAspect` below), left `undefined` for every category
-  // that doesn't set one in `categoryCardConfig.js`'s
-  // `promotedImageAspect`, so this changes nothing for any of them.
-  promotedImageAspect = undefined,
-}) {
+const ListingCardBase = forwardRef(function ListingCardBase(
+  {
+    href,
+    ariaLabel = undefined,
+    imageUrl = undefined,
+    imageAlt = '',
+    typeLabel,
+    hideTypeBadge = false,
+    favoriteButton = null,
+    galleryCount = 0,
+    title,
+    location = null,
+    summary = undefined,
+    ratingAverage = undefined,
+    reviewCount = 0,
+    priceAmount = undefined,
+    priceCurrencyCode = undefined,
+    pricePrefix = null,
+    // Pass 7 (category-specific visual identity, brief §15): a per-unit
+    // suffix ("/ night", "/ per day") — generic, caller-resolved, never a
+    // category name baked into this shared shell.
+    priceSuffix = null,
+    locale = undefined,
+    artSeed = undefined,
+    priorityImage = false,
+    // Sprint E (Promotion Engine): an active Home/Category promotion's
+    // card gets this label — bottom-left, the one media-block corner
+    // `typeBadge`/`favoriteButton`/`galleryBadge` don't already use. Text-
+    // labeled (never a bare color swatch), so it reads correctly without
+    // relying on color alone.
+    topBadgeLabel = undefined,
+    // Pass 7 (category-specific visual identity, brief §15's acceptance
+    // test: "if the badge were hidden, could you still tell the category?")
+    // — short real-data chips (e.g. Restaurant cuisine/price-tier), never
+    // decorative. Each entry is a `{key, label}` pair; `key` only backs
+    // React's list identity, never rendered.
+    metaChips = [],
+    // Sets `data-category` on the card root for CSS-only aspect-ratio/
+    // motion hooks (`ListingCardBase.module.scss`) — a category slug or the
+    // coarser presentation-group fallback from `resolveCategoryVisualKey`,
+    // never a hardcoded category name inside this shared component.
+    categoryVisualKey = undefined,
+    // 'standard' | 'wide' | 'tall' — see `categoryCardConfig.js`'s
+    // `IMAGE_ASPECT`. Kept a plain string here (not that enum import) so
+    // this shared shell never depends on `modules/listings` config.
+    imageAspect = 'standard',
+    // Step 2.1 correction (Car Rental TOP height) — an optional per-
+    // category override read ONLY when this card is actually promoted (see
+    // `effectiveImageAspect` below), left `undefined` for every category
+    // that doesn't set one in `categoryCardConfig.js`'s
+    // `promotedImageAspect`, so this changes nothing for any of them.
+    promotedImageAspect = undefined,
+    // Step A3 (engagement analytics) — an optional click handler, called
+    // synchronously alongside the card's own navigation, never blocking or
+    // delaying it (no `preventDefault`, no async work awaited here).
+    onClick = undefined,
+  },
+  ref,
+) {
   const [imageFailed, setImageFailed] = useState(false);
   // A real photo (unlike the inline demo SVGs) has a visible network
   // fetch — fading it in on `onLoad` avoids a pop-in flash once it
@@ -128,8 +135,10 @@ export default function ListingCardBase({
 
   return (
     <Card
+      ref={ref}
       as={RouterLink}
       href={href}
+      onClick={onClick}
       padding="none"
       interactive
       elevated
@@ -258,8 +267,14 @@ export default function ListingCardBase({
       </div>
     </Card>
   );
-}
+});
 
+/* eslint-disable react/require-default-props -- every optional prop below
+   already has an ES6 default in the destructured params on the
+   forwardRef-wrapped function above; eslint-plugin-react's default-props
+   check doesn't associate propTypes on a forwardRef object with defaults
+   declared on its inner render function (same precedent as
+   `@desavii/ui`'s `Input.jsx`). */
 ListingCardBase.propTypes = {
   href: PropTypes.string.isRequired,
   ariaLabel: PropTypes.string,
@@ -295,4 +310,8 @@ ListingCardBase.propTypes = {
   categoryVisualKey: PropTypes.string,
   imageAspect: PropTypes.oneOf(['standard', 'wide', 'tall']),
   promotedImageAspect: PropTypes.oneOf(['standard', 'wide', 'tall']),
+  onClick: PropTypes.func,
 };
+/* eslint-enable react/require-default-props */
+
+export default ListingCardBase;

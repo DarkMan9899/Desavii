@@ -26,6 +26,16 @@ import { MapPin } from 'lucide-react';
 import ListingCardBase from '../../../../components/ListingCardBase/ListingCardBase.jsx';
 import { FavoriteButton } from '../../../favorites/index.js';
 import { buildCategoryCardMeta } from '../../../../utils/buildCategoryCardMeta.js';
+import {
+  useListingImpression,
+  isAnalyticsCollectionEnabled,
+  trackListingImpression,
+  trackPromotionImpression,
+  trackSearchResultClick,
+  trackCompanyListingClick,
+  trackPromotionClicked,
+  PLACEMENTS,
+} from '../../../../analytics/index.js';
 import styles from './SearchResultCard.module.scss';
 
 /**
@@ -58,6 +68,18 @@ export default function SearchResultCard({
   // listings, so the caller already knows the context; no per-row
   // "is promoted" field is needed from the backend for this.
   topBadgeLabel = undefined,
+  // Step A3 (engagement analytics) — explicit analytics context from the
+  // parent (never inferred from the URL/badge text, per the brief): the
+  // parent always already knows its own placement, this card's rank
+  // within the current list, and (only from `CompanyProfilePageContent`)
+  // which company's profile it's rendering on. `promotionId` is threaded
+  // through and ready to use, but no caller currently has a real one to
+  // pass — see the A3 handoff's "known gap" section.
+  placement = undefined,
+  position = undefined,
+  promotionId = undefined,
+  companySlug = undefined,
+  searchContext = undefined,
 }) {
   const { t } = useTranslation();
   const { locale } = useParams();
@@ -65,6 +87,46 @@ export default function SearchResultCard({
   const typeLabel = t(`listings.type.${result.listing_type}`, {
     defaultValue: result.listing_type,
   });
+
+  const impressionEnabled =
+    Boolean(placement) && isAnalyticsCollectionEnabled();
+  const impressionRef = useListingImpression({
+    enabled: impressionEnabled,
+    onImpression: () => {
+      trackListingImpression({
+        listingId: result.id,
+        placement,
+        position,
+        categoryCode: result.category_slug ?? undefined,
+        locale,
+      });
+      if (promotionId) {
+        trackPromotionImpression({
+          promotionId,
+          listingId: result.id,
+          placement,
+        });
+      }
+    },
+  });
+
+  const handleCardClick = () => {
+    if (companySlug) {
+      trackCompanyListingClick({ companySlug, listingId: result.id });
+    } else if (placement === PLACEMENTS.SEARCH_RESULTS) {
+      trackSearchResultClick({
+        listingId: result.id,
+        position,
+        queryText: searchContext?.queryText,
+        categoryCode:
+          searchContext?.categoryCode ?? result.category_slug ?? undefined,
+        locale,
+      });
+    }
+    if (promotionId) {
+      trackPromotionClicked({ promotionId, listingId: result.id, placement });
+    }
+  };
 
   // Pass 7 (category-specific visual identity, brief §15) — never the
   // full `listings` module's `resolveCategoryVisualKey`/
@@ -78,7 +140,9 @@ export default function SearchResultCard({
 
   return (
     <ListingCardBase
+      ref={impressionRef}
       href={`/${locale}/listings/${result.slug ?? result.id}${buildSearchContextQuery(searchParams)}`}
+      onClick={handleCardClick}
       ariaLabel={t('search.card.viewDetails', { title: result.title })}
       imageUrl={result.cover_image_url}
       typeLabel={typeLabel}
@@ -126,4 +190,12 @@ SearchResultCard.propTypes = {
   hideTypeBadge: PropTypes.bool,
   priorityImage: PropTypes.bool,
   topBadgeLabel: PropTypes.string,
+  placement: PropTypes.oneOf(Object.values(PLACEMENTS)),
+  position: PropTypes.number,
+  promotionId: PropTypes.number,
+  companySlug: PropTypes.string,
+  searchContext: PropTypes.shape({
+    queryText: PropTypes.string,
+    categoryCode: PropTypes.string,
+  }),
 };
