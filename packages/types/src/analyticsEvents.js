@@ -78,6 +78,38 @@
  */
 
 /**
+ * @typedef {object} ContactClickPayload
+ * @property {number} listingId
+ * @property {number} [partnerId]
+ * @property {string} contactMethod - e.g. "phone", "email", "website",
+ *   "whatsapp", "instagram" — never the actual phone/email/URL value.
+ */
+
+/**
+ * @typedef {object} CompanyProfileViewPayload
+ * @property {number} partnerId
+ */
+
+/**
+ * @typedef {object} CompanyListingClickPayload
+ * @property {number} partnerId
+ * @property {number} listingId
+ */
+
+/**
+ * @typedef {object} SearchImpressionPayload
+ * @property {string} [query]
+ * @property {string} [categoryCode]
+ * @property {number} resultCount
+ */
+
+/**
+ * @typedef {object} SearchResultClickPayload
+ * @property {number} listingId
+ * @property {number} position
+ */
+
+/**
  * @typedef {object} VendorRegisteredPayload
  * @property {number} partnerId
  */
@@ -102,6 +134,11 @@ const ANALYTICS_EVENTS = Object.freeze({
   BOOKING_CANCELLED: 'booking_cancelled',
   PROMOTION_IMPRESSION: 'promotion_impression',
   PROMOTION_CLICKED: 'promotion_clicked',
+  CONTACT_CLICK: 'contact_click',
+  COMPANY_PROFILE_VIEW: 'company_profile_view',
+  COMPANY_LISTING_CLICK: 'company_listing_click',
+  SEARCH_IMPRESSION: 'search_impression',
+  SEARCH_RESULT_CLICK: 'search_result_click',
   VENDOR_REGISTERED: 'vendor_registered',
   LISTING_CREATED: 'listing_created',
 });
