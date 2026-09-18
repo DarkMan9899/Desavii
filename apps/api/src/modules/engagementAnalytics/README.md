@@ -19,9 +19,23 @@ behavior). The two module names/domains must never be merged.
 
 **A1 status:** schema/domain foundation only.
 
-- Owns 4 tables (migration `0049_engagement_analytics_foundation`):
+- Owns 4 tables (migration `0049_engagement_analytics_foundation`,
+  counter ownership corrected by `0050_engagement_analytics_contact_scope`):
   `analytics_events` (raw, append-only) plus `listing_analytics_daily`,
   `company_analytics_daily`, `promotion_analytics_daily` (rollups).
+- **Contact clicks are a company/Partner-level metric, not a listing-level
+  one, in v1.** `contact_click` only ever fires from the Company Profile
+  page (`companySlug` + `contactMethod`, no listing context), and
+  `engagementAnalyticsService.js#resolveTarget` resolves it to a
+  `partnerId` alone — there is no canonical `listing_id` to attribute it
+  to. Its rollup counter is `company_analytics_daily.contact_clicks_count`;
+  `listing_analytics_daily` has no contact-click counter at all (migration
+  0050 moved it there from an earlier, incorrect placement). The future
+  Partner headline metric is
+  `SUM(company_analytics_daily.contact_clicks_count)`; a per-listing
+  contact-click breakdown is not supported unless a future Listing Detail
+  page adds its own direct contact CTA, which would need its own
+  attribution decision.
 - No foreign keys from any of the four tables to `listings`/`partners`/
   `advertisements`/`bookings`/`users` — all references are historical/
   denormalized analytics fields, never able to block a listing's

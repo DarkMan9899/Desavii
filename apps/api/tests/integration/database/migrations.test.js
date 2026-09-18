@@ -566,7 +566,7 @@ describe('Engagement Analytics foundation (Step A1)', () => {
       );
       const [[row]] = await connection.query(
         `SELECT impressions_count, views_count, daily_unique_visitors,
-                favorite_adds_count, favorite_removes_count, contact_clicks_count,
+                favorite_adds_count, favorite_removes_count,
                 booking_starts_count, booking_requests_count, booking_confirmations_count,
                 search_impressions_count, search_clicks_count,
                 promotion_impressions_count, promotion_clicks_count
@@ -580,6 +580,143 @@ describe('Engagement Analytics foundation (Step A1)', () => {
         `DELETE FROM listing_analytics_daily WHERE listing_id = 999999`,
       );
       await connection.end();
+    }
+  });
+
+  // Step A3.2: contact_click is company/partner-scoped at resolution time
+  // (`engagementAnalyticsService.js#resolveTarget` — no canonical
+  // listing_id), so its counter lives on `company_analytics_daily`, never
+  // `listing_analytics_daily` (migration 0050).
+  test('company_analytics_daily counters all default to 0, including contact_clicks_count', async () => {
+    const connection = await openConnection();
+    try {
+      await connection.query(
+        `INSERT INTO company_analytics_daily (partner_id, day) VALUES (999999, '2026-01-01')`,
+      );
+      const [[row]] = await connection.query(
+        `SELECT profile_views_count, daily_unique_visitors, listing_clicks_count, contact_clicks_count
+         FROM company_analytics_daily WHERE partner_id = 999999 AND day = '2026-01-01'`,
+      );
+      Object.values(row).forEach((value) => {
+        expect(Number(value)).toBe(0);
+      });
+    } finally {
+      await connection.query(
+        `DELETE FROM company_analytics_daily WHERE partner_id = 999999`,
+      );
+      await connection.end();
+    }
+  });
+
+  test('listing_analytics_daily no longer has a contact_clicks_count column', async () => {
+    const connection = await openConnection();
+    try {
+      const columns = await getColumns(connection, 'listing_analytics_daily');
+      expect(columns.some((c) => c.name === 'contact_clicks_count')).toBe(
+        false,
+      );
+    } finally {
+      await connection.end();
+    }
+  });
+
+  test('migration 0050 down.sql restores listing_analytics_daily.contact_clicks_count and drops it from company_analytics_daily; re-up restores the 0050 shape, with every other counter untouched', async () => {
+    const connection = await openConnection();
+    try {
+      const downSql = readFileSync(
+        path.join(
+          MIGRATIONS_DIR,
+          '0050_engagement_analytics_contact_scope.down.sql',
+        ),
+        'utf8',
+      );
+      await expect(connection.query(downSql)).resolves.not.toThrow();
+
+      const listingColumnsAfterDown = await getColumns(
+        connection,
+        'listing_analytics_daily',
+      );
+      const listingByNameAfterDown = Object.fromEntries(
+        listingColumnsAfterDown.map((c) => [c.name, c]),
+      );
+      expect(listingByNameAfterDown.contact_clicks_count).toBeDefined();
+      expect(listingByNameAfterDown.contact_clicks_count.nullable).toBe(false);
+      expect(listingByNameAfterDown.contact_clicks_count.type).toBe(
+        'bigint unsigned',
+      );
+      // Every pre-existing counter untouched by the down migration.
+      [
+        'impressions_count',
+        'views_count',
+        'daily_unique_visitors',
+        'favorite_adds_count',
+        'favorite_removes_count',
+        'booking_starts_count',
+        'booking_requests_count',
+        'booking_confirmations_count',
+        'search_impressions_count',
+        'search_clicks_count',
+        'promotion_impressions_count',
+        'promotion_clicks_count',
+      ].forEach((name) => {
+        expect(listingByNameAfterDown[name]).toBeDefined();
+      });
+
+      const companyColumnsAfterDown = await getColumns(
+        connection,
+        'company_analytics_daily',
+      );
+      expect(
+        companyColumnsAfterDown.some((c) => c.name === 'contact_clicks_count'),
+      ).toBe(false);
+      [
+        'profile_views_count',
+        'daily_unique_visitors',
+        'listing_clicks_count',
+      ].forEach((name) => {
+        expect(companyColumnsAfterDown.some((c) => c.name === name)).toBe(true);
+      });
+
+      await connection.query(
+        `DELETE FROM schema_migrations WHERE version = '0050'`,
+      );
+    } finally {
+      await connection.end();
+    }
+
+    await up(undefined, { databaseName: MIGRATION_CHECK_DATABASE });
+
+    const verifyConnection = await openConnection();
+    try {
+      const listingColumnsAfterReUp = await getColumns(
+        verifyConnection,
+        'listing_analytics_daily',
+      );
+      expect(
+        listingColumnsAfterReUp.some((c) => c.name === 'contact_clicks_count'),
+      ).toBe(false);
+
+      const companyColumnsAfterReUp = await getColumns(
+        verifyConnection,
+        'company_analytics_daily',
+      );
+      const companyByNameAfterReUp = Object.fromEntries(
+        companyColumnsAfterReUp.map((c) => [c.name, c]),
+      );
+      expect(companyByNameAfterReUp.contact_clicks_count).toBeDefined();
+      expect(companyByNameAfterReUp.contact_clicks_count.nullable).toBe(false);
+      expect(companyByNameAfterReUp.contact_clicks_count.type).toBe(
+        'bigint unsigned',
+      );
+
+      expect(
+        await getForeignKeyCount(verifyConnection, 'listing_analytics_daily'),
+      ).toBe(0);
+      expect(
+        await getForeignKeyCount(verifyConnection, 'company_analytics_daily'),
+      ).toBe(0);
+    } finally {
+      await verifyConnection.end();
     }
   });
 
@@ -609,8 +746,13 @@ describe('Engagement Analytics foundation (Step A1)', () => {
       // A pre-existing table this migration never touched is untouched.
       expect(tableNames.has('listings')).toBe(true);
 
+      // 0050 ALTERs two of these four tables, so dropping them out from
+      // under it leaves its own schema_migrations row pointing at columns
+      // that no longer exist — clear it too so `up()` below re-applies
+      // both migrations in order, rather than skipping 0050 as "already
+      // applied" and silently leaving the pre-0050 shape restored.
       await connection.query(
-        `DELETE FROM schema_migrations WHERE version = '0049'`,
+        `DELETE FROM schema_migrations WHERE version IN ('0049', '0050')`,
       );
     } finally {
       await connection.end();
@@ -633,6 +775,25 @@ describe('Engagement Analytics foundation (Step A1)', () => {
       expect(
         await getForeignKeyCount(verifyConnection, 'analytics_events'),
       ).toBe(0);
+
+      // The 0050 shape must also be back in place, not just the bare
+      // 0049 foundation — a full re-up restores both migrations.
+      const listingColumns = await getColumns(
+        verifyConnection,
+        'listing_analytics_daily',
+      );
+      expect(
+        listingColumns.some((c) => c.name === 'contact_clicks_count'),
+      ).toBe(false);
+      const companyColumns = await getColumns(
+        verifyConnection,
+        'company_analytics_daily',
+      );
+      const companyByName = Object.fromEntries(
+        companyColumns.map((c) => [c.name, c]),
+      );
+      expect(companyByName.contact_clicks_count).toBeDefined();
+      expect(companyByName.contact_clicks_count.nullable).toBe(false);
     } finally {
       await verifyConnection.end();
     }
