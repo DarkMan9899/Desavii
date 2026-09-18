@@ -222,6 +222,10 @@ export const services = {
   // Listing Lifetime / Renewal, Step B4: registers the hourly listing
   // expiry sweep.
   listingService: v1.listingService,
+  // Step A4: registers the daily engagement analytics aggregation +
+  // retention sweep.
+  engagementAnalyticsAggregationService:
+    v1.engagementAnalyticsAggregationService,
 };
 
 // 7. 404 — no matching route

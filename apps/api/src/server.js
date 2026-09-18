@@ -23,6 +23,7 @@ import { registerAdvertisementLifecycleSweepJob } from './modules/advertising/jo
 import { registerScheduledPublishSweepJob } from './modules/blog/jobs/scheduledPublishSweep.js';
 import { registerListingExpirySweepJob } from './modules/listings/jobs/listingExpirySweep.js';
 import { registerListingRetentionPurgeSweepJob } from './modules/listings/jobs/listingRetentionPurgeSweep.js';
+import { registerEngagementAnalyticsMaintenanceJob } from './modules/engagementAnalytics/jobs/engagementAnalyticsMaintenance.js';
 
 const server = app.listen(config.port, () => {
   logger.info({ port: config.port, env: config.env }, 'desavii-api started');
@@ -116,6 +117,15 @@ const listingExpirySweep = registerListingExpirySweepJob({
 const listingRetentionPurgeSweep = registerListingRetentionPurgeSweepJob({
   listingService: services.listingService,
 });
+// Step A4: daily raw-event -> aggregate rollup + retention purge (raw 90
+// days, aggregates 24 months) — independent of ANALYTICS_COLLECTION_ENABLED
+// (turning collection off must never stop retention cleanup of already-
+// stored events, brief §39). No Partner-facing read API exists yet (A5).
+const engagementAnalyticsMaintenance =
+  registerEngagementAnalyticsMaintenanceJob({
+    engagementAnalyticsAggregationService:
+      services.engagementAnalyticsAggregationService,
+  });
 
 async function shutdown(signal) {
   logger.info({ signal }, 'Shutting down gracefully');
@@ -139,6 +149,8 @@ async function shutdown(signal) {
       listingExpirySweep.queue.close(),
       listingRetentionPurgeSweep.worker.close(),
       listingRetentionPurgeSweep.queue.close(),
+      engagementAnalyticsMaintenance.worker.close(),
+      engagementAnalyticsMaintenance.queue.close(),
     ]);
     await closeMysqlPool();
     await closeRedisConnection();

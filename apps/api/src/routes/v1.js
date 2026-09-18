@@ -479,5 +479,10 @@ export default function createV1Router({
     // register the hourly listing-expiry sweep — same "app.js/tests
     // never read this" rule as the others above.
     listingService: listingsContainer.listingService,
+    // Step A4: server.js needs this to register the daily engagement
+    // analytics aggregation + retention sweep — same "app.js/tests never
+    // read this" rule as the others above.
+    engagementAnalyticsAggregationService:
+      engagementAnalyticsContainer.engagementAnalyticsAggregationService,
   };
 }
