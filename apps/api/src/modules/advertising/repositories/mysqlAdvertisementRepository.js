@@ -325,11 +325,22 @@ export class MySqlAdvertisementRepository {
   }
 
   /**
-   * Public gating query — active listing ids for one placement, real
-   * remaining capacity respecting `ad_placement_types.max_concurrent_slots`
-   * (deterministic ordering: `display_priority DESC` then earliest
-   * `start_date` as a stable fallback, spec §18 — never random). Server-
-   * authoritative on dates, never on `status_id` alone (see file header).
+   * Public gating query — active `{listingId, promotionId}` pairs for one
+   * placement, real remaining capacity respecting `ad_placement_types
+   * .max_concurrent_slots` (deterministic ordering: `display_priority
+   * DESC` then earliest `start_date` as a stable fallback, spec §18 —
+   * never random). Server-authoritative on dates, never on `status_id`
+   * alone (see file header).
+   *
+   * Step A3.1 (Engagement Analytics): `promotionId` (the advertisement's
+   * own `id`) is exposed alongside the listing id so the public
+   * hydration path (`AdvertisementService#hydrate`) can attach it to the
+   * promoted-listing response for `promotion_impression`/
+   * `promotion_clicked` — previously discarded entirely, leaving the
+   * frontend with no genuine promotion id to send (see A3 handoff).
+   * Every other private advertisement field (pricing, payment/approval
+   * state, reminder timestamps) stays exactly as unreachable from this
+   * public path as before — only the opaque `id` is added.
    */
   async listActiveListingIdsByPlacement(
     { placementCode, categoryId, limit },
@@ -358,7 +369,7 @@ export class MySqlAdvertisementRepository {
     ];
     const whereParams = [placementCode, ...VISIBLE_STATUS_CODES];
     const [rows] = await connection.query(
-      `SELECT ad.listing_id, ad.display_priority, ad.start_date
+      `SELECT ad.id, ad.listing_id, ad.display_priority, ad.start_date
        FROM advertisements ad
        JOIN ad_placement_types apt ON apt.id = ad.ad_placement_type_id
        JOIN advertisement_statuses ads ON ads.id = ad.status_id
@@ -368,7 +379,10 @@ export class MySqlAdvertisementRepository {
        LIMIT ${safeLimit}`,
       [...joinParams, ...whereParams],
     );
-    return rows.map((row) => row.listing_id);
+    return rows.map((row) => ({
+      listingId: row.listing_id,
+      promotionId: row.id,
+    }));
   }
 
   /**

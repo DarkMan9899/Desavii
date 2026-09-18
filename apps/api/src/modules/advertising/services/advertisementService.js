@@ -592,25 +592,47 @@ export class AdvertisementService {
     );
   }
 
-  /** Hydrates active promoted listing ids into the SAME card shape `SearchResultCard` already renders — reuses `SearchService`'s public interface, never a second Repository over `listings` (BACKEND_ARCHITECTURE.md §4). Re-sorted to the promotion-priority order the id list arrived in — an `IN (...)` query gives no ordering guarantee of its own. */
-  async #hydrate(listingIds, locale) {
-    if (listingIds.length === 0) return [];
+  /**
+   * Hydrates active promoted `{listingId, promotionId}` pairs into the
+   * SAME card shape `SearchResultCard` already renders — reuses
+   * `SearchService`'s public interface, never a second Repository over
+   * `listings` (BACKEND_ARCHITECTURE.md §4). Re-sorted to the
+   * promotion-priority order the pair list arrived in — an `IN (...)`
+   * query gives no ordering guarantee of its own.
+   *
+   * Step A3.1: each hydrated listing carries the resolved `promotionId`
+   * (read by `searchDto.js#toSearchResultResponse` to add the public
+   * `promotion_id` field — present only here, never for an ordinary
+   * `/search` result, which has no `promotionId` property at all).
+   */
+  async #hydrate(pairs, locale) {
+    if (pairs.length === 0) return [];
+    const listingIds = pairs.map((pair) => pair.listingId);
+    const promotionIdByListingId = new Map(
+      pairs.map((pair) => [pair.listingId, pair.promotionId]),
+    );
     const listings = await this.#searchService.getListingsByIds(listingIds, {
       locale,
     });
     const byId = new Map(listings.map((listing) => [listing.id, listing]));
-    return listingIds.map((id) => byId.get(id)).filter(Boolean);
+    return listingIds
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .map((listing) => ({
+        ...listing,
+        promotionId: promotionIdByListingId.get(listing.id),
+      }));
   }
 
   /** Public: `GET /advertising/public/home-featured`. */
   async getPublicHomeFeatured(locale) {
     const placement = await this.#loadPlacementOrThrow(PLACEMENT_CODES.HOME);
-    const ids =
+    const pairs =
       await this.#advertisementRepository.listActiveListingIdsByPlacement({
         placementCode: PLACEMENT_CODES.HOME,
         limit: placement.maxConcurrentSlots,
       });
-    return this.#hydrate(ids, locale);
+    return this.#hydrate(pairs, locale);
   }
 
   /** Public: `GET /advertising/public/category-top?categoryId=`. */
@@ -618,13 +640,13 @@ export class AdvertisementService {
     const placement = await this.#loadPlacementOrThrow(
       PLACEMENT_CODES.CATEGORY,
     );
-    const ids =
+    const pairs =
       await this.#advertisementRepository.listActiveListingIdsByPlacement({
         placementCode: PLACEMENT_CODES.CATEGORY,
         categoryId,
         limit: placement.maxConcurrentSlots,
       });
-    return this.#hydrate(ids, locale);
+    return this.#hydrate(pairs, locale);
   }
 
   /**

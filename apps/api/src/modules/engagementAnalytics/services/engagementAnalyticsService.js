@@ -154,7 +154,6 @@ export class EngagementAnalyticsService {
     switch (event.eventName) {
       case ANALYTICS_EVENTS.LISTING_IMPRESSION:
       case ANALYTICS_EVENTS.LISTING_VIEWED:
-      case ANALYTICS_EVENTS.CONTACT_CLICK:
       case ANALYTICS_EVENTS.SEARCH_RESULT_CLICK: {
         // `getListing(null, ...)` deliberately forces the strict public-
         // visibility path regardless of who is actually authenticated on
@@ -183,7 +182,17 @@ export class EngagementAnalyticsService {
           promotionId: promotion.id,
         };
       }
-      case ANALYTICS_EVENTS.COMPANY_PROFILE_VIEW: {
+      // Step A3.1 (live QA fix): `contact_click` is always fired from a
+      // company's own public contact row (`CompanyProfilePageContent`
+      // — no listing context exists there at all), never from a
+      // listing page — the same `company_slug`-only resolution
+      // `COMPANY_PROFILE_VIEW` already uses, not a listing lookup. The
+      // A2 validator/target-resolution originally modeled this as
+      // listing-scoped (matching `ContactClickPayload`'s own
+      // `listingId` field in `@desavii/types`), which every real A3
+      // contact-click call then failed 422 against — caught live.
+      case ANALYTICS_EVENTS.COMPANY_PROFILE_VIEW:
+      case ANALYTICS_EVENTS.CONTACT_CLICK: {
         const partner = await this.#partnerService.getPublicPartnerBySlug(
           event.companySlug,
         );
@@ -226,7 +235,21 @@ export class EngagementAnalyticsService {
     if (!config.engagementAnalytics.collectionEnabled) return;
 
     const deviceClass = classifyDeviceClass(userAgent);
-    const trafficSource = classifyTrafficSource(referer, config.webAppUrl);
+    // Step A3.1 (live QA fix): `classifyTrafficSource`'s own contract
+    // wants a bare hostname (its doc comment's own example: `desavii
+    // .com`), but `config.webAppUrl` is a full origin WITH protocol
+    // (`http://localhost:5173` in dev) — passing it unparsed meant
+    // `host.endsWith(internalHost)` could never match, so a genuine
+    // same-site Referer was always misclassified as `referral` instead
+    // of `internal`. Caught live: a real click-through from the Search
+    // page to a listing detail page (a same-origin navigation, and thus
+    // a same-origin Referer on the resulting analytics call) recorded
+    // `traffic_source: "referral"` in `analytics_events` instead of
+    // `internal`.
+    const trafficSource = classifyTrafficSource(
+      referer,
+      new URL(config.webAppUrl).hostname,
+    );
 
     let resolvedTargets;
     try {

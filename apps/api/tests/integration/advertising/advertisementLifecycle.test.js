@@ -196,6 +196,43 @@ describe('Admin promotion lifecycle — Home placement', () => {
     expect(res.body.data.some((l) => l.id === listingId)).toBe(true);
   });
 
+  // Step A3.1 (Engagement Analytics): the public Home Featured row must
+  // carry the real advertisement id as `promotion_id` — needed for the
+  // frontend to send a genuine `promotion_impression`/`promotion_clicked`
+  // — and nothing else private (pricing, payment/approval, reminders).
+  test('the public Home Featured row exposes promotion_id and nothing else private', async () => {
+    const res = await request(app).get(
+      '/api/v1/advertising/public/home-featured?locale=en',
+    );
+    const row = res.body.data.find((l) => l.id === listingId);
+    expect(row.promotion_id).toBe(homeAdId);
+    [
+      'price_snapshot_amount',
+      'currency_code',
+      'payment_marked_paid_by',
+      'payment_marked_paid_at',
+      'approved_by',
+      'approved_at',
+      'requested_by',
+      'reminder_7d_sent_at',
+      'reminder_2d_sent_at',
+      'status_code',
+    ].forEach((field) => expect(row).not.toHaveProperty(field));
+  });
+
+  // An ordinary `GET /search` row for the exact same listing must never
+  // carry a promotion_id at all — the key itself is absent, not merely
+  // null, confirming this is genuinely a promoted-endpoint-only field.
+  test('the SAME listing through ordinary GET /search never carries promotion_id', async () => {
+    const res = await request(app)
+      .get('/api/v1/search')
+      .query({ keyword: 'Promotion Engine Test Hotel' });
+    expect(res.status).toBe(200);
+    const row = res.body.data.find((l) => l.id === listingId);
+    expect(row).toBeTruthy();
+    expect(row).not.toHaveProperty('promotion_id');
+  });
+
   test('an overlapping request for the SAME listing/placement is rejected', async () => {
     const res = await request(app)
       .post('/api/v1/advertising/admin')
@@ -327,6 +364,16 @@ describe('Admin promotion lifecycle — Category placement is independent of Hom
     );
     expect(gridRes.status).toBe(200);
     expect(gridRes.body.data.some((l) => l.id === listingId)).toBe(false);
+  });
+
+  // Step A3.1: same promotion_id exposure contract as Home Featured,
+  // for the Category TOP endpoint.
+  test('the public Category Top row exposes the real promotion_id', async () => {
+    const res = await request(app).get(
+      `/api/v1/advertising/public/category-top?categoryId=${categoryId}&locale=en`,
+    );
+    const row = res.body.data.find((l) => l.id === listingId);
+    expect(row.promotion_id).toBe(categoryAdId);
   });
 
   test('cancelling the Category promotion puts the listing back in the normal grid, without touching the still-active Home promotion', async () => {

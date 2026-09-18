@@ -92,8 +92,12 @@ const engagementEventSchema = z
       case ANALYTICS_EVENTS.PROMOTION_CLICKED:
         requireFields(['listingId', 'promotionId', 'placement']);
         break;
+      // Step A3.1 (live QA fix): a company-scoped event, matching the
+      // real `CompanyProfilePageContent` contact row A3 instruments —
+      // there is no listing context on that page at all. See
+      // `engagementAnalyticsService.js#resolveTarget`'s own comment.
       case ANALYTICS_EVENTS.CONTACT_CLICK:
-        requireFields(['listingId', 'contactMethod']);
+        requireFields(['companySlug', 'contactMethod']);
         break;
       case ANALYTICS_EVENTS.COMPANY_PROFILE_VIEW:
         requireFields(['companySlug']);

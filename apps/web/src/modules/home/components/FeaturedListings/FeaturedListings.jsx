@@ -101,6 +101,7 @@ export default function FeaturedListings() {
                 topBadgeLabel={t('advertising.topBadge')}
                 placement={PLACEMENTS.HOME_FEATURED}
                 position={index}
+                promotionId={listing.promotion_id}
               />
             ))}
           </Showcase>

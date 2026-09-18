@@ -13,12 +13,13 @@ vi.mock('../../../search/index.js', () => ({
   useCategoriesQuery: vi.fn(),
   useSearchListingsQuery: vi.fn(),
   // eslint-disable-next-line react/prop-types -- trivial test double
-  SearchResultCard: ({ result, hideTypeBadge, topBadgeLabel }) => (
+  SearchResultCard: ({ result, hideTypeBadge, topBadgeLabel, promotionId }) => (
     <div>
       {/* eslint-disable-next-line react/prop-types -- trivial test double */}
       {result.title}
       {hideTypeBadge ? ' (badge hidden)' : ''}
       {topBadgeLabel ? ` (${topBadgeLabel})` : ''}
+      {promotionId ? ` [promo:${promotionId}]` : ''}
     </div>
   ),
   // Pass 6 (owner issue #13/#15): a trivial test double — DynamicFilterPanel's
@@ -196,13 +197,15 @@ describe('CategoryPageContent (apps/web/src/modules/discovery)', () => {
       isPending: false,
     });
     usePublicCategoryTopQuery.mockReturnValue({
-      data: [{ id: 1, title: 'Promoted Fleet' }],
+      data: [{ id: 1, title: 'Promoted Fleet', promotion_id: 7 }],
       isPending: false,
     });
     renderPage();
 
+    // Step A3.1: the real public promotion_id reaches SearchResultCard's
+    // `promotionId` prop — never inferred from the TOP badge text.
     expect(
-      screen.getByText('Promoted Fleet (badge hidden) (ԹՈՓ)'),
+      screen.getByText('Promoted Fleet (badge hidden) (ԹՈՓ) [promo:7]'),
     ).toBeInTheDocument();
     expect(
       screen.getByText('Regular Listing (badge hidden)'),

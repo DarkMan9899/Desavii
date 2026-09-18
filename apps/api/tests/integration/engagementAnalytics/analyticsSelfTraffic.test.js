@@ -450,14 +450,14 @@ describe('A2.1 — self-filter consistency across target types (brief §15)', ()
     expect(await fetchEvent(eventId)).toBeNull();
   });
 
-  test('contact_click: owner clicking contact on their own listing is filtered', async () => {
+  test('contact_click: owner clicking contact on their own company profile is filtered', async () => {
     const eventId = uuid();
     const res = await ingest(vendor.accessToken, [
       {
         eventId,
         eventName: 'contact_click',
         sessionId: uuid(),
-        listingId: listingAId,
+        companySlug: 'yerevan-boutique-hospitality',
         contactMethod: 'phone',
       },
     ]);

@@ -145,14 +145,14 @@ describe('ingestEventsSchema', () => {
       ).toBe(true);
     });
 
-    test('contact_click requires listingId and contactMethod', () => {
+    test('contact_click requires companySlug and contactMethod (company-scoped, not listing-scoped)', () => {
       expect(
         parse([
           {
             eventId: EVENT_ID,
             eventName: 'contact_click',
             sessionId: SESSION_ID,
-            listingId: 5,
+            companySlug: 'yerevan-boutique-hospitality',
           },
         ]).success,
       ).toBe(false);
@@ -162,7 +162,7 @@ describe('ingestEventsSchema', () => {
             eventId: EVENT_ID,
             eventName: 'contact_click',
             sessionId: SESSION_ID,
-            listingId: 5,
+            companySlug: 'yerevan-boutique-hospitality',
             contactMethod: 'phone',
           },
         ]).success,

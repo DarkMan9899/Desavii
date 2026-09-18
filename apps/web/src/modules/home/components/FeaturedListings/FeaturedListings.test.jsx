@@ -1,8 +1,14 @@
-import { describe, test, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import FeaturedListings from './FeaturedListings.jsx';
 import { usePublicHomeFeaturedQuery } from '../../../advertising/index.js';
+import {
+  resetQueueForTests,
+  peekQueueForTests,
+} from '../../../../analytics/analyticsQueue.js';
+import { resetDedupForTests } from '../../../../analytics/analyticsClient.js';
+import { resetInMemoryIdentityForTests } from '../../../../analytics/analyticsIdentity.js';
 
 // Only the data-fetching hook is mocked (FRONTEND_ARCHITECTURE.md §14 is a
 // React Query concern) — `SearchResultCard` renders for real, so this also
@@ -101,5 +107,47 @@ describe('FeaturedListings (apps/web/src/modules/home) — Sprint E Promotion En
       'href',
       '/en/search',
     );
+  });
+
+  // Step A3.1 (Engagement Analytics): the real `promotion_id` the public
+  // Home Featured endpoint now returns must reach `SearchResultCard`'s
+  // click tracking — proven end-to-end (real component, real analytics
+  // queue), not just via a prop assertion.
+  describe('promotion analytics wiring', () => {
+    beforeEach(() => {
+      vi.stubEnv('VITE_ANALYTICS_COLLECTION_ENABLED', 'true');
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+      resetInMemoryIdentityForTests();
+      resetQueueForTests();
+      resetDedupForTests();
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      resetQueueForTests();
+    });
+
+    test('clicking a promoted card fires promotion_clicked with the real promotion_id', () => {
+      usePublicHomeFeaturedQuery.mockReturnValue({
+        data: [{ ...LISTING, promotion_id: 42 }],
+        isPending: false,
+        isError: false,
+      });
+      renderFeaturedListings();
+
+      fireEvent.click(
+        screen.getByRole('link', { name: /Yerevan Grand Hotel/ }),
+      );
+
+      const click = peekQueueForTests().find(
+        (event) => event.eventName === 'promotion_clicked',
+      );
+      expect(click).toMatchObject({
+        promotionId: 42,
+        listingId: 1,
+        placement: 'home_featured',
+      });
+    });
   });
 });

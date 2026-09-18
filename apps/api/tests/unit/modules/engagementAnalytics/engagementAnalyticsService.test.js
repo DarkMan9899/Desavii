@@ -232,7 +232,7 @@ describe('EngagementAnalyticsService#ingestClientEvents', () => {
             eventId: 'e1',
             eventName: 'contact_click',
             sessionId: 's1',
-            listingId: 5,
+            companySlug: 'acme-hotels',
             contactMethod: 'phone',
           },
         ],

@@ -51,6 +51,18 @@ export function toSearchResultResponse(result) {
     transmission: result.transmissionCode ?? null,
     bedrooms: result.bedroomsValue ?? null,
     duration_minutes: result.durationMinutesValue ?? null,
+    // Step A3.1 (Engagement Analytics): `promotion_id` — the opaque
+    // advertisement id `promotion_impression`/`promotion_clicked` need —
+    // is present ONLY when `result` genuinely came from
+    // `AdvertisementService#hydrate` (Home Featured/Category TOP), which
+    // is the only caller that ever sets `.promotionId` on the domain
+    // object in the first place. An ordinary `GET /search` row never has
+    // this property at all, so the key is truly absent from its JSON,
+    // not merely `null` — never a fabricated/globally-added field on
+    // organic results.
+    ...(result.promotionId !== undefined
+      ? { promotion_id: result.promotionId }
+      : {}),
   };
 }
 

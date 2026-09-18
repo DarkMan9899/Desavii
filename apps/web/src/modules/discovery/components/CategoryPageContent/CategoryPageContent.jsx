@@ -288,6 +288,7 @@ export default function CategoryPageContent() {
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
                   placement={PLACEMENTS.CATEGORY_TOP}
+                  promotionId={listing.promotion_id}
                 />
               ))}
             </Showcase>
@@ -331,6 +332,7 @@ export default function CategoryPageContent() {
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
                   placement={PLACEMENTS.CATEGORY_TOP}
+                  promotionId={listing.promotion_id}
                 />
               ))}
             </Showcase>
@@ -374,6 +376,7 @@ export default function CategoryPageContent() {
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
                   placement={PLACEMENTS.CATEGORY_TOP}
+                  promotionId={listing.promotion_id}
                 />
               ))}
             </Showcase>
@@ -417,6 +420,7 @@ export default function CategoryPageContent() {
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
                   placement={PLACEMENTS.CATEGORY_TOP}
+                  promotionId={listing.promotion_id}
                 />
               ))}
             </Showcase>
@@ -460,6 +464,7 @@ export default function CategoryPageContent() {
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
                   placement={PLACEMENTS.CATEGORY_TOP}
+                  promotionId={listing.promotion_id}
                 />
               ))}
             </Showcase>
@@ -503,6 +508,7 @@ export default function CategoryPageContent() {
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
                   placement={PLACEMENTS.CATEGORY_TOP}
+                  promotionId={listing.promotion_id}
                 />
               ))}
             </Showcase>
@@ -546,6 +552,7 @@ export default function CategoryPageContent() {
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
                   placement={PLACEMENTS.CATEGORY_TOP}
+                  promotionId={listing.promotion_id}
                 />
               ))}
             </Showcase>
@@ -589,6 +596,7 @@ export default function CategoryPageContent() {
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
                   placement={PLACEMENTS.CATEGORY_TOP}
+                  promotionId={listing.promotion_id}
                 />
               ))}
             </Showcase>
@@ -632,6 +640,7 @@ export default function CategoryPageContent() {
                   hideTypeBadge
                   topBadgeLabel={t('advertising.topBadge')}
                   placement={PLACEMENTS.CATEGORY_TOP}
+                  promotionId={listing.promotion_id}
                 />
               ))}
             </Showcase>
@@ -672,6 +681,7 @@ export default function CategoryPageContent() {
               hideTypeBadge
               topBadgeLabel={t('advertising.topBadge')}
               placement={PLACEMENTS.CATEGORY_TOP}
+              promotionId={listing.promotion_id}
             />
           ))}
         </Showcase>
