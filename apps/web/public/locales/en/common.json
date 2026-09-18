@@ -2068,14 +2068,22 @@
         "moderationLabel": "Moderation",
         "moderationAll": "All moderation statuses",
         "statusLabel": "Status",
-        "statusAll": "All statuses"
+        "statusAll": "All statuses",
+        "lifecycleLabel": "Lifecycle",
+        "lifecycleAll": "All lifecycle states",
+        "lifecycle": {
+          "ACTIVE": "Active",
+          "EXPIRING_SOON": "Expiring soon",
+          "EXPIRED_FROZEN": "Expired / Frozen"
+        }
       },
       "table": {
         "title": "Title",
         "partner": "Partner",
         "status": "Status",
         "moderation": "Moderation",
-        "submitted": "Submitted"
+        "submitted": "Submitted",
+        "lifecycle": "Lifecycle"
       },
       "moderationStatus": {
         "PENDING": "Pending",
@@ -2126,7 +2134,18 @@
       "sections": {
         "localizedContent": "Localized content",
         "details": "Details",
-        "commercial": "Commercial & operations"
+        "commercial": "Commercial & operations",
+        "lifecycle": "Lifecycle"
+      },
+      "lifecycle": {
+        "publicationPeriodLabel": "Publication period",
+        "publishedLabel": "Published",
+        "expiresLabel": "Expires",
+        "renewedLabel": "Renewed",
+        "frozenLabel": "Frozen on",
+        "retainedUntilLabel": "Retained until",
+        "notSet": "—",
+        "renewAction": "Renew"
       },
       "localizedContent": {
         "tabsAriaLabel": "Review locale",

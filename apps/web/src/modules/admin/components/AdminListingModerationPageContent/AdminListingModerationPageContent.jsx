@@ -31,6 +31,10 @@ import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
+import {
+  ListingStatusBadge,
+  ListingLifecycleStatus,
+} from '../../../listings/index.js';
 import { useAdminListFilters } from '../../hooks/useAdminListFilters.js';
 import { useAdminListingsQuery } from '../../queries/useAdminListingsQuery.js';
 import { useUpdateListingModerationStatusMutation } from '../../mutations/useUpdateListingModerationStatusMutation.js';
@@ -42,18 +46,11 @@ const MODERATION_BADGE_VARIANT = {
   FLAGGED: 'danger',
 };
 
-const STATUS_BADGE_VARIANT = {
-  DRAFT: 'neutral',
-  PENDING_REVIEW: 'warning',
-  PUBLISHED: 'success',
-  UNPUBLISHED: 'neutral',
-  ARCHIVED: 'neutral',
-};
-
 const DEFAULT_FILTERS = {
   keyword: '',
   moderationStatus: 'PENDING',
   status: '',
+  lifecycleFilter: '',
 };
 
 export default function AdminListingModerationPageContent() {
@@ -79,6 +76,7 @@ export default function AdminListingModerationPageContent() {
     keyword: filters.keyword,
     moderationStatus: filters.moderationStatus,
     status: filters.status,
+    lifecycleFilter: filters.lifecycleFilter,
   });
   const updateModerationMutation = useUpdateListingModerationStatusMutation();
 
@@ -127,6 +125,21 @@ export default function AdminListingModerationPageContent() {
       label: t('admin.listingModeration.status.UNPUBLISHED'),
     },
     { value: 'ARCHIVED', label: t('admin.listingModeration.status.ARCHIVED') },
+  ];
+  const lifecycleOptions = [
+    { value: '', label: t('admin.listingModeration.filters.lifecycleAll') },
+    {
+      value: 'ACTIVE',
+      label: t('admin.listingModeration.filters.lifecycle.ACTIVE'),
+    },
+    {
+      value: 'EXPIRING_SOON',
+      label: t('admin.listingModeration.filters.lifecycle.EXPIRING_SOON'),
+    },
+    {
+      value: 'EXPIRED_FROZEN',
+      label: t('admin.listingModeration.filters.lifecycle.EXPIRED_FROZEN'),
+    },
   ];
 
   async function handleApprove(listing) {
@@ -224,14 +237,13 @@ export default function AdminListingModerationPageContent() {
     {
       key: 'status',
       header: t('admin.listingModeration.table.status'),
+      render: (listing) => <ListingStatusBadge status={listing.status} />,
+    },
+    {
+      key: 'lifecycle',
+      header: t('admin.listingModeration.table.lifecycle'),
       render: (listing) => (
-        <Badge
-          variant={STATUS_BADGE_VARIANT[listing.status] ?? 'neutral'}
-          size="sm"
-          label={t(`admin.listingModeration.status.${listing.status}`, {
-            defaultValue: listing.status,
-          })}
-        />
+        <ListingLifecycleStatus listing={listing} locale={i18n.language} />
       ),
     },
     {
@@ -328,6 +340,12 @@ export default function AdminListingModerationPageContent() {
               options={statusOptions}
               value={filters.status}
               onChange={(value) => updateFilters({ status: value })}
+            />
+            <Select
+              ariaLabel={t('admin.listingModeration.filters.lifecycleLabel')}
+              options={lifecycleOptions}
+              value={filters.lifecycleFilter}
+              onChange={(value) => updateFilters({ lifecycleFilter: value })}
             />
           </Inline>
 

@@ -214,11 +214,23 @@ export function toListingOwnerResponse(listing) {
  * exposed by the shared response, since that DTO also serves the public
  * `GET /listings/:id` route and a rejection/moderation note is internal
  * admin-facing content, not something to leak to a public visitor).
+ *
+ * Listing Lifetime / Renewal, Step B8 — also adds the same 5 lifecycle
+ * fields `toListingOwnerResponse` (Step B5) already exposes to the
+ * Partner owner, so Admin's detail page can render an equivalent
+ * lifecycle section without a second implementation. `expiry_reminder_
+ * sent_at` stays excluded here too — brief §4's own explicit rule, no
+ * concrete Admin UX need identified for it either.
  */
 export function toListingAdminDetailResponse(listing) {
   return {
     ...toListingResponse(listing),
     moderation_notes: listing.moderationNotes ?? null,
+    publication_period_days: listing.publicationPeriodDays ?? null,
+    expires_at: listing.expiresAt ?? null,
+    frozen_at: listing.frozenAt ?? null,
+    purge_after: listing.purgeAfter ?? null,
+    renewed_at: listing.renewedAt ?? null,
   };
 }
 
@@ -235,7 +247,16 @@ export function toListingSummaryResponse(listing) {
   };
 }
 
-/** Stage 11.3 admin queue row — additive to the public summary shape, plus both status dimensions and the fields the moderation table needs. */
+/**
+ * Stage 11.3 admin queue row — additive to the public summary shape, plus
+ * both status dimensions and the fields the moderation table needs.
+ *
+ * Listing Lifetime / Renewal, Step B8 — also adds the same 5 lifecycle
+ * fields as `toListingAdminDetailResponse`/`toListingOwnerResponse`, so
+ * the Admin moderation queue can show a compact lifecycle badge per row
+ * (reusing the exact same `ListingLifecycleStatus` presentation component
+ * the Partner dashboard already uses) without a second query/DTO.
+ */
 export function toAdminListingSummaryResponse(listing) {
   return {
     id: listing.id,
@@ -247,6 +268,11 @@ export function toAdminListingSummaryResponse(listing) {
     status: listing.statusCode,
     moderation_status: listing.moderationStatusCode,
     created_at: listing.createdAt,
+    publication_period_days: listing.publicationPeriodDays ?? null,
+    expires_at: listing.expiresAt ?? null,
+    frozen_at: listing.frozenAt ?? null,
+    purge_after: listing.purgeAfter ?? null,
+    renewed_at: listing.renewedAt ?? null,
   };
 }
 

@@ -215,12 +215,20 @@ const LISTING_MODERATION_STATUSES = [
   'FLAGGED',
 ];
 
+// Listing Lifetime / Renewal, Step B8 — the Admin lifecycle filter's own
+// allowlist. Deliberately its own 3-value enum, never merged into
+// `LISTING_STATUSES`: it's a presentation-derived predicate over
+// `expires_at`/`frozen_at`, not a `listing_statuses` code (brief §3's own
+// "no new DB status" rule).
+const LISTING_LIFECYCLE_FILTERS = ['ACTIVE', 'EXPIRING_SOON', 'EXPIRED_FROZEN'];
+
 export const listListingsAdminQuerySchema = z.object({
   params: z.object({}).passthrough(),
   query: z.object({
     keyword: z.string().trim().min(1).max(180).optional(),
     moderationStatus: z.enum(LISTING_MODERATION_STATUSES).optional(),
     status: z.enum(LISTING_STATUSES).optional(),
+    lifecycleFilter: z.enum(LISTING_LIFECYCLE_FILTERS).optional(),
     cursor: z.string().optional(),
     limit: z.coerce.number().int().positive().max(100).optional(),
   }),

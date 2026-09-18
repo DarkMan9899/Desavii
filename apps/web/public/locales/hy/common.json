@@ -2066,14 +2066,22 @@
         "moderationLabel": "Մոդերացիա",
         "moderationAll": "Մոդերացիայի բոլոր կարգավիճակները",
         "statusLabel": "Կարգավիճակ",
-        "statusAll": "Բոլոր կարգավիճակները"
+        "statusAll": "Բոլոր կարգավիճակները",
+        "lifecycleLabel": "Կենսացիկլ",
+        "lifecycleAll": "Կենսացիկլի բոլոր վիճակները",
+        "lifecycle": {
+          "ACTIVE": "Ակտիվ",
+          "EXPIRING_SOON": "Ժամկետը մոտենում է",
+          "EXPIRED_FROZEN": "Ժամկետանց / Սառեցված"
+        }
       },
       "table": {
         "title": "Վերնագիր",
         "partner": "Գործընկեր",
         "status": "Կարգավիճակ",
         "moderation": "Մոդերացիա",
-        "submitted": "Ուղարկվել է"
+        "submitted": "Ուղարկվել է",
+        "lifecycle": "Կենսացիկլ"
       },
       "moderationStatus": {
         "PENDING": "Սպասման մեջ",
@@ -2124,7 +2132,18 @@
       "sections": {
         "localizedContent": "Լոկալիզացված բովանդակություն",
         "details": "Մանրամասներ",
-        "commercial": "Առևտրային և գործառնական"
+        "commercial": "Առևտրային և գործառնական",
+        "lifecycle": "Կենսացիկլ"
+      },
+      "lifecycle": {
+        "publicationPeriodLabel": "Հրապարակման ժամկետ",
+        "publishedLabel": "Հրապարակվել է",
+        "expiresLabel": "Ժամկետը լրանում է",
+        "renewedLabel": "Երկարաձգվել է",
+        "frozenLabel": "Սառեցվել է",
+        "retainedUntilLabel": "Պահվում է մինչև",
+        "notSet": "—",
+        "renewAction": "Երկարաձգել"
       },
       "localizedContent": {
         "tabsAriaLabel": "Դիտարկվող լեզու",

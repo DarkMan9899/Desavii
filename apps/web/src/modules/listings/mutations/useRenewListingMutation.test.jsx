@@ -66,6 +66,13 @@ describe('useRenewListingMutation (apps/web/src/modules/listings)', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: listingKeys.mines(),
     });
+    // Step B8 — Admin can also trigger a renewal (via the same shared
+    // mutation), so the Admin moderation queue/detail cache needs
+    // invalidating too.
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['admin', 'listings'],
+      exact: false,
+    });
   });
 
   test('surfaces a renewal rejection as a mutation error', async () => {

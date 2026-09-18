@@ -81,11 +81,17 @@ export function createListingController(
 
     async listAdmin(req, res, next) {
       try {
-        const { keyword, moderationStatus, status, cursor, limit } =
-          req.validated.query;
+        const {
+          keyword,
+          moderationStatus,
+          status,
+          lifecycleFilter,
+          cursor,
+          limit,
+        } = req.validated.query;
         const { rows, meta } = await listingService.listListingsAdmin(
           req.principal,
-          { keyword, moderationStatus, status },
+          { keyword, moderationStatus, status, lifecycleFilter },
           { cursor, limit },
         );
         res.status(200).json({

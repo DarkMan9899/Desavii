@@ -761,12 +761,27 @@ export class MySqlListingRepository extends ListingRepositoryPort {
    * (which requires an owner/permission match on an explicit `partnerId`
    * to see anything beyond PUBLISHED). Keyword matches the listing's
    * primary title or the owning partner's display name.
-   * @param {{keyword?: string, moderationStatus?: string, status?: string, cursor?: string|null, limit?: number}} [opts]
+   *
+   * Listing Lifetime / Renewal, Step B8 — `lifecycleFilter` is a purely
+   * additive, optional predicate (`ACTIVE`/`EXPIRING_SOON`/
+   * `EXPIRED_FROZEN`) mirroring `core/domain/listingLifecycle.js`'s own
+   * `hasLifecycleExpired`/`isPubliclyVisible` DB-time convention and
+   * `listingLifecyclePresentation.js`'s frontend state machine exactly —
+   * entirely in SQL, using `UTC_TIMESTAMP(3)` (the Step B6.5 lifecycle
+   * clock), never a JS-side re-derivation over the fetched page. `ACTIVE`
+   * and `EXPIRING_SOON` are mutually exclusive by the same 2-day
+   * threshold `listingLifecyclePresentation.js`'s `EXPIRING_SOON_
+   * THRESHOLD_DAYS` and Step B6's own reminder window already use, so a
+   * listing filtered into one can never also match the other. Base
+   * status/moderation/keyword filters above are entirely unaffected —
+   * this is one more independent `AND` condition, never a replacement.
+   * @param {{keyword?: string, moderationStatus?: string, status?: string, lifecycleFilter?: string, cursor?: string|null, limit?: number}} [opts]
    */
   async listAdmin({
     keyword,
     moderationStatus,
     status,
+    lifecycleFilter,
     cursor = null,
     limit = 20,
   } = {}) {
@@ -788,6 +803,25 @@ export class MySqlListingRepository extends ListingRepositoryPort {
     if (status) {
       conditions.push('ls.code = ?');
       params.push(status);
+    }
+    if (lifecycleFilter === 'ACTIVE') {
+      conditions.push(
+        `ls.code = 'PUBLISHED' AND l.frozen_at IS NULL AND l.expires_at IS NOT NULL
+         AND l.expires_at > DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 2 DAY)`,
+      );
+    } else if (lifecycleFilter === 'EXPIRING_SOON') {
+      conditions.push(
+        `ls.code = 'PUBLISHED' AND l.frozen_at IS NULL AND l.expires_at IS NOT NULL
+         AND l.expires_at > UTC_TIMESTAMP(3)
+         AND l.expires_at <= DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 2 DAY)`,
+      );
+    } else if (lifecycleFilter === 'EXPIRED_FROZEN') {
+      // Brief §3/§10's exact canonical definition — STORED frozen state
+      // only (never the "expired but not yet swept" edge case; that
+      // still reads `status = PUBLISHED` until the hourly B4 sweep
+      // reaches it, so it correctly falls outside this filter until then,
+      // same as every other STORED-state Admin view in this app).
+      conditions.push(`ls.code = 'UNPUBLISHED' AND l.frozen_at IS NOT NULL`);
     }
 
     const decoded = decodeCursor(cursor);

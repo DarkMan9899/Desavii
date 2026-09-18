@@ -22,6 +22,9 @@ function listingFixture(overrides) {
     partner_display_name: 'Highland Experiences',
     status: 'DRAFT',
     moderation_status: 'PENDING',
+    expires_at: null,
+    frozen_at: null,
+    purge_after: null,
     ...overrides,
   };
 }
@@ -114,6 +117,53 @@ describe('AdminListingModerationPageContent (apps/web/src/modules/admin)', () =>
     const approveButtons = screen.getAllByRole('button', { name: 'Հաստատել' });
     await user.click(approveButtons[approveButtons.length - 1]);
     expect(mutateAsync).toHaveBeenCalledWith({ id: 1, status: 'APPROVED' });
+  });
+
+  test('shows a lifecycle badge for a frozen listing, alongside its own status badge', () => {
+    useAdminListingsQuery.mockReturnValue({
+      data: {
+        pages: [
+          {
+            results: [
+              listingFixture({
+                status: 'UNPUBLISHED',
+                frozen_at: '2026-01-01T00:00:00Z',
+                purge_after: '2026-07-01T00:00:00Z',
+              }),
+            ],
+          },
+        ],
+      },
+      isPending: false,
+      isError: false,
+      ...noopQueryExtras,
+    });
+    renderPage();
+
+    expect(screen.getByText('Հանված հրապարակումից')).toBeInTheDocument();
+    expect(screen.getByText('Ժամկետանց / Սառեցված')).toBeInTheDocument();
+  });
+
+  test('changing the lifecycle filter re-queries with the selected value', async () => {
+    useAdminListingsQuery.mockReturnValue({
+      data: { pages: [{ results: [listingFixture()] }] },
+      isPending: false,
+      isError: false,
+      ...noopQueryExtras,
+    });
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: 'Կենսացիկլ' }));
+    await user.click(
+      screen.getByRole('option', { name: 'Ժամկետը մոտենում է' }),
+    );
+
+    const lastCall =
+      useAdminListingsQuery.mock.calls[
+        useAdminListingsQuery.mock.calls.length - 1
+      ][0];
+    expect(lastCall.lifecycleFilter).toBe('EXPIRING_SOON');
   });
 
   test('rejecting a listing opens the notes dialog and submits the typed notes', async () => {

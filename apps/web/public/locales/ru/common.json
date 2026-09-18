@@ -2090,14 +2090,22 @@
         "moderationLabel": "Модерация",
         "moderationAll": "Все статусы модерации",
         "statusLabel": "Статус",
-        "statusAll": "Все статусы"
+        "statusAll": "Все статусы",
+        "lifecycleLabel": "Жизненный цикл",
+        "lifecycleAll": "Все состояния жизненного цикла",
+        "lifecycle": {
+          "ACTIVE": "Активно",
+          "EXPIRING_SOON": "Скоро истекает",
+          "EXPIRED_FROZEN": "Истёк / Заморожен"
+        }
       },
       "table": {
         "title": "Название",
         "partner": "Партнёр",
         "status": "Статус",
         "moderation": "Модерация",
-        "submitted": "Подано"
+        "submitted": "Подано",
+        "lifecycle": "Жизненный цикл"
       },
       "moderationStatus": {
         "PENDING": "Ожидает",
@@ -2148,7 +2156,18 @@
       "sections": {
         "localizedContent": "Локализованный контент",
         "details": "Детали",
-        "commercial": "Коммерция и операции"
+        "commercial": "Коммерция и операции",
+        "lifecycle": "Жизненный цикл"
+      },
+      "lifecycle": {
+        "publicationPeriodLabel": "Срок публикации",
+        "publishedLabel": "Опубликовано",
+        "expiresLabel": "Истекает",
+        "renewedLabel": "Продлено",
+        "frozenLabel": "Заморожено",
+        "retainedUntilLabel": "Сохраняется до",
+        "notSet": "—",
+        "renewAction": "Продлить"
       },
       "localizedContent": {
         "tabsAriaLabel": "Язык проверки",

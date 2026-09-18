@@ -223,7 +223,11 @@ export function getListingCompleteness(id) {
 /**
  * `GET /listings/admin` — every listing regardless of owner or publish
  * status, cursor-paginated.
- * @param {{ keyword?: string, moderationStatus?: string, status?: string, cursor?: string, limit?: number }} params
+ *
+ * Listing Lifetime / Renewal, Step B8 — `lifecycleFilter`
+ * (`ACTIVE`/`EXPIRING_SOON`/`EXPIRED_FROZEN`) is a purely additive
+ * predicate on top of the pre-existing filters, never a replacement.
+ * @param {{ keyword?: string, moderationStatus?: string, status?: string, lifecycleFilter?: string, cursor?: string, limit?: number }} params
  */
 export function getAdminListings(params) {
   return apiClient

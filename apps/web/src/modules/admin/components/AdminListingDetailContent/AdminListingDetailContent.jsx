@@ -29,7 +29,7 @@
  * translated" rather than silently-substituted EN content.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Section, Stack, Inline } from '@desavii/ui/components/layout';
@@ -59,6 +59,8 @@ import {
   ListingAmenitiesSection,
   ListingPoliciesSection,
   ListingLocationSection,
+  RenewListingModal,
+  isRenewEligible,
 } from '../../../listings/index.js';
 import { useAdminListingDetailQuery } from '../../queries/useAdminListingDetailQuery.js';
 import { useAdminPartnerDetailQuery } from '../../queries/useAdminPartnerDetailQuery.js';
@@ -102,10 +104,16 @@ export default function AdminListingDetailContent() {
   const { showToast } = useToast();
   const canModerate = permissions.includes('listing.moderate');
   const canViewHistory = permissions.includes('audit.view');
+  // Step B8 — Admin Renew reuses the exact same `listing.publish`
+  // permission gate `publishListingSchema`/`ListingService#renewListing`
+  // already require server-side (Admin/Super Admin hold it via the
+  // seeded role catalog), so no new permission key is introduced here.
+  const canRenew = permissions.includes('listing.publish');
 
   const listingQuery = useAdminListingDetailQuery(id);
   const listing = listingQuery.data;
   const [reviewLocale, setReviewLocale] = useState(locale);
+  const [isRenewOpen, setIsRenewOpen] = useState(false);
 
   const partnerQuery = useAdminPartnerDetailQuery(listing?.partner_id);
   const categoryId = listing?.category_ids?.[0];
@@ -121,6 +129,20 @@ export default function AdminListingDetailContent() {
   const [rejectNotes, setRejectNotes] = useState('');
 
   const closeRejectDialog = useCallback(() => setIsRejectOpen(false), []);
+  const closeRenewDialog = useCallback(() => setIsRenewOpen(false), []);
+
+  const dateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' }),
+    [i18n.language],
+  );
+  const formatLifecycleDate = (value) =>
+    value
+      ? dateFormatter.format(new Date(value))
+      : t('admin.listingDetail.lifecycle.notSet');
+
+  function handleRenewed() {
+    showToast(t('partner.listings.renew.success'), { variant: 'success' });
+  }
 
   if (listingQuery.isError) {
     return (
@@ -294,6 +316,53 @@ export default function AdminListingDetailContent() {
               )}
             </Stack>
           </Card>
+
+          {listing.publication_period_days != null && (
+            <Card as="div" padding="lg">
+              <Stack gap="3">
+                <Inline justify="space-between" align="center" wrap>
+                  <h2>{t('admin.listingDetail.sections.lifecycle')}</h2>
+                  {canRenew && isRenewEligible(listing) && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setIsRenewOpen(true)}
+                    >
+                      {t('admin.listingDetail.lifecycle.renewAction')}
+                    </Button>
+                  )}
+                </Inline>
+                <Stack gap="1">
+                  <span>
+                    {t('admin.listingDetail.lifecycle.publicationPeriodLabel')}:{' '}
+                    {t('partner.listingWizard.publicationPeriod.dayCount', {
+                      count: listing.publication_period_days,
+                    })}
+                  </span>
+                  <span>
+                    {t('admin.listingDetail.lifecycle.publishedLabel')}:{' '}
+                    {formatLifecycleDate(listing.published_at)}
+                  </span>
+                  <span>
+                    {t('admin.listingDetail.lifecycle.expiresLabel')}:{' '}
+                    {formatLifecycleDate(listing.expires_at)}
+                  </span>
+                  <span>
+                    {t('admin.listingDetail.lifecycle.renewedLabel')}:{' '}
+                    {formatLifecycleDate(listing.renewed_at)}
+                  </span>
+                  <span>
+                    {t('admin.listingDetail.lifecycle.frozenLabel')}:{' '}
+                    {formatLifecycleDate(listing.frozen_at)}
+                  </span>
+                  <span>
+                    {t('admin.listingDetail.lifecycle.retainedUntilLabel')}:{' '}
+                    {formatLifecycleDate(listing.purge_after)}
+                  </span>
+                </Stack>
+              </Stack>
+            </Card>
+          )}
 
           <Card as="div" padding="lg">
             <Stack gap="2">
@@ -476,6 +545,15 @@ export default function AdminListingDetailContent() {
             />
           </Stack>
         </Modal>
+      )}
+
+      {isRenewOpen && (
+        <RenewListingModal
+          isOpen
+          listing={listing}
+          onClose={closeRenewDialog}
+          onRenewed={() => handleRenewed()}
+        />
       )}
     </Section>
   );

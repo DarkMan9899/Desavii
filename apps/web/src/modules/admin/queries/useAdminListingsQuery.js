@@ -13,14 +13,20 @@ export function useAdminListingsQuery({
   keyword,
   moderationStatus,
   status,
+  lifecycleFilter,
 } = {}) {
   return useInfiniteQuery({
-    queryKey: ['admin', 'listings', { keyword, moderationStatus, status }],
+    queryKey: [
+      'admin',
+      'listings',
+      { keyword, moderationStatus, status, lifecycleFilter },
+    ],
     queryFn: async ({ pageParam }) => {
       const { data, meta } = await getAdminListings({
         keyword: keyword || undefined,
         moderationStatus: moderationStatus || undefined,
         status: status || undefined,
+        lifecycleFilter: lifecycleFilter || undefined,
         limit: ADMIN_LISTINGS_LIMIT,
         cursor: pageParam ?? undefined,
       });

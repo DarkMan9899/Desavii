@@ -32,13 +32,24 @@ vi.mock('../../../../contexts/AuthContext.jsx', () => ({ useAuth: vi.fn() }));
 // ListingStatusBadge) stays real so this test exercises the actual
 // "no silent fallback" locale-review logic, not a mocked stand-in for
 // it.
+//
+// Listing Lifetime / Renewal, Step B8 — `RenewListingModal` alone is
+// stubbed too: it owns a real `useRenewListingMutation` (`useMutation`),
+// which throws without a `QueryClientProvider` ancestor this test's
+// `renderPage()` doesn't set up (same reason
+// `PartnerListingsList.test.jsx` stubs it). `isRenewEligible` stays real
+// — it's a pure function, no query involved.
 vi.mock('../../../listings/index.js', async (importOriginal) => {
   const actual = await importOriginal();
+  function MockRenewListingModal() {
+    return <div role="dialog" aria-label="Renew" />;
+  }
   return {
     ...actual,
     useListingBookableUnitsQuery: vi.fn(),
     useListingMetadataQuery: vi.fn(),
     useListingCategoriesQuery: vi.fn(),
+    RenewListingModal: MockRenewListingModal,
   };
 });
 
@@ -232,6 +243,77 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
       screen.queryByText('Մոդերացիայի պատմություն'),
     ).not.toBeInTheDocument();
     expect(useAdminAuditLogsQuery).not.toHaveBeenCalled();
+  });
+
+  test('the lifecycle section is shown for a lifecycle-managed listing, with a Renew action when the admin holds listing.publish', async () => {
+    const user = userEvent.setup();
+    useAuth.mockReturnValue({
+      permissions: ['listing.moderate', 'listing.publish'],
+    });
+    useAdminListingDetailQuery.mockReturnValue({
+      data: {
+        ...BASE_LISTING,
+        status: 'PUBLISHED',
+        publication_period_days: 90,
+        published_at: '2026-01-01T00:00:00.000Z',
+        expires_at: '2026-04-01T00:00:00.000Z',
+        renewed_at: null,
+        frozen_at: null,
+        purge_after: null,
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.getByText('Կենսացիկլ')).toBeInTheDocument();
+    expect(
+      screen.getByText('Հրապարակման ժամկետ: 90 օր', { exact: false }),
+    ).toBeInTheDocument();
+    const renewButton = screen.getByRole('button', { name: 'Երկարաձգել' });
+    expect(renewButton).toBeInTheDocument();
+
+    await user.click(renewButton);
+    expect(screen.getByRole('dialog', { name: 'Renew' })).toBeInTheDocument();
+  });
+
+  test('the lifecycle section is omitted entirely for a listing that never entered the lifecycle (no publication_period_days)', () => {
+    useAuth.mockReturnValue({
+      permissions: ['listing.moderate', 'listing.publish'],
+    });
+    useAdminListingDetailQuery.mockReturnValue({
+      data: BASE_LISTING,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.queryByText('Կենսացիկլ')).not.toBeInTheDocument();
+  });
+
+  test('the Renew action is hidden without listing.publish, even for a lifecycle-managed listing', () => {
+    useAuth.mockReturnValue({ permissions: ['listing.moderate'] });
+    useAdminListingDetailQuery.mockReturnValue({
+      data: {
+        ...BASE_LISTING,
+        status: 'PUBLISHED',
+        publication_period_days: 90,
+        expires_at: '2026-04-01T00:00:00.000Z',
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(
+      screen.queryByRole('button', { name: 'Երկարաձգել' }),
+    ).not.toBeInTheDocument();
   });
 
   test('approve/reject actions are hidden without listing.moderate', () => {

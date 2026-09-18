@@ -24,6 +24,15 @@ export function useRenewListingMutation() {
       // `usePublishListingMutation.js` already documents — the Listings
       // Management table reads through `mine()`, not the public `lists()`.
       queryClient.invalidateQueries({ queryKey: listingKeys.mines() });
+      // Step B8 — Admin can also trigger a renewal, so the Admin
+      // moderation queue/detail cache (a separate `['admin','listings']`
+      // key, not covered by any of the Partner-facing keys above) needs
+      // its own invalidation too, mirroring
+      // `useUpdateListingModerationStatusMutation.js`'s exact pattern.
+      queryClient.invalidateQueries({
+        queryKey: ['admin', 'listings'],
+        exact: false,
+      });
     },
   });
 }
