@@ -9,6 +9,7 @@
 .row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: spacing.$space-4;
 }
 
@@ -42,10 +43,12 @@
 .titleRow {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: spacing.$space-2;
 }
 
 .title {
+  min-width: 0;
   margin: 0;
   overflow: hidden;
   font-weight: 600;
@@ -66,7 +69,7 @@
 }
 
 .actions {
-  flex-shrink: 0;
   display: flex;
+  min-width: 0;
   gap: spacing.$space-2;
 }
