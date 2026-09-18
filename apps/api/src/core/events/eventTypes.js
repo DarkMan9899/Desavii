@@ -12,6 +12,10 @@
  */
 
 export const EVENT_TYPES = Object.freeze({
+  // Step A2 (Engagement Analytics) — a successful reservation hold, the
+  // canonical trigger for the analytics `booking_started` event. Distinct
+  // from BOOKING_CREATED below: a hold is not yet a `bookings` row.
+  BOOKING_HOLD_CREATED: 'booking_hold.created',
   BOOKING_CREATED: 'booking.created',
   BOOKING_CONFIRMED: 'booking.confirmed',
   BOOKING_REJECTED: 'booking.rejected',
@@ -19,6 +23,11 @@ export const EVENT_TYPES = Object.freeze({
   BOOKING_COMPLETED: 'booking.completed',
   REVIEW_SUBMITTED: 'review.submitted',
   FAVORITE_ADDED: 'favorite.added',
+  // Step A2 (Engagement Analytics) — previously unpublished: `remove()`
+  // fired no event at all before this step. Only real state transitions
+  // publish (see `favoriteService.js`'s own affected-row guard), the same
+  // rule Step A2 also newly applies to FAVORITE_ADDED above.
+  FAVORITE_REMOVED: 'favorite.removed',
   PARTNER_APPROVED: 'partner.approved',
   // P1.2 (Master Roadmap) — the two other real outcomes of a partner
   // application review, previously unpublished (only approval notified

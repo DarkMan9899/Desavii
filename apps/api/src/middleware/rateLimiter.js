@@ -147,6 +147,26 @@ export const internalBuildRateLimiter = failOpenOnStoreError(
   'internal-build',
 );
 
+/**
+ * Engagement Analytics ingestion (Step A2) — a fixed, conservative
+ * per-IP ceiling, same "cost/abuse-control guardrail, not something an
+ * operator needs to retune platform-wide" precedent `aiRateLimiter`/
+ * `internalBuildRateLimiter` already established, rather than a new
+ * `config.rateLimit.*` env var. 120 requests/minute at up to 25 events
+ * per batch bounds a single IP to at most 3,000 events/minute — generous
+ * for many real concurrent visitors sharing one NAT'd/office IP, still a
+ * meaningful ceiling against a runaway or malicious script. A0.1 also
+ * recommended a secondary per-`anonymous_visitor_id` limit; deferred to
+ * a later hardening pass (see `engagementAnalytics/README.md`) since it
+ * would require a body-content-dependent `keyGenerator` — every other
+ * tier here keys purely on IP/socket, so that would be a genuinely new
+ * pattern, not just parameterizing this existing factory.
+ */
+export const analyticsRateLimiter = failOpenOnStoreError(
+  createRateLimiter({ max: 120, prefix: 'analytics' }),
+  'analytics',
+);
+
 const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
 /**

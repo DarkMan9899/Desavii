@@ -10,8 +10,14 @@
 import { BookingHoldsService } from './services/bookingHoldsService.js';
 import { createBookingHoldController } from './controllers/bookingHoldController.js';
 
-export default function createBookingHoldsContainer({ availabilityService }) {
-  const bookingHoldsService = new BookingHoldsService({ availabilityService });
+export default function createBookingHoldsContainer({
+  availabilityService,
+  eventBus,
+}) {
+  const bookingHoldsService = new BookingHoldsService({
+    availabilityService,
+    eventBus,
+  });
   const bookingHoldController =
     createBookingHoldController(bookingHoldsService);
 

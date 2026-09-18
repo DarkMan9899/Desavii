@@ -130,18 +130,27 @@ export class MySqlFavoriteRepository {
     return rows[0] ?? null;
   }
 
+  /**
+   * Step A2 (Engagement Analytics): both methods now return whether a
+   * genuine state transition happened (`affectedRows > 0`) — `add` on an
+   * already-favorited listing, or `remove` on an already-absent one, each
+   * return `false` — so `FavoriteService` can gate its analytics/domain
+   * event on a real transition, never a no-op.
+   */
   async add(customerUserId, listingId) {
-    await this.#pool.query(
+    const [result] = await this.#pool.query(
       'INSERT IGNORE INTO favorites (customer_user_id, listing_id) VALUES (?, ?)',
       [customerUserId, listingId],
     );
+    return result.affectedRows > 0;
   }
 
   async remove(customerUserId, listingId) {
-    await this.#pool.query(
+    const [result] = await this.#pool.query(
       'DELETE FROM favorites WHERE customer_user_id = ? AND listing_id = ?',
       [customerUserId, listingId],
     );
+    return result.affectedRows > 0;
   }
 
   /** All of a customer's favorited listing ids — cheap, unpaginated (used to hydrate heart-toggle state on card grids). */

@@ -1540,7 +1540,13 @@ export class AvailabilityService {
     // `BookingService#createBooking` re-checks this again at booking-
     // confirmation time for the narrow race window where a listing
     // freezes after a hold was already granted.
-    await this.#listingService.assertBookable(unit.listingId);
+    //
+    // Step A2 (Engagement Analytics): `assertBookable` already fetches
+    // the full listing row (for the lifecycle check above) — captured
+    // here so `listingId`/`partnerId` can ride on this method's own
+    // return value below, rather than `BookingHoldsService` issuing a
+    // second, purely analytics-motivated listing lookup.
+    const listing = await this.#listingService.assertBookable(unit.listingId);
 
     const isVehicle = isVehicleUnitType(unit.bookableUnitTypeCode);
     const isRestaurant = isRestaurantUnitType(unit.bookableUnitTypeCode);
@@ -1649,6 +1655,10 @@ export class AvailabilityService {
     return {
       holdIds,
       unitId: unit.id,
+      // Step A2: server-resolved context for the BOOKING_HOLD_CREATED
+      // analytics event — never client-supplied.
+      listingId: unit.listingId,
+      partnerId: listing.partnerId,
       dateFrom,
       dateTo,
       startTime: resolvedStartTime,

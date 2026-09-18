@@ -33,7 +33,15 @@ export class FavoriteService {
     // Throws NotFoundError for an unpublished/nonexistent listing —
     // the same visibility rule the public listing detail page uses.
     const listing = await this.#listingService.getListing(principal, listingId);
-    await this.#favoriteRepository.add(principal.userId, listingId);
+    // Step A2 (Engagement Analytics): only a genuine INSERT publishes —
+    // repeat-clicking an already-favorited listing is a real, harmless
+    // no-op the caller should still see succeed (idempotent API), but it
+    // must never inflate a FAVORITE_ADDED analytics/notification signal.
+    const wasAdded = await this.#favoriteRepository.add(
+      principal.userId,
+      listingId,
+    );
+    if (!wasAdded) return;
 
     await this.#eventBus.publish(
       createDomainEvent({
@@ -48,7 +56,40 @@ export class FavoriteService {
 
   async removeFavorite(principal, listingId) {
     if (!principal) throw new AuthenticationError();
-    await this.#favoriteRepository.remove(principal.userId, listingId);
+    // Step A2: same genuine-state-transition gate as addFavorite — a
+    // repeat removal of an already-absent favorite is a harmless no-op,
+    // never a second FAVORITE_REMOVED signal.
+    const wasRemoved = await this.#favoriteRepository.remove(
+      principal.userId,
+      listingId,
+    );
+    if (!wasRemoved) return;
+
+    // Un-favoriting must never fail just because the listing itself later
+    // became unpublished/expired/deleted — `partnerId` is best-effort
+    // context for the analytics event only, never a gate on the removal
+    // itself succeeding.
+    let partnerId = null;
+    try {
+      const listing = await this.#listingService.getListing(
+        principal,
+        listingId,
+      );
+      partnerId = listing.partnerId;
+    } catch {
+      // Listing no longer resolvable — the removal above already
+      // succeeded regardless; the event just carries a null partnerId.
+    }
+
+    await this.#eventBus.publish(
+      createDomainEvent({
+        eventType: EVENT_TYPES.FAVORITE_REMOVED,
+        actorId: principal.userId,
+        resourceType: 'listing',
+        resourceId: listingId,
+        payload: { listingId, partnerId },
+      }),
+    );
   }
 
   /** Lightweight — every favorited listing id, for hydrating heart-toggle state on card grids. */

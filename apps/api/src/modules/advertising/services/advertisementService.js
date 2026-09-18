@@ -35,6 +35,7 @@ import {
   isTerminalAdvertisementStatus,
 } from '../../../core/domain/advertisementStatusTransitions.js';
 import { getModuleLogger } from '../../../logging/logger.js';
+import { VISIBLE_STATUS_CODES } from '../repositories/mysqlAdvertisementRepository.js';
 
 const log = getModuleLogger('advertising');
 
@@ -42,6 +43,20 @@ const log = getModuleLogger('advertising');
 export const PLACEMENT_CODES = Object.freeze({
   HOME: 'HOMEPAGE_SECTION',
   CATEGORY: 'CATEGORY_TOP',
+});
+
+/**
+ * Step A2 (Engagement Analytics): this module's own placement vocabulary
+ * (`PLACEMENT_CODES` above) is distinct from the analytics module's
+ * lowercase snake_case `placement` values (A0/A1-locked) — this is the
+ * one place the two vocabularies are translated, so
+ * `getPublicPromotionContext` can hand back a value the engagement-
+ * analytics ingestion service can compare against a client's claimed
+ * `placement` field.
+ */
+const ANALYTICS_PLACEMENT_BY_AD_PLACEMENT_CODE = Object.freeze({
+  [PLACEMENT_CODES.HOME]: 'home_featured',
+  [PLACEMENT_CODES.CATEGORY]: 'category_top',
 });
 
 function addDaysToDateString(dateString, days) {
@@ -522,6 +537,43 @@ export class AdvertisementService {
   async getById(principal, id) {
     this.#assertPrincipal(principal);
     return this.#getOwnedOrThrow(id);
+  }
+
+  /**
+   * Step A2 (Engagement Analytics): the one public, principal-free
+   * lookup this module exposes — validates that `promotionId` belongs to
+   * `listingId` AND is currently publicly exposed (status + date range,
+   * the exact same "public truth is always re-derived from dates" rule
+   * this file's header comment already applies everywhere else), then
+   * hands back only the fields the analytics ingestion service needs to
+   * resolve a promotion_impression/promotion_clicked event's target.
+   *
+   * Throws NotFoundError uniformly whether the promotion doesn't exist,
+   * belongs to a different listing, or is not currently publicly valid —
+   * never a distinguishing message, so a caller can't use this as an
+   * enumeration oracle. `engagementAnalyticsService` normalizes this
+   * further into a generic 422 alongside every other target-resolution
+   * failure.
+   */
+  async getPublicPromotionContext(promotionId, listingId) {
+    const ad = await this.#advertisementRepository.findById(promotionId);
+    const today = todayDateString();
+    if (
+      !ad ||
+      ad.listingId !== listingId ||
+      !VISIBLE_STATUS_CODES.includes(ad.statusCode) ||
+      ad.startDate > today ||
+      ad.endDate < today
+    ) {
+      throw new NotFoundError('Promotion not found.');
+    }
+    return {
+      id: ad.id,
+      listingId: ad.listingId,
+      partnerId: ad.partnerId,
+      placement:
+        ANALYTICS_PLACEMENT_BY_AD_PLACEMENT_CODE[ad.placementCode] ?? null,
+    };
   }
 
   async #publish(eventType, ad) {

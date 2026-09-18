@@ -28,8 +28,14 @@ import {
   buildPageMeta,
 } from '../../../infrastructure/database/pagination.js';
 
-/** Non-terminal statuses a promotion can still be publicly visible under (its real visibility is gated by dates on top of this). */
-const VISIBLE_STATUS_CODES = ['APPROVED', 'SCHEDULED', 'ACTIVE'];
+/**
+ * Non-terminal statuses a promotion can still be publicly visible under
+ * (its real visibility is gated by dates on top of this). Exported (Step
+ * A2, Engagement Analytics) so `AdvertisementService#getPublicPromotion
+ * Context` can apply the exact same status set rather than maintaining a
+ * second copy that could silently drift from this one.
+ */
+export const VISIBLE_STATUS_CODES = ['APPROVED', 'SCHEDULED', 'ACTIVE'];
 
 const ADVERTISEMENT_SELECT = `
   ad.id, ad.listing_id, ad.partner_id, ad.ad_placement_type_id, ad.ad_product_id,

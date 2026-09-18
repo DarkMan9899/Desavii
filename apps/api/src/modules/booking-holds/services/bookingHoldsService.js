@@ -22,12 +22,18 @@
 import { AuthenticationError } from '../../../errors/AppError.js';
 import { withTransaction } from '../../../infrastructure/database/transaction.js';
 import config from '../../../config/index.js';
+import { createNoOpEventBus } from '../../../core/events/domainEventBus.js';
+import { createDomainEvent } from '../../../core/events/createDomainEvent.js';
+import { EVENT_TYPES } from '../../../core/events/eventTypes.js';
 
 export class BookingHoldsService {
   #availabilityService;
 
-  constructor({ availabilityService }) {
+  #eventBus;
+
+  constructor({ availabilityService, eventBus = createNoOpEventBus() }) {
     this.#availabilityService = availabilityService;
+    this.#eventBus = eventBus;
   }
 
   /**
@@ -42,7 +48,7 @@ export class BookingHoldsService {
       Date.now() + config.booking.holdDurationMinutes * 60_000,
     );
 
-    return withTransaction(async (connection) => {
+    const outcome = await withTransaction(async (connection) => {
       const results = [];
       for (const item of items) {
         // eslint-disable-next-line no-await-in-loop -- each item's hold must be granted within the same all-or-nothing transaction.
@@ -66,6 +72,27 @@ export class BookingHoldsService {
       }
       return { items: results, expiresAt };
     });
+
+    // Step A2 (Engagement Analytics): published after the transaction
+    // commits, never inside it — same "a notification/analytics failure
+    // can never roll back or block a booking" rule `BookingService`
+    // already applies to its own domain events. One event per held item
+    // (each carries its own server-resolved listing_id/partner_id).
+    await Promise.all(
+      outcome.items.map((item) =>
+        this.#eventBus.publish(
+          createDomainEvent({
+            eventType: EVENT_TYPES.BOOKING_HOLD_CREATED,
+            actorId: principal.userId,
+            resourceType: 'listing',
+            resourceId: item.listingId,
+            payload: { listingId: item.listingId, partnerId: item.partnerId },
+          }),
+        ),
+      ),
+    );
+
+    return outcome;
   }
 
   /** Self-service: the caller's own active (non-expired) holds. */

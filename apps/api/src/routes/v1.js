@@ -58,6 +58,9 @@ import createBlogContainer from '../modules/blog/module.container.js';
 import createBlogRoutes from '../modules/blog/module.routes.js';
 import createFxContainer from '../modules/fx/module.container.js';
 import createFxRoutes from '../modules/fx/module.routes.js';
+import createEngagementAnalyticsContainer from '../modules/engagementAnalytics/module.container.js';
+import createEngagementAnalyticsRoutes from '../modules/engagementAnalytics/module.routes.js';
+import { registerEngagementAnalyticsListeners } from '../modules/engagementAnalytics/events/engagementAnalyticsListener.js';
 
 export default function createV1Router({
   guards,
@@ -121,6 +124,7 @@ export default function createV1Router({
   // reservation_holds/listings (BACKEND_ARCHITECTURE.md §4).
   const bookingHoldsContainer = createBookingHoldsContainer({
     availabilityService: availabilityContainer.availabilityService,
+    eventBus,
   });
   // Moved ahead of Bookings (Partners has no dependency on any other
   // module's Service, so this ordering is free) — Bookings needs
@@ -136,6 +140,25 @@ export default function createV1Router({
     auditLogger,
     eventBus,
     userService: usersContainer.userService,
+  });
+  // Step A2 (Engagement Analytics): depends on Listings'/Partners'/
+  // Advertising's public Service interfaces only, for server-side target
+  // resolution — never a second Repository over `listings`/`partners`/
+  // `advertisements` (BACKEND_ARCHITECTURE.md §4). Constructed here
+  // (after Partners, which itself comes after Advertising above) so all
+  // three dependencies already exist.
+  const engagementAnalyticsContainer = createEngagementAnalyticsContainer({
+    listingService: listingsContainer.listingService,
+    partnerService: partnersContainer.partnerService,
+    advertisementService: advertisingContainer.advertisementService,
+  });
+  // Step A2: the ONLY place this module subscribes to another module's
+  // domain events, same established rule `notificationListener.js`/
+  // `aiListener.js` already follow.
+  registerEngagementAnalyticsListeners({
+    eventBus,
+    engagementAnalyticsService:
+      engagementAnalyticsContainer.engagementAnalyticsService,
   });
   // Sprint F (Manager Workspace + Analytics): depends on Partners' and
   // Users' public Service interfaces only (existence/role validation on
@@ -402,6 +425,13 @@ export default function createV1Router({
     }),
   );
   router.use('/fx', createFxRoutes({ fxController: fxContainer.fxController }));
+  router.use(
+    '/analytics',
+    createEngagementAnalyticsRoutes({
+      engagementAnalyticsController:
+        engagementAnalyticsContainer.engagementAnalyticsController,
+    }),
+  );
   router.use(
     '/ai',
     createAiRoutes({

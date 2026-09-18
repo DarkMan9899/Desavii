@@ -240,6 +240,19 @@ const env = cleanEnv(process.env, {
   // integration to mount `loadStripe(...)`. Never confuse with
   // STRIPE_SECRET_KEY above, which must never leave the backend.
   STRIPE_PUBLISHABLE_KEY: str({ default: '' }),
+
+  // Engagement Analytics (Step A2) — an engineering collection kill-switch,
+  // NOT a legal-consent signal (A0.1's own explicit distinction). Default
+  // `false` everywhere, no `devDefault` override unlike PAYMENTS_ENABLED
+  // above: unlike Payments (safe to leave on in dev since LocalPaymentProvider
+  // never touches real money), leaving analytics collection on by accident
+  // in any environment starts writing real visitor behavioral data, so this
+  // stays off until an operator explicitly opts in, in every environment
+  // including development. When `false`: `POST /analytics/events` and every
+  // server-authoritative event hook (favorite/booking) perform zero writes
+  // and zero target-resolution DB reads — core business behavior is
+  // completely unaffected either way.
+  ANALYTICS_COLLECTION_ENABLED: bool({ default: false }),
 });
 
 /**
@@ -374,6 +387,10 @@ const config = Object.freeze({
       apiVersion: env.STRIPE_API_VERSION,
       publishableKey: env.STRIPE_PUBLISHABLE_KEY,
     }),
+  }),
+
+  engagementAnalytics: Object.freeze({
+    collectionEnabled: env.ANALYTICS_COLLECTION_ENABLED,
   }),
 });
 
