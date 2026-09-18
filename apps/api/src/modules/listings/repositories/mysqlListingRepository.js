@@ -1097,6 +1097,55 @@ export class MySqlListingRepository extends ListingRepositoryPort {
   }
 
   /**
+   * Listing Lifetime / Renewal, Step B7 — the retention-purge sweep's only
+   * write: the final, canonical soft-delete (`deleted_at = UTC_TIMESTAMP(3)`,
+   * the exact same `softDeleteAssignment()` fragment `deleteListing` uses)
+   * for a listing that has sat frozen past its 6-calendar-month retention
+   * window without ever being renewed. One guarded bulk UPDATE, not a
+   * per-row loop — unlike `claimExpiryReminder` above, purging never needs
+   * to drive a per-row side effect (no event to publish, no notification to
+   * send; brief explicitly excludes any of that from B7), so there is
+   * nothing here that a bulk `freezeExpiredListings`-shaped UPDATE can't
+   * already do in one statement.
+   *
+   * The WHERE clause IS the eligibility rule (brief §2/§6), re-validated
+   * fresh at write time exactly like every other guarded lifecycle UPDATE
+   * in this file: still not deleted, still genuinely UNPUBLISHED, still
+   * frozen, still has a `purge_after`, and it has passed. This is what
+   * makes the Renew-vs-Purge race resolve correctly with no new mechanism
+   * needed — `reactivateExpiredPublication`/`extendActivePublication`
+   * (Step B5) already clear `frozen_at`/`purge_after` back to NULL on a
+   * successful renewal, so if Renew commits first this UPDATE's own
+   * `frozen_at IS NOT NULL AND purge_after IS NOT NULL` no longer matches
+   * and affects zero rows; conversely, `extendActivePublication`/
+   * `reactivateExpiredPublication` already guard on `deleted_at IS NULL`,
+   * so if this UPDATE commits first, a concurrent Renew attempt matches
+   * zero rows there instead — MySQL's own row-level locking serializes
+   * the two, so there is no interleaving that leaves a listing both
+   * PUBLISHED and soft-deleted, or deleted-then-resurrected.
+   *
+   * `deleted_by`/`updated_by` are explicitly `NULL` — system-initiated,
+   * mirroring `freezeExpiredListings`'s own `updatedBy: null` convention
+   * for every other scheduled lifecycle transition in this file. No
+   * dependent table (bookings/payments/reviews/favorites/promotions/
+   * translations/media) is touched — the listing row itself is the only
+   * thing this UPDATE ever writes.
+   *
+   * @param {{unpublishedStatusId: number}} args
+   * @returns {Promise<number>} how many listings this run purged
+   */
+  async purgeRetiredListings({ unpublishedStatusId }, connection = this.#pool) {
+    const [result] = await connection.query(
+      `UPDATE listings
+       SET ${softDeleteAssignment()}, deleted_by = NULL, updated_by = NULL
+       WHERE deleted_at IS NULL AND status_id = ? AND frozen_at IS NOT NULL
+         AND purge_after IS NOT NULL AND purge_after <= UTC_TIMESTAMP(3)`,
+      [unpublishedStatusId],
+    );
+    return result.affectedRows;
+  }
+
+  /**
    * Listing Lifetime / Renewal, Step B5 — the ACTIVE-renewal path: a
    * listing that is still genuinely PUBLISHED and not yet expired, renewed
    * BEFORE its current period runs out. Extends from the listing's own

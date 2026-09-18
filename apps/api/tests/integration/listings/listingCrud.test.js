@@ -2288,3 +2288,387 @@ describe('POST /listings/:id/archive (Phase 9: Partner Dashboard)', () => {
     expect(res.status).toBe(401);
   });
 });
+
+// Listing Lifetime / Renewal, Step B7 — the final retention-purge stage.
+// `purgeRetiredListings`'s own doc comment (mysqlListingRepository.js) has
+// the full guarded-UPDATE contract; this block proves it end to end.
+// Historical-dependency preservation (booking/payment/review/favorite/
+// promotion surviving a real purge) lives in its own dedicated file,
+// `listingRetentionPurge.test.js`, matching B5's own precedent of keeping
+// large cross-module fixtures out of this file.
+describe('Listing retention purge — Step B7', () => {
+  async function selectPurgeColumns(listingId) {
+    const [[row]] = await pool.query(
+      `SELECT deleted_at, status_id, frozen_at, purge_after, expires_at,
+              (SELECT code FROM listing_statuses WHERE id = listings.status_id) AS status_code
+       FROM listings WHERE id = ?`,
+      [listingId],
+    );
+    return row;
+  }
+
+  /** Real publish + real sweep-driven freeze — `purge_after` lands at its genuine `frozen_at + 6 calendar months` (future), matching case A's own default unless a test explicitly backdates it afterward. */
+  async function createFrozenListingDueForPurge({ periodDays = 30 } = {}) {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    const publishRes = await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: periodDays });
+    expect(publishRes.status).toBe(200);
+    await pool.query(
+      'UPDATE listings SET expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE) WHERE id = ?',
+      [listingId],
+    );
+    const swept = await services.listingService.runExpirySweep();
+    expect(swept.frozen).toBeGreaterThanOrEqual(1);
+    return listingId;
+  }
+
+  /** @param {string} intervalSql e.g. "DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 DAY)" */
+  async function setPurgeAfter(listingId, intervalSql) {
+    await pool.query(
+      `UPDATE listings SET purge_after = ${intervalSql} WHERE id = ?`,
+      [listingId],
+    );
+  }
+
+  async function purgeSweep() {
+    return services.listingService.runRetentionPurgeSweep();
+  }
+
+  describe('Eligibility matrix (brief §2/§25)', () => {
+    test('A: frozen with purge_after still future — unchanged', async () => {
+      const listingId = await createFrozenListingDueForPurge();
+      // purge_after already lands 6 calendar months out from the real
+      // sweep-driven freeze above — no backdating needed for this case.
+      await purgeSweep();
+      const after = await selectPurgeColumns(listingId);
+      expect(after.deleted_at).toBeNull();
+    });
+
+    test('B: purge_after at (or immediately crossing) DB NOW — purged', async () => {
+      const listingId = await createFrozenListingDueForPurge();
+      await setPurgeAfter(listingId, 'UTC_TIMESTAMP(3)');
+      const result = await purgeSweep();
+      expect(result.purged).toBeGreaterThanOrEqual(1);
+      const after = await selectPurgeColumns(listingId);
+      expect(after.deleted_at).not.toBeNull();
+    });
+
+    test('C: purge_after clearly in the past — purged', async () => {
+      const listingId = await createFrozenListingDueForPurge();
+      await setPurgeAfter(
+        listingId,
+        'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 DAY)',
+      );
+      const result = await purgeSweep();
+      expect(result.purged).toBeGreaterThanOrEqual(1);
+      const after = await selectPurgeColumns(listingId);
+      expect(after.deleted_at).not.toBeNull();
+    });
+
+    test('D: purge_after NULL — unchanged even though frozen', async () => {
+      const listingId = await createFrozenListingDueForPurge();
+      await pool.query('UPDATE listings SET purge_after = NULL WHERE id = ?', [
+        listingId,
+      ]);
+      await purgeSweep();
+      const after = await selectPurgeColumns(listingId);
+      expect(after.deleted_at).toBeNull();
+    });
+
+    test("E: frozen_at NULL — unchanged even with a past purge_after (defensive, direct-SQL-only state, same framing as B4/B6's own edge-case tests)", async () => {
+      const created = await createDraftListing();
+      const listingId = created.body.data.id;
+      await makePublishable(listingId);
+      await request(app)
+        .post(`/api/v1/listings/${listingId}/publish`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: 30 });
+      const [[unpublishedStatus]] = await pool.query(
+        "SELECT id FROM listing_statuses WHERE code = 'UNPUBLISHED'",
+      );
+      await pool.query(
+        `UPDATE listings
+         SET status_id = ?, frozen_at = NULL,
+             purge_after = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 DAY)
+         WHERE id = ?`,
+        [unpublishedStatus.id, listingId],
+      );
+      await purgeSweep();
+      const after = await selectPurgeColumns(listingId);
+      expect(after.deleted_at).toBeNull();
+    });
+
+    test('F: PUBLISHED status with stale frozen/purge timestamps — unchanged (defensive, direct-SQL-only state)', async () => {
+      const created = await createDraftListing();
+      const listingId = created.body.data.id;
+      await makePublishable(listingId);
+      await request(app)
+        .post(`/api/v1/listings/${listingId}/publish`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: 30 });
+      await pool.query(
+        `UPDATE listings
+         SET frozen_at = UTC_TIMESTAMP(3),
+             purge_after = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 DAY)
+         WHERE id = ?`,
+        [listingId],
+      );
+      await purgeSweep();
+      const after = await selectPurgeColumns(listingId);
+      expect(after.deleted_at).toBeNull();
+      expect(after.status_code).toBe('PUBLISHED');
+    });
+
+    test('G: manually UNPUBLISHED, never frozen — unchanged even with a backdated purge_after', async () => {
+      const created = await createDraftListing();
+      const listingId = created.body.data.id;
+      await makePublishable(listingId);
+      await request(app)
+        .post(`/api/v1/listings/${listingId}/publish`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: 30 });
+      const unpublishRes = await request(app)
+        .post(`/api/v1/listings/${listingId}/unpublish`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`);
+      expect(unpublishRes.status).toBe(200);
+      await setPurgeAfter(
+        listingId,
+        'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 DAY)',
+      );
+      await purgeSweep();
+      const after = await selectPurgeColumns(listingId);
+      expect(after.deleted_at).toBeNull();
+      expect(after.frozen_at).toBeNull();
+    });
+
+    test('H: already soft-deleted — sweep leaves it alone, never reprocesses', async () => {
+      const listingId = await createFrozenListingDueForPurge();
+      await setPurgeAfter(
+        listingId,
+        'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 DAY)',
+      );
+      const first = await purgeSweep();
+      expect(first.purged).toBeGreaterThanOrEqual(1);
+      const afterFirst = await selectPurgeColumns(listingId);
+      expect(afterFirst.deleted_at).not.toBeNull();
+
+      await purgeSweep();
+      const afterSecond = await selectPurgeColumns(listingId);
+      expect(afterSecond.deleted_at.getTime()).toBe(
+        afterFirst.deleted_at.getTime(),
+      );
+    });
+
+    test('I: legacy listing with NULL expires_at/frozen_at/purge_after — untouched', async () => {
+      const created = await createDraftListing();
+      const listingId = created.body.data.id;
+      await makePublishable(listingId);
+      await request(app)
+        .post(`/api/v1/listings/${listingId}/publish`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: 30 });
+      await pool.query(
+        'UPDATE listings SET publication_period_days = NULL, expires_at = NULL WHERE id = ?',
+        [listingId],
+      );
+      await purgeSweep();
+      const after = await selectPurgeColumns(listingId);
+      expect(after.deleted_at).toBeNull();
+      expect(after.status_code).toBe('PUBLISHED');
+    });
+
+    test('J: ARCHIVED status with stale frozen/purge timestamps — unchanged (canonical eligibility requires status = UNPUBLISHED specifically)', async () => {
+      const listingId = await createFrozenListingDueForPurge();
+      await setPurgeAfter(
+        listingId,
+        'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 DAY)',
+      );
+      const [[archivedStatus]] = await pool.query(
+        "SELECT id FROM listing_statuses WHERE code = 'ARCHIVED'",
+      );
+      await pool.query('UPDATE listings SET status_id = ? WHERE id = ?', [
+        archivedStatus.id,
+        listingId,
+      ]);
+      await purgeSweep();
+      const after = await selectPurgeColumns(listingId);
+      expect(after.deleted_at).toBeNull();
+    });
+  });
+
+  test('row preservation: the row still exists after purge, id/slug unchanged, deleted_at set, no hard delete', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    const originalSlug = created.body.data.slug;
+    await makePublishable(listingId);
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 30 });
+    await pool.query(
+      'UPDATE listings SET expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE) WHERE id = ?',
+      [listingId],
+    );
+    await services.listingService.runExpirySweep();
+    await setPurgeAfter(
+      listingId,
+      'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 DAY)',
+    );
+
+    const result = await purgeSweep();
+    expect(result.purged).toBeGreaterThanOrEqual(1);
+
+    const [[row]] = await pool.query(
+      'SELECT id, slug, deleted_at FROM listings WHERE id = ?',
+      [listingId],
+    );
+    expect(row).toBeDefined();
+    expect(row.id).toBe(listingId);
+    expect(row.slug).toBe(originalSlug);
+    expect(row.deleted_at).not.toBeNull();
+  });
+
+  test('idempotency: running the sweep twice purges exactly once, never twice; deleted_at is never rewritten', async () => {
+    const listingId = await createFrozenListingDueForPurge();
+    await setPurgeAfter(
+      listingId,
+      'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 DAY)',
+    );
+
+    const first = await purgeSweep();
+    expect(first.purged).toBeGreaterThanOrEqual(1);
+    const afterFirst = await selectPurgeColumns(listingId);
+    expect(afterFirst.deleted_at).not.toBeNull();
+
+    // Run immediately after, single-worker/sequential (`--runInBand`) — no
+    // other listing could have newly become due in that gap, so the
+    // whole-table count really is exactly 0 here, not just this row.
+    const second = await purgeSweep();
+    expect(second.purged).toBe(0);
+    const afterSecond = await selectPurgeColumns(listingId);
+    expect(afterSecond.deleted_at.getTime()).toBe(
+      afterFirst.deleted_at.getTime(),
+    );
+  });
+
+  describe('Renew vs Purge races (brief §11/§12/§28-§30)', () => {
+    test('Renew before Purge: renewal wins, the sweep then finds nothing to purge, and the listing is public again', async () => {
+      const listingId = await createFrozenListingDueForPurge({
+        periodDays: 30,
+      });
+      await setPurgeAfter(listingId, 'UTC_TIMESTAMP(3)');
+
+      const renewRes = await request(app)
+        .post(`/api/v1/listings/${listingId}/renew`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: 90 });
+      expect(renewRes.status).toBe(200);
+
+      const afterRenew = await selectPurgeColumns(listingId);
+      expect(afterRenew.deleted_at).toBeNull();
+      expect(afterRenew.status_code).toBe('PUBLISHED');
+      expect(afterRenew.frozen_at).toBeNull();
+      expect(afterRenew.purge_after).toBeNull();
+      expect(afterRenew.expires_at.getTime()).toBeGreaterThan(Date.now());
+
+      await purgeSweep();
+      const finalState = await selectPurgeColumns(listingId);
+      expect(finalState.deleted_at).toBeNull();
+
+      const publicRes = await request(app).get(`/api/v1/listings/${listingId}`);
+      expect(publicRes.status).toBe(200);
+    });
+
+    test('Purge before Renew: purge wins, Renew is then rejected, no resurrection', async () => {
+      const listingId = await createFrozenListingDueForPurge();
+      await setPurgeAfter(
+        listingId,
+        'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 DAY)',
+      );
+
+      const purgeResult = await purgeSweep();
+      expect(purgeResult.purged).toBeGreaterThanOrEqual(1);
+      const afterPurge = await selectPurgeColumns(listingId);
+      expect(afterPurge.deleted_at).not.toBeNull();
+
+      const renewRes = await request(app)
+        .post(`/api/v1/listings/${listingId}/renew`)
+        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .send({ publicationPeriodDays: 30 });
+      expect(renewRes.status).toBe(404);
+
+      const finalState = await selectPurgeColumns(listingId);
+      expect(finalState.deleted_at.getTime()).toBe(
+        afterPurge.deleted_at.getTime(),
+      );
+    });
+
+    test('Concurrent Renew vs Purge: exactly one of the two valid end states, never a corrupt partial state', async () => {
+      const listingId = await createFrozenListingDueForPurge({
+        periodDays: 30,
+      });
+      await setPurgeAfter(listingId, 'UTC_TIMESTAMP(3)');
+
+      const [renewRes] = await Promise.all([
+        request(app)
+          .post(`/api/v1/listings/${listingId}/renew`)
+          .set('Authorization', `Bearer ${vendor.accessToken}`)
+          .send({ publicationPeriodDays: 90 }),
+        purgeSweep(),
+      ]);
+
+      const final = await selectPurgeColumns(listingId);
+      const renewWon =
+        final.deleted_at === null &&
+        final.status_code === 'PUBLISHED' &&
+        final.frozen_at === null &&
+        final.purge_after === null;
+      const purgeWon = final.deleted_at !== null;
+
+      // Exactly one of the two valid end states — never both, never
+      // neither (a corrupt third state).
+      expect(renewWon || purgeWon).toBe(true);
+      expect(renewWon && purgeWon).toBe(false);
+      // The one state that must NEVER happen regardless of which won:
+      // PUBLISHED with deleted_at set.
+      if (final.deleted_at !== null) {
+        expect(final.status_code).not.toBe('PUBLISHED');
+      }
+      // renewRes itself must agree with whichever state actually won.
+      // When purge wins, Renew's own rejection shape depends on exactly
+      // when the two requests interleaved: 404 if the purge's UPDATE
+      // committed before Renew's own `findById` read (scoped to
+      // `deleted_at IS NULL`, so the row is simply gone from its
+      // perspective) — 409 RENEWAL_STATE_CHANGED if `findById` still saw
+      // the pre-purge row but the guarded UPDATE itself lost the race.
+      // Both are correct rejections; only a 200 would be wrong here.
+      if (renewWon) {
+        expect(renewRes.status).toBe(200);
+      } else {
+        expect([404, 409]).toContain(renewRes.status);
+      }
+    });
+  });
+
+  test('B6 regression: a soft-deleted (purged) listing never becomes a reminder candidate', async () => {
+    const listingId = await createFrozenListingDueForPurge();
+    await setPurgeAfter(
+      listingId,
+      'DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 DAY)',
+    );
+    const purgeResult = await purgeSweep();
+    expect(purgeResult.purged).toBeGreaterThanOrEqual(1);
+
+    const sweepResult = await services.listingService.runExpirySweep();
+    const [[row]] = await pool.query(
+      'SELECT expiry_reminder_sent_at FROM listings WHERE id = ?',
+      [listingId],
+    );
+    expect(row.expiry_reminder_sent_at).toBeNull();
+    expect(sweepResult).toBeDefined();
+  });
+});

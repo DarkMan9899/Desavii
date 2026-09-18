@@ -22,6 +22,7 @@ import { registerLocalProviderSettlementWorker } from './modules/payments/jobs/l
 import { registerAdvertisementLifecycleSweepJob } from './modules/advertising/jobs/advertisementLifecycleSweep.js';
 import { registerScheduledPublishSweepJob } from './modules/blog/jobs/scheduledPublishSweep.js';
 import { registerListingExpirySweepJob } from './modules/listings/jobs/listingExpirySweep.js';
+import { registerListingRetentionPurgeSweepJob } from './modules/listings/jobs/listingRetentionPurgeSweep.js';
 
 const server = app.listen(config.port, () => {
   logger.info({ port: config.port, env: config.env }, 'desavii-api started');
@@ -108,6 +109,13 @@ const blogScheduledPublishSweep = registerScheduledPublishSweepJob({
 const listingExpirySweep = registerListingExpirySweepJob({
   listingService: services.listingService,
 });
+// Listing Lifetime / Renewal, Step B7: daily final marketplace retirement
+// (canonical soft-delete) for a listing that sat frozen past its 6-
+// calendar-month retention window without being renewed — a separate job
+// from the hourly sweep above, see that job file's own header for why.
+const listingRetentionPurgeSweep = registerListingRetentionPurgeSweepJob({
+  listingService: services.listingService,
+});
 
 async function shutdown(signal) {
   logger.info({ signal }, 'Shutting down gracefully');
@@ -129,6 +137,8 @@ async function shutdown(signal) {
       blogScheduledPublishSweep.queue.close(),
       listingExpirySweep.worker.close(),
       listingExpirySweep.queue.close(),
+      listingRetentionPurgeSweep.worker.close(),
+      listingRetentionPurgeSweep.queue.close(),
     ]);
     await closeMysqlPool();
     await closeRedisConnection();

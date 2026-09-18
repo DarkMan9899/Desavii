@@ -144,6 +144,13 @@ export class ListingRepository {
     );
   }
 
+  /** Step B7: the guarded bulk UPDATE that soft-deletes every listing whose 6-calendar-month retention window has passed without renewal — see the MySQL adapter for the exact eligibility/race-safety contract. @returns {Promise<number>} how many listings this run purged */
+  async purgeRetiredListings({ unpublishedStatusId }) {
+    throw new Error(
+      'ListingRepository.purgeRetiredListings must be implemented by a concrete adapter.',
+    );
+  }
+
   /** @param {number} listingId @param {string} oldSlug @returns {Promise<void>} */
   async recordSlugHistory(listingId, oldSlug) {
     throw new Error(

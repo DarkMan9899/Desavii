@@ -651,6 +651,43 @@ export class ListingService {
   }
 
   /**
+   * Listing Lifetime / Renewal, Step B7 — the retention-purge sweep's
+   * entry point (`modules/listings/jobs/listingRetentionPurgeSweep.js`),
+   * a deliberately SEPARATE job/queue from `runExpirySweep` above: unlike
+   * B6's reminder phase (folded into the hourly sweep because it shared
+   * that exact cadence and scan), purge runs on its own daily cadence, a
+   * genuinely different frequency for a genuinely different concern
+   * (freezing a listing is an hourly-relevant convenience sync; purging
+   * it happens, at most, once every six months per listing, so daily is
+   * already generous).
+   *
+   * Final marketplace retirement only, via the repository's guarded
+   * `purgeRetiredListings` — the exact same canonical soft-delete
+   * (`deleted_at`, via `softDeleteAssignment()`) `ListingService
+   * #deleteListing` uses for a partner-initiated delete, reused rather
+   * than a second incompatible deletion model. Never calls
+   * `#deleteListing` itself: that method requires a `principal` and
+   * performs an owner/permission check neither applies nor makes sense
+   * for a system-initiated sweep with no human actor (brief §4).
+   *
+   * No dependent row (bookings, payments, reviews, favorites,
+   * promotions, translations, media, pricing, policy/attribute values)
+   * is ever touched — the purge is scoped to the `listings` row alone,
+   * per brief §8/§9; every one of those stays exactly as it was, and the
+   * listing row itself remains physically present for historical/
+   * referential integrity (never `DELETE FROM listings`).
+   * @returns {Promise<{purged: number}>}
+   */
+  async runRetentionPurgeSweep() {
+    const unpublishedStatusId =
+      await this.#listingRepository.findStatusIdByCode('UNPUBLISHED');
+    const purged = await this.#listingRepository.purgeRetiredListings({
+      unpublishedStatusId,
+    });
+    return { purged };
+  }
+
+  /**
    * Listing Lifetime / Renewal, Step B5 — the explicit, auditable Renew
    * action (`POST /listings/:id/renew`). Deliberately its own domain
    * method, never a side effect of ordinary Publish/PATCH (brief §10):
