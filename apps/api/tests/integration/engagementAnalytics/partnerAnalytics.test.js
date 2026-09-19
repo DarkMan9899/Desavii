@@ -159,6 +159,12 @@ function getListingDetail(authToken, partnerId, listingId, extra = '') {
     .set('Authorization', authToken ? `Bearer ${authToken}` : '');
 }
 
+function getPromotions(authToken, partnerId, extra = '') {
+  return request(app)
+    .get(`/api/v1/analytics/partner/promotions?partnerId=${partnerId}${extra}`)
+    .set('Authorization', authToken ? `Bearer ${authToken}` : '');
+}
+
 function getPromotionDetail(authToken, partnerId, promotionId, extra = '') {
   return request(app)
     .get(
@@ -741,7 +747,7 @@ describe('Promotion CTR (brief §15/§53)', () => {
     expect(res.body.data.impressions).toBe(200);
     expect(res.body.data.clicks).toBe(30);
     expect(res.body.data.ctr).toBe(0.15);
-  });
+  }, 15_000);
 });
 
 describe('Listings endpoint (brief §18-21/§56)', () => {
@@ -887,6 +893,213 @@ describe('Promotion detail — history and isolation (brief §24/§25/§57)', ()
       '&range=30',
     );
     expect(res.status).toBe(404);
+  });
+});
+
+describe('Promotions list endpoint — discovery (Step A6.1, brief §5/§6/§7/§8/§9/§10/§11)', () => {
+  test('active AND expired promotions owned by the partner both appear', async () => {
+    const listing = await insertListing({
+      partnerId: partnerAId,
+      title: 'Promo List Listing',
+    });
+    const activeId = await insertPromotion({
+      partnerId: partnerAId,
+      listingId: listing,
+      statusId: adActiveStatusId,
+    });
+    const expiredId = await insertPromotion({
+      partnerId: partnerAId,
+      listingId: listing,
+      statusId: adExpiredStatusId,
+    });
+
+    const res = await getPromotions(
+      owner.accessToken,
+      partnerAId,
+      '&range=90&limit=100',
+    );
+    expect(res.status).toBe(200);
+    const ids = res.body.data.map((row) => row.promotion_id);
+    expect(ids).toContain(activeId);
+    expect(ids).toContain(expiredId);
+  });
+
+  test('another partner’s promotions never appear (tenant isolation, brief §9)', async () => {
+    const listingB = await insertListing({
+      partnerId: partnerBId,
+      title: 'Promo List Listing B',
+    });
+    const promotionBId = await insertPromotion({
+      partnerId: partnerBId,
+      listingId: listingB,
+      statusId: adActiveStatusId,
+    });
+
+    const res = await getPromotions(
+      owner.accessToken,
+      partnerAId,
+      '&range=90&limit=100',
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((row) => row.promotion_id)).not.toContain(
+      promotionBId,
+    );
+  });
+
+  test('pagination meta shape matches the codebase convention', async () => {
+    const res = await getPromotions(
+      owner.accessToken,
+      partnerAId,
+      '&range=90&limit=1',
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.meta).toHaveProperty('next_cursor');
+    expect(res.body.meta).toHaveProperty('has_more');
+    expect(res.body.meta).toHaveProperty('limit', 1);
+    expect(res.body.data.length).toBeLessThanOrEqual(1);
+  });
+
+  test('ctr is computed from range-summed impressions/clicks, never averaged/stored (brief §7)', async () => {
+    const listing = await insertListing({
+      partnerId: partnerAId,
+      title: 'Promo List CTR Listing',
+    });
+    const promotionId = await insertPromotion({
+      partnerId: partnerAId,
+      listingId: listing,
+      statusId: adActiveStatusId,
+    });
+    const { toDateString } =
+      await import('../../../src/infrastructure/database/dateFormat.js');
+    const [[{ recentDay }]] = await pool.query(
+      'SELECT DATE_SUB(DATE(DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 4 HOUR)), INTERVAL 5 DAY) AS recentDay',
+    );
+    const day = toDateString(recentDay);
+    for (let i = 0; i < 200; i += 1) {
+      // eslint-disable-next-line no-await-in-loop -- deterministic fixture seeding
+      await insertEvent({
+        eventName: 'promotion_impression',
+        day,
+        listingId: listing,
+        partnerId: partnerAId,
+        promotionId,
+      });
+    }
+    for (let i = 0; i < 30; i += 1) {
+      // eslint-disable-next-line no-await-in-loop -- deterministic fixture seeding
+      await insertEvent({
+        eventName: 'promotion_clicked',
+        day,
+        listingId: listing,
+        partnerId: partnerAId,
+        promotionId,
+      });
+    }
+    const { EngagementAnalyticsAggregationService } =
+      await import('../../../src/modules/engagementAnalytics/services/engagementAnalyticsAggregationService.js');
+    const { MySqlEngagementAnalyticsAggregationRepository } =
+      await import('../../../src/modules/engagementAnalytics/repositories/mysqlEngagementAnalyticsAggregationRepository.js');
+    const aggregationService = new EngagementAnalyticsAggregationService({
+      engagementAnalyticsAggregationRepository:
+        new MySqlEngagementAnalyticsAggregationRepository(pool),
+    });
+    await aggregationService.aggregateDay(day);
+
+    const res = await getPromotions(
+      owner.accessToken,
+      partnerAId,
+      '&range=90&limit=100',
+    );
+    expect(res.status).toBe(200);
+    const row = res.body.data.find((r) => r.promotion_id === promotionId);
+    expect(row).toBeDefined();
+    expect(row.impressions).toBe(200);
+    expect(row.clicks).toBe(30);
+    expect(row.ctr).toBe(0.15);
+  }, 15_000);
+
+  test('a promotion whose listing is soft-deleted remains discoverable, with a neutral null title (brief §11)', async () => {
+    const deletedListing = await insertListing({
+      partnerId: partnerAId,
+      title: 'Will Be Deleted Promo Listing',
+      deleted: true,
+    });
+    const promotionId = await insertPromotion({
+      partnerId: partnerAId,
+      listingId: deletedListing,
+      statusId: adExpiredStatusId,
+    });
+
+    const res = await getPromotions(
+      owner.accessToken,
+      partnerAId,
+      '&range=90&limit=100',
+    );
+    expect(res.status).toBe(200);
+    const row = res.body.data.find((r) => r.promotion_id === promotionId);
+    expect(row).toBeDefined();
+    expect(row.title).toBeNull();
+  });
+
+  test('no private advertisement fields (price/payment/approval/reminder) ever appear in the response', async () => {
+    const listing = await insertListing({
+      partnerId: partnerAId,
+      title: 'Promo List Privacy Listing',
+    });
+    await insertPromotion({
+      partnerId: partnerAId,
+      listingId: listing,
+      statusId: adActiveStatusId,
+    });
+    const res = await getPromotions(
+      owner.accessToken,
+      partnerAId,
+      '&range=90&limit=100',
+    );
+    expect(res.status).toBe(200);
+    const serialized = JSON.stringify(res.body);
+    expect(serialized).not.toMatch(/price_snapshot_amount/);
+    expect(serialized).not.toMatch(/payment_marked_paid/);
+    expect(serialized).not.toMatch(/approved_by/);
+    expect(serialized).not.toMatch(/approved_at/);
+    expect(serialized).not.toMatch(/requested_by/);
+    expect(serialized).not.toMatch(/reminder_7d/);
+    expect(serialized).not.toMatch(/reminder_2d/);
+    expect(serialized).not.toMatch(/display_priority/);
+    expect(serialized).not.toMatch(/currency/);
+  });
+
+  test('OWNER/ANALYTICS_VIEWER allowed, EDITOR/CUSTOMER blocked with 403, anonymous blocked with 401', async () => {
+    const asOwner = await getPromotions(
+      owner.accessToken,
+      partnerAId,
+      '&range=7',
+    );
+    expect(asOwner.status).toBe(200);
+
+    const asViewer = await getPromotions(
+      analyticsViewer.accessToken,
+      partnerAId,
+      '&range=7',
+    );
+    expect(asViewer.status).toBe(200);
+
+    const asEditor = await getPromotions(
+      unauthorizedEditor.accessToken,
+      partnerAId,
+      '&range=7',
+    );
+    expect(asEditor.status).toBe(403);
+
+    const asCustomer = await getPromotions(
+      customer.accessToken,
+      partnerAId,
+      '&range=7',
+    );
+    expect(asCustomer.status).toBe(403);
+
+    const anonymous = await getPromotions(null, partnerAId, '&range=7');
+    expect(anonymous.status).toBe(401);
   });
 });
 

@@ -821,6 +821,48 @@
       "listingDetail": {
         "heading": "Listing analytics",
         "errorTitle": "We couldn't load this listing's analytics."
+      },
+      "promotions": {
+        "heading": "Promotion performance",
+        "errorTitle": "We couldn't load promotion performance.",
+        "emptyTitle": "No promotions yet",
+        "emptyDescription": "Your promoted listings will show up here.",
+        "unavailableListing": "Listing unavailable",
+        "columns": {
+          "promotion": "Promotion",
+          "placement": "Placement",
+          "status": "Status",
+          "impressions": "Impressions",
+          "clicks": "Clicks",
+          "ctr": "CTR"
+        },
+        "status": {
+          "REQUEST_SUBMITTED": "Request submitted",
+          "AWAITING_OFFLINE_PAYMENT": "Awaiting payment",
+          "PAID_MANUAL": "Paid",
+          "APPROVED": "Approved",
+          "SCHEDULED": "Scheduled",
+          "ACTIVE": "Active",
+          "PAUSED": "Paused",
+          "REJECTED": "Rejected",
+          "CANCELLED": "Cancelled",
+          "EXPIRED": "Expired"
+        },
+        "placement": {
+          "HOMEPAGE_SECTION": "Home",
+          "CATEGORY_TOP": "Category top"
+        }
+      },
+      "promotionDetail": {
+        "heading": "Promotion analytics",
+        "errorTitle": "We couldn't load this promotion's analytics.",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "ctr": "CTR",
+        "chartSeries": {
+          "impressions": "Impressions",
+          "clicks": "Clicks"
+        }
       }
     },
     "profile": {

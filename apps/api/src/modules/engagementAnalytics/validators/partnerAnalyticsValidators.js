@@ -57,6 +57,18 @@ export const partnerAnalyticsListingsQuerySchema = z.object({
   body: z.any(),
 });
 
+/** Step A6.1 — `GET /analytics/partner/promotions`. No `sort` param: the list endpoint uses a fixed sort (repository's own doc comment), kept minimal per brief §8. */
+export const partnerAnalyticsPromotionsQuerySchema = z.object({
+  params: z.object({}).passthrough(),
+  query: z.object({
+    partnerId: partnerIdQuery,
+    range: rangeDaysQuery,
+    cursor: z.string().optional(),
+    limit: z.coerce.number().int().positive().max(100).optional(),
+  }),
+  body: z.any(),
+});
+
 const listingIdParams = z.object({
   listingId: z.coerce.number().int().positive(),
 });
@@ -91,5 +103,6 @@ export default {
   partnerAnalyticsOverviewQuerySchema,
   partnerAnalyticsListingsQuerySchema,
   partnerAnalyticsListingDetailSchema,
+  partnerAnalyticsPromotionsQuerySchema,
   partnerAnalyticsPromotionDetailSchema,
 };

@@ -15,6 +15,7 @@ export { default as PartnerStaffPageContent } from './components/PartnerStaffPag
 export { default as AcceptInvitationPageContent } from './components/AcceptInvitationPageContent/AcceptInvitationPageContent.jsx';
 export { default as PartnerAnalyticsPageContent } from './components/PartnerAnalyticsPageContent/PartnerAnalyticsPageContent.jsx';
 export { default as PartnerAnalyticsListingDetailContent } from './components/PartnerAnalyticsListingDetailContent/PartnerAnalyticsListingDetailContent.jsx';
+export { default as PartnerAnalyticsPromotionDetailContent } from './components/PartnerAnalyticsPromotionDetailContent/PartnerAnalyticsPromotionDetailContent.jsx';
 export { default as PartnerWorkspaceIdentity } from './components/PartnerWorkspaceIdentity/PartnerWorkspaceIdentity.jsx';
 export { default as useMyPartnershipsQuery } from './queries/useMyPartnershipsQuery.js';
 export { default as useMyCompanyProfileQuery } from './queries/useMyCompanyProfileQuery.js';

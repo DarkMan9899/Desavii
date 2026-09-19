@@ -151,6 +151,29 @@ export function toPartnerListingDetailResponse({
   };
 }
 
+/**
+ * Step A6.1 — one row of `GET /analytics/partner/promotions`. UI-safe
+ * fields only (brief §6): never price/payment/approval/reminder/audit
+ * columns from `advertisements`. `title` is `null` when the owning
+ * listing is soft-deleted (repository-level fallback, brief §11) —
+ * never omitted, so the frontend can render a neutral fallback label
+ * without a second lookup.
+ */
+export function toPartnerPromotionRowResponse(row) {
+  return {
+    promotion_id: row.promotionId,
+    listing_id: row.listingId,
+    title: row.title,
+    placement: row.placementCode,
+    status: row.statusCode,
+    start_date: row.startDate,
+    end_date: row.endDate,
+    impressions: row.impressionsCount,
+    clicks: row.clicksCount,
+    ctr: row.ctr,
+  };
+}
+
 export function toPartnerPromotionDetailResponse({
   rangeDays,
   fromDay,
@@ -180,5 +203,6 @@ export default {
   toPartnerOverviewResponse,
   toPartnerListingRowResponse,
   toPartnerListingDetailResponse,
+  toPartnerPromotionRowResponse,
   toPartnerPromotionDetailResponse,
 };

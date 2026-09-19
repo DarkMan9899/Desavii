@@ -33,6 +33,7 @@ import {
   partnerAnalyticsOverviewQuerySchema,
   partnerAnalyticsListingsQuerySchema,
   partnerAnalyticsListingDetailSchema,
+  partnerAnalyticsPromotionsQuerySchema,
   partnerAnalyticsPromotionDetailSchema,
 } from './validators/partnerAnalyticsValidators.js';
 
@@ -68,6 +69,16 @@ export default function createEngagementAnalyticsRoutes({
     requireAuth,
     validate(partnerAnalyticsListingDetailSchema),
     partnerAnalyticsController.getListingDetail,
+  );
+  // Step A6.1: registered before the `:promotionId` route below, matching
+  // this file's existing `/partner/listings` before `/partner/listings/
+  // :listingId` ordering — Express wouldn't actually confuse the two
+  // (different segment counts), but kept consistent with that precedent.
+  router.get(
+    '/partner/promotions',
+    requireAuth,
+    validate(partnerAnalyticsPromotionsQuerySchema),
+    partnerAnalyticsController.listPromotions,
   );
   router.get(
     '/partner/promotions/:promotionId',

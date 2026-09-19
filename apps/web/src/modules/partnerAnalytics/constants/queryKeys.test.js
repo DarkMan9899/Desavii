@@ -20,6 +20,15 @@ describe('partnerAnalyticsKeys (apps/web/src/modules/partnerAnalytics) — brief
     );
   });
 
+  test('promotions key differs by partnerId and rangeDays', () => {
+    expect(partnerAnalyticsKeys.promotions(1, 30)).not.toEqual(
+      partnerAnalyticsKeys.promotions(2, 30),
+    );
+    expect(partnerAnalyticsKeys.promotions(1, 30)).not.toEqual(
+      partnerAnalyticsKeys.promotions(1, 90),
+    );
+  });
+
   test('listingDetail key differs by partnerId, listingId, and rangeDays', () => {
     const base = partnerAnalyticsKeys.listingDetail(1, 42, 30);
     expect(base).not.toEqual(partnerAnalyticsKeys.listingDetail(2, 42, 30));

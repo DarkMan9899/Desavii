@@ -819,6 +819,48 @@
       "listingDetail": {
         "heading": "Аналитика объявления",
         "errorTitle": "Не удалось загрузить аналитику этого объявления."
+      },
+      "promotions": {
+        "heading": "Показатели продвижения",
+        "errorTitle": "Не удалось загрузить показатели продвижения.",
+        "emptyTitle": "Продвижений пока нет",
+        "emptyDescription": "Ваши продвигаемые объявления появятся здесь.",
+        "unavailableListing": "Объявление недоступно",
+        "columns": {
+          "promotion": "Продвижение",
+          "placement": "Размещение",
+          "status": "Статус",
+          "impressions": "Показы",
+          "clicks": "Клики",
+          "ctr": "CTR"
+        },
+        "status": {
+          "REQUEST_SUBMITTED": "Заявка отправлена",
+          "AWAITING_OFFLINE_PAYMENT": "Ожидает оплаты",
+          "PAID_MANUAL": "Оплачено",
+          "APPROVED": "Одобрено",
+          "SCHEDULED": "Запланировано",
+          "ACTIVE": "Активно",
+          "PAUSED": "Приостановлено",
+          "REJECTED": "Отклонено",
+          "CANCELLED": "Отменено",
+          "EXPIRED": "Истекло"
+        },
+        "placement": {
+          "HOMEPAGE_SECTION": "Главная страница",
+          "CATEGORY_TOP": "Верх категории"
+        }
+      },
+      "promotionDetail": {
+        "heading": "Аналитика продвижения",
+        "errorTitle": "Не удалось загрузить аналитику этого продвижения.",
+        "impressions": "Показы",
+        "clicks": "Клики",
+        "ctr": "CTR",
+        "chartSeries": {
+          "impressions": "Показы",
+          "clicks": "Клики"
+        }
       }
     },
     "profile": {

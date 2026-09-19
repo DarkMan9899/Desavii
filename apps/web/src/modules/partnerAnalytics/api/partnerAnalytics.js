@@ -31,6 +31,20 @@ export function listPartnerAnalyticsListings({
     .then((response) => response.data);
 }
 
+/** `GET /analytics/partner/promotions` (Step A6.1) */
+export function listPartnerAnalyticsPromotions({
+  partnerId,
+  range,
+  cursor,
+  limit,
+}) {
+  return apiClient
+    .get('/analytics/partner/promotions', {
+      params: { partnerId, range, cursor, limit },
+    })
+    .then((response) => response.data);
+}
+
 /** `GET /analytics/partner/listings/:listingId` */
 export function getPartnerAnalyticsListingDetail({
   partnerId,

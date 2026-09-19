@@ -46,6 +46,19 @@ export function createPartnerAnalyticsController(partnerAnalyticsService) {
       }
     },
 
+    async listPromotions(req, res, next) {
+      try {
+        const { partnerId, range, cursor, limit } = req.validated.query;
+        const { rows, meta } = await partnerAnalyticsService.listPromotions(
+          req.principal,
+          { partnerId, rangeDays: range, cursor, limit },
+        );
+        res.status(200).json({ success: true, data: rows, meta, error: null });
+      } catch (err) {
+        next(err);
+      }
+    },
+
     async getPromotionDetail(req, res, next) {
       try {
         const { promotionId } = req.validated.params;

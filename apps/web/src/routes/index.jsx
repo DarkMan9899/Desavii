@@ -157,6 +157,9 @@ const PartnerAnalyticsPage = lazy(
 const PartnerAnalyticsListingDetailPage = lazy(
   () => import('../pages/partner/PartnerAnalyticsListingDetailPage.jsx'),
 );
+const PartnerAnalyticsPromotionDetailPage = lazy(
+  () => import('../pages/partner/PartnerAnalyticsPromotionDetailPage.jsx'),
+);
 const ManagerDashboardPage = lazy(
   () => import('../pages/manager/ManagerDashboardPage.jsx'),
 );
@@ -581,6 +584,12 @@ export default function AppRoutes() {
               <Route
                 path="partner/analytics/listings/:listingId"
                 element={<PartnerAnalyticsListingDetailPage />}
+              />
+              {/* Step A6.1 (promotion analytics discovery) — same
+                route-based detail convention. */}
+              <Route
+                path="partner/analytics/promotions/:promotionId"
+                element={<PartnerAnalyticsPromotionDetailPage />}
               />
             </Route>
 

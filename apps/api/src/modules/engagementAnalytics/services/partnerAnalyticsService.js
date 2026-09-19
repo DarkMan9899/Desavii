@@ -39,6 +39,7 @@ import {
   toPartnerOverviewResponse,
   toPartnerListingRowResponse,
   toPartnerListingDetailResponse,
+  toPartnerPromotionRowResponse,
   toPartnerPromotionDetailResponse,
 } from '../dto/partnerAnalyticsDto.js';
 
@@ -372,6 +373,49 @@ export class PartnerAnalyticsService {
       ratios,
       daily,
     });
+  }
+
+  /**
+   * `GET /analytics/partner/promotions` (Step A6.1 — closes the
+   * "promotion discovery" gap A6 flagged: without this, the existing
+   * detail endpoint below was unreachable from the UI). Partner-scoped
+   * entirely in SQL (`listPromotionsRange`'s own `WHERE ad.partner_id =
+   * ?`, brief §9 — never fetched globally then filtered in memory).
+   * Includes both active and historical/expired promotions (brief §5) —
+   * deliberately does not reuse `advertisementService`'s public
+   * visibility-gated queries.
+   */
+  async listPromotions(
+    principal,
+    { partnerId, rangeDays, cursor, limit = DEFAULT_LISTINGS_LIMIT },
+  ) {
+    await this.#assertAnalyticsAccess(principal, partnerId);
+    const { fromDay, toDay } = await this.#resolveRange(rangeDays);
+
+    const { rows, meta } =
+      await this.#partnerAnalyticsRepository.listPromotionsRange({
+        partnerId,
+        fromDay,
+        toDay,
+        cursor,
+        limit,
+      });
+
+    const enriched = rows.map((row) => ({
+      ...row,
+      ctr: computeRatio(row.clicksCount, row.impressionsCount),
+    }));
+
+    return {
+      rows: enriched.map(toPartnerPromotionRowResponse),
+      meta: {
+        ...meta,
+        range_days: rangeDays,
+        from_day: fromDay,
+        to_day: toDay,
+        timezone: 'Asia/Yerevan',
+      },
+    };
   }
 
   /**

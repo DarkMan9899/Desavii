@@ -35,6 +35,7 @@ import {
 import {
   usePartnerAnalyticsOverviewQuery,
   usePartnerAnalyticsListingsQuery,
+  usePartnerAnalyticsPromotionsQuery,
   useAnalyticsRangeParam,
   ALLOWED_RANGE_DAYS,
   DEFAULT_LISTINGS_SORT,
@@ -44,6 +45,7 @@ import {
   formatDay,
 } from '../../../partnerAnalytics/index.js';
 import PartnerAnalyticsListingsTable from '../PartnerAnalyticsListingsTable/PartnerAnalyticsListingsTable.jsx';
+import PartnerAnalyticsPromotionsTable from '../PartnerAnalyticsPromotionsTable/PartnerAnalyticsPromotionsTable.jsx';
 
 const CHART_METRICS = [
   'views',
@@ -72,10 +74,18 @@ export default function PartnerAnalyticsPageContent() {
     rangeDays: range,
     sort,
   });
+  const promotionsQuery = usePartnerAnalyticsPromotionsQuery({
+    partnerId: canView ? activePartnerId : null,
+    rangeDays: range,
+  });
 
   const listingRows = useMemo(
     () => listingsQuery.data?.pages.flatMap((page) => page.results) ?? [],
     [listingsQuery.data],
+  );
+  const promotionRows = useMemo(
+    () => promotionsQuery.data?.pages.flatMap((page) => page.results) ?? [],
+    [promotionsQuery.data],
   );
 
   const overview = overviewQuery.data;
@@ -382,10 +392,32 @@ export default function PartnerAnalyticsPageContent() {
           </Stack>
         </Card>
 
+        <Card as="div" padding="lg">
+          <Stack gap="4">
+            <h2>{t('partner.analytics.promotions.heading')}</h2>
+            {promotionsQuery.isError ? (
+              <ErrorState
+                title={t('partner.analytics.promotions.errorTitle')}
+                retryLabel={t('partner.analytics.error.retry')}
+                onRetry={promotionsQuery.refetch}
+              />
+            ) : (
+              <PartnerAnalyticsPromotionsTable
+                rows={promotionRows}
+                isPending={promotionsQuery.isPending}
+                hasNextPage={Boolean(promotionsQuery.hasNextPage)}
+                isFetchingNextPage={promotionsQuery.isFetchingNextPage}
+                onLoadMore={promotionsQuery.fetchNextPage}
+              />
+            )}
+          </Stack>
+        </Card>
+
         {!isLoading &&
           overview.listing_views === 0 &&
           overview.listing_impressions === 0 &&
-          listingRows.length === 0 && (
+          listingRows.length === 0 &&
+          promotionRows.length === 0 && (
             <EmptyState
               title={t('partner.analytics.noDataYet.title')}
               description={t('partner.analytics.noDataYet.description')}

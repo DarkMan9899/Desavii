@@ -457,6 +457,83 @@ export class MySqlPartnerAnalyticsRepository {
     }));
   }
 
+  /**
+   * Cursor-paginated per-promotion range rollup (Step A6.1, brief §6/§8) —
+   * one row per current (non-soft-deleted) partner promotion
+   * (`advertisements`, never a public-visibility filter — brief §5:
+   * historical/expired promotions stay discoverable, unlike the public
+   * `listActiveListingIdsByPlacement` query in `mysqlAdvertisementRepository
+   * .js`, which this method deliberately does not reuse). Joined against a
+   * range-scoped `promotion_analytics_daily` slice the same `LEFT JOIN` +
+   * `GROUP BY` + HAVING-keyset shape {@link listListingsRange} already
+   * established. Sort is fixed (`impressions_count DESC, ad.id DESC`,
+   * brief §8's own recommendation) — no client-selectable sort enum, kept
+   * minimal per brief §8's explicit "do not overbuild".
+   *
+   * `title` resolves to `NULL` when the owning listing is soft-deleted
+   * (brief §11: never leak/manage the deleted listing's live editorial
+   * content through Analytics) — the promotion row itself is never
+   * dropped for this reason; the FK on `advertisements.listing_id`
+   * guarantees the listing row always physically exists, so a plain JOIN
+   * (not LEFT JOIN) is safe here, unlike `title`'s own CASE.
+   */
+  async listPromotionsRange({ partnerId, fromDay, toDay, cursor, limit }) {
+    const decoded = decodeCursor(cursor);
+    const hasCursor =
+      decoded &&
+      decoded.sortValue !== undefined &&
+      decoded.promotionId !== undefined;
+    const havingClause = hasCursor
+      ? 'HAVING (COALESCE(SUM(pad.impressions_count), 0), ad.id) < (?, ?)'
+      : '';
+
+    const [rows] = await this.#pool.query(
+      `SELECT
+         ad.id AS promotion_id, ad.listing_id,
+         apt.code AS placement_code, ads.code AS status_code,
+         ad.start_date, ad.end_date,
+         CASE WHEN l.deleted_at IS NOT NULL THEN NULL ELSE COALESCE(lt.title, lt2.title, '') END AS title,
+         COALESCE(SUM(pad.impressions_count), 0) AS impressions_count,
+         COALESCE(SUM(pad.clicks_count), 0) AS clicks_count
+       FROM advertisements ad
+       JOIN ad_placement_types apt ON apt.id = ad.ad_placement_type_id
+       JOIN advertisement_statuses ads ON ads.id = ad.status_id
+       JOIN listings l ON l.id = ad.listing_id
+       ${LISTING_TITLE_JOIN}
+       LEFT JOIN promotion_analytics_daily pad
+         ON pad.promotion_id = ad.id AND pad.day >= ? AND pad.day <= ?
+       WHERE ad.partner_id = ? AND ad.deleted_at IS NULL
+       GROUP BY ad.id, ad.listing_id, apt.code, ads.code, ad.start_date, ad.end_date, l.deleted_at, lt.title, lt2.title
+       ${havingClause}
+       ORDER BY impressions_count DESC, ad.id DESC
+       LIMIT ?`,
+      [
+        fromDay,
+        toDay,
+        partnerId,
+        ...(hasCursor ? [decoded.sortValue, decoded.promotionId] : []),
+        limit + 1,
+      ],
+    );
+
+    const mapped = rows.map((row) => ({
+      promotionId: row.promotion_id,
+      listingId: row.listing_id,
+      placementCode: row.placement_code,
+      statusCode: row.status_code,
+      startDate: toDateString(row.start_date),
+      endDate: toDateString(row.end_date),
+      title: row.title,
+      impressionsCount: Number(row.impressions_count),
+      clicksCount: Number(row.clicks_count),
+    }));
+
+    return buildPageMeta(mapped, limit, (row) => ({
+      sortValue: row.impressionsCount,
+      promotionId: row.promotionId,
+    }));
+  }
+
   /** Single-promotion range sums from `promotion_analytics_daily`. Returns `null` if no rows exist this range (valid zero-data outcome). */
   async getPromotionRangeTotals({ promotionId, fromDay, toDay }) {
     const [[row]] = await this.#pool.query(

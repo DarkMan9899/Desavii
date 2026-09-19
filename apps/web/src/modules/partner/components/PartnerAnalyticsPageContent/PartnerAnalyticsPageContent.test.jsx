@@ -8,6 +8,7 @@ import { usePartnerCapability } from '../../../availability/index.js';
 import {
   usePartnerAnalyticsOverviewQuery,
   usePartnerAnalyticsListingsQuery,
+  usePartnerAnalyticsPromotionsQuery,
   useAnalyticsRangeParam,
 } from '../../../partnerAnalytics/index.js';
 
@@ -26,6 +27,7 @@ vi.mock('../../../partnerAnalytics/index.js', async () => {
     ...actual,
     usePartnerAnalyticsOverviewQuery: vi.fn(),
     usePartnerAnalyticsListingsQuery: vi.fn(),
+    usePartnerAnalyticsPromotionsQuery: vi.fn(),
     useAnalyticsRangeParam: vi.fn(),
   };
 });
@@ -95,9 +97,18 @@ describe('PartnerAnalyticsPageContent (apps/web/src/modules/partner) â€” brief Â
       hasNextPage: false,
       isFetchingNextPage: false,
     });
+    usePartnerAnalyticsPromotionsQuery.mockReturnValue({
+      data: { pages: [{ results: [] }] },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    });
   });
 
-  test('a role without VIEW_ANALYTICS sees a restricted state and never fires the overview/listings queries', () => {
+  test('a role without VIEW_ANALYTICS sees a restricted state and never fires the overview/listings/promotions queries', () => {
     usePartnerCapability.mockReturnValue(false);
     usePartnerAnalyticsOverviewQuery.mockReturnValue({
       isPending: true,
@@ -113,6 +124,9 @@ describe('PartnerAnalyticsPageContent (apps/web/src/modules/partner) â€” brief Â
       expect.objectContaining({ partnerId: null }),
     );
     expect(usePartnerAnalyticsListingsQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ partnerId: null }),
+    );
+    expect(usePartnerAnalyticsPromotionsQuery).toHaveBeenCalledWith(
       expect.objectContaining({ partnerId: null }),
     );
   });

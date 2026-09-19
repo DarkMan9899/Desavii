@@ -22,6 +22,12 @@ const partnerAnalyticsKeys = {
     rangeDays,
     sort,
   ],
+  promotions: (partnerId, rangeDays) => [
+    ...partnerAnalyticsKeys.all,
+    'promotions',
+    partnerId,
+    rangeDays,
+  ],
   listingDetail: (partnerId, listingId, rangeDays) => [
     ...partnerAnalyticsKeys.all,
     'listingDetail',

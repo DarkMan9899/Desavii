@@ -49,6 +49,9 @@ function buildRepository(overrides = {}) {
     getExactUniqueVisitors: jest.fn().mockResolvedValue(0),
     getListingDailySeriesForPartner: jest.fn().mockResolvedValue([]),
     getCompanyDailySeriesForPartner: jest.fn().mockResolvedValue([]),
+    listPromotionsRange: jest
+      .fn()
+      .mockResolvedValue({ rows: [], meta: { has_more: false } }),
     ...overrides,
   };
 }
@@ -138,6 +141,15 @@ describe('PartnerAnalyticsService — workspace/capability access (brief §4/§2
       service.getOverview(PRINCIPAL, { partnerId: 7, rangeDays: 30 }),
     ).rejects.toBeInstanceOf(AuthorizationError);
   });
+
+  test('listPromotions goes through the same access gate as every other method (Step A6.1)', async () => {
+    isPartnerOwnerMock = jest.fn().mockResolvedValue(false);
+    getPartnerEmployeeRoleCodeMock = jest.fn().mockResolvedValue('EDITOR');
+    const { service } = buildServices();
+    await expect(
+      service.listPromotions(PRINCIPAL, { partnerId: 7, rangeDays: 30 }),
+    ).rejects.toBeInstanceOf(AuthorizationError);
+  });
 });
 
 describe('PartnerAnalyticsService — ratio calculation (brief §13/§36/§53)', () => {
@@ -182,6 +194,48 @@ describe('PartnerAnalyticsService — ratio calculation (brief §13/§36/§53)',
     expect(result.search_ctr).toBeCloseTo(0.2079, 4);
     expect(result.promotion_ctr).toBe(0.15);
     expect(result.view_to_request_conversion).toBe(0.1); // 3 / 30
+  });
+
+  test('listPromotions computes each row’s ctr from its own summed impressions/clicks, never a stored or averaged value (Step A6.1, brief §7)', async () => {
+    const { service } = buildServices({
+      partnerAnalyticsRepository: {
+        listPromotionsRange: jest.fn().mockResolvedValue({
+          rows: [
+            {
+              promotionId: 1,
+              listingId: 10,
+              title: 'Villa',
+              placementCode: 'HOMEPAGE_SECTION',
+              statusCode: 'ACTIVE',
+              startDate: '2026-08-01',
+              endDate: '2026-08-30',
+              impressionsCount: 200,
+              clicksCount: 30,
+            },
+            {
+              promotionId: 2,
+              listingId: 11,
+              title: null,
+              placementCode: 'CATEGORY_TOP',
+              statusCode: 'EXPIRED',
+              startDate: '2026-07-01',
+              endDate: '2026-07-15',
+              impressionsCount: 0,
+              clicksCount: 0,
+            },
+          ],
+          meta: { has_more: false },
+        }),
+      },
+    });
+    const result = await service.listPromotions(PRINCIPAL, {
+      partnerId: 7,
+      rangeDays: 30,
+    });
+    expect(result.rows[0].ctr).toBe(0.15);
+    expect(result.rows[0].promotion_id).toBe(1);
+    expect(result.rows[1].ctr).toBe(0);
+    expect(result.rows[1].title).toBeNull();
   });
 });
 

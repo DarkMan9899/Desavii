@@ -9,6 +9,10 @@ export {
   default as usePartnerAnalyticsListingsQuery,
   LISTINGS_PAGE_LIMIT,
 } from './queries/usePartnerAnalyticsListingsQuery.js';
+export {
+  default as usePartnerAnalyticsPromotionsQuery,
+  PROMOTIONS_PAGE_LIMIT,
+} from './queries/usePartnerAnalyticsPromotionsQuery.js';
 export { default as usePartnerAnalyticsListingDetailQuery } from './queries/usePartnerAnalyticsListingDetailQuery.js';
 export { default as usePartnerAnalyticsPromotionDetailQuery } from './queries/usePartnerAnalyticsPromotionDetailQuery.js';
 export { default as useAnalyticsRangeParam } from './hooks/useAnalyticsRangeParam.js';

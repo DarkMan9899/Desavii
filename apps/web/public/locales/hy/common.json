@@ -819,6 +819,48 @@
       "listingDetail": {
         "heading": "Հայտարարության վերլուծություն",
         "errorTitle": "Չհաջողվեց բեռնել այս հայտարարության վերլուծությունը։"
+      },
+      "promotions": {
+        "heading": "Առաջխաղացումների ցուցանիշներ",
+        "errorTitle": "Չհաջողվեց բեռնել առաջխաղացումների ցուցանիշները։",
+        "emptyTitle": "Դեռ առաջխաղացումներ չկան",
+        "emptyDescription": "Ձեր առաջխաղացված հայտարարությունները կհայտնվեն այստեղ։",
+        "unavailableListing": "Հայտարարությունն անհասանելի է",
+        "columns": {
+          "promotion": "Առաջխաղացում",
+          "placement": "Տեղաբաշխում",
+          "status": "Կարգավիճակ",
+          "impressions": "Ցուցադրումներ",
+          "clicks": "Սեղմումներ",
+          "ctr": "CTR"
+        },
+        "status": {
+          "REQUEST_SUBMITTED": "Հայտն ուղարկված է",
+          "AWAITING_OFFLINE_PAYMENT": "Սպասում է վճարման",
+          "PAID_MANUAL": "Վճարված է",
+          "APPROVED": "Հաստատված է",
+          "SCHEDULED": "Պլանավորված է",
+          "ACTIVE": "Ակտիվ",
+          "PAUSED": "Դադարեցված է",
+          "REJECTED": "Մերժված է",
+          "CANCELLED": "Չեղարկված է",
+          "EXPIRED": "Ժամկետանց է"
+        },
+        "placement": {
+          "HOMEPAGE_SECTION": "Գլխավոր էջ",
+          "CATEGORY_TOP": "Կատեգորիայի վերև"
+        }
+      },
+      "promotionDetail": {
+        "heading": "Առաջխաղացման վերլուծություն",
+        "errorTitle": "Չհաջողվեց բեռնել այս առաջխաղացման վերլուծությունը։",
+        "impressions": "Ցուցադրումներ",
+        "clicks": "Սեղմումներ",
+        "ctr": "CTR",
+        "chartSeries": {
+          "impressions": "Ցուցադրումներ",
+          "clicks": "Սեղմումներ"
+        }
       }
     },
     "profile": {
