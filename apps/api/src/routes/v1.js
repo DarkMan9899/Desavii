@@ -141,25 +141,6 @@ export default function createV1Router({
     eventBus,
     userService: usersContainer.userService,
   });
-  // Step A2 (Engagement Analytics): depends on Listings'/Partners'/
-  // Advertising's public Service interfaces only, for server-side target
-  // resolution — never a second Repository over `listings`/`partners`/
-  // `advertisements` (BACKEND_ARCHITECTURE.md §4). Constructed here
-  // (after Partners, which itself comes after Advertising above) so all
-  // three dependencies already exist.
-  const engagementAnalyticsContainer = createEngagementAnalyticsContainer({
-    listingService: listingsContainer.listingService,
-    partnerService: partnersContainer.partnerService,
-    advertisementService: advertisingContainer.advertisementService,
-  });
-  // Step A2: the ONLY place this module subscribes to another module's
-  // domain events, same established rule `notificationListener.js`/
-  // `aiListener.js` already follow.
-  registerEngagementAnalyticsListeners({
-    eventBus,
-    engagementAnalyticsService:
-      engagementAnalyticsContainer.engagementAnalyticsService,
-  });
   // Sprint F (Manager Workspace + Analytics): depends on Partners' and
   // Users' public Service interfaces only (existence/role validation on
   // assignment) — never a second Repository over either module's own
@@ -198,6 +179,31 @@ export default function createV1Router({
   const favoritesContainer = createFavoritesContainer({
     listingService: listingsContainer.listingService,
     eventBus,
+  });
+  // Step A2 (Engagement Analytics): depends on Listings'/Partners'/
+  // Advertising's public Service interfaces only, for server-side target
+  // resolution — never a second Repository over `listings`/`partners`/
+  // `advertisements` (BACKEND_ARCHITECTURE.md §4). Step A5 (Partner
+  // Analytics Read API) added a `favoriteService` dependency too (current
+  // net-saves count), which is why this container's construction moved
+  // here — after Favorites, not immediately after Advertising/Partners
+  // like it originally was — rather than earlier where `favoritesContainer`
+  // doesn't exist yet. Nothing between the old and new construction points
+  // ever read `engagementAnalyticsContainer`, so this reordering changes
+  // nothing else.
+  const engagementAnalyticsContainer = createEngagementAnalyticsContainer({
+    listingService: listingsContainer.listingService,
+    partnerService: partnersContainer.partnerService,
+    advertisementService: advertisingContainer.advertisementService,
+    favoriteService: favoritesContainer.favoriteService,
+  });
+  // Step A2: the ONLY place this module subscribes to another module's
+  // domain events, same established rule `notificationListener.js`/
+  // `aiListener.js` already follow.
+  registerEngagementAnalyticsListeners({
+    eventBus,
+    engagementAnalyticsService:
+      engagementAnalyticsContainer.engagementAnalyticsService,
   });
   // Phase 13 (Notifications): depends on Users' public Service interface
   // only (announcement audience resolution) — never a second Repository
@@ -430,6 +436,9 @@ export default function createV1Router({
     createEngagementAnalyticsRoutes({
       engagementAnalyticsController:
         engagementAnalyticsContainer.engagementAnalyticsController,
+      partnerAnalyticsController:
+        engagementAnalyticsContainer.partnerAnalyticsController,
+      guards,
     }),
   );
   router.use(

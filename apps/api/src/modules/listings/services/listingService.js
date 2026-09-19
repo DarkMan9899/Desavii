@@ -579,6 +579,29 @@ export class ListingService {
   }
 
   /**
+   * Step A5 (Partner Analytics Read API) — an internal, principal-free
+   * ownership lookup. Deliberately NOT `getListing`: that method's own
+   * non-public fallback (`#isOwnerOrHasPermission` against the global
+   * `listing.update` permission) only recognizes the TRUE partner owner
+   * or a global-RBAC grant, never a `partner_employees` non-owner role
+   * (MANAGER/EDITOR/BOOKING_MANAGER/ANALYTICS_VIEWER) — so it would
+   * incorrectly 404 an ANALYTICS_VIEWER who the analytics module has
+   * already authorized via its own capability check. The caller here
+   * (`PartnerAnalyticsService`) always calls
+   * `assertIsPartnerMember`/`assertPartnerCapability` against `partnerId`
+   * BEFORE this — this method only answers "does this listing genuinely
+   * belong to that already-authorized partner, and is it not
+   * soft-deleted" (`findById`'s own default `includeTrashed: false`
+   * scope) — frozen/unpublished listings ARE included, since a partner's
+   * own analytics must remain available for those (brief §22).
+   */
+  async getListingForAnalytics(partnerId, listingId) {
+    const listing = await this.#listingRepository.findById(listingId);
+    if (!listing || listing.partnerId !== partnerId) return null;
+    return listing;
+  }
+
+  /**
    * The scheduled listing-expiration sweep's entry point (Listing Lifetime
    * / Renewal, Step B4, extended by Step B6 with a reminder phase) —
    * called only by `modules/listings/jobs/listingExpirySweep.js`, never by

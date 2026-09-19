@@ -43,6 +43,13 @@ export const PARTNER_CAPABILITIES = Object.freeze({
   // BOOKING_MANAGER/EDITOR: those roles operate day-to-day inventory,
   // not public brand voice.
   RESPOND_TO_REVIEWS: 'RESPOND_TO_REVIEWS',
+  // Step A5 (Partner Analytics Read API): the only capability that
+  // previously had no analytics-adjacent grant at all — `ANALYTICS_VIEWER`
+  // existed as a role (Sprint 5 seed) but granted nothing analytics-
+  // specific until now. Read-only, so trusted at the same tier as
+  // VIEW_AVAILABILITY/VIEW_SYNC_LOGS, not the OWNER/MANAGER-only
+  // sensitive-settings tier.
+  VIEW_ANALYTICS: 'VIEW_ANALYTICS',
 });
 
 // Role -> the set of capabilities it grants, beyond OWNER's implicit
@@ -63,6 +70,7 @@ const ROLE_CAPABILITIES = Object.freeze({
     PARTNER_CAPABILITIES.MANAGE_COMPANY_PROFILE,
     PARTNER_CAPABILITIES.MANAGE_STAFF,
     PARTNER_CAPABILITIES.RESPOND_TO_REVIEWS,
+    PARTNER_CAPABILITIES.VIEW_ANALYTICS,
   ]),
   BOOKING_MANAGER: Object.freeze([
     PARTNER_CAPABILITIES.VIEW_AVAILABILITY,
@@ -72,9 +80,12 @@ const ROLE_CAPABILITIES = Object.freeze({
     PARTNER_CAPABILITIES.VIEW_SYNC_LOGS,
   ]),
   EDITOR: Object.freeze([PARTNER_CAPABILITIES.VIEW_AVAILABILITY]),
+  // Step A5: the one role this capability exists for — the only
+  // analytics-relevant grant this role has.
   ANALYTICS_VIEWER: Object.freeze([
     PARTNER_CAPABILITIES.VIEW_AVAILABILITY,
     PARTNER_CAPABILITIES.VIEW_SYNC_LOGS,
+    PARTNER_CAPABILITIES.VIEW_ANALYTICS,
   ]),
 });
 

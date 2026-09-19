@@ -230,6 +230,57 @@ export class MySqlFavoriteRepository {
       id: row.favoriteId,
     }));
   }
+
+  /**
+   * Step A5 (Partner Analytics) — the "net saves" headline's authoritative
+   * source: a CURRENT count of `favorites` rows, never a historical
+   * `favorite_adds - favorite_removes` derivation (the two can diverge
+   * once either event falls outside a selected analytics range). Scoped
+   * to non-soft-deleted listings only — a B7-purged listing is no longer
+   * a current marketplace listing, so its lingering favorite rows (never
+   * cleaned up independently, `favorites` has no cascade/cleanup job)
+   * should not inflate a partner's current-saves snapshot. Frozen-but-
+   * not-deleted listings DO still count — the favorite relation itself
+   * is unaffected by publish state.
+   */
+  async countCurrentForPartner(partnerId) {
+    const [[row]] = await this.#pool.query(
+      `SELECT COUNT(*) AS cnt
+       FROM favorites f
+       JOIN listings l ON l.id = f.listing_id
+       WHERE l.partner_id = ? AND l.deleted_at IS NULL`,
+      [partnerId],
+    );
+    return Number(row.cnt);
+  }
+
+  /**
+   * Same current-count semantics as {@link countCurrentForPartner}, one
+   * grouped query per listing id — used by the Partner analytics listings
+   * endpoint so a page of N listings never triggers N separate favorite
+   * counts (brief §19's "no N+1" rule, applied here too even though it
+   * was written about the raw-event unique-visitor query).
+   */
+  async countCurrentGroupedByListingIds(listingIds) {
+    if (listingIds.length === 0) return new Map();
+    const placeholders = listingIds.map(() => '?').join(', ');
+    const [rows] = await this.#pool.query(
+      `SELECT listing_id, COUNT(*) AS cnt FROM favorites
+       WHERE listing_id IN (${placeholders})
+       GROUP BY listing_id`,
+      listingIds,
+    );
+    return new Map(rows.map((row) => [row.listing_id, Number(row.cnt)]));
+  }
+
+  /** Single-listing current count — the caller has already verified this listing is not soft-deleted. */
+  async countCurrentForListing(listingId) {
+    const [[row]] = await this.#pool.query(
+      `SELECT COUNT(*) AS cnt FROM favorites WHERE listing_id = ?`,
+      [listingId],
+    );
+    return Number(row.cnt);
+  }
 }
 
 export default MySqlFavoriteRepository;

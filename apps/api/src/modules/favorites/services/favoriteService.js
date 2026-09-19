@@ -105,6 +105,25 @@ export class FavoriteService {
       paginationOpts,
     );
   }
+
+  /**
+   * Step A5 (Partner Analytics) — no `principal` gate here: the caller
+   * (`PartnerAnalyticsService`) has already authorized `partnerId` via
+   * its own workspace-membership check. See
+   * `mysqlFavoriteRepository.js#countCurrentForPartner`'s own doc comment
+   * for the exact current-vs-historical / soft-delete predicate.
+   */
+  async countCurrentSavesForPartner(partnerId) {
+    return this.#favoriteRepository.countCurrentForPartner(partnerId);
+  }
+
+  async countCurrentSavesGroupedByListingIds(listingIds) {
+    return this.#favoriteRepository.countCurrentGroupedByListingIds(listingIds);
+  }
+
+  async countCurrentSavesForListing(listingId) {
+    return this.#favoriteRepository.countCurrentForListing(listingId);
+  }
 }
 
 export default FavoriteService;
