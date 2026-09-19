@@ -13,6 +13,8 @@ export { default as PartnerConnectionsPageContent } from './components/PartnerCo
 export { default as PartnerProfilePageContent } from './components/PartnerProfilePageContent/PartnerProfilePageContent.jsx';
 export { default as PartnerStaffPageContent } from './components/PartnerStaffPageContent/PartnerStaffPageContent.jsx';
 export { default as AcceptInvitationPageContent } from './components/AcceptInvitationPageContent/AcceptInvitationPageContent.jsx';
+export { default as PartnerAnalyticsPageContent } from './components/PartnerAnalyticsPageContent/PartnerAnalyticsPageContent.jsx';
+export { default as PartnerAnalyticsListingDetailContent } from './components/PartnerAnalyticsListingDetailContent/PartnerAnalyticsListingDetailContent.jsx';
 export { default as PartnerWorkspaceIdentity } from './components/PartnerWorkspaceIdentity/PartnerWorkspaceIdentity.jsx';
 export { default as useMyPartnershipsQuery } from './queries/useMyPartnershipsQuery.js';
 export { default as useMyCompanyProfileQuery } from './queries/useMyCompanyProfileQuery.js';

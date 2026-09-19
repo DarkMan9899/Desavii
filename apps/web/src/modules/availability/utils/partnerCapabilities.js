@@ -19,6 +19,10 @@ export const PARTNER_CAPABILITIES = Object.freeze({
   // P1.4 (Master Roadmap) — mirrors the backend's own addition
   // (`apps/api/src/core/domain/partnerCapabilities.js`) exactly.
   MANAGE_STAFF: 'MANAGE_STAFF',
+  // Step A6 (Partner Analytics Dashboard UI) — mirrors the backend's own
+  // A5 addition (`apps/api/src/core/domain/partnerCapabilities.js`)
+  // exactly: granted to MANAGER and ANALYTICS_VIEWER only.
+  VIEW_ANALYTICS: 'VIEW_ANALYTICS',
 });
 
 const ROLE_CAPABILITIES = Object.freeze({
@@ -34,6 +38,7 @@ const ROLE_CAPABILITIES = Object.freeze({
   ANALYTICS_VIEWER: Object.freeze([
     PARTNER_CAPABILITIES.VIEW_AVAILABILITY,
     PARTNER_CAPABILITIES.VIEW_SYNC_LOGS,
+    PARTNER_CAPABILITIES.VIEW_ANALYTICS,
   ]),
 });
 

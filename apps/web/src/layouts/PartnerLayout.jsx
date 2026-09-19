@@ -40,6 +40,7 @@ import {
   MessageCircle,
   Bell,
   Sparkles,
+  LineChart,
 } from 'lucide-react';
 import { Sidebar } from '@desavii/ui/components/navigation';
 import { Container } from '@desavii/ui/components/layout';
@@ -52,6 +53,10 @@ import { NotificationBell } from '../modules/notifications/index.js';
 import { MessagingBell } from '../modules/messaging/index.js';
 import { AiAssistantTrigger } from '../modules/ai/index.js';
 import { PartnerWorkspaceIdentity } from '../modules/partner/index.js';
+import {
+  usePartnerCapability,
+  PARTNER_CAPABILITIES,
+} from '../modules/availability/index.js';
 import { usePartnerContext } from '../contexts/PartnerContext.jsx';
 import useNoIndex from '../seo/useNoIndex.js';
 import styles from './PartnerLayout.module.scss';
@@ -61,6 +66,9 @@ export default function PartnerLayout() {
   const { locale } = useParams();
   const location = useLocation();
   const { activePartner } = usePartnerContext();
+  const canViewAnalytics = usePartnerCapability(
+    PARTNER_CAPABILITIES.VIEW_ANALYTICS,
+  );
   useNoIndex();
 
   const navItems = [
@@ -88,6 +96,20 @@ export default function PartnerLayout() {
       href: `/${locale}/partner/calendar`,
       icon: <CalendarRange aria-hidden="true" focusable="false" />,
     },
+    // Step A6 (Partner Analytics Dashboard UI): discoverable only to a
+    // membership whose role grants VIEW_ANALYTICS (brief §5) — server
+    // remains the real authority (`PartnerAnalyticsService`'s own gate);
+    // this only keeps the nav from inviting a role that would 403.
+    ...(canViewAnalytics
+      ? [
+          {
+            id: 'analytics',
+            label: t('partner.nav.analytics'),
+            href: `/${locale}/partner/analytics`,
+            icon: <LineChart aria-hidden="true" focusable="false" />,
+          },
+        ]
+      : []),
     {
       id: 'connections',
       label: t('partner.nav.connections'),

@@ -151,6 +151,12 @@ const PartnerMessagesPage = lazy(
 const PartnerAiUsagePage = lazy(
   () => import('../pages/partner/PartnerAiUsagePage.jsx'),
 );
+const PartnerAnalyticsPage = lazy(
+  () => import('../pages/partner/PartnerAnalyticsPage.jsx'),
+);
+const PartnerAnalyticsListingDetailPage = lazy(
+  () => import('../pages/partner/PartnerAnalyticsListingDetailPage.jsx'),
+);
 const ManagerDashboardPage = lazy(
   () => import('../pages/manager/ManagerDashboardPage.jsx'),
 );
@@ -564,6 +570,18 @@ export default function AppRoutes() {
                 element={<PartnerMessagesPage />}
               />
               <Route path="partner/ai/usage" element={<PartnerAiUsagePage />} />
+              {/* Step A6 (Partner Analytics Dashboard UI) — read-only on
+                top of Step A5's API. Listing drill-down is its own route,
+                matching this group's existing item-detail convention
+                (`partner/bookings/:id`), not a modal/drawer. */}
+              <Route
+                path="partner/analytics"
+                element={<PartnerAnalyticsPage />}
+              />
+              <Route
+                path="partner/analytics/listings/:listingId"
+                element={<PartnerAnalyticsListingDetailPage />}
+              />
             </Route>
 
             {/* Manager Workspace (Sprint F) — RequireAuth + RequireManager

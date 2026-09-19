@@ -732,10 +732,94 @@
       "staff": "Сотрудники",
       "messages": "Сообщения",
       "notifications": "Уведомления",
-      "aiUsage": "Использование ИИ"
+      "aiUsage": "Использование ИИ",
+      "analytics": "Аналитика"
     },
     "aiUsage": {
       "heading": "Использование ИИ"
+    },
+    "analytics": {
+      "heading": "Аналитика",
+      "description": "Показатели по вашим объявлениям и странице компании.",
+      "rangeLabel": "{{from}} – {{to}}",
+      "rangeSelectorLabel": "Период",
+      "rangeOption": "{{count}} дней",
+      "currentSavesNote": "Текущие сохранения — это актуальный показатель на сейчас, он не зависит от выбранного периода.",
+      "restricted": {
+        "title": "У вас нет доступа к разделу «Аналитика»",
+        "description": "Обратитесь к владельцу или менеджеру компании, чтобы получить доступ."
+      },
+      "error": {
+        "title": "Не удалось загрузить аналитику.",
+        "retry": "Повторить"
+      },
+      "noDataYet": {
+        "title": "Аналитических данных пока нет",
+        "description": "Активность появится здесь, когда посетители начнут взаимодействовать с вашими объявлениями."
+      },
+      "kpi": {
+        "views": "Просмотры объявления",
+        "uniqueVisitors": "Уникальные посетители",
+        "impressions": "Показы",
+        "bookingRequests": "Заявки на бронирование",
+        "bookingStarts": "Начатые бронирования",
+        "confirmedBookings": "Подтверждённые бронирования",
+        "contactClicks": "Клики по контактам",
+        "currentSaves": "Текущие сохранения",
+        "viewToRequestConversion": "Конверсия просмотра в заявку"
+      },
+      "chart": {
+        "heading": "Динамика",
+        "metricLabel": "Показатель",
+        "empty": "Пока недостаточно данных",
+        "series": {
+          "views": "Просмотры",
+          "impressions": "Показы",
+          "daily_unique_visitors": "Уникальные посетители",
+          "booking_requests": "Заявки на бронирование"
+        }
+      },
+      "searchAndPromotion": {
+        "heading": "Поиск и продвижение",
+        "searchCtr": "CTR в поиске",
+        "promotionCtr": "CTR продвижения",
+        "promotionImpressions": "Показы продвижения",
+        "promotionClicks": "Клики по продвижению"
+      },
+      "company": {
+        "heading": "Страница компании",
+        "note": "Эти показатели относятся ко всей странице компании, а не к отдельному объявлению.",
+        "profileViews": "Просмотры профиля",
+        "listingClicks": "Клики по объявлениям"
+      },
+      "listings": {
+        "heading": "Показатели объявлений",
+        "sortLabel": "Сортировать по",
+        "loadMore": "Показать ещё",
+        "emptyTitle": "Активности пока нет",
+        "emptyDescription": "Показатели ваших объявлений появятся здесь.",
+        "errorTitle": "Не удалось загрузить показатели объявлений.",
+        "sort": {
+          "views": "Просмотры",
+          "impressions": "Показы",
+          "booking_requests": "Заявки на бронирование",
+          "promotion_clicks": "Клики по продвижению"
+        },
+        "columns": {
+          "listing": "Объявление",
+          "views": "Просмотры",
+          "uniqueVisitors": "Уникальные посетители",
+          "impressions": "Показы",
+          "bookingRequests": "Заявки на бронирование",
+          "searchCtr": "CTR поиска",
+          "promotionClicks": "Клики по продвижению",
+          "currentSaves": "Текущие сохранения"
+        }
+      },
+      "listingDetail": {
+        "heading": "Аналитика объявления",
+        "errorTitle": "Не удалось загрузить аналитику этого объявления."
+      }
     },
     "profile": {
       "heading": "Профиль компании",

@@ -19,15 +19,17 @@ vi.mock('../contexts/AuthContext.jsx', () => ({
 // `PartnerDashboardOverviewContent.test.jsx` mocks it, rather than
 // wrapping every `renderAt` call in a real `PartnerProvider` (which
 // would also need a real `partnerships` array from `useAuth`).
+const mockUsePartnerContext = vi.fn(() => ({
+  activePartner: {
+    partner_id: 3,
+    display_name: 'Ararat Travel',
+    role: 'OWNER',
+    verification_status: 'APPROVED',
+  },
+}));
+
 vi.mock('../contexts/PartnerContext.jsx', () => ({
-  usePartnerContext: () => ({
-    activePartner: {
-      partner_id: 3,
-      display_name: 'Ararat Travel',
-      role: 'OWNER',
-      verification_status: 'APPROVED',
-    },
-  }),
+  usePartnerContext: () => mockUsePartnerContext(),
 }));
 
 // Avoids a real (jsdom-cross-origin-rejected) network attempt for the
@@ -96,5 +98,39 @@ describe('PartnerLayout (apps/web/src/layouts)', () => {
     expect(
       screen.getByRole('link', { name: 'Օրացույց', current: 'page' }),
     ).toBeInTheDocument();
+  });
+
+  // Step A6 (Partner Analytics Dashboard UI), brief §5/§62: the nav item
+  // is discoverable only to a role whose capability matrix grants
+  // VIEW_ANALYTICS — UI-only convenience, never the real authority (the
+  // server 403s independently either way).
+  test('shows the Analytics nav item for an OWNER (always granted, brief §4/§62)', () => {
+    mockUsePartnerContext.mockReturnValue({
+      activePartner: {
+        partner_id: 3,
+        display_name: 'Ararat Travel',
+        role: 'OWNER',
+        verification_status: 'APPROVED',
+      },
+    });
+    renderAt('/hy/partner');
+    expect(
+      screen.getByRole('link', { name: 'Վերլուծություն' }),
+    ).toBeInTheDocument();
+  });
+
+  test('hides the Analytics nav item for a role without VIEW_ANALYTICS (e.g. EDITOR)', () => {
+    mockUsePartnerContext.mockReturnValue({
+      activePartner: {
+        partner_id: 3,
+        display_name: 'Ararat Travel',
+        role: 'EDITOR',
+        verification_status: 'APPROVED',
+      },
+    });
+    renderAt('/hy/partner');
+    expect(
+      screen.queryByRole('link', { name: 'Վերլուծություն' }),
+    ).not.toBeInTheDocument();
   });
 });

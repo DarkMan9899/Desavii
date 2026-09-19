@@ -734,10 +734,94 @@
       "staff": "Staff",
       "messages": "Messages",
       "notifications": "Notifications",
-      "aiUsage": "AI Usage"
+      "aiUsage": "AI Usage",
+      "analytics": "Analytics"
     },
     "aiUsage": {
       "heading": "AI Usage"
+    },
+    "analytics": {
+      "heading": "Analytics",
+      "description": "Performance across your listings and company page.",
+      "rangeLabel": "{{from}} – {{to}}",
+      "rangeSelectorLabel": "Date range",
+      "rangeOption": "{{count}} days",
+      "currentSavesNote": "Current saves is a live total — it isn't limited to the selected date range.",
+      "restricted": {
+        "title": "You don't have access to Analytics",
+        "description": "Ask an owner or manager of this company for access."
+      },
+      "error": {
+        "title": "We couldn't load your analytics.",
+        "retry": "Try again"
+      },
+      "noDataYet": {
+        "title": "No analytics data yet",
+        "description": "Activity will appear here after visitors interact with your listings."
+      },
+      "kpi": {
+        "views": "Listing views",
+        "uniqueVisitors": "Unique visitors",
+        "impressions": "Impressions",
+        "bookingRequests": "Booking requests",
+        "bookingStarts": "Booking starts",
+        "confirmedBookings": "Confirmed bookings",
+        "contactClicks": "Contact clicks",
+        "currentSaves": "Current saves",
+        "viewToRequestConversion": "View → request conversion"
+      },
+      "chart": {
+        "heading": "Trend",
+        "metricLabel": "Metric",
+        "empty": "Not enough data yet",
+        "series": {
+          "views": "Views",
+          "impressions": "Impressions",
+          "daily_unique_visitors": "Unique visitors",
+          "booking_requests": "Booking requests"
+        }
+      },
+      "searchAndPromotion": {
+        "heading": "Search & promotion performance",
+        "searchCtr": "Search click-through rate",
+        "promotionCtr": "Promotion click-through rate",
+        "promotionImpressions": "Promotion impressions",
+        "promotionClicks": "Promotion clicks"
+      },
+      "company": {
+        "heading": "Company page",
+        "note": "These metrics belong to your company page as a whole, not to any single listing.",
+        "profileViews": "Profile views",
+        "listingClicks": "Listing clicks"
+      },
+      "listings": {
+        "heading": "Listing performance",
+        "sortLabel": "Sort by",
+        "loadMore": "Load more",
+        "emptyTitle": "No listing activity yet",
+        "emptyDescription": "Performance for your listings will show up here.",
+        "errorTitle": "We couldn't load listing performance.",
+        "sort": {
+          "views": "Views",
+          "impressions": "Impressions",
+          "booking_requests": "Booking requests",
+          "promotion_clicks": "Promotion clicks"
+        },
+        "columns": {
+          "listing": "Listing",
+          "views": "Views",
+          "uniqueVisitors": "Unique visitors",
+          "impressions": "Impressions",
+          "bookingRequests": "Booking requests",
+          "searchCtr": "Search CTR",
+          "promotionClicks": "Promotion clicks",
+          "currentSaves": "Current saves"
+        }
+      },
+      "listingDetail": {
+        "heading": "Listing analytics",
+        "errorTitle": "We couldn't load this listing's analytics."
+      }
     },
     "profile": {
       "heading": "Company profile",
