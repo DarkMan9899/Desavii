@@ -513,16 +513,34 @@ describe('Per-membership permission scoping (brief §9/§10/§11)', () => {
     expect(res.status).toBe(403);
   });
 
-  test('Partner D (same user, NO membership at all) is blocked', async () => {
+  test('Partner D (same user, NO membership row at all — distinct from Partner C, which HAS an active row that merely lacks the capability) is blocked with exactly 403', async () => {
+    // Verified directly against the fixture data: zero partner_employees
+    // rows exist for (sharedUser, partnerD) — Partner D is owned by a
+    // completely different user, and sharedUser was never added to it.
+    const [membershipRows] = await pool.query(
+      'SELECT * FROM partner_employees WHERE user_id = ? AND partner_id = ?',
+      [sharedUser.userId, partnerDId],
+    );
+    expect(membershipRows).toHaveLength(0);
+
+    // `#assertAnalyticsAccess` has exactly one throw path for both "no
+    // membership row" and "membership exists but role lacks the
+    // capability" — `getPartnerEmployeeRoleCode` returns `null` here
+    // (vs. `'EDITOR'` for Partner C), and `roleHasCapability(null, ...)`
+    // returns `false` via its own `if (!roleCode) return false` guard,
+    // falling through to the identical `AuthorizationError` (403) — this
+    // codebase's established anti-enumeration convention never
+    // distinguishes "not a member" from "a member without permission"
+    // by status code.
     const res = await getOverview(partnerDId, '&range=90');
-    expect([403, 404]).toContain(res.status);
+    expect(res.status).toBe(403);
   });
 
   test('changing partnerId on consecutive requests with the identical token always re-authorizes fresh — A succeeds, D fails, A succeeds again', async () => {
     const first = await getOverview(partnerAId, '&range=90');
     expect(first.status).toBe(200);
     const second = await getOverview(partnerDId, '&range=90');
-    expect(second.status).not.toBe(200);
+    expect(second.status).toBe(403);
     const third = await getOverview(partnerAId, '&range=90');
     expect(third.status).toBe(200);
     expect(third.body.data.listing_impressions).toBe(20);
