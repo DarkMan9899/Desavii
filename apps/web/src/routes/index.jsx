@@ -52,6 +52,7 @@ import ManagerProvider from '../providers/ManagerProvider.jsx';
 import CurrencyProvider from '../providers/CurrencyProvider.jsx';
 import PageLoader from '../components/PageLoader/PageLoader.jsx';
 import ScrollRestoration from './ScrollRestoration.jsx';
+import { Ga4RouteTracker } from '../analytics/index.js';
 import {
   SUPPORTED_LOCALES,
   DEFAULT_LOCALE,
@@ -352,6 +353,7 @@ export default function AppRoutes() {
   return (
     <>
       <ScrollRestoration />
+      <Ga4RouteTracker />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Root — redirect to the default locale.

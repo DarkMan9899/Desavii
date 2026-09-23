@@ -4,6 +4,12 @@
  * components must never call `fetch('/analytics/events')` directly, and
  * never import `analyticsQueue.js`/`analyticsIdentity.js` directly
  * either — only the named helpers and the impression hook below.
+ *
+ * Step A7: `Ga4RouteTracker` (mounted once in `routes/index.jsx`, next to
+ * `ScrollRestoration`) and `setGa4AnalyticsConsent` (the consent adapter
+ * a future approved consent UI/CMP calls into) are the only two GA4
+ * surfaces exposed here — no product component ever imports from `ga4/`
+ * directly, and none should ever call `window.gtag(...)` itself.
  */
 
 export { useListingImpression } from './useListingImpression.js';
@@ -20,3 +26,5 @@ export {
   trackSearchResultClick,
   isAnalyticsCollectionEnabled,
 } from './analyticsClient.js';
+export { default as Ga4RouteTracker } from './ga4/Ga4RouteTracker.jsx';
+export { setGa4AnalyticsConsent } from './ga4/ga4Consent.js';

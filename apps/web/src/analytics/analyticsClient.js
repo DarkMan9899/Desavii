@@ -11,6 +11,14 @@
  * network call is ever attempted. This is checked FIRST, before any
  * identity resolution, specifically so collection-disabled browsing
  * never creates a `localStorage`/`sessionStorage` entry at all.
+ *
+ * Step A7: `dispatchToGa4` is called BEFORE that first-party gate,
+ * unconditionally, on every `trackEvent` call — GA4 has its own
+ * independent gating (config/consent/internal-traffic, see `ga4/`) and
+ * must never be coupled to `isAnalyticsCollectionEnabled()` in either
+ * direction. It receives the same raw `payload` this function did,
+ * before any `sessionId`/`anonymousVisitorId` enrichment below — GA4
+ * must never see a DESAVII identifier.
  */
 
 import {
@@ -19,6 +27,7 @@ import {
 } from './analyticsIdentity.js';
 import { enqueueEvent } from './analyticsQueue.js';
 import { CLIENT_EVENT_NAMES } from './constants.js';
+import { dispatchToGa4 } from './ga4/dispatchToGa4.js';
 
 export function isAnalyticsCollectionEnabled() {
   return import.meta.env.VITE_ANALYTICS_COLLECTION_ENABLED === 'true';
@@ -37,6 +46,8 @@ const seenDedupKeys = new Set();
  *   (eventName, sessionId, dedupKey) tuple is silently skipped.
  */
 export function trackEvent(eventName, payload = {}, dedupKey = undefined) {
+  dispatchToGa4(eventName, payload, dedupKey);
+
   if (!isAnalyticsCollectionEnabled()) return;
   if (
     typeof crypto === 'undefined' ||
