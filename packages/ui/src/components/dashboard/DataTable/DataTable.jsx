@@ -14,6 +14,14 @@
  * rows with no `id` field at all and were already passing `rowKey` —
  * silently dropped since this prop never existed, so every one of their
  * rows keyed to `undefined` and printed React's duplicate-key warning.
+ *
+ * Step A6.2 fix: a clickable row (`onRowClick`) is now keyboard-operable
+ * — `tabIndex={0}` + `role="button"` + Enter/Space activation — found
+ * live during Partner Analytics QA (its listing/promotion rows were the
+ * first `onRowClick` consumers actually exercised by keyboard): the row
+ * had a click handler but no way to reach or activate it without a
+ * mouse. Scoped to only the `onRowClick` branch — a plain, non-clickable
+ * row is unaffected.
  */
 
 import PropTypes from 'prop-types';
@@ -27,6 +35,14 @@ const SKELETON_ROW_COUNT = 5;
 function resolveRowKey(rowKey, row, rowIndex) {
   if (typeof rowKey === 'function') return rowKey(row, rowIndex);
   return row[rowKey] ?? rowIndex;
+}
+
+function handleRowKeyDown(event, row, onRowClick) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  // Space's default action is page scroll — only relevant once this row
+  // is the thing being activated (Enter has no default to prevent here).
+  event.preventDefault();
+  onRowClick(row);
 }
 
 export default function DataTable({
@@ -78,6 +94,13 @@ export default function DataTable({
                 key={resolveRowKey(rowKey, row, rowIndex)}
                 className={onRowClick ? styles.clickableRow : undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (event) => handleRowKeyDown(event, row, onRowClick)
+                    : undefined
+                }
+                tabIndex={onRowClick ? 0 : undefined}
+                role={onRowClick ? 'button' : undefined}
               >
                 {columns.map((column) => (
                   <td

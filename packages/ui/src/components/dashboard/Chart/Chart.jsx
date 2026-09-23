@@ -31,6 +31,7 @@ import {
 } from 'recharts';
 import Skeleton from '../../feedback-overlays/Skeleton/Skeleton.jsx';
 import EmptyState from '../../feedback-overlays/EmptyState/EmptyState.jsx';
+import usePrefersReducedMotion from '../../../hooks/usePrefersReducedMotion.js';
 import styles from './Chart.module.scss';
 
 const TYPES = ['line', 'bar', 'donut'];
@@ -43,7 +44,15 @@ const TYPES = ['line', 'bar', 'donut'];
 const SERIES_COLORS = ['#1d5fd6', '#c9a24b'];
 const GRID_COLOR = '#e4e8ec'; // $color-gray-200
 
-function buildChartElement({ type, data, xKey, yKey, xAxisLabel, yAxisLabel }) {
+function buildChartElement({
+  type,
+  data,
+  xKey,
+  yKey,
+  xAxisLabel,
+  yAxisLabel,
+  isAnimationActive,
+}) {
   if (type === 'bar') {
     return (
       <BarChart data={data}>
@@ -55,7 +64,12 @@ function buildChartElement({ type, data, xKey, yKey, xAxisLabel, yAxisLabel }) {
         <XAxis dataKey={xKey} tick={{ fontSize: 12 }} label={xAxisLabel} />
         <YAxis tick={{ fontSize: 12 }} label={yAxisLabel} />
         <RechartsTooltip />
-        <Bar dataKey={yKey} fill={SERIES_COLORS[0]} radius={[4, 4, 0, 0]} />
+        <Bar
+          dataKey={yKey}
+          fill={SERIES_COLORS[0]}
+          radius={[4, 4, 0, 0]}
+          isAnimationActive={isAnimationActive}
+        />
       </BarChart>
     );
   }
@@ -69,6 +83,7 @@ function buildChartElement({ type, data, xKey, yKey, xAxisLabel, yAxisLabel }) {
           nameKey={xKey}
           innerRadius="60%"
           outerRadius="90%"
+          isAnimationActive={isAnimationActive}
         >
           {data.map((entry, index) => (
             <Cell
@@ -98,6 +113,7 @@ function buildChartElement({ type, data, xKey, yKey, xAxisLabel, yAxisLabel }) {
         stroke={SERIES_COLORS[0]}
         strokeWidth={2}
         dot={false}
+        isAnimationActive={isAnimationActive}
       />
     </LineChart>
   );
@@ -115,6 +131,8 @@ export default function Chart({
   yAxisLabel = undefined,
   ariaLabel = undefined,
 }) {
+  const prefersReducedMotion = usePrefersReducedMotion();
+
   if (loading) {
     return <Skeleton variant="rect" height={height} />;
   }
@@ -130,6 +148,7 @@ export default function Chart({
     yKey,
     xAxisLabel,
     yAxisLabel,
+    isAnimationActive: !prefersReducedMotion,
   });
 
   return (
