@@ -311,8 +311,22 @@ export class MySqlPartnerAnalyticsRepository {
     }));
   }
 
-  /** Single-listing range sums, joined with `listings`/`listing_translations` for identity metadata — used by the listing-detail endpoint. Returns `null` if the listing has no analytics rows this range (a valid, zero-data outcome, never an error). */
-  async getListingRangeDetail({ listingId, fromDay, toDay }) {
+  /**
+   * Single-listing range sums, joined with `listings`/`listing_translations`
+   * for identity metadata — used by the listing-detail endpoint. Returns
+   * `null` both for a genuinely nonexistent `listingId` AND for a
+   * `listingId` that exists but belongs to a different partner than
+   * `partnerId` (Step A8.1 hardening — `AND l.partner_id = ?` below is
+   * defense in depth: `PartnerAnalyticsService#getListingDetail` already
+   * verifies ownership via `listingService.getListingForAnalytics` before
+   * ever calling this, so this predicate should never be the only thing
+   * standing between a caller and another partner's data; it's the second
+   * layer, not a replacement for that check — see this file's own header
+   * comment). Both "not found" and "wrong partner" collapse to the same
+   * `null` so neither can be distinguished by a caller (no enumeration
+   * oracle, matching this module's existing convention elsewhere).
+   */
+  async getListingRangeDetail({ partnerId, listingId, fromDay, toDay }) {
     const [[row]] = await this.#pool.query(
       `SELECT
          l.id AS listing_id, l.slug, ltype.code AS listing_type_code,
@@ -333,9 +347,9 @@ export class MySqlPartnerAnalyticsRepository {
        LEFT JOIN listing_analytics_daily lad
          ON lad.listing_id = l.id AND lad.day >= ? AND lad.day <= ?
        ${LISTING_TITLE_JOIN}
-       WHERE l.id = ?
+       WHERE l.id = ? AND l.partner_id = ?
        GROUP BY l.id, l.slug, ltype.code, lt.title, lt2.title`,
-      [fromDay, toDay, listingId],
+      [fromDay, toDay, listingId, partnerId],
     );
     if (!row) return null;
     return {
@@ -357,8 +371,16 @@ export class MySqlPartnerAnalyticsRepository {
     };
   }
 
-  /** Single-listing daily series from `listing_analytics_daily` (no zero-fill — the Service fills gaps). */
-  async getListingDailySeries({ listingId, fromDay, toDay }) {
+  /**
+   * Single-listing daily series from `listing_analytics_daily` (no
+   * zero-fill — the Service fills gaps). `partner_id` (Step A8.1
+   * hardening) is `listing_analytics_daily`'s own column — the same
+   * defense-in-depth rationale as {@link getListingRangeDetail}: a
+   * `listingId` belonging to a different partner than `partnerId` simply
+   * matches no rows, degrading to an empty series (identical to "no
+   * activity this range"), never someone else's data.
+   */
+  async getListingDailySeries({ partnerId, listingId, fromDay, toDay }) {
     const [rows] = await this.#pool.query(
       `SELECT day, impressions_count, views_count, daily_unique_visitors,
               favorite_adds_count, favorite_removes_count,
@@ -366,9 +388,9 @@ export class MySqlPartnerAnalyticsRepository {
               search_impressions_count, search_clicks_count,
               promotion_impressions_count, promotion_clicks_count
        FROM listing_analytics_daily
-       WHERE listing_id = ? AND day >= ? AND day <= ?
+       WHERE listing_id = ? AND partner_id = ? AND day >= ? AND day <= ?
        ORDER BY day ASC`,
-      [listingId, fromDay, toDay],
+      [listingId, partnerId, fromDay, toDay],
     );
     return rows.map((row) => ({
       day: toDateString(row.day),
@@ -534,15 +556,24 @@ export class MySqlPartnerAnalyticsRepository {
     }));
   }
 
-  /** Single-promotion range sums from `promotion_analytics_daily`. Returns `null` if no rows exist this range (valid zero-data outcome). */
-  async getPromotionRangeTotals({ promotionId, fromDay, toDay }) {
+  /**
+   * Single-promotion range sums from `promotion_analytics_daily`. This is
+   * an aggregate query with no `GROUP BY`, so it always returns exactly
+   * one row (zero-filled by `COALESCE`) regardless of how many source
+   * rows matched — a mismatched `partnerId` (Step A8.1 hardening, the
+   * same defense-in-depth rationale as {@link getListingRangeDetail})
+   * degrades to an all-zero result, never someone else's data; it never
+   * itself signals "not found" (the Service's own ownership check via
+   * `advertisementService.getById` already owns that).
+   */
+  async getPromotionRangeTotals({ partnerId, promotionId, fromDay, toDay }) {
     const [[row]] = await this.#pool.query(
       `SELECT
          COALESCE(SUM(impressions_count), 0) AS impressions_count,
          COALESCE(SUM(clicks_count), 0) AS clicks_count
        FROM promotion_analytics_daily
-       WHERE promotion_id = ? AND day >= ? AND day <= ?`,
-      [promotionId, fromDay, toDay],
+       WHERE promotion_id = ? AND partner_id = ? AND day >= ? AND day <= ?`,
+      [promotionId, partnerId, fromDay, toDay],
     );
     return {
       impressionsCount: Number(row.impressions_count),
@@ -550,14 +581,18 @@ export class MySqlPartnerAnalyticsRepository {
     };
   }
 
-  /** Single-promotion daily series (no zero-fill — the Service fills gaps). */
-  async getPromotionDailySeries({ promotionId, fromDay, toDay }) {
+  /**
+   * Single-promotion daily series (no zero-fill — the Service fills
+   * gaps). `partner_id` (Step A8.1 hardening) is `promotion_analytics_daily`'s
+   * own column — a mismatched `partnerId` simply matches no rows.
+   */
+  async getPromotionDailySeries({ partnerId, promotionId, fromDay, toDay }) {
     const [rows] = await this.#pool.query(
       `SELECT day, impressions_count, clicks_count
        FROM promotion_analytics_daily
-       WHERE promotion_id = ? AND day >= ? AND day <= ?
+       WHERE promotion_id = ? AND partner_id = ? AND day >= ? AND day <= ?
        ORDER BY day ASC`,
-      [promotionId, fromDay, toDay],
+      [promotionId, partnerId, fromDay, toDay],
     );
     return rows.map((row) => ({
       day: toDateString(row.day),

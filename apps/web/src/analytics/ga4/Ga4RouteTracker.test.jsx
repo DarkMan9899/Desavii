@@ -64,8 +64,8 @@ function SearchPage() {
   );
 }
 
-function renderApp(initialPath) {
-  return render(
+function buildTree(initialPath) {
+  return (
     <MemoryRouter initialEntries={[initialPath]}>
       <Ga4RouteTracker />
       <Routes>
@@ -76,8 +76,17 @@ function renderApp(initialPath) {
           element={<div>Partner Analytics</div>}
         />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+}
+
+// `MemoryRouter` only consults `initialEntries` on first mount — its
+// internal history is `useRef`-held, so calling `rerender(buildTree(path))`
+// with the SAME `path` after mount re-renders in place (picking up a
+// changed `useAuth()` mock) without resetting navigation. Used below to
+// simulate `AuthProvider`'s bootstrap resolving mid-session.
+function renderApp(initialPath) {
+  return render(buildTree(initialPath));
 }
 
 beforeEach(() => {
@@ -85,7 +94,14 @@ beforeEach(() => {
   resetGa4ClientForTests();
   resetGa4InternalTrafficForTests();
   window.gtag = vi.fn();
-  useAuth.mockReturnValue({ roles: [], isAuthenticated: false });
+  // Bootstrap already resolved, anonymous — the baseline for every test
+  // below except the dedicated bootstrap-race block, which overrides this
+  // explicitly per case.
+  useAuth.mockReturnValue({
+    roles: [],
+    isAuthenticated: false,
+    isBootstrapping: false,
+  });
 });
 
 afterEach(() => {
@@ -209,7 +225,11 @@ describe('private routes are never tracked (brief §29)', () => {
 describe('internal staff suppression (brief §30)', () => {
   test('an authenticated ADMIN sends no page_view even on a public route', async () => {
     stubConfigured();
-    useAuth.mockReturnValue({ roles: ['ADMIN'], isAuthenticated: true });
+    useAuth.mockReturnValue({
+      roles: ['ADMIN'],
+      isAuthenticated: true,
+      isBootstrapping: false,
+    });
     renderApp('/en');
     act(() => setGa4AnalyticsConsent(GA4_CONSENT_STATES.GRANTED));
     await flush();
@@ -218,23 +238,253 @@ describe('internal staff suppression (brief §30)', () => {
   });
 
   test('syncs the shared internal-traffic flag used by the event bridge', async () => {
-    useAuth.mockReturnValue({ roles: ['SUPER_ADMIN'], isAuthenticated: true });
+    useAuth.mockReturnValue({
+      roles: ['SUPER_ADMIN'],
+      isAuthenticated: true,
+      isBootstrapping: false,
+    });
     renderApp('/en');
     await flush();
     expect(isGa4InternalTrafficSuppressed()).toBe(true);
   });
 
   test('a plain CUSTOMER role does not suppress', async () => {
-    useAuth.mockReturnValue({ roles: ['CUSTOMER'], isAuthenticated: true });
+    useAuth.mockReturnValue({
+      roles: ['CUSTOMER'],
+      isAuthenticated: true,
+      isBootstrapping: false,
+    });
     renderApp('/en');
     await flush();
     expect(isGa4InternalTrafficSuppressed()).toBe(false);
   });
 
   test('an unauthenticated visitor is never suppressed', async () => {
-    useAuth.mockReturnValue({ roles: [], isAuthenticated: false });
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: false,
+    });
     renderApp('/en');
     await flush();
     expect(isGa4InternalTrafficSuppressed()).toBe(false);
+  });
+});
+
+describe('auth bootstrap safety (Step A8.1, brief §14-16)', () => {
+  test('internal ADMIN, consent already granted before bootstrap resolves: no page_view during bootstrap, still none once resolved as ADMIN', async () => {
+    stubConfigured();
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: true,
+    });
+    const { rerender } = renderApp('/en');
+    act(() => setGa4AnalyticsConsent(GA4_CONSENT_STATES.GRANTED));
+    await flush();
+
+    expect(pageViewCallsOf(window.gtag)).toHaveLength(0);
+    expect(isGa4InternalTrafficSuppressed()).toBe(true);
+
+    useAuth.mockReturnValue({
+      roles: ['ADMIN'],
+      isAuthenticated: true,
+      isBootstrapping: false,
+    });
+    rerender(buildTree('/en'));
+    await flush();
+
+    expect(pageViewCallsOf(window.gtag)).toHaveLength(0);
+    expect(isGa4InternalTrafficSuppressed()).toBe(true);
+  });
+
+  test('internal MODERATOR: same bootstrap-then-resolve sequence stays suppressed throughout', async () => {
+    stubConfigured();
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: true,
+    });
+    const { rerender } = renderApp('/en');
+    act(() => setGa4AnalyticsConsent(GA4_CONSENT_STATES.GRANTED));
+    await flush();
+    expect(pageViewCallsOf(window.gtag)).toHaveLength(0);
+
+    useAuth.mockReturnValue({
+      roles: ['MODERATOR'],
+      isAuthenticated: true,
+      isBootstrapping: false,
+    });
+    rerender(buildTree('/en'));
+    await flush();
+
+    expect(pageViewCallsOf(window.gtag)).toHaveLength(0);
+    expect(isGa4InternalTrafficSuppressed()).toBe(true);
+  });
+
+  test('normal public user: no page_view during bootstrap, exactly ONE for the current page once bootstrap resolves — no duplicate from the transition', async () => {
+    stubConfigured();
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: true,
+    });
+    const { rerender } = renderApp('/en');
+    act(() => setGa4AnalyticsConsent(GA4_CONSENT_STATES.GRANTED));
+    await flush();
+    expect(pageViewCallsOf(window.gtag)).toHaveLength(0);
+
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: false,
+    });
+    rerender(buildTree('/en'));
+    await flush();
+
+    const pageViewCalls = pageViewCallsOf(window.gtag);
+    expect(pageViewCalls).toHaveLength(1);
+    expect(pageViewCalls[0][2].page_location).toContain('/en');
+  });
+
+  test('normal public user: a subsequent eligible navigation after bootstrap resolves is still tracked', async () => {
+    stubConfigured();
+    const user = userEvent.setup();
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: false,
+    });
+    renderApp('/en');
+    act(() => setGa4AnalyticsConsent(GA4_CONSENT_STATES.GRANTED));
+    await flush();
+    window.gtag.mockClear();
+
+    await user.click(screen.getByRole('button', { name: 'Go to Search' }));
+    await flush();
+
+    const pageViewCalls = pageViewCallsOf(window.gtag);
+    expect(pageViewCalls).toHaveLength(1);
+    expect(pageViewCalls[0][2].page_location).toContain('/en/search');
+  });
+
+  test('ordering A — consent granted BEFORE bootstrap resolves: normal user gets one pageview, internal role gets none', async () => {
+    stubConfigured();
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: true,
+    });
+    const { rerender } = renderApp('/en');
+    act(() => setGa4AnalyticsConsent(GA4_CONSENT_STATES.GRANTED)); // consent first
+    await flush();
+    expect(pageViewCallsOf(window.gtag)).toHaveLength(0);
+
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: false,
+    }); // bootstrap resolves after
+    rerender(buildTree('/en'));
+    await flush();
+    expect(pageViewCallsOf(window.gtag)).toHaveLength(1);
+  });
+
+  test('ordering A — internal role variant: consent granted before bootstrap resolves as SUPPORT stays at zero', async () => {
+    stubConfigured();
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: true,
+    });
+    const { rerender } = renderApp('/en');
+    act(() => setGa4AnalyticsConsent(GA4_CONSENT_STATES.GRANTED));
+    await flush();
+
+    useAuth.mockReturnValue({
+      roles: ['SUPPORT'],
+      isAuthenticated: true,
+      isBootstrapping: false,
+    });
+    rerender(buildTree('/en'));
+    await flush();
+    expect(pageViewCallsOf(window.gtag)).toHaveLength(0);
+  });
+
+  test('ordering B — bootstrap resolves BEFORE consent is granted: normal user still gets exactly one pageview, no duplicate', async () => {
+    stubConfigured();
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: true,
+    });
+    const { rerender } = renderApp('/en');
+    await flush();
+
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: false,
+    }); // bootstrap resolves first
+    rerender(buildTree('/en'));
+    await flush();
+    expect(pageViewCallsOf(window.gtag)).toHaveLength(0); // consent still not granted
+
+    act(() => setGa4AnalyticsConsent(GA4_CONSENT_STATES.GRANTED)); // consent after
+    await flush();
+    expect(pageViewCallsOf(window.gtag)).toHaveLength(1);
+  });
+
+  test('ordering B — internal role variant: bootstrap resolves as ADMIN before consent is granted stays at zero', async () => {
+    stubConfigured();
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: true,
+    });
+    const { rerender } = renderApp('/en');
+    await flush();
+
+    useAuth.mockReturnValue({
+      roles: ['ADMIN'],
+      isAuthenticated: true,
+      isBootstrapping: false,
+    });
+    rerender(buildTree('/en'));
+    await flush();
+
+    act(() => setGa4AnalyticsConsent(GA4_CONSENT_STATES.GRANTED));
+    await flush();
+    expect(pageViewCallsOf(window.gtag)).toHaveLength(0);
+  });
+
+  test('no duplicate script/config across the bootstrap-then-resolve transition', async () => {
+    stubConfigured();
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: true,
+    });
+    const { rerender } = renderApp('/en');
+    act(() => setGa4AnalyticsConsent(GA4_CONSENT_STATES.GRANTED));
+    await flush();
+
+    useAuth.mockReturnValue({
+      roles: [],
+      isAuthenticated: false,
+      isBootstrapping: false,
+    });
+    rerender(buildTree('/en'));
+    await flush();
+    rerender(buildTree('/en'));
+    await flush();
+
+    expect(
+      document.querySelectorAll('script[src*="googletagmanager.com"]'),
+    ).toHaveLength(1);
+    const configCalls = window.gtag.mock.calls.filter(
+      ([verb]) => verb === 'config',
+    );
+    expect(configCalls).toHaveLength(1);
   });
 });

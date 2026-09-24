@@ -329,6 +329,7 @@ export class PartnerAnalyticsService {
     const [detail, exactUniqueVisitors, netSaves, dailySeries] =
       await Promise.all([
         this.#partnerAnalyticsRepository.getListingRangeDetail({
+          partnerId,
           listingId,
           fromDay,
           toDay,
@@ -341,11 +342,18 @@ export class PartnerAnalyticsService {
         }),
         this.#favoriteService.countCurrentSavesForListing(listingId),
         this.#partnerAnalyticsRepository.getListingDailySeries({
+          partnerId,
           listingId,
           fromDay,
           toDay,
         }),
       ]);
+    // Step A8.1: the repository's own `partner_id` predicate is defense in
+    // depth, not the primary check (already passed above via
+    // `getListingForAnalytics`) — this `null` should be unreachable in
+    // practice, but degrades to the identical NotFoundError rather than a
+    // crash on `detail.*` below if it somehow ever isn't.
+    if (!detail) throw new NotFoundError('Listing not found.');
 
     const ratios = {
       viewToRequestConversion: computeRatio(
@@ -440,11 +448,13 @@ export class PartnerAnalyticsService {
     const { fromDay, toDay } = await this.#resolveRange(rangeDays);
     const [totals, dailySeries] = await Promise.all([
       this.#partnerAnalyticsRepository.getPromotionRangeTotals({
+        partnerId,
         promotionId,
         fromDay,
         toDay,
       }),
       this.#partnerAnalyticsRepository.getPromotionDailySeries({
+        partnerId,
         promotionId,
         fromDay,
         toDay,

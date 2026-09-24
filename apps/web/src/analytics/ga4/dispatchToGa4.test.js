@@ -10,6 +10,7 @@ import {
 } from './ga4Consent.js';
 import { resetGa4ClientForTests } from './ga4Client.js';
 import {
+  setGa4AuthBootstrapping,
   setGa4InternalTrafficSuppressed,
   resetGa4InternalTrafficForTests,
 } from './ga4InternalTraffic.js';
@@ -26,6 +27,12 @@ beforeEach(() => {
   resetGa4InternalTrafficForTests();
   resetGa4DispatchDedupForTests();
   window.gtag = vi.fn();
+  // Step A8.1: `resetGa4InternalTrafficForTests` now leaves auth in the
+  // conservative "still bootstrapping" state by default (matching a real
+  // page load) — every test below except the dedicated bootstrap-race
+  // block is modeling an ordinary, already-resolved session, so it opts
+  // into that explicitly rather than relying on an implicit default.
+  setGa4AuthBootstrapping(false);
 });
 
 afterEach(() => {
@@ -112,6 +119,47 @@ describe('dedup — independent from analyticsClient.js', () => {
       ([, eventName]) => eventName === 'search_result_click',
     );
     expect(clickCalls).toHaveLength(2);
+  });
+});
+
+describe('auth bootstrap race (Step A8.1, brief §17)', () => {
+  test('never dispatches while auth bootstrap is unresolved, even with consent granted', () => {
+    stubConfigured();
+    setGa4AnalyticsConsent(GA4_CONSENT_STATES.GRANTED);
+    setGa4AuthBootstrapping(true);
+
+    dispatchToGa4(CLIENT_EVENT_NAMES.LISTING_VIEWED, { listingId: 5 });
+
+    expect(window.gtag).not.toHaveBeenCalled();
+  });
+
+  test('may dispatch once bootstrap resolves as an ordinary (non-internal) session', () => {
+    stubConfigured();
+    setGa4AnalyticsConsent(GA4_CONSENT_STATES.GRANTED);
+    setGa4AuthBootstrapping(true);
+    dispatchToGa4(CLIENT_EVENT_NAMES.LISTING_VIEWED, { listingId: 5 });
+    expect(window.gtag).not.toHaveBeenCalled();
+
+    setGa4AuthBootstrapping(false);
+    dispatchToGa4(CLIENT_EVENT_NAMES.LISTING_VIEWED, { listingId: 5 });
+
+    expect(window.gtag).toHaveBeenCalledWith(
+      'event',
+      'listing_viewed',
+      expect.objectContaining({ listing_id: 5 }),
+    );
+  });
+
+  test('remains suppressed once bootstrap resolves as internal staff', () => {
+    stubConfigured();
+    setGa4AnalyticsConsent(GA4_CONSENT_STATES.GRANTED);
+    setGa4AuthBootstrapping(true);
+    setGa4AuthBootstrapping(false);
+    setGa4InternalTrafficSuppressed(true); // Ga4RouteTracker's own resolved-role effect
+
+    dispatchToGa4(CLIENT_EVENT_NAMES.LISTING_VIEWED, { listingId: 5 });
+
+    expect(window.gtag).not.toHaveBeenCalled();
   });
 });
 

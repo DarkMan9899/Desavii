@@ -896,6 +896,157 @@ describe('Promotion detail — history and isolation (brief §24/§25/§57)', ()
   });
 });
 
+describe('Repository-level tenant isolation — SQL defense in depth (Step A8.1, brief §7)', () => {
+  // Bypasses PartnerAnalyticsService entirely — calls
+  // MySqlPartnerAnalyticsRepository's own detail methods directly, so
+  // these genuinely prove the repository's OWN `partner_id` predicate,
+  // never merely the service-level ownership guard that already sits in
+  // front of it on the real request path (exercised separately by the
+  // two HTTP-level "ownership masking"/"history and isolation" blocks
+  // above). Before A8.1, these four methods had no `partner_id` filter
+  // of their own at all.
+  let listingId;
+  let promotionId;
+  const day = '2026-06-01';
+
+  beforeAll(async () => {
+    listingId = await insertListing({
+      partnerId: partnerAId,
+      title: 'A8.1 Repository Isolation Listing',
+    });
+    promotionId = await insertPromotion({
+      partnerId: partnerAId,
+      listingId,
+      statusId: adActiveStatusId,
+    });
+    await insertEvent({
+      eventName: 'listing_viewed',
+      day,
+      listingId,
+      partnerId: partnerAId,
+    });
+    await insertEvent({
+      eventName: 'promotion_impression',
+      day,
+      listingId,
+      partnerId: partnerAId,
+      promotionId,
+      placement: 'home_featured',
+    });
+    await insertEvent({
+      eventName: 'promotion_clicked',
+      day,
+      listingId,
+      partnerId: partnerAId,
+      promotionId,
+      placement: 'home_featured',
+    });
+
+    const { EngagementAnalyticsAggregationService } =
+      await import('../../../src/modules/engagementAnalytics/services/engagementAnalyticsAggregationService.js');
+    const { MySqlEngagementAnalyticsAggregationRepository } =
+      await import('../../../src/modules/engagementAnalytics/repositories/mysqlEngagementAnalyticsAggregationRepository.js');
+    const aggregationService = new EngagementAnalyticsAggregationService({
+      engagementAnalyticsAggregationRepository:
+        new MySqlEngagementAnalyticsAggregationRepository(pool),
+    });
+    await aggregationService.aggregateDay(day);
+  }, 30_000);
+
+  test('getListingRangeDetail: Partner B’s partnerId returns null for Partner A’s listing, even though it genuinely has analytics data', async () => {
+    const { MySqlPartnerAnalyticsRepository } =
+      await import('../../../src/modules/engagementAnalytics/repositories/mysqlPartnerAnalyticsRepository.js');
+    const repo = new MySqlPartnerAnalyticsRepository(pool);
+
+    const wrongPartner = await repo.getListingRangeDetail({
+      partnerId: partnerBId,
+      listingId,
+      fromDay: day,
+      toDay: day,
+    });
+    expect(wrongPartner).toBeNull();
+
+    const correctPartner = await repo.getListingRangeDetail({
+      partnerId: partnerAId,
+      listingId,
+      fromDay: day,
+      toDay: day,
+    });
+    expect(correctPartner).not.toBeNull();
+    expect(correctPartner.viewsCount).toBe(1);
+  });
+
+  test('getListingDailySeries: Partner B’s partnerId returns an empty series for Partner A’s listing', async () => {
+    const { MySqlPartnerAnalyticsRepository } =
+      await import('../../../src/modules/engagementAnalytics/repositories/mysqlPartnerAnalyticsRepository.js');
+    const repo = new MySqlPartnerAnalyticsRepository(pool);
+
+    const wrongPartner = await repo.getListingDailySeries({
+      partnerId: partnerBId,
+      listingId,
+      fromDay: day,
+      toDay: day,
+    });
+    expect(wrongPartner).toEqual([]);
+
+    const correctPartner = await repo.getListingDailySeries({
+      partnerId: partnerAId,
+      listingId,
+      fromDay: day,
+      toDay: day,
+    });
+    expect(correctPartner).toHaveLength(1);
+    expect(correctPartner[0].viewsCount).toBe(1);
+  });
+
+  test('getPromotionRangeTotals: Partner B’s partnerId returns all-zero totals for Partner A’s promotion', async () => {
+    const { MySqlPartnerAnalyticsRepository } =
+      await import('../../../src/modules/engagementAnalytics/repositories/mysqlPartnerAnalyticsRepository.js');
+    const repo = new MySqlPartnerAnalyticsRepository(pool);
+
+    const wrongPartner = await repo.getPromotionRangeTotals({
+      partnerId: partnerBId,
+      promotionId,
+      fromDay: day,
+      toDay: day,
+    });
+    expect(wrongPartner).toEqual({ impressionsCount: 0, clicksCount: 0 });
+
+    const correctPartner = await repo.getPromotionRangeTotals({
+      partnerId: partnerAId,
+      promotionId,
+      fromDay: day,
+      toDay: day,
+    });
+    expect(correctPartner.impressionsCount).toBe(1);
+    expect(correctPartner.clicksCount).toBe(1);
+  });
+
+  test('getPromotionDailySeries: Partner B’s partnerId returns an empty series for Partner A’s promotion', async () => {
+    const { MySqlPartnerAnalyticsRepository } =
+      await import('../../../src/modules/engagementAnalytics/repositories/mysqlPartnerAnalyticsRepository.js');
+    const repo = new MySqlPartnerAnalyticsRepository(pool);
+
+    const wrongPartner = await repo.getPromotionDailySeries({
+      partnerId: partnerBId,
+      promotionId,
+      fromDay: day,
+      toDay: day,
+    });
+    expect(wrongPartner).toEqual([]);
+
+    const correctPartner = await repo.getPromotionDailySeries({
+      partnerId: partnerAId,
+      promotionId,
+      fromDay: day,
+      toDay: day,
+    });
+    expect(correctPartner).toHaveLength(1);
+    expect(correctPartner[0].impressionsCount).toBe(1);
+    expect(correctPartner[0].clicksCount).toBe(1);
+  });
+});
+
 describe('Promotions list endpoint — discovery (Step A6.1, brief §5/§6/§7/§8/§9/§10/§11)', () => {
   test('active AND expired promotions owned by the partner both appear', async () => {
     const listing = await insertListing({

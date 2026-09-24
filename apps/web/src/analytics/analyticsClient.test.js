@@ -21,7 +21,10 @@ import {
   resetGa4ConsentForTests,
 } from './ga4/ga4Consent.js';
 import { resetGa4ClientForTests } from './ga4/ga4Client.js';
-import { resetGa4InternalTrafficForTests } from './ga4/ga4InternalTraffic.js';
+import {
+  setGa4AuthBootstrapping,
+  resetGa4InternalTrafficForTests,
+} from './ga4/ga4InternalTraffic.js';
 import { resetGa4DispatchDedupForTests } from './ga4/dispatchToGa4.js';
 
 // `isAnalyticsCollectionEnabled()` reads `import.meta.env` on every call
@@ -39,6 +42,12 @@ beforeEach(() => {
   resetGa4ClientForTests();
   resetGa4InternalTrafficForTests();
   resetGa4DispatchDedupForTests();
+  // Step A8.1: the reset above now leaves GA4 in the conservative
+  // "auth still bootstrapping" state (matching a real page load) — this
+  // file's independence-matrix tests model an ordinary, already-resolved
+  // session, so they opt out of that explicitly, same as
+  // `dispatchToGa4.test.js` does.
+  setGa4AuthBootstrapping(false);
 });
 
 afterEach(() => {
