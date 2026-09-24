@@ -965,3 +965,116 @@ describe('Public visibility regression after M2B (brief §23, §32)', () => {
     expect(ownerRes.body.data.moderation_notes).toBeUndefined();
   });
 });
+
+describe('GET /listings/admin/:id/moderation-history (Step M3.1)', () => {
+  test("a MODERATOR (holds listing.moderate, not audit.view) can read this listing's own history", async () => {
+    const id = await createPendingReviewListing();
+    await request(app)
+      .patch(`/api/v1/listings/admin/${id}/moderation-status`)
+      .set('Authorization', `Bearer ${moderator.accessToken}`)
+      .send({ status: 'APPROVED' });
+
+    const res = await request(app)
+      .get(`/api/v1/listings/admin/${id}/moderation-history`)
+      .set('Authorization', `Bearer ${moderator.accessToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    const actions = res.body.data.map((entry) => entry.action);
+    expect(actions).toContain('listing.submitted_for_review');
+    expect(actions).toContain('listing.moderation_status_changed');
+    expect(
+      res.body.data.every((entry) => entry.target_type === 'listing'),
+    ).toBe(true);
+    expect(res.body.data.every((entry) => entry.target_id === id)).toBe(true);
+  });
+
+  test('no audit data from an unrelated listing bleeds into the response', async () => {
+    const idA = await createPendingReviewListing();
+    const idB = await createPendingReviewListing();
+    await request(app)
+      .patch(`/api/v1/listings/admin/${idB}/moderation-status`)
+      .set('Authorization', `Bearer ${moderator.accessToken}`)
+      .send({ status: 'REJECTED', notes: 'Unrelated listing B rejection.' });
+
+    const res = await request(app)
+      .get(`/api/v1/listings/admin/${idA}/moderation-history`)
+      .set('Authorization', `Bearer ${moderator.accessToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.every((entry) => entry.target_id === idA)).toBe(true);
+    expect(res.body.data.some((entry) => entry.target_id === idB)).toBe(false);
+  });
+
+  test('the endpoint has no client-controllable targetType — an attempted override via query string has no effect', async () => {
+    const id = await createPendingReviewListing();
+    const res = await request(app)
+      .get(`/api/v1/listings/admin/${id}/moderation-history`)
+      .query({ targetType: 'booking', targetId: 999999 })
+      .set('Authorization', `Bearer ${moderator.accessToken}`);
+    expect(res.status).toBe(200);
+    expect(
+      res.body.data.every((entry) => entry.target_type === 'listing'),
+    ).toBe(true);
+    expect(res.body.data.every((entry) => entry.target_id === id)).toBe(true);
+  });
+
+  test('a Partner (owner) is denied — 403, matching the moderation-detail endpoint', async () => {
+    const id = await createPendingReviewListing();
+    const res = await request(app)
+      .get(`/api/v1/listings/admin/${id}/moderation-history`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  test('a CUSTOMER is denied — 403', async () => {
+    const id = await createPendingReviewListing();
+    const res = await request(app)
+      .get(`/api/v1/listings/admin/${id}/moderation-history`)
+      .set('Authorization', `Bearer ${customer.accessToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  test('an unauthenticated caller is rejected — 401', async () => {
+    const id = await createPendingReviewListing();
+    const res = await request(app).get(
+      `/api/v1/listings/admin/${id}/moderation-history`,
+    );
+    expect(res.status).toBe(401);
+  });
+
+  test('permission is enforced before existence — a nonexistent listing id still returns 403 for a caller lacking listing.moderate, never a 404 that would leak existence', async () => {
+    const res = await request(app)
+      .get('/api/v1/listings/admin/999999999/moderation-history')
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  test('an ADMIN (holds listing.moderate via the blanket grant) can also read the scoped history', async () => {
+    const id = await createPendingReviewListing();
+    const res = await request(app)
+      .get(`/api/v1/listings/admin/${id}/moderation-history`)
+      .set('Authorization', `Bearer ${admin.accessToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  test('the existing generic ADMIN/audit.view-gated /admin/audit-logs endpoint is unchanged and still reachable', async () => {
+    const id = await createPendingReviewListing();
+    const res = await request(app)
+      .get('/api/v1/admin/audit-logs')
+      .query({ targetType: 'listing', targetId: id })
+      .set('Authorization', `Bearer ${admin.accessToken}`);
+    expect(res.status).toBe(200);
+    expect(
+      res.body.data.every(
+        (entry) => entry.target_type === 'listing' && entry.target_id === id,
+      ),
+    ).toBe(true);
+  });
+
+  test('a MODERATOR still cannot reach the generic /admin/audit-logs endpoint — no accidental broadening of audit.view', async () => {
+    const res = await request(app)
+      .get('/api/v1/admin/audit-logs')
+      .set('Authorization', `Bearer ${moderator.accessToken}`);
+    expect(res.status).toBe(403);
+  });
+});

@@ -151,7 +151,11 @@ export default function AdminListingDetailContent() {
   const confirm = useConfirm();
   const { showToast } = useToast();
   const canModerate = permissions.includes('listing.moderate');
-  const canViewHistory = permissions.includes('audit.view');
+  // Step M3.1: a MODERATOR (holds `listing.moderate`, not `audit.view`)
+  // can now also see this listing's own history, via the scoped
+  // endpoint `ModerationHistoryPanel` picks based on `canModerate` —
+  // SUPPORT's pre-existing `audit.view`-only access is unchanged.
+  const canViewHistory = permissions.includes('audit.view') || canModerate;
   // Step B8 — Admin Renew reuses the exact same `listing.publish`
   // permission gate `publishListingSchema`/`ListingService#renewListing`
   // already require server-side (Admin/Super Admin hold it via the
@@ -391,7 +395,10 @@ export default function AdminListingDetailContent() {
               )}
 
               {canViewHistory && (
-                <ModerationHistoryPanel listingId={listing.id} />
+                <ModerationHistoryPanel
+                  listingId={listing.id}
+                  canModerate={canModerate}
+                />
               )}
             </Stack>
           </Card>

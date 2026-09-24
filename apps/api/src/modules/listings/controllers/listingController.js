@@ -21,6 +21,11 @@ import {
   toIncludedItemResponse,
   toFaqResponse,
 } from '../dto/listingDto.js';
+// Step M3.1: reused as-is — the response shape this endpoint returns is
+// identical to the generic admin audit-log list's, just pre-scoped to
+// one listing's own rows server-side (see `ListingService
+// #getModerationHistory`). No second DTO for the same row shape.
+import { toAuditLogResponse } from '../../admin/dto/auditLogDto.js';
 
 export function createListingController(
   listingService,
@@ -116,6 +121,26 @@ export function createListingController(
           success: true,
           data: toListingAdminDetailResponse(listing),
           meta: null,
+          error: null,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async getModerationHistory(req, res, next) {
+      try {
+        const { id } = req.validated.params;
+        const { cursor, limit } = req.validated.query;
+        const { rows, meta } = await listingService.getModerationHistory(
+          req.principal,
+          id,
+          { cursor, limit },
+        );
+        res.status(200).json({
+          success: true,
+          data: rows.map(toAuditLogResponse),
+          meta,
           error: null,
         });
       } catch (err) {

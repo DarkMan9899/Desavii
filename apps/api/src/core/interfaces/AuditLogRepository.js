@@ -32,6 +32,20 @@ export class AuditLogRepository {
       'AuditLogRepository.record must be implemented by a concrete adapter.',
     );
   }
+
+  /**
+   * Step M3.1: backs `AuditLogger#listForTarget` — cursor-paginated,
+   * newest first. `targetType`/`targetId` here are always the caller's
+   * own fixed values (see that method's own doc comment), never raw
+   * client input.
+   * @param {{targetType?: string, targetId?: number, cursor?: string, limit?: number}} filters
+   * @returns {Promise<{rows: object[], meta: object}>}
+   */
+  async list(filters) {
+    throw new Error(
+      'AuditLogRepository.list must be implemented by a concrete adapter.',
+    );
+  }
 }
 /* eslint-enable class-methods-use-this, no-unused-vars */
 

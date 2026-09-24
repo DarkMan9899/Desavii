@@ -883,6 +883,33 @@ export class ListingService {
   }
 
   /**
+   * Step M3.1 (brief §5-8) — `GET /listings/admin/:id/moderation-history`.
+   * A MODERATOR holds `listing.moderate` but deliberately not the global
+   * `audit.view` `modules/admin/services/auditLogService.js` requires
+   * (that service's own doc comment explains why), so it could review
+   * and act on a listing but never see why it reached that state. This
+   * gives exactly that one target's own history back, never a
+   * client-influenced `targetType`/`targetId` — `#auditLogger
+   * .listForTarget` is always called with the literal `'listing'` and
+   * this method's own validated `id`, structurally incapable of
+   * returning another target's rows regardless of what a caller sends.
+   *
+   * Calls `getListingAdminDetail` first and discards the result — not
+   * merely for its `listing.moderate` check (which duplicates one line),
+   * but so this endpoint's permission-then-existence ordering, and its
+   * soft-deleted-listing visibility, can never drift out of sync with
+   * the moderation-detail page this history exists to accompany (brief
+   * §8's "match the intentional moderation-detail contract"): a caller
+   * without permission gets the identical 403 the detail page would,
+   * before any existence check ever runs — no enumeration oracle for a
+   * listing id this principal isn't allowed to moderate.
+   */
+  async getModerationHistory(principal, id, { cursor, limit } = {}) {
+    await this.getListingAdminDetail(principal, id);
+    return this.#auditLogger.listForTarget('listing', id, { cursor, limit });
+  }
+
+  /**
    * Step M2B (brief §5-7): the mandatory pre-publication step — DRAFT (a
    * fresh listing, or one a Moderator just returned for changes) ->
    * PENDING_REVIEW, moderation reset to PENDING, any prior return-for-

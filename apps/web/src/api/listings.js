@@ -252,6 +252,19 @@ export function updateListingModerationStatus(id, status, notes) {
     .then((response) => response.data);
 }
 
+/**
+ * Step M3.1 — `GET /listings/admin/:id/moderation-history`. Scoped to this
+ * one listing's own audit rows, reachable with `listing.moderate` alone
+ * (no `audit.view` required) — see `ListingService#getModerationHistory`.
+ * @param {number|string} id
+ * @param {{ cursor?: string, limit?: number }} [params]
+ */
+export function getListingModerationHistory(id, params) {
+  return apiClient
+    .get(`/listings/admin/${id}/moderation-history`, { params })
+    .then((response) => response.data);
+}
+
 /** `GET /listings/:id/menu` — public, no auth required. Pass 3 remediation (Restaurant vertical). */
 export function getListingMenu(id, { locale } = {}) {
   return apiClient

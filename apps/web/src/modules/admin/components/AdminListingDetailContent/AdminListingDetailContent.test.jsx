@@ -8,6 +8,7 @@ import AdminListingDetailContent from './AdminListingDetailContent.jsx';
 import { useAdminListingDetailQuery } from '../../queries/useAdminListingDetailQuery.js';
 import { useAdminPartnerDetailQuery } from '../../queries/useAdminPartnerDetailQuery.js';
 import { useAdminAuditLogsQuery } from '../../queries/useAdminAuditLogsQuery.js';
+import { useListingModerationHistoryQuery } from '../../queries/useListingModerationHistoryQuery.js';
 import { useUpdateListingModerationStatusMutation } from '../../mutations/useUpdateListingModerationStatusMutation.js';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
 import * as listingsModule from '../../../listings/index.js';
@@ -20,6 +21,9 @@ vi.mock('../../queries/useAdminPartnerDetailQuery.js', () => ({
 }));
 vi.mock('../../queries/useAdminAuditLogsQuery.js', () => ({
   useAdminAuditLogsQuery: vi.fn(),
+}));
+vi.mock('../../queries/useListingModerationHistoryQuery.js', () => ({
+  useListingModerationHistoryQuery: vi.fn(),
 }));
 vi.mock('../../mutations/useUpdateListingModerationStatusMutation.js', () => ({
   useUpdateListingModerationStatusMutation: vi.fn(),
@@ -127,6 +131,25 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
       isPending: false,
       variables: undefined,
     });
+    // Step M3.1: `ModerationHistoryPanel` always calls both history hooks
+    // (Rules of Hooks) and picks one by `canModerate` — give both a safe
+    // default so tests that don't care about the history panel never
+    // crash on destructuring `undefined`. Tests that do care override
+    // whichever one their scenario's `canModerate` value actually uses.
+    useAdminAuditLogsQuery.mockReturnValue({
+      data: undefined,
+      isPending: true,
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    });
+    useListingModerationHistoryQuery.mockReturnValue({
+      data: undefined,
+      isPending: true,
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    });
   });
 
   test('shows a retryable error state', () => {
@@ -210,9 +233,13 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
     expect(screen.getByText('Missing exterior photos.')).toBeInTheDocument();
   });
 
-  test('moderation history is shown only when the admin holds audit.view', () => {
+  // Step M3.1: a MODERATOR holds `listing.moderate` but not the global
+  // `audit.view` — the panel must still show, sourced from the new
+  // listing-scoped endpoint (`useListingModerationHistoryQuery`), never
+  // the generic one.
+  test('moderation history is shown for a MODERATOR (listing.moderate, no audit.view) via the scoped endpoint', () => {
     useAuth.mockReturnValue({
-      permissions: ['listing.moderate', 'audit.view'],
+      permissions: ['listing.moderate'],
     });
     useAdminListingDetailQuery.mockReturnValue({
       data: BASE_LISTING,
@@ -220,7 +247,7 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    useAdminAuditLogsQuery.mockReturnValue({
+    useListingModerationHistoryQuery.mockReturnValue({
       data: {
         pages: [
           {
@@ -249,6 +276,57 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
     renderPage();
 
     expect(screen.getByText('Մոդերացիայի պատմություն')).toBeInTheDocument();
+    expect(useAdminAuditLogsQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false }),
+    );
+  });
+
+  // Step M3.1: SUPPORT-style access — `audit.view` alone, no
+  // `listing.moderate` — must keep working exactly as before, sourced
+  // from the pre-existing generic endpoint.
+  test('moderation history is shown for an audit.view-only admin (e.g. SUPPORT) via the generic endpoint, unchanged', () => {
+    useAuth.mockReturnValue({
+      permissions: ['audit.view'],
+    });
+    useAdminListingDetailQuery.mockReturnValue({
+      data: BASE_LISTING,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    useAdminAuditLogsQuery.mockReturnValue({
+      data: {
+        pages: [
+          {
+            results: [
+              {
+                id: 98,
+                action: 'listing.moderation_status_changed',
+                actor_name: 'Dev Support',
+                created_at: '2026-08-01T11:00:00.000Z',
+                before_snapshot: { moderationStatusCode: 'PENDING' },
+                after_snapshot: {
+                  moderationStatusCode: 'APPROVED',
+                  notes: null,
+                },
+              },
+            ],
+          },
+        ],
+      },
+      isPending: false,
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    });
+
+    renderPage();
+
+    expect(screen.getByText('Մոդերացիայի պատմություն')).toBeInTheDocument();
+    expect(useListingModerationHistoryQuery).toHaveBeenCalledWith(
+      BASE_LISTING.id,
+      expect.objectContaining({ enabled: false }),
+    );
   });
 
   // Step M3: `listing.submitted_for_review` is the other Step M2B action
@@ -265,7 +343,7 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    useAdminAuditLogsQuery.mockReturnValue({
+    useListingModerationHistoryQuery.mockReturnValue({
       data: {
         pages: [
           {
@@ -304,8 +382,8 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
     expect(screen.getAllByText('Վերանայման սպասում')).toHaveLength(2);
   });
 
-  test('moderation history is omitted (not a broken/empty section) when the admin lacks audit.view', () => {
-    useAuth.mockReturnValue({ permissions: ['listing.moderate'] });
+  test('moderation history is omitted (not a broken/empty section) when the admin lacks both audit.view and listing.moderate', () => {
+    useAuth.mockReturnValue({ permissions: [] });
     useAdminListingDetailQuery.mockReturnValue({
       data: BASE_LISTING,
       isPending: false,
@@ -319,6 +397,7 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
       screen.queryByText('Մոդերացիայի պատմություն'),
     ).not.toBeInTheDocument();
     expect(useAdminAuditLogsQuery).not.toHaveBeenCalled();
+    expect(useListingModerationHistoryQuery).not.toHaveBeenCalled();
   });
 
   test('the lifecycle section is shown for a lifecycle-managed listing, with a Renew action when the admin holds listing.publish', async () => {

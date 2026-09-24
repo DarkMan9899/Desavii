@@ -91,6 +91,21 @@ export const listingIdParamsSchema = z.object({
   body: z.any(),
 });
 
+// Step M3.1 — `GET /listings/admin/:id/moderation-history`. Cursor
+// pagination only, same shape as `listListingsAdminQuerySchema`'s own
+// `cursor`/`limit` pair — `targetType`/`targetId` are never
+// client-supplied for this endpoint (see `ListingService
+// #getModerationHistory`'s own doc comment), so there is nothing else
+// to validate here.
+export const listingModerationHistoryQuerySchema = z.object({
+  params: idParams,
+  query: z.object({
+    cursor: z.string().optional(),
+    limit: z.coerce.number().int().positive().max(100).optional(),
+  }),
+  body: z.any(),
+});
+
 // Listing Lifetime / Renewal, Step B3: `publicationPeriodDays` is optional
 // here on purpose — whether it's actually REQUIRED depends on server-side
 // state (a listing already mid-lifecycle vs. its first lifecycle-managed

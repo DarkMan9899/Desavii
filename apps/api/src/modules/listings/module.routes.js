@@ -26,6 +26,7 @@ import {
   listingMetadataQuerySchema,
   listListingsAdminQuerySchema,
   updateListingModerationStatusSchema,
+  listingModerationHistoryQuerySchema,
   replaceHighlightsSchema,
   replaceItineraryStepsSchema,
   replaceIncludedItemsSchema,
@@ -104,6 +105,18 @@ export default function createListingRoutes({
     requirePermission('listing.moderate'),
     validate(listingIdParamsSchema),
     listingController.getAdminDetail,
+  );
+  // Step M3.1 — scoped moderation-history read for MODERATOR, who holds
+  // `listing.moderate` but deliberately not the global `audit.view`
+  // (see `AuditLogger#listForTarget`'s doc comment). Registered here,
+  // alongside the other `/admin/:id*` routes, for the same ordering
+  // reason as `/admin` vs `/admin/:id` above.
+  router.get(
+    '/admin/:id/moderation-history',
+    requireAuth,
+    requirePermission('listing.moderate'),
+    validate(listingModerationHistoryQuerySchema),
+    listingController.getModerationHistory,
   );
   router.patch(
     '/admin/:id/moderation-status',

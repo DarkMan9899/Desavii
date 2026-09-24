@@ -20,16 +20,21 @@
  * after `moderationStatusCode` is the same PENDING on a submission,
  * which would render as a meaningless "Pending → Pending" badge pair).
  *
- * Only rendered by the caller when the signed-in admin already holds
- * `audit.view` (granted to SUPER_ADMIN/ADMIN/SUPPORT, not MODERATOR) —
- * this panel does not request or depend on any new permission grant.
- * `MODERATOR` (the role that actually holds `listing.moderate`) simply
- * never sees this panel, exactly matching its current, unchanged
- * authorization — nothing here alters who can do what. `GET
- * /admin/audit-logs` requires `audit.view` unconditionally server-side
- * (`module.routes.js`), so a Moderator-visible history view is a real
- * backend permission gap, not something a frontend gate alone can fix —
- * flagged as follow-up, not silently expanded here (Step M3 brief §27).
+ * Rendered by the caller whenever the signed-in admin holds `audit.view`
+ * OR `listing.moderate` (Step M3.1 closed the previous gap where a
+ * MODERATOR — who holds `listing.moderate` but not the global
+ * `audit.view` — could not see this listing's own history at all). The
+ * two permissions read from two different backend surfaces, chosen via
+ * the `canModerate` prop:
+ *  - `canModerate` (holds `listing.moderate`): `GET
+ *    /listings/admin/:id/moderation-history`
+ *    (`useListingModerationHistoryQuery`) — pre-scoped to this one
+ *    listing server-side, requires only `listing.moderate`.
+ *  - otherwise (holds `audit.view` only, e.g. SUPPORT): the pre-existing
+ *    generic `GET /admin/audit-logs` (`useAdminAuditLogsQuery`),
+ *    unchanged from before Step M3.1.
+ * Both hooks are always called (Rules of Hooks) but only one is
+ * `enabled` at a time, so only one request ever actually fires.
  */
 
 import PropTypes from 'prop-types';
@@ -39,6 +44,7 @@ import { Card, Badge, Button } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import { Skeleton, EmptyState } from '@desavii/ui/components/feedback-overlays';
 import { useAdminAuditLogsQuery } from '../../queries/useAdminAuditLogsQuery.js';
+import { useListingModerationHistoryQuery } from '../../queries/useListingModerationHistoryQuery.js';
 
 const MODERATION_BADGE_VARIANT = {
   PENDING: 'warning',
@@ -60,13 +66,21 @@ const RELEVANT_ACTIONS = new Set([
   'listing.submitted_for_review',
 ]);
 
-export default function ModerationHistoryPanel({ listingId }) {
+export default function ModerationHistoryPanel({
+  listingId,
+  canModerate = false,
+}) {
   const { t, i18n } = useTranslation();
+  const scopedQuery = useListingModerationHistoryQuery(listingId, {
+    enabled: canModerate,
+  });
+  const genericQuery = useAdminAuditLogsQuery({
+    targetType: 'listing',
+    targetId: listingId,
+    enabled: !canModerate,
+  });
   const { data, isPending, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useAdminAuditLogsQuery({
-      targetType: 'listing',
-      targetId: listingId,
-    });
+    canModerate ? scopedQuery : genericQuery;
 
   const dateFormatter = useMemo(
     () =>
@@ -192,4 +206,5 @@ export default function ModerationHistoryPanel({ listingId }) {
 
 ModerationHistoryPanel.propTypes = {
   listingId: PropTypes.number.isRequired,
+  canModerate: PropTypes.bool,
 };
