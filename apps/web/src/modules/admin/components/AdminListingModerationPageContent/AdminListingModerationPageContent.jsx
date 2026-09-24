@@ -3,19 +3,35 @@
  * Moderation). Orchestrator, same shape as `AdminPartnersPageContent`:
  * URL-synced keyword/moderationStatus/status filters
  * (`useAdminListFilters`) over the `useAdminListingsQuery` infinite
- * query, rendered via the shared `DataTable` primitive. Defaults to
- * `moderationStatus=PENDING` so landing on the page shows the actual
- * moderation queue, not every listing ever created.
+ * query, rendered via the shared `DataTable` primitive.
  *
- * Approve needs no extra input, so it reuses the shared `useConfirm()`
- * modal exactly like every other admin toggle. Reject collects an
- * optional free-text reason (`listings.moderation_notes`, Stage 11.3's
- * migration) — `useConfirm()`'s modal only ever resolves a boolean, so
- * it can't host a controlled textarea (the modal's own React tree is
- * frozen at the moment `confirm()` is called, meaning a textarea inside
- * it would not re-render as the admin types); a small local `Modal`
- * rendered directly in this component's own tree is used instead, so
- * the notes field stays fully controlled.
+ * Step M3: defaults to `status=PENDING_REVIEW` (not
+ * `moderationStatus=PENDING`) so landing on the page shows the real
+ * Step M2B moderation queue — a listing that was created but never
+ * submitted is also `moderation_status=PENDING`, so filtering on that
+ * alone would mix genuinely-actionable PENDING_REVIEW listings with
+ * untouched drafts nobody asked anyone to look at. The status filter
+ * still supports every other value (including "All statuses") for
+ * broader admin browsing — this only changes what a moderator sees the
+ * moment they land here.
+ *
+ * Actions are derived per row from `getAllowedModerationActions`
+ * (mirrors the backend's own closed decision matrix — never every
+ * action for every row) and gated on `listing.moderate` client-side, on
+ * top of the backend's own enforcement (brief §5: the queue previously
+ * rendered Approve/Reject unconditionally, unlike the detail page,
+ * which already gated on `canModerate` — this normalizes the two).
+ *
+ * Approve/Flag need no extra input, so they reuse the shared
+ * `useConfirm()` modal exactly like every other admin toggle. Return
+ * for changes/Reject collect a REQUIRED reason (`listings.
+ * moderation_notes` — Step M2B requires a non-empty reason for any
+ * REJECTED decision) — `useConfirm()`'s modal only ever resolves a
+ * boolean, so it can't host a controlled textarea (the modal's own
+ * React tree is frozen at the moment `confirm()` is called, meaning a
+ * textarea inside it would not re-render as the moderator types); a
+ * small local `Modal` rendered directly in this component's own tree is
+ * used instead, so the reason field stays fully controlled.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -29,6 +45,7 @@ import { Modal, ErrorState } from '@desavii/ui/components/feedback-overlays';
 import { Search } from 'lucide-react';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
+import { useAuth } from '../../../../contexts/AuthContext.jsx';
 import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
 import {
@@ -38,6 +55,10 @@ import {
 import { useAdminListFilters } from '../../hooks/useAdminListFilters.js';
 import { useAdminListingsQuery } from '../../queries/useAdminListingsQuery.js';
 import { useUpdateListingModerationStatusMutation } from '../../mutations/useUpdateListingModerationStatusMutation.js';
+import {
+  getAllowedModerationActions,
+  moderationErrorMessageKey,
+} from '../../utils/listingModerationActions.js';
 
 const MODERATION_BADGE_VARIANT = {
   PENDING: 'warning',
@@ -48,21 +69,58 @@ const MODERATION_BADGE_VARIANT = {
 
 const DEFAULT_FILTERS = {
   keyword: '',
-  moderationStatus: 'PENDING',
-  status: '',
+  moderationStatus: '',
+  status: 'PENDING_REVIEW',
   lifecycleFilter: '',
+};
+
+// Confirm-modal actions (no reason collected) — `kind` -> i18n key suffixes.
+const CONFIRM_ACTION_COPY = {
+  approve: {
+    titleKey: 'approveConfirmTitle',
+    descriptionKey: 'approveConfirmDescription',
+    labelKey: 'approveAction',
+    successKey: 'approveSuccess',
+    variant: 'primary',
+  },
+  flag: {
+    titleKey: 'flagConfirmTitle',
+    descriptionKey: 'flagConfirmDescription',
+    labelKey: 'flagAction',
+    successKey: 'flagSuccess',
+    variant: 'destructive',
+  },
+};
+
+// Reason-dialog actions (a non-empty reason is required) — same shape.
+const REASON_ACTION_COPY = {
+  returnForChanges: {
+    titleKey: 'returnForChangesDialogTitle',
+    descriptionKey: 'returnForChangesDialogDescription',
+    labelKey: 'returnForChangesAction',
+    successKey: 'returnForChangesSuccess',
+  },
+  reject: {
+    titleKey: 'rejectDialogTitle',
+    descriptionKey: 'rejectDialogDescription',
+    labelKey: 'rejectAction',
+    successKey: 'rejectSuccess',
+  },
 };
 
 export default function AdminListingModerationPageContent() {
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
+  const { permissions } = useAuth();
+  const canModerate = permissions.includes('listing.moderate');
   const confirm = useConfirm();
   const { showToast } = useToast();
 
   const { filters, updateFilters } = useAdminListFilters(DEFAULT_FILTERS);
   const [keywordText, setKeywordText] = useState(filters.keyword);
-  const [rejectTarget, setRejectTarget] = useState(null);
-  const [rejectNotes, setRejectNotes] = useState('');
+  const [reasonDialog, setReasonDialog] = useState(null); // { listing, kind }
+  const [reasonText, setReasonText] = useState('');
+  const [reasonTouched, setReasonTouched] = useState(false);
 
   const {
     data,
@@ -142,62 +200,81 @@ export default function AdminListingModerationPageContent() {
     },
   ];
 
-  async function handleApprove(listing) {
-    const confirmed = await confirm({
-      title: t('admin.listingModeration.approveConfirmTitle', {
-        title: listing.title,
-      }),
-      description: t('admin.listingModeration.approveConfirmDescription'),
-      confirmLabel: t('admin.listingModeration.approveAction'),
-      cancelLabel: t('common.cancel'),
-      variant: 'primary',
-    });
-    if (!confirmed) return;
-
+  async function runMutation(listing, status, notes) {
     try {
       await updateModerationMutation.mutateAsync({
         id: listing.id,
-        status: 'APPROVED',
+        status,
+        notes,
       });
-      showToast(t('admin.listingModeration.approveSuccess'), {
+      return true;
+    } catch (err) {
+      showToast(t(moderationErrorMessageKey(err)), { variant: 'danger' });
+      return false;
+    }
+  }
+
+  async function handleConfirmAction(listing, decision) {
+    const copy = CONFIRM_ACTION_COPY[decision.kind];
+    const confirmed = await confirm({
+      title: t(`admin.listingModeration.${copy.titleKey}`, {
+        title: listing.title,
+      }),
+      description: t(`admin.listingModeration.${copy.descriptionKey}`),
+      confirmLabel: t(`admin.listingModeration.${copy.labelKey}`),
+      cancelLabel: t('common.cancel'),
+      variant: copy.variant,
+    });
+    if (!confirmed) return;
+
+    const ok = await runMutation(listing, decision.status);
+    if (ok) {
+      showToast(t(`admin.listingModeration.${copy.successKey}`), {
         variant: 'success',
-      });
-    } catch {
-      showToast(t('admin.listingModeration.statusError'), {
-        variant: 'danger',
       });
     }
   }
 
-  function openRejectDialog(listing) {
-    setRejectNotes('');
-    setRejectTarget(listing);
+  function openReasonDialog(listing, decision) {
+    setReasonText('');
+    setReasonTouched(false);
+    setReasonDialog({ listing, decision });
   }
 
   // A stable reference matters here, not just style: `useFocusTrap`'s
   // effect depends on `onClose`, so a fresh inline arrow on every render
-  // (e.g. from the notes textarea's own keystroke-driven re-renders)
+  // (e.g. from the reason textarea's own keystroke-driven re-renders)
   // would tear the keydown listener + focus-restore effect down and
   // rebuild it on every keystroke, yanking focus out of the textarea
   // mid-type.
-  const closeRejectDialog = useCallback(() => setRejectTarget(null), []);
+  const closeReasonDialog = useCallback(() => setReasonDialog(null), []);
 
-  async function handleConfirmReject() {
-    try {
-      await updateModerationMutation.mutateAsync({
-        id: rejectTarget.id,
-        status: 'REJECTED',
-        notes: rejectNotes.trim() || undefined,
-      });
-      showToast(t('admin.listingModeration.rejectSuccess'), {
+  const trimmedReason = reasonText.trim();
+  const reasonIsInvalid = reasonTouched && trimmedReason.length === 0;
+
+  async function handleConfirmReason() {
+    setReasonTouched(true);
+    if (!trimmedReason) return;
+
+    const copy = REASON_ACTION_COPY[reasonDialog.decision.kind];
+    const ok = await runMutation(
+      reasonDialog.listing,
+      reasonDialog.decision.status,
+      trimmedReason,
+    );
+    if (ok) {
+      showToast(t(`admin.listingModeration.${copy.successKey}`), {
         variant: 'success',
       });
-    } catch {
-      showToast(t('admin.listingModeration.statusError'), {
-        variant: 'danger',
-      });
-    } finally {
-      setRejectTarget(null);
+      setReasonDialog(null);
+    }
+  }
+
+  function handleAction(listing, decision) {
+    if (decision.requiresReason) {
+      openReasonDialog(listing, decision);
+    } else {
+      handleConfirmAction(listing, decision);
     }
   }
 
@@ -265,29 +342,39 @@ export default function AdminListingModerationPageContent() {
     {
       key: 'actions',
       header: '',
-      render: (listing) => (
-        <Inline gap="2">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => handleApprove(listing)}
-            loading={
-              updateModerationMutation.isPending &&
-              updateModerationMutation.variables?.id === listing.id &&
-              updateModerationMutation.variables?.status === 'APPROVED'
-            }
-          >
-            {t('admin.listingModeration.approveAction')}
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => openRejectDialog(listing)}
-          >
-            {t('admin.listingModeration.rejectAction')}
-          </Button>
-        </Inline>
-      ),
+      render: (listing) => {
+        if (!canModerate) return null;
+        const actions = getAllowedModerationActions(listing);
+        if (actions.length === 0) return null;
+        return (
+          <Inline gap="2">
+            {actions.map((decision) => {
+              const copy =
+                CONFIRM_ACTION_COPY[decision.kind] ??
+                REASON_ACTION_COPY[decision.kind];
+              return (
+                <Button
+                  key={decision.status}
+                  variant={
+                    decision.kind === 'approve' ? 'primary' : 'destructive'
+                  }
+                  size="sm"
+                  onClick={() => handleAction(listing, decision)}
+                  disabled={updateModerationMutation.isPending}
+                  loading={
+                    updateModerationMutation.isPending &&
+                    updateModerationMutation.variables?.id === listing.id &&
+                    updateModerationMutation.variables?.status ===
+                      decision.status
+                  }
+                >
+                  {t(`admin.listingModeration.${copy.labelKey}`)}
+                </Button>
+              );
+            })}
+          </Inline>
+        );
+      },
     },
   ];
 
@@ -363,37 +450,52 @@ export default function AdminListingModerationPageContent() {
         </Stack>
       )}
 
-      {rejectTarget && (
+      {reasonDialog && (
         <Modal
           isOpen
-          onClose={closeRejectDialog}
-          title={t('admin.listingModeration.rejectDialogTitle', {
-            title: rejectTarget.title,
-          })}
+          onClose={closeReasonDialog}
+          title={t(
+            `admin.listingModeration.${REASON_ACTION_COPY[reasonDialog.decision.kind].titleKey}`,
+            { title: reasonDialog.listing.title },
+          )}
           size="sm"
           footer={
             <Inline gap="3" justify="flex-end">
-              <Button variant="ghost" onClick={closeRejectDialog}>
+              <Button variant="ghost" onClick={closeReasonDialog}>
                 {t('common.cancel')}
               </Button>
               <Button
                 variant="destructive"
-                onClick={() => handleConfirmReject()}
+                onClick={() => handleConfirmReason()}
                 loading={updateModerationMutation.isPending}
+                disabled={reasonTouched && trimmedReason.length === 0}
               >
-                {t('admin.listingModeration.rejectAction')}
+                {t(
+                  `admin.listingModeration.${REASON_ACTION_COPY[reasonDialog.decision.kind].labelKey}`,
+                )}
               </Button>
             </Inline>
           }
         >
           <Stack gap="3">
-            <span>{t('admin.listingModeration.rejectDialogDescription')}</span>
+            <span>
+              {t(
+                `admin.listingModeration.${REASON_ACTION_COPY[reasonDialog.decision.kind].descriptionKey}`,
+              )}
+            </span>
             <Textarea
-              label={t('admin.listingModeration.notesLabel')}
-              placeholder={t('admin.listingModeration.notesPlaceholder')}
-              value={rejectNotes}
-              onChange={(event) => setRejectNotes(event.target.value)}
+              label={t('admin.listingModeration.reasonLabel')}
+              placeholder={t('admin.listingModeration.reasonPlaceholder')}
+              value={reasonText}
+              onChange={(event) => setReasonText(event.target.value)}
+              onBlur={() => setReasonTouched(true)}
               rows={4}
+              required
+              error={
+                reasonIsInvalid
+                  ? t('admin.listingModeration.reasonRequiredHint')
+                  : undefined
+              }
             />
           </Stack>
         </Modal>

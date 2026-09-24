@@ -100,8 +100,11 @@ const BASE_LISTING = {
 };
 
 describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
+  let mutateAsync;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mutateAsync = vi.fn().mockResolvedValue({});
     useAdminPartnerDetailQuery.mockReturnValue({
       data: { id: 5, display_name: 'Yerevan Boutique Hospitality' },
       isPending: false,
@@ -120,7 +123,7 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
       isPending: false,
     });
     useUpdateListingModerationStatusMutation.mockReturnValue({
-      mutateAsync: vi.fn(),
+      mutateAsync,
       isPending: false,
       variables: undefined,
     });
@@ -188,6 +191,25 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
     ).not.toBeInTheDocument();
   });
 
+  test('the current moderation reason is shown when moderation_notes is set (brief §12)', () => {
+    useAuth.mockReturnValue({ permissions: ['listing.moderate'] });
+    useAdminListingDetailQuery.mockReturnValue({
+      data: {
+        ...BASE_LISTING,
+        status: 'DRAFT',
+        moderation_status: 'REJECTED',
+        moderation_notes: 'Missing exterior photos.',
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.getByText('Missing exterior photos.')).toBeInTheDocument();
+  });
+
   test('moderation history is shown only when the admin holds audit.view', () => {
     useAuth.mockReturnValue({
       permissions: ['listing.moderate', 'audit.view'],
@@ -205,6 +227,7 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
             results: [
               {
                 id: 99,
+                action: 'listing.moderation_status_changed',
                 actor_name: 'Dev Admin',
                 created_at: '2026-08-01T10:00:00.000Z',
                 before_snapshot: { moderationStatusCode: 'PENDING' },
@@ -226,6 +249,59 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
     renderPage();
 
     expect(screen.getByText('Մոդերացիայի պատմություն')).toBeInTheDocument();
+  });
+
+  // Step M3: `listing.submitted_for_review` is the other Step M2B action
+  // the history panel must surface (brief §13), distinctly presented
+  // from a moderation-status change (a statusCode transition, not a
+  // moderationStatusCode one).
+  test('a submit-for-review entry renders with its own label and status transition', () => {
+    useAuth.mockReturnValue({
+      permissions: ['listing.moderate', 'audit.view'],
+    });
+    useAdminListingDetailQuery.mockReturnValue({
+      data: BASE_LISTING,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    useAdminAuditLogsQuery.mockReturnValue({
+      data: {
+        pages: [
+          {
+            results: [
+              {
+                id: 100,
+                action: 'listing.submitted_for_review',
+                actor_name: 'Vendor Owner',
+                created_at: '2026-08-01T09:00:00.000Z',
+                before_snapshot: {
+                  statusCode: 'DRAFT',
+                  moderationStatusCode: 'PENDING',
+                },
+                after_snapshot: {
+                  statusCode: 'PENDING_REVIEW',
+                  moderationStatusCode: 'PENDING',
+                },
+              },
+            ],
+          },
+        ],
+      },
+      isPending: false,
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    });
+
+    renderPage();
+
+    expect(screen.getByText('Ներկայացվել է վերանայման')).toBeInTheDocument();
+    expect(screen.getByText('Սևագիր')).toBeInTheDocument();
+    // Appears twice: the history entry's own "to" badge, and the
+    // listing's own top-of-page status badge (BASE_LISTING is already
+    // PENDING_REVIEW).
+    expect(screen.getAllByText('Վերանայման սպասում')).toHaveLength(2);
   });
 
   test('moderation history is omitted (not a broken/empty section) when the admin lacks audit.view', () => {
@@ -316,7 +392,7 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
     ).not.toBeInTheDocument();
   });
 
-  test('approve/reject actions are hidden without listing.moderate', () => {
+  test('approve/return-for-changes actions are hidden without listing.moderate', () => {
     useAuth.mockReturnValue({ permissions: [] });
     useAdminListingDetailQuery.mockReturnValue({
       data: BASE_LISTING,
@@ -331,7 +407,167 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
       screen.queryByRole('button', { name: 'Հաստատել' }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'Մերժել' }),
+      screen.queryByRole('button', { name: 'Վերադարձնել ուղղումների համար' }),
     ).not.toBeInTheDocument();
+  });
+
+  describe('action set matches the backend decision matrix (brief §9-10)', () => {
+    test('PENDING_REVIEW shows Approve + Return for changes', () => {
+      useAuth.mockReturnValue({ permissions: ['listing.moderate'] });
+      useAdminListingDetailQuery.mockReturnValue({
+        data: BASE_LISTING,
+        isPending: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      expect(
+        screen.getByRole('button', { name: 'Հաստատել' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Վերադարձնել ուղղումների համար' }),
+      ).toBeInTheDocument();
+    });
+
+    test('PUBLISHED shows Reject + Flag, never Approve/Return for changes', () => {
+      useAuth.mockReturnValue({ permissions: ['listing.moderate'] });
+      useAdminListingDetailQuery.mockReturnValue({
+        data: { ...BASE_LISTING, status: 'PUBLISHED' },
+        isPending: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      expect(
+        screen.getByRole('button', { name: 'Մերժել' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Նշագրել' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Հաստատել' }),
+      ).not.toBeInTheDocument();
+    });
+
+    test('DRAFT shows no moderation action at all', () => {
+      useAuth.mockReturnValue({ permissions: ['listing.moderate'] });
+      useAdminListingDetailQuery.mockReturnValue({
+        data: { ...BASE_LISTING, status: 'DRAFT' },
+        isPending: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      expect(
+        screen.queryByRole('button', { name: 'Հաստատել' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Մերժել' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Նշագրել' }),
+      ).not.toBeInTheDocument();
+    });
+
+    test('ARCHIVED shows no moderation action at all', () => {
+      useAuth.mockReturnValue({ permissions: ['listing.moderate'] });
+      useAdminListingDetailQuery.mockReturnValue({
+        data: { ...BASE_LISTING, status: 'ARCHIVED' },
+        isPending: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      expect(
+        screen.queryByRole('button', { name: 'Հաստատել' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Մերժել' }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  test('approving asks for confirmation, then calls the mutation with APPROVED', async () => {
+    const user = userEvent.setup();
+    useAuth.mockReturnValue({ permissions: ['listing.moderate'] });
+    useAdminListingDetailQuery.mockReturnValue({
+      data: BASE_LISTING,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: 'Հաստատել' }));
+    const approveButtons = screen.getAllByRole('button', { name: 'Հաստատել' });
+    await user.click(approveButtons[approveButtons.length - 1]);
+
+    expect(mutateAsync).toHaveBeenCalledWith({
+      id: 1,
+      status: 'APPROVED',
+      notes: undefined,
+    });
+  });
+
+  test('Return for changes requires a non-empty reason, then calls the mutation with REJECTED + the trimmed reason', async () => {
+    const user = userEvent.setup();
+    useAuth.mockReturnValue({ permissions: ['listing.moderate'] });
+    useAdminListingDetailQuery.mockReturnValue({
+      data: BASE_LISTING,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderPage();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Վերադարձնել ուղղումների համար' }),
+    );
+    const submitButtons = screen.getAllByRole('button', {
+      name: 'Վերադարձնել ուղղումների համար',
+    });
+    const submitButton = submitButtons[submitButtons.length - 1];
+    await user.click(submitButton);
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(screen.getByText('Պատճառը պարտադիր է։')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/Պատճառ/), '  Missing photos  ');
+    await user.click(submitButton);
+
+    expect(mutateAsync).toHaveBeenCalledWith({
+      id: 1,
+      status: 'REJECTED',
+      notes: 'Missing photos',
+    });
+  });
+
+  describe('error handling (brief §16)', () => {
+    test('a 404 shows the not-found-specific message', async () => {
+      mutateAsync.mockRejectedValueOnce({ code: 'NOT_FOUND', status: 404 });
+      const user = userEvent.setup();
+      useAuth.mockReturnValue({ permissions: ['listing.moderate'] });
+      useAdminListingDetailQuery.mockReturnValue({
+        data: BASE_LISTING,
+        isPending: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      await user.click(screen.getByRole('button', { name: 'Հաստատել' }));
+      const approveButtons = screen.getAllByRole('button', {
+        name: 'Հաստատել',
+      });
+      await user.click(approveButtons[approveButtons.length - 1]);
+
+      expect(
+        await screen.findByText('Այս հայտարարությունն այլևս հասանելի չէ։'),
+      ).toBeInTheDocument();
+    });
   });
 });

@@ -14,10 +14,16 @@
  * details"/"accommodation details" are simply whatever attributes the
  * listing's category declares; nothing here names a vertical.
  *
- * Approve/Reject reuse `useUpdateListingModerationStatusMutation` and
- * the identical confirm/reject-with-notes flow
- * `AdminListingModerationPageContent.jsx` already uses (same i18n
- * strings) — no new backend behavior, no duplicated mutation logic.
+ * Step M3: the moderation action set is derived per listing from
+ * `getAllowedModerationActions` (mirrors the backend's own closed
+ * decision matrix) rather than always showing Approve/Reject — a DRAFT
+ * or PUBLISHED listing gets a different action set than a
+ * PENDING_REVIEW one, and none render at all outside those two
+ * statuses. Reuses `useUpdateListingModerationStatusMutation` and the
+ * identical confirm/reason-dialog flow `AdminListingModerationPageContent
+ * .jsx` already uses (same i18n strings, same error-code handling via
+ * `utils/listingModerationActions.js`) — no new backend behavior, no
+ * duplicated mutation logic.
  *
  * The Localized content section deliberately does NOT use
  * `getLocalizedTranslation`/`getLocalizedItems` (both silently fall back
@@ -65,9 +71,51 @@ import {
 import { useAdminListingDetailQuery } from '../../queries/useAdminListingDetailQuery.js';
 import { useAdminPartnerDetailQuery } from '../../queries/useAdminPartnerDetailQuery.js';
 import { useUpdateListingModerationStatusMutation } from '../../mutations/useUpdateListingModerationStatusMutation.js';
+import {
+  getAllowedModerationActions,
+  moderationErrorMessageKey,
+} from '../../utils/listingModerationActions.js';
 import LocalizedContentPanel from './LocalizedContentPanel.jsx';
 import BookableUnitsPanel from './BookableUnitsPanel.jsx';
 import ModerationHistoryPanel from './ModerationHistoryPanel.jsx';
+
+// Confirm-modal actions (no reason collected) — `kind` -> i18n key suffixes.
+// Identical shape to `AdminListingModerationPageContent.jsx`'s own copy
+// tables — kept as a sibling constant rather than a third shared module
+// since neither page imports the other's presentation config, only the
+// pure decision/error-mapping logic (`utils/listingModerationActions.js`).
+const CONFIRM_ACTION_COPY = {
+  approve: {
+    titleKey: 'approveConfirmTitle',
+    descriptionKey: 'approveConfirmDescription',
+    labelKey: 'approveAction',
+    successKey: 'approveSuccess',
+    variant: 'primary',
+  },
+  flag: {
+    titleKey: 'flagConfirmTitle',
+    descriptionKey: 'flagConfirmDescription',
+    labelKey: 'flagAction',
+    successKey: 'flagSuccess',
+    variant: 'destructive',
+  },
+};
+
+// Reason-dialog actions (a non-empty reason is required) — same shape.
+const REASON_ACTION_COPY = {
+  returnForChanges: {
+    titleKey: 'returnForChangesDialogTitle',
+    descriptionKey: 'returnForChangesDialogDescription',
+    labelKey: 'returnForChangesAction',
+    successKey: 'returnForChangesSuccess',
+  },
+  reject: {
+    titleKey: 'rejectDialogTitle',
+    descriptionKey: 'rejectDialogDescription',
+    labelKey: 'rejectAction',
+    successKey: 'rejectSuccess',
+  },
+};
 
 const MODERATION_BADGE_VARIANT = {
   PENDING: 'warning',
@@ -125,10 +173,14 @@ export default function AdminListingDetailContent() {
   const metadata = metadataQuery.data;
 
   const updateModerationMutation = useUpdateListingModerationStatusMutation();
-  const [isRejectOpen, setIsRejectOpen] = useState(false);
-  const [rejectNotes, setRejectNotes] = useState('');
+  const [reasonDialogDecision, setReasonDialogDecision] = useState(null);
+  const [reasonText, setReasonText] = useState('');
+  const [reasonTouched, setReasonTouched] = useState(false);
 
-  const closeRejectDialog = useCallback(() => setIsRejectOpen(false), []);
+  const closeReasonDialog = useCallback(
+    () => setReasonDialogDecision(null),
+    [],
+  );
   const closeRenewDialog = useCallback(() => setIsRenewOpen(false), []);
 
   const dateFormatter = useMemo(
@@ -177,54 +229,74 @@ export default function AdminListingDetailContent() {
     ]),
   );
 
-  async function handleApprove() {
+  async function runModerationMutation(status, notes) {
+    try {
+      await updateModerationMutation.mutateAsync({
+        id: listing.id,
+        status,
+        notes,
+      });
+      return true;
+    } catch (err) {
+      showToast(t(moderationErrorMessageKey(err)), { variant: 'danger' });
+      return false;
+    }
+  }
+
+  async function handleConfirmAction(decision) {
+    const copy = CONFIRM_ACTION_COPY[decision.kind];
     const confirmed = await confirm({
-      title: t('admin.listingModeration.approveConfirmTitle', { title }),
-      description: t('admin.listingModeration.approveConfirmDescription'),
-      confirmLabel: t('admin.listingModeration.approveAction'),
+      title: t(`admin.listingModeration.${copy.titleKey}`, { title }),
+      description: t(`admin.listingModeration.${copy.descriptionKey}`),
+      confirmLabel: t(`admin.listingModeration.${copy.labelKey}`),
       cancelLabel: t('common.cancel'),
-      variant: 'primary',
+      variant: copy.variant,
     });
     if (!confirmed) return;
 
-    try {
-      await updateModerationMutation.mutateAsync({
-        id: listing.id,
-        status: 'APPROVED',
-      });
-      showToast(t('admin.listingModeration.approveSuccess'), {
+    const ok = await runModerationMutation(decision.status);
+    if (ok) {
+      showToast(t(`admin.listingModeration.${copy.successKey}`), {
         variant: 'success',
-      });
-    } catch {
-      showToast(t('admin.listingModeration.statusError'), {
-        variant: 'danger',
       });
     }
   }
 
-  function openRejectDialog() {
-    setRejectNotes('');
-    setIsRejectOpen(true);
+  function openReasonDialog(decision) {
+    setReasonText('');
+    setReasonTouched(false);
+    setReasonDialogDecision(decision);
   }
 
-  async function handleConfirmReject() {
-    try {
-      await updateModerationMutation.mutateAsync({
-        id: listing.id,
-        status: 'REJECTED',
-        notes: rejectNotes.trim() || undefined,
-      });
-      showToast(t('admin.listingModeration.rejectSuccess'), {
+  const trimmedReason = reasonText.trim();
+  const reasonIsInvalid = reasonTouched && trimmedReason.length === 0;
+
+  async function handleConfirmReason() {
+    setReasonTouched(true);
+    if (!trimmedReason) return;
+
+    const copy = REASON_ACTION_COPY[reasonDialogDecision.kind];
+    const ok = await runModerationMutation(
+      reasonDialogDecision.status,
+      trimmedReason,
+    );
+    if (ok) {
+      showToast(t(`admin.listingModeration.${copy.successKey}`), {
         variant: 'success',
       });
-    } catch {
-      showToast(t('admin.listingModeration.statusError'), {
-        variant: 'danger',
-      });
-    } finally {
-      setIsRejectOpen(false);
+      setReasonDialogDecision(null);
     }
   }
+
+  function handleAction(decision) {
+    if (decision.requiresReason) {
+      openReasonDialog(decision);
+    } else {
+      handleConfirmAction(decision);
+    }
+  }
+
+  const allowedActions = listing ? getAllowedModerationActions(listing) : [];
 
   const galleryMedia = listing ? toGalleryMedia(listing.media) : [];
 
@@ -288,26 +360,33 @@ export default function AdminListingDetailContent() {
                 </Card>
               )}
 
-              {canModerate && (
+              {canModerate && allowedActions.length > 0 && (
                 <Inline gap="2" wrap>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => handleApprove()}
-                    loading={
-                      updateModerationMutation.isPending &&
-                      updateModerationMutation.variables?.status === 'APPROVED'
-                    }
-                  >
-                    {t('admin.listingModeration.approveAction')}
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => openRejectDialog()}
-                  >
-                    {t('admin.listingModeration.rejectAction')}
-                  </Button>
+                  {allowedActions.map((decision) => {
+                    const copy =
+                      CONFIRM_ACTION_COPY[decision.kind] ??
+                      REASON_ACTION_COPY[decision.kind];
+                    return (
+                      <Button
+                        key={decision.status}
+                        variant={
+                          decision.kind === 'approve'
+                            ? 'primary'
+                            : 'destructive'
+                        }
+                        size="sm"
+                        onClick={() => handleAction(decision)}
+                        disabled={updateModerationMutation.isPending}
+                        loading={
+                          updateModerationMutation.isPending &&
+                          updateModerationMutation.variables?.status ===
+                            decision.status
+                        }
+                      >
+                        {t(`admin.listingModeration.${copy.labelKey}`)}
+                      </Button>
+                    );
+                  })}
                 </Inline>
               )}
 
@@ -513,35 +592,52 @@ export default function AdminListingDetailContent() {
         </Stack>
       )}
 
-      {isRejectOpen && (
+      {reasonDialogDecision && (
         <Modal
           isOpen
-          onClose={closeRejectDialog}
-          title={t('admin.listingModeration.rejectDialogTitle', { title })}
+          onClose={closeReasonDialog}
+          title={t(
+            `admin.listingModeration.${REASON_ACTION_COPY[reasonDialogDecision.kind].titleKey}`,
+            { title },
+          )}
           size="sm"
           footer={
             <Inline gap="3" justify="flex-end">
-              <Button variant="ghost" onClick={closeRejectDialog}>
+              <Button variant="ghost" onClick={closeReasonDialog}>
                 {t('common.cancel')}
               </Button>
               <Button
                 variant="destructive"
-                onClick={() => handleConfirmReject()}
+                onClick={() => handleConfirmReason()}
                 loading={updateModerationMutation.isPending}
+                disabled={reasonTouched && trimmedReason.length === 0}
               >
-                {t('admin.listingModeration.rejectAction')}
+                {t(
+                  `admin.listingModeration.${REASON_ACTION_COPY[reasonDialogDecision.kind].labelKey}`,
+                )}
               </Button>
             </Inline>
           }
         >
           <Stack gap="3">
-            <span>{t('admin.listingModeration.rejectDialogDescription')}</span>
+            <span>
+              {t(
+                `admin.listingModeration.${REASON_ACTION_COPY[reasonDialogDecision.kind].descriptionKey}`,
+              )}
+            </span>
             <Textarea
-              label={t('admin.listingModeration.notesLabel')}
-              placeholder={t('admin.listingModeration.notesPlaceholder')}
-              value={rejectNotes}
-              onChange={(event) => setRejectNotes(event.target.value)}
+              label={t('admin.listingModeration.reasonLabel')}
+              placeholder={t('admin.listingModeration.reasonPlaceholder')}
+              value={reasonText}
+              onChange={(event) => setReasonText(event.target.value)}
+              onBlur={() => setReasonTouched(true)}
               rows={4}
+              required
+              error={
+                reasonIsInvalid
+                  ? t('admin.listingModeration.reasonRequiredHint')
+                  : undefined
+              }
             />
           </Stack>
         </Modal>

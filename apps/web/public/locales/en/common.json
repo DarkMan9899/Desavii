@@ -2230,18 +2230,32 @@
       },
       "error": {
         "title": "Something went wrong loading listings.",
-        "retry": "Try again"
+        "retry": "Try again",
+        "permission": "You don't have permission to moderate this listing.",
+        "notFound": "This listing is no longer available.",
+        "conflict": "This listing's status changed elsewhere — showing the latest information.",
+        "reasonRequired": "A reason is required.",
+        "network": "Unable to reach the server. Check your connection and try again."
       },
       "approveAction": "Approve",
       "rejectAction": "Reject",
+      "returnForChangesAction": "Return for changes",
+      "flagAction": "Flag",
       "approveConfirmTitle": "Approve \"{{title}}\"?",
       "approveConfirmDescription": "This listing will be marked as moderation-approved.",
       "approveSuccess": "Listing approved.",
+      "returnForChangesDialogTitle": "Return \"{{title}}\" for changes?",
+      "returnForChangesDialogDescription": "This listing will go back to Draft. The partner will see your reason, fix the listing, and resubmit it for review.",
+      "returnForChangesSuccess": "Listing returned for changes.",
       "rejectDialogTitle": "Reject \"{{title}}\"?",
-      "rejectDialogDescription": "This listing will be marked as moderation-rejected. You can add an optional note explaining why — it is saved with the listing.",
-      "notesLabel": "Notes (optional)",
-      "notesPlaceholder": "e.g. Missing required photos.",
+      "rejectDialogDescription": "This listing will be unpublished and marked as moderation-rejected. The partner will see your reason.",
       "rejectSuccess": "Listing rejected.",
+      "flagConfirmTitle": "Flag \"{{title}}\"?",
+      "flagConfirmDescription": "This listing will be unpublished and marked as flagged for review.",
+      "flagSuccess": "Listing flagged.",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "e.g. Missing required photos.",
+      "reasonRequiredHint": "A reason is required.",
       "statusError": "Something went wrong. Please try again."
     },
     "listingDetail": {
@@ -2287,7 +2301,8 @@
       "history": {
         "heading": "Moderation history",
         "empty": "No moderation history yet.",
-        "notesPrefix": "Note:"
+        "notesPrefix": "Note:",
+        "submittedForReview": "Submitted for review"
       },
       "viewInventoryAction": "View inventory",
       "managePromotionAction": "Manage Promotion"
