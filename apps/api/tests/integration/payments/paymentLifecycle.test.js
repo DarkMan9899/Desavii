@@ -106,7 +106,7 @@ async function createListing(title) {
     .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
     .send({ publicationPeriodDays: 90 });
 
   return listingId;

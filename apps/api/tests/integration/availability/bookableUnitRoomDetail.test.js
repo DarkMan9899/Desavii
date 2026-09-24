@@ -23,6 +23,7 @@ import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
 let pool;
+let admin;
 let vendor;
 let customer;
 let partnerId;
@@ -75,7 +76,7 @@ async function publishListing(id) {
     .send(ONE_PX_PNG);
   await request(app)
     .post(`/api/v1/listings/${id}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
     .send({ publicationPeriodDays: 90 });
 }
 
@@ -98,6 +99,11 @@ beforeAll(async () => {
   await seedAll();
   await resetRateLimits();
   pool = getMysqlPool();
+
+  admin = await login(
+    DEV_CREDENTIALS.admin.email,
+    DEV_CREDENTIALS.admin.password,
+  );
 
   vendor = await login(
     DEV_CREDENTIALS.vendor.email,

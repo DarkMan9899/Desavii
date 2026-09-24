@@ -6,6 +6,12 @@
  * (docs/plan "Phase 5 — Partner Listing Creation": "the wizard creates the
  * listing on Step 2 submit... every subsequent step's Next calls
  * updateListing against that real id").
+ *
+ * Step M2B: the wizard's final "Review & Publish" step is now
+ * submit-for-review, not a direct Partner publish — `submitForReview`
+ * reuses `#checkPublishReadiness` verbatim, so every readiness-gate
+ * assertion below still holds unchanged against that endpoint. Reaching
+ * PUBLISHED itself now needs a Moderator's approval on top.
  */
 
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
@@ -28,6 +34,7 @@ const ONE_PX_PNG = Buffer.from(
 
 let pool;
 let vendor;
+let moderator;
 let partnerId;
 let languageId;
 let villasCategoryId;
@@ -48,6 +55,27 @@ beforeAll(async () => {
   vendor = await login(
     DEV_CREDENTIALS.vendor.email,
     DEV_CREDENTIALS.vendor.password,
+  );
+
+  // Step M2B: the wizard's final step is now submit-for-review ->
+  // Moderator approve, never a direct Partner publish — same
+  // MODERATOR-seeding convention `adminListingModeration.test.js`
+  // established (no dev account is seeded with MODERATOR, so it's
+  // assigned directly to a throwaway registered user).
+  const registerRes = await request(app).post('/api/v1/auth/register').send({
+    email: 'wizard.moderator@example.com',
+    password: 'WizardModerator!2024',
+    firstName: 'Wizard',
+    lastName: 'Moderator',
+  });
+  await pool.query(
+    `INSERT IGNORE INTO role_user (role_id, user_id)
+     SELECT id, ? FROM roles WHERE code = 'MODERATOR'`,
+    [registerRes.body.data.user.id],
+  );
+  moderator = await login(
+    'wizard.moderator@example.com',
+    'WizardModerator!2024',
   );
 
   const [[partnerRow]] = await pool.query(
@@ -87,9 +115,11 @@ describe('Partner Listing Wizard — full write flow', () => {
     const listingId = createRes.body.data.id;
     expect(createRes.body.data.status).toBe('DRAFT');
 
-    // Publish attempt before anything else is set — every gate should fire.
+    // Submit-for-review attempt before anything else is set — every gate
+    // should fire (reuses the same `#checkPublishReadiness` a direct
+    // publish would).
     const earlyPublish = await request(app)
-      .post(`/api/v1/listings/${listingId}/publish`)
+      .post(`/api/v1/listings/${listingId}/submit-for-review`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
       .send({ publicationPeriodDays: 90 });
     expect(earlyPublish.status).toBe(422);
@@ -175,9 +205,10 @@ describe('Partner Listing Wizard — full write flow', () => {
       'UNKNOWN_PRICING_MODEL',
     );
 
-    // Publish should still fail — policies + media + bookable unit missing.
+    // Submit-for-review should still fail — policies + media + bookable
+    // unit missing.
     const midPublish = await request(app)
-      .post(`/api/v1/listings/${listingId}/publish`)
+      .post(`/api/v1/listings/${listingId}/submit-for-review`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
       .send({ publicationPeriodDays: 90 });
     expect(midPublish.status).toBe(422);
@@ -218,9 +249,10 @@ describe('Partner Listing Wizard — full write flow', () => {
       .send(ONE_PX_PNG);
     expect(mediaRes.status).toBe(201);
 
-    // Publish should still fail — only the bookable-unit gate remains.
+    // Submit-for-review should still fail — only the bookable-unit gate
+    // remains.
     const lastGatedPublish = await request(app)
-      .post(`/api/v1/listings/${listingId}/publish`)
+      .post(`/api/v1/listings/${listingId}/submit-for-review`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
       .send({ publicationPeriodDays: 90 });
     expect(lastGatedPublish.status).toBe(422);
@@ -255,11 +287,21 @@ describe('Partner Listing Wizard — full write flow', () => {
       advance_booking_max_days: null,
     });
 
-    // Step 10: Review & Publish — now fully satisfied.
-    const finalPublish = await request(app)
-      .post(`/api/v1/listings/${listingId}/publish`)
+    // Step 10: Review & Publish — now fully satisfied. Submit for review
+    // (readiness now passes), then a Moderator approves it — the only
+    // path to PUBLISHED left after Step M2B closed the direct-publish
+    // bypass.
+    const finalSubmit = await request(app)
+      .post(`/api/v1/listings/${listingId}/submit-for-review`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
       .send({ publicationPeriodDays: 90 });
+    expect(finalSubmit.status).toBe(200);
+    expect(finalSubmit.body.data.status).toBe('PENDING_REVIEW');
+
+    const finalPublish = await request(app)
+      .patch(`/api/v1/listings/admin/${listingId}/moderation-status`)
+      .set('Authorization', `Bearer ${moderator.accessToken}`)
+      .send({ status: 'APPROVED' });
     expect(finalPublish.status).toBe(200);
     expect(finalPublish.body.data.status).toBe('PUBLISHED');
 

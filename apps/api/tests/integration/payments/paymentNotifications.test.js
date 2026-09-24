@@ -80,7 +80,7 @@ async function createBookingFixture(customerAuth, desiredTotal = 10_000) {
   const unitId = unitRes.body.data.id;
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
     .send({ publicationPeriodDays: 90 });
 
   // HOTEL_ROOM is accommodation, so 2027-06-01 check-in / 2027-06-02

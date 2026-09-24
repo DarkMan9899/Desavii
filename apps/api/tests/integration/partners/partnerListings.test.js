@@ -24,6 +24,7 @@ import { closeRedisConnection } from '../../../src/infrastructure/cache/redisCli
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
+let admin;
 let vendor;
 let languageId;
 let companyASlug;
@@ -111,7 +112,7 @@ async function publishListing(listingId, bookableUnitType) {
     .send({ listingId, bookableUnitType, capacity: 1 });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
     // Listing Lifetime / Renewal, Step B3: every one of these is a real
     // first lifecycle-managed publish — a valid period is now required.
     .send({ publicationPeriodDays: 90 });
@@ -121,6 +122,11 @@ beforeAll(async () => {
   await up();
   await seedAll();
   await resetRateLimits();
+
+  admin = await login(
+    DEV_CREDENTIALS.admin.email,
+    DEV_CREDENTIALS.admin.password,
+  );
 
   vendor = await login(
     DEV_CREDENTIALS.vendor.email,

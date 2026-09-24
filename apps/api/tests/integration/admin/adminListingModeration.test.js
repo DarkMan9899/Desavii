@@ -91,7 +91,7 @@ async function createActiveListing({ periodDays = 30 } = {}) {
   await makePublishable(id);
   const res = await request(app)
     .post(`/api/v1/listings/${id}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
     .send({ publicationPeriodDays: periodDays });
   expect(res.status).toBe(200);
   return id;
@@ -272,13 +272,33 @@ describe('GET /listings/admin/:id (admin detail)', () => {
 });
 
 describe('PATCH /listings/admin/:id/moderation-status (approve/reject with notes)', () => {
+  // Step M2B: `listingId` starts DRAFT/PENDING (never submitted) —
+  // REJECTED/APPROVED are only legal moderation decisions from
+  // PENDING_REVIEW (or, for APPROVED/REJECTED, an already-PUBLISHED
+  // listing), so the closed decision matrix now requires a real
+  // submit-for-review before either action applies here.
   test('MODERATOR can reject with notes, then approve — writes an audit log entry each time', async () => {
+    await makePublishable(listingId);
+    const firstSubmitRes = await request(app)
+      .post(`/api/v1/listings/${listingId}/submit-for-review`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
+    expect(firstSubmitRes.status).toBe(200);
+
     const rejectRes = await request(app)
       .patch(`/api/v1/listings/admin/${listingId}/moderation-status`)
       .set('Authorization', `Bearer ${moderator.accessToken}`)
       .send({ status: 'REJECTED', notes: 'Missing required photos.' });
     expect(rejectRes.status).toBe(200);
     expect(rejectRes.body.data.moderation_status).toBe('REJECTED');
+
+    // Returned to DRAFT by the reject above — resubmit so APPROVED has a
+    // legal PENDING_REVIEW source to act on.
+    const resubmitRes = await request(app)
+      .post(`/api/v1/listings/${listingId}/submit-for-review`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
+    expect(resubmitRes.status).toBe(200);
 
     const approveRes = await request(app)
       .patch(`/api/v1/listings/admin/${listingId}/moderation-status`)
@@ -338,9 +358,12 @@ describe('GET /listings/admin/:id exposes moderation_notes (P2.1)', () => {
     );
 
     // The vendor owns this listing, so the public route's owner-fallback
-    // visibility rule lets them see it despite it being DRAFT/REJECTED —
-    // the point here is only that `moderation_notes` itself is absent
-    // from this response shape, regardless of who can reach it.
+    // visibility rule lets them see it despite it being
+    // UNPUBLISHED/REJECTED (Step M2B: a Moderator's REJECTED on an
+    // already-PUBLISHED listing moves it to UNPUBLISHED, never deletes
+    // or archives it) — the point here is only that `moderation_notes`
+    // itself is absent from this response shape, regardless of who can
+    // reach it.
     const publicRes = await request(app)
       .get(`/api/v1/listings/${listingId}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`);
@@ -597,12 +620,24 @@ describe('POST /listings/:id/renew as Admin (Step B8 §22)', () => {
   });
 
   test('renewing does not reset moderation_status', async () => {
-    const id = await createActiveListing({ periodDays: 30 });
-    const rejectRes = await request(app)
-      .patch(`/api/v1/listings/admin/${id}/moderation-status`)
-      .set('Authorization', `Bearer ${admin.accessToken}`)
-      .send({ status: 'REJECTED', notes: 'Needs more photos.' });
-    expect(rejectRes.status).toBe(200);
+    // Step M2B: a Moderator's REJECTED on a PUBLISHED listing moves it to
+    // UNPUBLISHED WITHOUT setting `frozen_at` (brief §11 — that's a
+    // deliberately different outcome from the sweep's own freeze), so
+    // that path is no longer renewable and can't be used to set up this
+    // fixture (also, REJECTED/APPROVED are no longer legal moderation
+    // decisions from a merely-UNPUBLISHED, non-frozen source at all).
+    // `createFrozenListing()` gives a genuinely renewable listing; the
+    // non-default moderation_status is set directly via SQL, isolating
+    // "does renew touch this column" from moderation-transition
+    // legality, which isn't this test's concern.
+    const id = await createFrozenListing();
+    const [[rejectedStatus]] = await pool.query(
+      "SELECT id FROM moderation_statuses WHERE code = 'REJECTED'",
+    );
+    await pool.query(
+      'UPDATE listings SET moderation_status_id = ?, moderation_notes = ? WHERE id = ?',
+      [rejectedStatus.id, 'Needs more photos.', id],
+    );
 
     const renewRes = await renew(id, 30);
     expect(renewRes.status).toBe(200);

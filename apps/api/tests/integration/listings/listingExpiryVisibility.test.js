@@ -46,6 +46,7 @@ const ONE_PX_PNG = Buffer.from(
 );
 
 let pool;
+let admin;
 let vendor;
 let partnerId;
 let partnerSlug;
@@ -77,6 +78,10 @@ beforeAll(async () => {
   await resetRateLimits();
   pool = getMysqlPool();
 
+  admin = await login(
+    DEV_CREDENTIALS.admin.email,
+    DEV_CREDENTIALS.admin.password,
+  );
   vendor = await login(
     DEV_CREDENTIALS.vendor.email,
     DEV_CREDENTIALS.vendor.password,
@@ -139,7 +144,7 @@ beforeAll(async () => {
     .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
     .send({ publicationPeriodDays: 30 });
 }, 60_000);
 
@@ -240,7 +245,7 @@ describe('Listing Lifetime / Renewal, Step B4 — public visibility across every
       .send({ listingId: countListingId, bookableUnitType: 'HOTEL_ROOM' });
     await request(app)
       .post(`/api/v1/listings/${countListingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 30 });
 
     const categoryBefore = await categoryListingCount(hotelsCategorySlug);

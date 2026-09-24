@@ -122,9 +122,13 @@ async function publishListing(owner, listingId) {
     .set('Authorization', `Bearer ${owner.accessToken}`)
     .set('Content-Type', 'image/png')
     .send(ONE_PX_PNG);
+  // Step M2B closed the ordinary Partner direct-publish bypass — this
+  // fixture helper still needs a PUBLISHED listing, so the publish step
+  // itself now goes through `adminUser` (which retains `listing.publish`
+  // unconditionally), while every other step above stays on `owner`.
   const res = await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${owner.accessToken}`)
+    .set('Authorization', `Bearer ${adminUser.accessToken}`)
     .send({ publicationPeriodDays: 90 });
   expect(res.status).toBe(200);
 }

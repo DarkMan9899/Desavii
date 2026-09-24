@@ -5,6 +5,14 @@
  * (`vendor@travelhub.dev` owns the verified `yerevan-boutique-hospitality`
  * partner, seeds/005_dev_accounts.js) plus a second, unverified partner
  * inserted directly for the `PARTNER_NOT_VERIFIED` case.
+ *
+ * Step M2B closed the ordinary Partner direct-publish bypass
+ * (`ListingService#publishListing` now requires bare `listing.publish`,
+ * no owner fallback) — every `POST /:id/publish` call below that exists
+ * purely to reach a PUBLISHED fixture state (readiness/expiry/renewal/
+ * sweep/purge math, none of it about WHO may publish) now authenticates
+ * as `admin` instead of `vendor`. Partner-publish-authorization itself is
+ * covered by `listingModerationWorkflow.test.js`, not here.
  */
 
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
@@ -26,6 +34,7 @@ const ONE_PX_PNG = Buffer.from(
 );
 
 let pool;
+let admin;
 let vendor;
 let customer;
 let partnerId;
@@ -107,6 +116,10 @@ beforeAll(async () => {
   await resetRateLimits();
   pool = getMysqlPool();
 
+  admin = await login(
+    DEV_CREDENTIALS.admin.email,
+    DEV_CREDENTIALS.admin.password,
+  );
   vendor = await login(
     DEV_CREDENTIALS.vendor.email,
     DEV_CREDENTIALS.vendor.password,
@@ -245,7 +258,7 @@ describe('GET /listings/:id — visibility', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 90 });
 
     const res = await request(app).get(`/api/v1/listings/${listingId}`);
@@ -264,7 +277,7 @@ describe('GET /listings/:id — visibility', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 90 });
 
     const byId = await request(app).get(`/api/v1/listings/${listingId}`);
@@ -314,7 +327,7 @@ describe('GET /listings/:id — company attribution (Step A3)', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 90 });
 
     const res = await request(app).get(`/api/v1/listings/${listingId}`);
@@ -335,7 +348,7 @@ describe('GET /listings/:id — company attribution (Step A3)', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 90 });
 
     const res = await request(app).get(`/api/v1/listings/${listingId}`);
@@ -389,7 +402,7 @@ describe('GET /listings/:id — company attribution (Step A3)', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 90 });
 
     await pool.query(
@@ -461,7 +474,7 @@ describe('Listing publication lifecycle — Step B3 first-publish expiry assignm
 
       const res = await request(app)
         .post(`/api/v1/listings/${listingId}/publish`)
-        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .set('Authorization', `Bearer ${admin.accessToken}`)
         .send({ publicationPeriodDays: periodDays });
 
       expect(res.status).toBe(200);
@@ -489,7 +502,7 @@ describe('Listing publication lifecycle — Step B3 first-publish expiry assignm
 
     const res = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`);
+      .set('Authorization', `Bearer ${admin.accessToken}`);
     // No .send() at all — an empty body.
 
     expect(res.status).toBe(422);
@@ -513,7 +526,7 @@ describe('Listing publication lifecycle — Step B3 first-publish expiry assignm
 
       const res = await request(app)
         .post(`/api/v1/listings/${listingId}/publish`)
-        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .set('Authorization', `Bearer ${admin.accessToken}`)
         .send({ publicationPeriodDays: invalidPeriod });
 
       expect(res.status).toBe(422);
@@ -534,7 +547,7 @@ describe('Listing publication lifecycle — Step B3 first-publish expiry assignm
 
     const res = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 'ninety' });
 
     expect(res.status).toBe(422);
@@ -551,7 +564,7 @@ describe('Listing publication lifecycle — Step B3 first-publish expiry assignm
 
     const firstPublish = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 30 });
     expect(firstPublish.status).toBe(200);
     const afterFirstPublish = await selectLifecycleColumns(listingId);
@@ -564,7 +577,7 @@ describe('Listing publication lifecycle — Step B3 first-publish expiry assignm
     // this were honored, it would prove the exploit; it must not be.
     const republish = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 365 });
     expect(republish.status).toBe(200);
 
@@ -586,7 +599,7 @@ describe('Listing publication lifecycle — Step B3 first-publish expiry assignm
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 30 });
     const before = await selectLifecycleColumns(listingId);
 
@@ -615,7 +628,7 @@ describe('Listing publication lifecycle — Step B3 first-publish expiry assignm
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 30 });
     await request(app)
       .post(`/api/v1/listings/${listingId}/unpublish`)
@@ -630,7 +643,7 @@ describe('Listing publication lifecycle — Step B3 first-publish expiry assignm
 
     const res = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 90 });
 
     expect(res.status).toBe(409);
@@ -685,7 +698,7 @@ describe('Listing publication lifecycle — Step B3 first-publish expiry assignm
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 90 });
 
     const res = await request(app).get(`/api/v1/listings/${listingId}`);
@@ -743,7 +756,7 @@ describe('Listing expiration sweep — Step B4', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 30 });
     if (pastByMs != null) {
       await pool.query(
@@ -905,7 +918,7 @@ describe('Listing renewal — Step B5', () => {
     await makePublishable(listingId);
     const res = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: periodDays });
     expect(res.status).toBe(200);
     return listingId;
@@ -1105,7 +1118,7 @@ describe('Listing renewal — Step B5', () => {
     const before = await selectRenewalColumns(listingId);
     const republish = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 365 });
     expect(republish.status).toBe(200);
     const after = await selectRenewalColumns(listingId);
@@ -1256,7 +1269,7 @@ describe('Listing expiry reminder — Step B6', () => {
     await makePublishable(listingId);
     const res = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: periodDays });
     expect(res.status).toBe(200);
     return listingId;
@@ -1701,7 +1714,7 @@ describe('Listing expiry reminder — Step B6', () => {
           .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
         const publishRes = await request(app)
           .post(`/api/v1/listings/${listingId}/publish`)
-          .set('Authorization', `Bearer ${vendor.accessToken}`)
+          .set('Authorization', `Bearer ${admin.accessToken}`)
           .send({ publicationPeriodDays: 90 });
         expect(publishRes.status).toBe(200);
         await setExpiresAt(
@@ -1779,7 +1792,7 @@ describe('Listing expiry reminder — Step B6', () => {
         .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
       const publishRes = await request(app)
         .post(`/api/v1/listings/${listingId}/publish`)
-        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .set('Authorization', `Bearer ${admin.accessToken}`)
         .send({ publicationPeriodDays: 90 });
       expect(publishRes.status).toBe(200);
       await setExpiresAt(
@@ -1833,7 +1846,7 @@ describe('Listing renewal — Step B6.5 near-boundary correctness', () => {
     await makePublishable(listingId);
     const res = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: periodDays });
     expect(res.status).toBe(200);
     return listingId;
@@ -2151,7 +2164,7 @@ describe('POST /listings/:id/publish — readiness gating', () => {
 
     const res = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 90 });
 
     expect(res.status).toBe(422);
@@ -2167,7 +2180,7 @@ describe('POST /listings/:id/publish — readiness gating', () => {
 
     const res = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 90 });
 
     expect(res.status).toBe(200);
@@ -2183,7 +2196,7 @@ describe('POST /listings/:id/unpublish', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 90 });
 
     const res = await request(app)
@@ -2214,7 +2227,7 @@ describe('POST /listings/:id/archive (Phase 9: Partner Dashboard)', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 90 });
 
     const res = await request(app)
@@ -2232,7 +2245,7 @@ describe('POST /listings/:id/archive (Phase 9: Partner Dashboard)', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 90 });
     await request(app)
       .post(`/api/v1/listings/${listingId}/unpublish`)
@@ -2264,7 +2277,7 @@ describe('POST /listings/:id/archive (Phase 9: Partner Dashboard)', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 90 });
     await request(app)
       .post(`/api/v1/listings/${listingId}/archive`)
@@ -2314,7 +2327,7 @@ describe('Listing retention purge — Step B7', () => {
     await makePublishable(listingId);
     const publishRes = await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: periodDays });
     expect(publishRes.status).toBe(200);
     await pool.query(
@@ -2385,7 +2398,7 @@ describe('Listing retention purge — Step B7', () => {
       await makePublishable(listingId);
       await request(app)
         .post(`/api/v1/listings/${listingId}/publish`)
-        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .set('Authorization', `Bearer ${admin.accessToken}`)
         .send({ publicationPeriodDays: 30 });
       const [[unpublishedStatus]] = await pool.query(
         "SELECT id FROM listing_statuses WHERE code = 'UNPUBLISHED'",
@@ -2408,7 +2421,7 @@ describe('Listing retention purge — Step B7', () => {
       await makePublishable(listingId);
       await request(app)
         .post(`/api/v1/listings/${listingId}/publish`)
-        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .set('Authorization', `Bearer ${admin.accessToken}`)
         .send({ publicationPeriodDays: 30 });
       await pool.query(
         `UPDATE listings
@@ -2429,7 +2442,7 @@ describe('Listing retention purge — Step B7', () => {
       await makePublishable(listingId);
       await request(app)
         .post(`/api/v1/listings/${listingId}/publish`)
-        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .set('Authorization', `Bearer ${admin.accessToken}`)
         .send({ publicationPeriodDays: 30 });
       const unpublishRes = await request(app)
         .post(`/api/v1/listings/${listingId}/unpublish`)
@@ -2469,7 +2482,7 @@ describe('Listing retention purge — Step B7', () => {
       await makePublishable(listingId);
       await request(app)
         .post(`/api/v1/listings/${listingId}/publish`)
-        .set('Authorization', `Bearer ${vendor.accessToken}`)
+        .set('Authorization', `Bearer ${admin.accessToken}`)
         .send({ publicationPeriodDays: 30 });
       await pool.query(
         'UPDATE listings SET publication_period_days = NULL, expires_at = NULL WHERE id = ?',
@@ -2507,7 +2520,7 @@ describe('Listing retention purge — Step B7', () => {
     await makePublishable(listingId);
     await request(app)
       .post(`/api/v1/listings/${listingId}/publish`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
       .send({ publicationPeriodDays: 30 });
     await pool.query(
       'UPDATE listings SET expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE) WHERE id = ?',

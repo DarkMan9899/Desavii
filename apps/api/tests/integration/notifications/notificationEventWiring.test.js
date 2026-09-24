@@ -65,7 +65,7 @@ async function publishListing(title) {
     .send({ listingId, bookableUnitType: 'HOTEL_ROOM', capacity: 1 });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
     .send({ publicationPeriodDays: 90 });
 
   return { listingId, unitId: unitRes.body.data.id };
@@ -310,6 +310,14 @@ describe('Domain event -> notification wiring', () => {
     let vendorTypes = await latestNotificationTypes(vendor.accessToken);
     expect(vendorTypes).toContain('listing.rejected');
 
+    // Step M2B: REJECTED on a PUBLISHED listing moves it to UNPUBLISHED,
+    // and APPROVED is only a legal decision from PENDING_REVIEW (or an
+    // already-PUBLISHED listing) — resubmit for review before the
+    // Moderator can approve it again.
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/submit-for-review`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
     await request(app)
       .patch(`/api/v1/listings/admin/${listingId}/moderation-status`)
       .set('Authorization', `Bearer ${moderator.accessToken}`)

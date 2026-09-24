@@ -148,8 +148,41 @@ async function publishListing(listingId) {
     .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
     .send({ publicationPeriodDays: 90 });
+}
+
+/**
+ * Step M2B: `publishListing` above already leaves the listing PUBLISHED,
+ * and a PUBLISHED listing can no longer be edited directly — unpublish,
+ * set the listing-level pricing fallback, then republish via `admin`
+ * (the only path back to PUBLISHED once the ordinary Partner publish
+ * bypass is closed). Required policies were already set on first
+ * publish and are untouched by this round trip, so they don't need
+ * resetting here.
+ */
+async function setListingPricing(listingId, amount, currencyCode = 'AMD') {
+  await request(app)
+    .post(`/api/v1/listings/${listingId}/unpublish`)
+    .set('Authorization', `Bearer ${vendor.accessToken}`);
+  const res = await request(app)
+    .patch(`/api/v1/listings/${listingId}`)
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({ pricing: { modelCode: 'PER_NIGHT', amount, currencyCode } });
+  if (res.status !== 200) {
+    throw new Error(
+      `setListingPricing failed: ${res.status} ${JSON.stringify(res.body)}`,
+    );
+  }
+  const republishRes = await request(app)
+    .post(`/api/v1/listings/${listingId}/publish`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
+    .send({ publicationPeriodDays: 90 });
+  if (republishRes.status !== 200) {
+    throw new Error(
+      `setListingPricing republish failed: ${republishRes.status} ${JSON.stringify(republishRes.body)}`,
+    );
+  }
 }
 
 beforeAll(async () => {
@@ -378,12 +411,7 @@ describe('GET /search/listings — P2.2D unit-level "from" price', () => {
       description: 'A P2.2D pricing fixture.',
     });
     await publishListing(listingId);
-    await request(app)
-      .patch(`/api/v1/listings/${listingId}`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .send({
-        pricing: { modelCode: 'PER_NIGHT', amount: 99999, currencyCode: 'AMD' },
-      });
+    await setListingPricing(listingId, 99999);
     await registerUnit(listingId, {
       unitLabel: 'Standard Room',
       basePriceAmount: 30000,
@@ -407,12 +435,7 @@ describe('GET /search/listings — P2.2D unit-level "from" price', () => {
       description: 'A P2.2D pricing fixture.',
     });
     await publishListing(listingId); // its one auto-created unit has no base price
-    await request(app)
-      .patch(`/api/v1/listings/${listingId}`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .send({
-        pricing: { modelCode: 'PER_NIGHT', amount: 18000, currencyCode: 'AMD' },
-      });
+    await setListingPricing(listingId, 18000);
 
     const res = await request(app).get(
       `/api/v1/search/listings?keyword=Listing+Pricing+Fallback+Fixture`,
@@ -478,12 +501,7 @@ describe('GET /search/listings — P2.2D unit-level "from" price', () => {
       description: 'A P2.2D pricing fixture.',
     });
     await publishListing(listingId);
-    await request(app)
-      .patch(`/api/v1/listings/${listingId}`)
-      .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .send({
-        pricing: { modelCode: 'PER_NIGHT', amount: 50000, currencyCode: 'AMD' },
-      });
+    await setListingPricing(listingId, 50000);
     await registerUnit(listingId, {
       unitLabel: 'AMD Room',
       basePriceAmount: 30000,

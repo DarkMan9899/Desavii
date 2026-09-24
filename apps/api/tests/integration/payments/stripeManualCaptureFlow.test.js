@@ -43,6 +43,7 @@ const STRIPE_WEBHOOK_SECRET = 'whsec_test_dummy_never_a_real_secret';
 const STRIPE_SECRET_KEY = 'sk_test_dummy_never_a_real_key';
 const STRIPE_PUBLISHABLE_KEY = 'pk_test_dummy_never_a_real_key';
 
+let admin;
 let vendor;
 let customer;
 let partnerId;
@@ -98,7 +99,7 @@ async function createListing(title) {
     .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
     .send({ publicationPeriodDays: 90 });
   return listingId;
 }
@@ -317,6 +318,11 @@ beforeAll(async () => {
   await up();
   await seedAll();
   await resetRateLimits();
+
+  admin = await login(
+    DEV_CREDENTIALS.admin.email,
+    DEV_CREDENTIALS.admin.password,
+  );
 
   vendor = await login(
     DEV_CREDENTIALS.vendor.email,

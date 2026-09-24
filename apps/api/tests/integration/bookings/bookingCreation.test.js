@@ -76,7 +76,7 @@ async function createListing(title) {
     .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
     .send({ publicationPeriodDays: 90 });
 
   return listingId;
@@ -173,7 +173,7 @@ async function createCarRentalListing(title) {
     .send({ listingId, bookableUnitType: 'VEHICLE' });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
     .send({ publicationPeriodDays: 90 });
 
   return listingId;
@@ -369,11 +369,29 @@ describe('P2.2A — accommodation price-resolution precedence (date override -> 
   async function setListingBasePrice(listingId, amount, currencyCode = 'AMD') {
     // A listing's pricing is validated against its category's allowed
     // pricing models (`category_pricing_models`) — `createListing` above
-    // never sets one, so it must be set here first.
+    // never sets one, so it must be set here first. `createListing`
+    // already leaves the listing PUBLISHED, and Step M2B blocks content
+    // edits on a PUBLISHED listing outright — unpublish, make the
+    // change, then republish via `admin` (the only path back to
+    // PUBLISHED once the ordinary Partner publish bypass is closed).
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/unpublish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    // Assigning `categoryIds` here means readiness now also checks the
+    // hotels category's required policies on republish — set alongside,
+    // same fixture shape `listingCrud.test.js`'s own `makePublishable`
+    // establishes for this exact category.
     await request(app)
       .patch(`/api/v1/listings/${listingId}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .send({ categoryIds: [hotelCategoryId] });
+      .send({
+        categoryIds: [hotelCategoryId],
+        policyValues: [
+          { code: 'cancellation_policy', value: 'FLEXIBLE' },
+          { code: 'check_in_time', value: '14:00' },
+          { code: 'check_out_time', value: '11:00' },
+        ],
+      });
     const res = await request(app)
       .patch(`/api/v1/listings/${listingId}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
@@ -381,6 +399,15 @@ describe('P2.2A — accommodation price-resolution precedence (date override -> 
     if (res.status !== 200) {
       throw new Error(
         `setListingBasePrice failed: ${res.status} ${JSON.stringify(res.body)}`,
+      );
+    }
+    const republishRes = await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
+    if (republishRes.status !== 200) {
+      throw new Error(
+        `setListingBasePrice republish failed: ${republishRes.status} ${JSON.stringify(republishRes.body)}`,
       );
     }
   }
@@ -788,10 +815,27 @@ describe('P2.2B final review — mixed-price stay: UI estimate must equal the re
 
 describe('P2.2B final review — listing-fallback stay: UI estimate must equal the real booking total', () => {
   async function setListingBasePrice(listingId, amount, currencyCode = 'AMD') {
+    // Step M2B: `createListing` leaves the listing PUBLISHED, and a
+    // PUBLISHED listing can no longer be edited directly — unpublish,
+    // make the change, then republish via `admin`.
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/unpublish`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    // Assigning `categoryIds` here means readiness now also checks the
+    // hotels category's required policies on republish — set alongside,
+    // same fixture shape `listingCrud.test.js`'s own `makePublishable`
+    // establishes for this exact category.
     await request(app)
       .patch(`/api/v1/listings/${listingId}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .send({ categoryIds: [hotelCategoryId] });
+      .send({
+        categoryIds: [hotelCategoryId],
+        policyValues: [
+          { code: 'cancellation_policy', value: 'FLEXIBLE' },
+          { code: 'check_in_time', value: '14:00' },
+          { code: 'check_out_time', value: '11:00' },
+        ],
+      });
     const res = await request(app)
       .patch(`/api/v1/listings/${listingId}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
@@ -799,6 +843,15 @@ describe('P2.2B final review — listing-fallback stay: UI estimate must equal t
     if (res.status !== 200) {
       throw new Error(
         `setListingBasePrice failed: ${res.status} ${JSON.stringify(res.body)}`,
+      );
+    }
+    const republishRes = await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
+    if (republishRes.status !== 200) {
+      throw new Error(
+        `setListingBasePrice republish failed: ${republishRes.status} ${JSON.stringify(republishRes.body)}`,
       );
     }
   }

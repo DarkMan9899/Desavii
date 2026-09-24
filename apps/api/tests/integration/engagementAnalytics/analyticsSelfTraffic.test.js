@@ -95,9 +95,13 @@ async function publishListing(ownerAuth, partnerId, title) {
     .post('/api/v1/availability/units')
     .set('Authorization', `Bearer ${ownerAuth.accessToken}`)
     .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
+  // Step M2B closed the ordinary Partner direct-publish bypass — this
+  // fixture helper still needs a PUBLISHED listing, so the publish step
+  // itself now goes through `admin` (which retains `listing.publish`
+  // unconditionally), while every other step above stays on `ownerAuth`.
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
-    .set('Authorization', `Bearer ${ownerAuth.accessToken}`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
     .send({ publicationPeriodDays: 90 });
 
   return listingId;
