@@ -1,1 +1,5 @@
-npm run test --workspaces --if-present -- --run 2>/dev/null || npm run test --workspaces --if-present
+npm run test:unit --workspace apps/api &&
+npm run test:integration --workspace apps/api &&
+npm run test --workspace apps/web &&
+npm run test --workspace packages/shared &&
+npm run test --workspace packages/ui
