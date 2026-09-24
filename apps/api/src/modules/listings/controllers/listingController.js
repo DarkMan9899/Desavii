@@ -178,6 +178,26 @@ export function createListingController(
       }
     },
 
+    async submitForReview(req, res, next) {
+      try {
+        const { id } = req.validated.params;
+        const { publicationPeriodDays } = req.validated.body;
+        const listing = await listingService.submitForReview(
+          req.principal,
+          id,
+          { publicationPeriodDays },
+        );
+        res.status(200).json({
+          success: true,
+          data: toListingOwnerResponse(listing),
+          meta: null,
+          error: null,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+
     async publish(req, res, next) {
       try {
         const { id } = req.validated.params;

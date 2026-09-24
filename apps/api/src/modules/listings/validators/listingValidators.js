@@ -112,6 +112,21 @@ export const publishListingSchema = z.object({
     .default({}),
 });
 
+// Step M2B — identical body shape to `publishListingSchema` (the same
+// "structural-only here, the authoritative required-ness and allowed-value
+// list live in the Service" rule applies: `ListingService#submitForReview`
+// reuses `#checkPublishReadiness` verbatim, the same validator
+// `publishListing` itself already runs).
+export const submitForReviewSchema = z.object({
+  params: idParams,
+  query: passthroughQuery,
+  body: z
+    .object({
+      publicationPeriodDays: z.coerce.number().int().optional(),
+    })
+    .default({}),
+});
+
 // Listing Lifetime / Renewal, Step B5 — `publicationPeriodDays` is
 // ALWAYS required for Renew (unlike `publishListingSchema`'s conditional
 // requirement, which depends on server-side first-publish state) — kept
@@ -238,10 +253,21 @@ export const listListingsAdminQuerySchema = z.object({
 export const updateListingModerationStatusSchema = z.object({
   params: idParams,
   query: passthroughQuery,
-  body: z.object({
-    status: z.enum(LISTING_MODERATION_STATUSES),
-    notes: z.string().trim().max(2000).optional(),
-  }),
+  body: z
+    .object({
+      status: z.enum(LISTING_MODERATION_STATUSES),
+      notes: z.string().trim().max(2000).optional(),
+    })
+    // Step M2B (brief §10): a "return for changes" (REJECTED) decision
+    // must always carry a real, non-empty reason — the Partner's only
+    // way to know what to fix. Structural-only check (matches
+    // `publishListingSchema`'s own convention) — WHICH source-status
+    // combinations are even legal for REJECTED lives in
+    // `core/domain/listingModerationDecisions.js`/the Service, not here.
+    .refine((body) => body.status !== 'REJECTED' || Boolean(body.notes), {
+      message: 'A reason is required to return a listing for changes.',
+      path: ['notes'],
+    }),
 });
 
 export const updateListingMediaSchema = z.object({

@@ -37,6 +37,7 @@ import { resolveLocaleIds } from '../../../infrastructure/database/repositories/
 import { withTransaction } from '../../../infrastructure/database/transaction.js';
 import { slugify } from '../../../core/domain/slugify.js';
 import { isValidListingStatusTransition } from '../../../core/domain/listingStatusTransitions.js';
+import { resolveModerationDecision } from '../../../core/domain/listingModerationDecisions.js';
 import {
   isValidPublicationPeriodDays,
   isFrozen,
@@ -882,10 +883,126 @@ export class ListingService {
   }
 
   /**
-   * Stage 11.3: `PATCH /listings/admin/:id/moderation-status` — the first
-   * real write to `listings.moderation_status_id` (set once, at creation,
-   * to PENDING, and never transitioned until now). `notes` is optional
-   * free text (e.g. a rejection reason), surfaced back to the partner.
+   * Step M2B (brief §5-7): the mandatory pre-publication step — DRAFT (a
+   * fresh listing, or one a Moderator just returned for changes) ->
+   * PENDING_REVIEW, moderation reset to PENDING, any prior return-for-
+   * changes note cleared. Reuses `#checkPublishReadiness` verbatim (the
+   * exact same validator `publishListing` itself runs) rather than a
+   * second implementation — a listing that reaches PENDING_REVIEW is
+   * therefore already known-publishable, so the eventual Moderator
+   * APPROVE never needs to re-check readiness.
+   *
+   * Concurrency-safe (brief §17): locks the row first, re-validates
+   * ownership/state against that locked read (never a stale pre-
+   * transaction one), and writes + audits inside the same transaction —
+   * the identical `lockById` -> revalidate -> write -> audit shape
+   * `updateModerationStatus` below and `bookingService.js#confirmBooking`
+   * already establish.
+   */
+  async submitForReview(principal, id, { publicationPeriodDays } = {}) {
+    const updated = await withTransaction(async (connection) => {
+      const locked = await this.#listingRepository.lockById(id, connection);
+      if (!locked || locked.deletedAt) {
+        throw new NotFoundError('Listing not found.');
+      }
+      await this.#assertOwnerOrPermission(
+        principal,
+        locked.partnerId,
+        'listing.update',
+      );
+
+      if (
+        !isValidListingStatusTransition(locked.statusCode, 'PENDING_REVIEW')
+      ) {
+        throw new ConflictError(
+          `A listing cannot be submitted for review from status "${locked.statusCode}".`,
+          'INVALID_STATUS_TRANSITION',
+        );
+      }
+      // Brief §6: a frozen/expired listing must go through the existing
+      // Renewal contract, never submission — same guard `publishListing`
+      // already applies for the direct-publish case.
+      if (isFrozen(locked)) {
+        throw new ConflictError(
+          'A frozen listing must be renewed, not submitted for review.',
+          'LISTING_FROZEN_REQUIRES_RENEWAL',
+        );
+      }
+
+      // The lightweight locked row has no child-table content (brief
+      // §5's readiness check needs translations/media/location/
+      // attributes/policies) — re-read the full listing through the
+      // SAME connection/transaction so readiness sees a consistent view
+      // of exactly the row just locked, never a separate unlocked read.
+      const fullListing = await this.#listingRepository.findById(
+        id,
+        {},
+        connection,
+      );
+      await this.#checkPublishReadiness(fullListing, { publicationPeriodDays });
+
+      const [pendingReviewStatusId, pendingModerationStatusId] =
+        await Promise.all([
+          this.#listingRepository.findStatusIdByCode(
+            'PENDING_REVIEW',
+            connection,
+          ),
+          this.#listingRepository.findModerationStatusIdByCode(
+            'PENDING',
+            connection,
+          ),
+        ]);
+
+      const isFirstLifecyclePublish = locked.expiresAt == null;
+      await this.#listingRepository.submitForReview(
+        id,
+        {
+          pendingReviewStatusId,
+          pendingModerationStatusId,
+          publicationPeriodDays: isFirstLifecyclePublish
+            ? publicationPeriodDays
+            : null,
+          updatedBy: principal.userId,
+        },
+        connection,
+      );
+
+      await this.#auditLogger.record(
+        {
+          actorId: principal.userId,
+          action: 'listing.submitted_for_review',
+          targetType: 'listing',
+          targetId: id,
+          beforeSnapshot: {
+            statusCode: locked.statusCode,
+            moderationStatusCode: locked.moderationStatusCode,
+          },
+          afterSnapshot: {
+            statusCode: 'PENDING_REVIEW',
+            moderationStatusCode: 'PENDING',
+          },
+        },
+        connection,
+      );
+
+      return this.#listingRepository.findById(id, {}, connection);
+    });
+
+    return updated;
+  }
+
+  /**
+   * Stage 11.3, hardened in Step M2B (brief §9-11/§16/§20-21) — `PATCH
+   * /listings/admin/:id/moderation-status`. `resolveModerationDecision`
+   * (`core/domain/listingModerationDecisions.js`) is the single, closed
+   * source of truth for which `(current status, requested moderation
+   * status)` combinations are even legal and what each one atomically
+   * does — a combination not in that table is rejected before any write,
+   * never a partial mutation. Runs inside one transaction with the row
+   * locked first and revalidated against that locked read (brief §16):
+   * two concurrent moderation attempts on the same listing, or a
+   * moderation attempt racing a Partner submission, safely serialize
+   * instead of one silently clobbering the other's decision.
    */
   async updateModerationStatus(principal, id, statusCode, notes = null) {
     if (!LISTING_MODERATION_STATUSES.includes(statusCode)) {
@@ -893,27 +1010,118 @@ export class ListingService {
     }
     await this.#assertPermission(principal, 'listing.moderate');
 
-    const before = await this.#listingRepository.findById(id, {
+    const trimmedNotes = notes?.trim() ? notes.trim() : null;
+
+    const { before } = await withTransaction(async (connection) => {
+      const locked = await this.#listingRepository.lockById(id, connection);
+      if (!locked) throw new NotFoundError('Listing not found.');
+      // Brief §25: soft-deleted/archived listings may never be moderated
+      // — archived is additionally already excluded by
+      // `resolveModerationDecision` simply having no entry for it, but
+      // soft-delete needs its own explicit check since `lockById` (like
+      // `getListingAdminDetail`) deliberately still resolves a trashed
+      // row rather than 404ing outright.
+      if (locked.deletedAt) {
+        throw new ConflictError(
+          'A soft-deleted listing cannot be moderated.',
+          'LISTING_DELETED',
+        );
+      }
+
+      const moderationDecision = resolveModerationDecision(
+        locked.statusCode,
+        statusCode,
+      );
+      if (!moderationDecision) {
+        throw new ConflictError(
+          `Cannot set moderation status "${statusCode}" while the listing is "${locked.statusCode}".`,
+          'INVALID_MODERATION_TRANSITION',
+        );
+      }
+      if (moderationDecision.requiresReason && !trimmedNotes) {
+        throw new ValidationError(
+          'A reason is required to return this listing for changes.',
+          [{ field: 'notes', issue: 'REASON_REQUIRED' }],
+        );
+      }
+
+      const beforeSnapshot = {
+        statusCode: locked.statusCode,
+        moderationStatusCode: locked.moderationStatusCode,
+      };
+
+      if (moderationDecision.writeMode === 'publish') {
+        const publishedStatusId =
+          await this.#listingRepository.findStatusIdByCode(
+            'PUBLISHED',
+            connection,
+          );
+        const isFirstLifecyclePublish = locked.expiresAt == null;
+        await this.#listingRepository.markPublished(
+          id,
+          publishedStatusId,
+          principal.userId,
+          isFirstLifecyclePublish ? locked.publicationPeriodDays : null,
+          connection,
+        );
+        await this.#listingRepository.updateModerationStatus(
+          id,
+          'APPROVED',
+          null,
+          principal.userId,
+          connection,
+        );
+      } else if (moderationDecision.writeMode === 'moderationOnly') {
+        await this.#listingRepository.updateModerationStatus(
+          id,
+          statusCode,
+          trimmedNotes,
+          principal.userId,
+          connection,
+        );
+      } else {
+        const targetStatusId = await this.#listingRepository.findStatusIdByCode(
+          moderationDecision.targetStatusCode,
+          connection,
+        );
+        await this.#listingRepository.applyModerationReturn(
+          id,
+          {
+            statusId: targetStatusId,
+            moderationStatusCode: statusCode,
+            moderationNotes: trimmedNotes,
+            updatedBy: principal.userId,
+            setUnpublishedAt: moderationDecision.setUnpublishedAt,
+          },
+          connection,
+        );
+      }
+
+      await this.#auditLogger.record(
+        {
+          actorId: principal.userId,
+          action: 'listing.moderation_status_changed',
+          targetType: 'listing',
+          targetId: id,
+          beforeSnapshot,
+          afterSnapshot: {
+            statusCode: moderationDecision.targetStatusCode,
+            moderationStatusCode: statusCode,
+            notes: trimmedNotes,
+          },
+        },
+        connection,
+      );
+
+      return { before: locked, decision: moderationDecision };
+    });
+
+    const updated = await this.#listingRepository.findById(id, {
       includeTrashed: true,
     });
-    if (!before) throw new NotFoundError('Listing not found.');
 
-    await this.#listingRepository.updateModerationStatus(
-      id,
-      statusCode,
-      notes,
-      principal.userId,
-    );
-
-    await this.#auditLogger.record({
-      actorId: principal.userId,
-      action: 'listing.moderation_status_changed',
-      targetType: 'listing',
-      targetId: id,
-      beforeSnapshot: { moderationStatusCode: before.moderationStatusCode },
-      afterSnapshot: { moderationStatusCode: statusCode, notes },
-    });
-
+    // Brief §16/§22: only after the transaction has committed — a
+    // notification must never describe a decision that rolled back.
     if (statusCode === 'APPROVED' || statusCode === 'REJECTED') {
       await this.#eventBus.publish(
         createDomainEvent({
@@ -928,53 +1136,93 @@ export class ListingService {
             listingId: id,
             partnerId: before.partnerId,
             slug: before.slug,
-            notes,
+            notes: trimmedNotes,
           },
         }),
       );
     }
 
-    return this.#listingRepository.findById(id, { includeTrashed: true });
+    return updated;
   }
 
+  /**
+   * Step M2B (brief §12/§13/§18): a Partner may no longer edit content
+   * while the listing is under moderation review (`PENDING_REVIEW` — the
+   * Moderator must see exactly what they reviewed) or already
+   * `PUBLISHED` (live content changes must go through unpublish -> edit
+   * -> submit-for-review -> approve, never silently in place). Both
+   * checks — and every write below — now happen only after row-locking
+   * the listing first (brief §18's concurrency requirement): a
+   * concurrent `submitForReview`/`updateModerationStatus` transaction
+   * that establishes `PENDING_REVIEW` first is guaranteed to be visible
+   * here before this method decides whether editing is even allowed,
+   * since both paths lock the identical row.
+   */
   async updateListing(principal, id, fields) {
-    const listing = await this.#listingRepository.findById(id);
-    if (!listing) throw new NotFoundError('Listing not found.');
-    await this.#assertOwnerOrPermission(
-      principal,
-      listing.partnerId,
-      'listing.update',
-    );
+    return withTransaction(async (connection) => {
+      const locked = await this.#listingRepository.lockById(id, connection);
+      if (!locked || locked.deletedAt) {
+        throw new NotFoundError('Listing not found.');
+      }
+      await this.#assertOwnerOrPermission(
+        principal,
+        locked.partnerId,
+        'listing.update',
+      );
 
-    let nextSlug;
-    if (fields.slug !== undefined) {
-      nextSlug = slugify(fields.slug);
-      if (!nextSlug) {
-        throw new ValidationError(
-          'A valid slug could not be derived from the provided value.',
-          [{ field: 'slug', issue: 'INVALID' }],
+      if (locked.statusCode === 'PENDING_REVIEW') {
+        throw new ConflictError(
+          'A listing currently under moderation review cannot be edited until the Moderator responds.',
+          'LISTING_UNDER_REVIEW',
         );
       }
-      nextSlug = ensureNonNumericSlug(nextSlug);
-      if (nextSlug !== listing.slug) {
-        await this.#assertUniqueSlug(nextSlug, id);
+      if (locked.statusCode === 'PUBLISHED') {
+        throw new ConflictError(
+          'A published listing cannot be edited directly — unpublish it first, then edit and submit for review again.',
+          'LISTING_PUBLISHED_EDIT_BLOCKED',
+        );
       }
-    }
 
-    // Falls back to the listing's EXISTING category when this particular
-    // PATCH doesn't include `categoryIds` — the wizard's Dynamic
-    // Attributes/Pricing/Policies steps each PATCH independently, after
-    // Category was already set on an earlier step.
-    const primaryCategoryId =
-      fields.categoryIds?.[0] ?? listing.categoryIds?.[0];
-    const [resolvedAttributeValues, resolvedPolicyValues, resolvedPricing] =
-      await Promise.all([
-        this.#resolveAttributeValues(primaryCategoryId, fields.attributeValues),
-        this.#resolvePolicyValues(primaryCategoryId, fields.policyValues),
-        this.#resolvePricing(primaryCategoryId, fields.pricing),
-      ]);
+      // Same connection/transaction as the lock above, so every field
+      // read below (slug, categoryIds) reflects the exact row just
+      // locked, never a separate unlocked read.
+      const listing = await this.#listingRepository.findById(
+        id,
+        {},
+        connection,
+      );
 
-    await withTransaction(async (connection) => {
+      let nextSlug;
+      if (fields.slug !== undefined) {
+        nextSlug = slugify(fields.slug);
+        if (!nextSlug) {
+          throw new ValidationError(
+            'A valid slug could not be derived from the provided value.',
+            [{ field: 'slug', issue: 'INVALID' }],
+          );
+        }
+        nextSlug = ensureNonNumericSlug(nextSlug);
+        if (nextSlug !== listing.slug) {
+          await this.#assertUniqueSlug(nextSlug, id);
+        }
+      }
+
+      // Falls back to the listing's EXISTING category when this particular
+      // PATCH doesn't include `categoryIds` — the wizard's Dynamic
+      // Attributes/Pricing/Policies steps each PATCH independently, after
+      // Category was already set on an earlier step.
+      const primaryCategoryId =
+        fields.categoryIds?.[0] ?? listing.categoryIds?.[0];
+      const [resolvedAttributeValues, resolvedPolicyValues, resolvedPricing] =
+        await Promise.all([
+          this.#resolveAttributeValues(
+            primaryCategoryId,
+            fields.attributeValues,
+          ),
+          this.#resolvePolicyValues(primaryCategoryId, fields.policyValues),
+          this.#resolvePricing(primaryCategoryId, fields.pricing),
+        ]);
+
       if (nextSlug !== undefined && nextSlug !== listing.slug) {
         await this.#listingRepository.recordSlugHistory(
           id,
@@ -1055,17 +1303,20 @@ export class ListingService {
           connection,
         );
       }
-    });
 
-    await this.#auditLogger.record({
-      actorId: principal.userId,
-      action: 'listing.updated',
-      targetType: 'listing',
-      targetId: id,
-      afterSnapshot: fields,
-    });
+      await this.#auditLogger.record(
+        {
+          actorId: principal.userId,
+          action: 'listing.updated',
+          targetType: 'listing',
+          targetId: id,
+          afterSnapshot: fields,
+        },
+        connection,
+      );
 
-    return this.#listingRepository.findById(id);
+      return this.#listingRepository.findById(id, {}, connection);
+    });
   }
 
   async deleteListing(principal, id) {
@@ -1219,14 +1470,30 @@ export class ListingService {
    *   doc comment for why a republish can never silently extend an
    *   existing period.
    */
+  /**
+   * Step M2B (brief §8): a Partner/owner can no longer reach PUBLISHED
+   * through this action — the mandatory path is now `submitForReview`
+   * (-> PENDING_REVIEW) followed by a Moderator's APPROVE decision (via
+   * `updateModerationStatus`, which itself reuses `markPublished` below
+   * for the actual lifecycle write). This method's own owner-fallback
+   * was the entire mechanism that let a Partner bypass review, so it is
+   * removed here — `#assertPermission` (no owner/Manager fallback,
+   * matching every other admin-only action in this file, e.g.
+   * `updateModerationStatus`) is the fix. No role is directly granted
+   * `listing.publish` except ADMIN/SUPER_ADMIN (`004_roles_and_
+   * permissions.js`'s "all permissions" grant), so this is not a new
+   * invented bypass — it's the same genuinely-privileged internal path
+   * those two roles already have everywhere else, now correctly the
+   * ONLY way into this specific action. `unpublishListing`/
+   * `archiveListing`/`renewListing` are deliberately untouched — those
+   * remain real, legitimate Partner self-service actions per brief
+   * §13/§14, and none of them can reach PUBLISHED from DRAFT/
+   * PENDING_REVIEW the way this one could.
+   */
   async publishListing(principal, id, { publicationPeriodDays } = {}) {
     const listing = await this.#listingRepository.findById(id);
     if (!listing) throw new NotFoundError('Listing not found.');
-    await this.#assertOwnerOrPermission(
-      principal,
-      listing.partnerId,
-      'listing.publish',
-    );
+    await this.#assertPermission(principal, 'listing.publish');
 
     if (!isValidListingStatusTransition(listing.statusCode, 'PUBLISHED')) {
       throw new ConflictError(

@@ -17,6 +17,7 @@ import {
   updateListingSchema,
   listingIdParamsSchema,
   publishListingSchema,
+  submitForReviewSchema,
   renewListingSchema,
   listingIdOrSlugParamsSchema,
   listingMediaIdParamsSchema,
@@ -134,6 +135,20 @@ export default function createListingRoutes({
     requireAuth,
     validate(listingIdParamsSchema),
     listingController.remove,
+  );
+
+  // Step M2B (brief §5): the new mandatory pre-publication step — same
+  // route/verb convention as every other lifecycle action below (an
+  // explicit `POST /:id/{verb}`, never a PATCH-with-a-status-field for
+  // this dimension — that shape is reserved for the moderation-status
+  // action above, `/admin/:id/moderation-status`, matching this
+  // codebase's established split between "lifecycle action" endpoints
+  // and "moderation decision" endpoints).
+  router.post(
+    '/:id/submit-for-review',
+    requireAuth,
+    validate(submitForReviewSchema),
+    listingController.submitForReview,
   );
 
   router.post(

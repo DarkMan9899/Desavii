@@ -582,6 +582,27 @@ export class MySqlListingRepository extends ListingRepositoryPort {
   }
 
   /**
+   * Step M2B (brief §15) — row-locks the base `listings` row for a
+   * lifecycle/moderation transition, same convention as
+   * `mysqlBookingRepository.js#lockById`: the identical base-row shape
+   * `findById` reads (status/moderation/lifecycle columns, no child-table
+   * assembly — those aren't part of the race being closed), plus `FOR
+   * UPDATE`, so it's only ever meaningful inside a transaction. No
+   * `scopeActive` filter (a soft-deleted row still needs to lock/resolve
+   * so the caller can reject it with a specific, informative error
+   * rather than a bare "not found" — matching `getListingAdminDetail`'s
+   * own `includeTrashed: true` reachability for this same admin-only
+   * action).
+   */
+  async lockById(id, connection) {
+    const [rows] = await connection.query(
+      `SELECT ${LISTING_SELECT_COLUMNS} ${FROM_LISTINGS_JOINED} WHERE l.id = ? FOR UPDATE`,
+      [id],
+    );
+    return toListingDomain(rows[0]);
+  }
+
+  /**
    * Phase 20 (SEO): shared by `findById` and `findBySlug` — both resolve
    * the same base row shape (just a different WHERE clause) and then need
    * the identical set of nested collections (translations/location/media/
@@ -849,15 +870,105 @@ export class MySqlListingRepository extends ListingRepositoryPort {
    * @param {string} statusCode PENDING|APPROVED|REJECTED|FLAGGED
    * @param {string|null} notes
    * @param {number} updatedBy
+   * @param {*} [connection] Step M2B: pass the caller's own transaction
+   *   connection (e.g. the PUBLISHED+APPROVED idempotent-reconfirmation
+   *   path, or the second write after `markPublished` on approval) so
+   *   this commits atomically alongside the rest of the moderation
+   *   decision; defaults to the pool for the pre-M2B standalone call
+   *   shape.
    */
-  async updateModerationStatus(id, statusCode, notes, updatedBy) {
-    await this.#pool.query(
+  async updateModerationStatus(
+    id,
+    statusCode,
+    notes,
+    updatedBy,
+    connection = this.#pool,
+  ) {
+    await connection.query(
       `UPDATE listings
        SET moderation_status_id = (SELECT id FROM moderation_statuses WHERE code = ?),
            moderation_notes = ?,
            updated_by = ?
        WHERE id = ?`,
       [statusCode, notes, updatedBy, id],
+    );
+  }
+
+  /**
+   * Step M2B (brief §7) — submission write: DRAFT/UNPUBLISHED ->
+   * PENDING_REVIEW, moderation reset to PENDING, any prior return-for-
+   * changes note cleared. `publicationPeriodDays` is only ever non-null
+   * for this listing's first lifecycle-managed submission (mirrors
+   * `markPublished`'s own "only meaningful on first publish" rule,
+   * re-derived by the Service from `expiresAt == null` before calling
+   * in) — stored here, on the same `publication_period_days` column
+   * `markPublished`/`renewListing` already own, so the eventual Moderator
+   * APPROVAL (which is what actually makes the listing PUBLISHED) has
+   * the Partner's chosen period still sitting on the row to compute
+   * `expires_at` from, without a new column.
+   */
+  async submitForReview(
+    id,
+    {
+      pendingReviewStatusId,
+      pendingModerationStatusId,
+      publicationPeriodDays,
+      updatedBy,
+    },
+    connection,
+  ) {
+    await connection.query(
+      `UPDATE listings
+       SET status_id = ?,
+           moderation_status_id = ?,
+           moderation_notes = NULL,
+           publication_period_days = COALESCE(?, publication_period_days),
+           updated_by = ?
+       WHERE id = ?`,
+      [
+        pendingReviewStatusId,
+        pendingModerationStatusId,
+        publicationPeriodDays,
+        updatedBy,
+        id,
+      ],
+    );
+  }
+
+  /**
+   * Step M2B (brief §10/§11/§20) — the combined atomic write for a
+   * Moderator's "send it back" decision: PENDING_REVIEW+REJECTED -> DRAFT,
+   * or PUBLISHED+REJECTED|FLAGGED -> UNPUBLISHED. One statement, never a
+   * separate status_id write followed by a separate moderation write, so
+   * there is no window where the two could observably disagree.
+   * `setUnpublishedAt` mirrors `markUnpublished`'s own `UTC_TIMESTAMP(3)`
+   * timestamp — only meaningful for the PUBLISHED-source case (a listing
+   * returning to DRAFT before ever having been published has no such
+   * timestamp to set).
+   */
+  async applyModerationReturn(
+    id,
+    {
+      statusId,
+      moderationStatusCode,
+      moderationNotes,
+      updatedBy,
+      setUnpublishedAt,
+    },
+    connection,
+  ) {
+    const unpublishedAtAssignment = setUnpublishedAt
+      ? 'unpublished_at = UTC_TIMESTAMP(3),'
+      : '';
+    await connection.query(
+      `UPDATE listings
+       SET status_id = ?,
+           ${unpublishedAtAssignment}
+           moderation_status_id = (SELECT id FROM moderation_statuses WHERE code = ?),
+           moderation_notes = ?,
+           updated_by = ?
+       WHERE id = ?`,
+      [statusId, moderationStatusCode, moderationNotes, updatedBy, id],
     );
   }
 

@@ -9,13 +9,23 @@
  * remaining edges (moderation review, archival) are defined here for
  * correctness against the full seeded vocabulary, ready for the sprint that
  * implements moderation/archival flows.
+ *
+ * Step M2B (brief §14/§19): `UNPUBLISHED -> PENDING_REVIEW` is added so a
+ * Partner who unpublishes a live listing, edits it, and needs it live again
+ * has a real path back — `submitForReview` (`listingService.js`) is the
+ * only caller of this specific edge, and it re-validates ownership/
+ * readiness/frozen-state itself; this table only says the edge exists.
+ * `UNPUBLISHED -> PUBLISHED` deliberately stays valid too (Renew's own
+ * reactivation path, `renewListing`, is untouched by M2B) — closing the
+ * ordinary Partner publish bypass for that edge is `publishListing`'s own
+ * permission check (`#assertPermission`), not a transition-table change.
  */
 
 const TRANSITIONS = Object.freeze({
   DRAFT: Object.freeze(['PENDING_REVIEW', 'PUBLISHED']),
   PENDING_REVIEW: Object.freeze(['PUBLISHED', 'DRAFT']),
   PUBLISHED: Object.freeze(['UNPUBLISHED', 'ARCHIVED']),
-  UNPUBLISHED: Object.freeze(['PUBLISHED', 'ARCHIVED']),
+  UNPUBLISHED: Object.freeze(['PUBLISHED', 'ARCHIVED', 'PENDING_REVIEW']),
   ARCHIVED: Object.freeze([]),
 });
 
