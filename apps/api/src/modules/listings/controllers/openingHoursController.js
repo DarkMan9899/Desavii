@@ -11,7 +11,10 @@ export function createOpeningHoursController(openingHoursService) {
     async getForListing(req, res, next) {
       try {
         const { id } = req.validated.params;
-        const days = await openingHoursService.getOpeningHours(id);
+        const days = await openingHoursService.getOpeningHours(
+          req.principal,
+          id,
+        );
         res.status(200).json({
           success: true,
           data: days.map(toOpeningHoursDayResponse),

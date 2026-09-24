@@ -17,6 +17,7 @@ export function createRestaurantMenuController(restaurantMenuService) {
       try {
         const { id } = req.validated.params;
         const menus = await restaurantMenuService.getMenusForListing(
+          req.principal,
           id,
           req.validated.query?.locale,
         );

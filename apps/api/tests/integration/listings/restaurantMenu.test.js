@@ -152,6 +152,19 @@ beforeAll(async () => {
       categoryIds: [hotelCategory.id],
     });
   hotelListingId = createHotel.body.data.id;
+
+  // Step M2A: this file's own "public GET" assertions below need a
+  // genuinely PUBLISHED listing — direct SQL, not the real
+  // `POST /:id/publish` flow (which would additionally require an image,
+  // a complete location, and category attributes this minimal fixture
+  // was never meant to carry; those are exercised elsewhere). Matches
+  // the same direct-status-column fixture convention
+  // `partnerAnalytics.test.js`'s `insertListing({frozen, deleted})`
+  // already uses.
+  await pool.query(
+    `UPDATE listings SET status_id = (SELECT id FROM listing_statuses WHERE code = 'PUBLISHED') WHERE id = ?`,
+    [restaurantListingId],
+  );
 }, 60_000);
 
 afterAll(async () => {

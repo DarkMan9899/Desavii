@@ -22,15 +22,19 @@ export class OpeningHoursService {
 
   #listingRepository;
 
+  #listingService;
+
   #permissionResolver;
 
   constructor({
     openingHoursRepository,
     listingRepository,
+    listingService,
     permissionResolver,
   }) {
     this.#openingHoursRepository = openingHoursRepository;
     this.#listingRepository = listingRepository;
+    this.#listingService = listingService;
     this.#permissionResolver = permissionResolver;
   }
 
@@ -70,9 +74,14 @@ export class OpeningHoursService {
     return listing;
   }
 
-  /** Public read — used by both the Partner authoring UI and the public Listing Detail page, same visibility model as `GET /:id/menu`. */
-  async getOpeningHours(listingId) {
-    await this.#getListingOrThrow(listingId);
+  /**
+   * Public read — used by both the Partner authoring UI and the public
+   * Listing Detail page. Step M2A: reuses `ListingService#getListing`'s
+   * exact visibility rule, same pattern/rationale as
+   * `RestaurantMenuService#getMenusForListing`'s own doc comment.
+   */
+  async getOpeningHours(principal, listingId) {
+    await this.#listingService.getListing(principal, listingId);
     return this.#openingHoursRepository.findByListingId(listingId);
   }
 

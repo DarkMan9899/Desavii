@@ -121,6 +121,16 @@ beforeAll(async () => {
       categoryIds: [restaurantCategory.id],
     });
   restaurantListingId = createRestaurant.body.data.id;
+
+  // Step M2A: this file's own "public GET" assertions below need a
+  // genuinely PUBLISHED listing — direct SQL, matching the same
+  // fixture convention `restaurantMenu.test.js`/`partnerAnalytics.test.js`
+  // already use, rather than driving the full publish-readiness gate
+  // through this minimal fixture.
+  await pool.query(
+    `UPDATE listings SET status_id = (SELECT id FROM listing_statuses WHERE code = 'PUBLISHED') WHERE id = ?`,
+    [restaurantListingId],
+  );
 }, 60_000);
 
 afterAll(async () => {

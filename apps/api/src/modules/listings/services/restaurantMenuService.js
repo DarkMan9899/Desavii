@@ -32,15 +32,19 @@ export class RestaurantMenuService {
 
   #listingRepository;
 
+  #listingService;
+
   #permissionResolver;
 
   constructor({
     restaurantMenuRepository,
     listingRepository,
+    listingService,
     permissionResolver,
   }) {
     this.#restaurantMenuRepository = restaurantMenuRepository;
     this.#listingRepository = listingRepository;
+    this.#listingService = listingService;
     this.#permissionResolver = permissionResolver;
   }
 
@@ -109,12 +113,23 @@ export class RestaurantMenuService {
     return currency;
   }
 
-  /** Public read — used by both the Partner authoring UI and the public Listing Detail page; visibility (draft vs. published listing) is the caller's concern, same as `GET /listings/:id`. */
-  async getMenusForListing(listingId, localeCode) {
-    const listing = await this.#getListingOrThrow(listingId);
+  /**
+   * Public read — used by both the Partner authoring UI and the public
+   * Listing Detail page. Step M2A: reuses `ListingService#getListing`'s
+   * exact visibility rule (published -> public; otherwise owner/
+   * `listing.update`-permission-gated; else a masked `NotFoundError`,
+   * identical to `GET /listings/:id`'s own 404) rather than duplicating
+   * it — the same established pattern `ListingService#listMedia` already
+   * uses for its own child-resource read. `principal` is `req.principal`,
+   * which is `null`/`undefined` for an anonymous public caller and the
+   * real authenticated user for the Partner authoring UI calling this
+   * exact same route.
+   */
+  async getMenusForListing(principal, listingId, localeCode) {
+    await this.#listingService.getListing(principal, listingId);
     const { localeId } = await resolveLocaleIds(localeCode);
     return this.#restaurantMenuRepository.listMenuTreeForListing(
-      listing.id,
+      listingId,
       localeId,
     );
   }

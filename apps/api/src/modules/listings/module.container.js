@@ -45,11 +45,13 @@ export default function createListingsContainer({
   const restaurantMenuService = new RestaurantMenuService({
     restaurantMenuRepository,
     listingRepository,
+    listingService,
     permissionResolver,
   });
   const openingHoursService = new OpeningHoursService({
     openingHoursRepository,
     listingRepository,
+    listingService,
     permissionResolver,
   });
   const listingController = createListingController(
