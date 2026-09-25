@@ -1459,17 +1459,27 @@ export class MySqlListingRepository extends ListingRepositoryPort {
     );
   }
 
+  /**
+   * Step L3 (brief §22-23): `position`/`is_cover` are computed inside
+   * this single `INSERT ... SELECT`, never read-then-written by the
+   * caller — a caller-side `listing.media.length` snapshot is racy under
+   * concurrent uploads (the frontend fires one `POST .../media` per
+   * selected file, all in parallel — `MediaStep.jsx`). The aggregate
+   * `SELECT` (no `GROUP BY`) always yields exactly one row even when zero
+   * media rows exist yet, so `COALESCE(MAX(position) + 1, 0)` and the
+   * `NOT EXISTS` cover-check both resolve correctly on a listing's very
+   * first upload. This alone only prevents a read-then-write race
+   * *within* one statement — real cross-request safety additionally
+   * requires the caller to open this on a connection that already holds
+   * `lockById`'s row lock on the parent `listings` row as the
+   * transaction's first statement (`ListingService#attachMedia`), which
+   * serializes concurrent inserts for the same listing and — because a
+   * `FOR UPDATE` read doesn't itself start the transaction's REPEATABLE
+   * READ snapshot — guarantees this `SELECT` sees every sibling insert
+   * already committed by the time it runs.
+   */
   async attachMedia(
-    {
-      listingId,
-      mediaTypeCode,
-      url,
-      mimeType,
-      fileSizeBytes,
-      ownerUserId,
-      position,
-      isCover,
-    },
+    { listingId, mediaTypeCode, url, mimeType, fileSizeBytes, ownerUserId },
     connection = this.#pool,
   ) {
     const [[mediaType]] = await connection.query(
@@ -1487,13 +1497,20 @@ export class MySqlListingRepository extends ListingRepositoryPort {
       const [result] = await connection.query(
         `INSERT INTO media
           (mediable_type, mediable_id, media_type_id, url, position, is_cover, upload_status_id, moderation_status_id, mime_type, file_size_bytes, owner_user_id, created_by, updated_by)
-         VALUES ('listing', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         SELECT 'listing', ?, ?, ?,
+           COALESCE(MAX(m.position) + 1, 0),
+           NOT EXISTS (
+             SELECT 1 FROM media m2
+             WHERE m2.mediable_type = 'listing' AND m2.mediable_id = ? AND m2.deleted_at IS NULL
+           ),
+           ?, ?, ?, ?, ?, ?, ?
+         FROM media m
+         WHERE m.mediable_type = 'listing' AND m.mediable_id = ? AND m.deleted_at IS NULL`,
         [
           listingId,
           mediaType.id,
           url,
-          position,
-          isCover ? 1 : 0,
+          listingId,
           completedStatus.id,
           pendingStatus.id,
           mimeType,
@@ -1501,6 +1518,7 @@ export class MySqlListingRepository extends ListingRepositoryPort {
           ownerUserId,
           ownerUserId,
           ownerUserId,
+          listingId,
         ],
       );
       return this.findMediaById(result.insertId, connection);

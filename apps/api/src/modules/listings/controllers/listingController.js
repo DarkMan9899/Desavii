@@ -323,8 +323,9 @@ export function createListingController(
         const buffer = req.body;
         const mimeType = req.headers['content-type'];
 
-        // Gross size/DoS protection lives in module.routes.js's
-        // express.raw({ limit }); this only guards an empty/missing body.
+        // Gross size/DoS protection lives in module.routes.js's per-kind
+        // express.raw({ limit }) instances; this only guards an
+        // empty/missing body.
         if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
           throw new ValidationError('Request body must be a non-empty file.');
         }

@@ -34,6 +34,30 @@ export const MAX_FILE_SIZE_BYTES = Object.freeze({
   document: 20 * 1024 * 1024,
 });
 
+// Step L3 (brief §2) — a per-selection UX limit the frontend enforces
+// before any upload starts; exported here too so both sides cite the
+// same canonical number in error copy rather than a second literal.
+export const MAX_IMAGE_FILES_PER_SELECTION = 5;
+
+// Step L3 (brief §16) — decompression-bomb guard: bounds the pixel grid
+// `imageContentValidator.js` decodes to, independent of the (already
+// size-limited) compressed byte count a highly-compressed image can hide
+// behind.
+export const MAX_IMAGE_PIXELS = 50_000_000;
+export const MAX_IMAGE_WIDTH_PX = 12_000;
+export const MAX_IMAGE_HEIGHT_PX = 12_000;
+
+// Step L3 (brief §14) — maps a declared, already-allowlisted image MIME
+// type to the format name `sharp`'s real content-sniffing reports
+// (libvips detects this from the file's actual bytes, never trusting the
+// caller's declared Content-Type) — `imageContentValidator.js`'s mismatch
+// check compares against this, not the other way around.
+export const IMAGE_MIME_TO_SHARP_FORMAT = Object.freeze({
+  'image/jpeg': 'jpeg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+});
+
 export function classifyMimeType(mimeType) {
   if (ALLOWED_IMAGE_MIME_TYPES.includes(mimeType)) return 'image';
   if (ALLOWED_VIDEO_MIME_TYPES.includes(mimeType)) return 'video';

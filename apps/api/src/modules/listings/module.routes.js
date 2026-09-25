@@ -52,12 +52,26 @@ import {
 import {
   ALLOWED_IMAGE_MIME_TYPES,
   ALLOWED_VIDEO_MIME_TYPES,
+  MAX_FILE_SIZE_BYTES,
 } from '../media/validators/mediaConstraints.js';
 
-const ALLOWED_LISTING_MEDIA_MIME_TYPES = [
-  ...ALLOWED_IMAGE_MIME_TYPES,
-  ...ALLOWED_VIDEO_MIME_TYPES,
-];
+// Step L3 (brief §12): a declared image request must never be able to
+// buffer up to the video ceiling before its own, much smaller, limit is
+// even checked — each instance only consumes the request body when its
+// own `type` matches the declared Content-Type (body-parser's documented
+// per-type skip-if-unmatched behavior), so chaining both below applies
+// the correct kind-specific limit instead of one flat ceiling for every
+// declared type. Neither consumes the body for an unsupported declared
+// type, which falls through to `attachMedia`'s existing empty-body
+// check.
+const rawListingImageBody = express.raw({
+  type: ALLOWED_IMAGE_MIME_TYPES,
+  limit: MAX_FILE_SIZE_BYTES.image,
+});
+const rawListingVideoBody = express.raw({
+  type: ALLOWED_VIDEO_MIME_TYPES,
+  limit: MAX_FILE_SIZE_BYTES.video,
+});
 
 export default function createListingRoutes({
   listingController,
@@ -210,7 +224,8 @@ export default function createListingRoutes({
     requireAuth,
     // Scoped to this one route only, same pattern as the users module's
     // avatar upload — the global body parser skips non-JSON content-types.
-    express.raw({ type: ALLOWED_LISTING_MEDIA_MIME_TYPES, limit: '200mb' }),
+    rawListingImageBody,
+    rawListingVideoBody,
     validate(listingIdParamsSchema),
     listingController.attachMedia,
   );

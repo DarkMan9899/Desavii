@@ -53,6 +53,7 @@ import {
   isWithinSizeLimit,
   classifyMimeType,
 } from '../../media/validators/mediaConstraints.js';
+import { validateAndProcessImage } from '../../media/validators/imageContentValidator.js';
 
 // Phase 20 (SEO): `GET /listings/:id` dispatches a purely-numeric path
 // segment to the id lookup, everything else to the slug lookup — a slug
@@ -1703,22 +1704,68 @@ export class ListingService {
     }
 
     const category = classifyMimeType(mimeType); // 'image' | 'video' | 'document'
+
+    // Step L3 (brief §14-17): images are always actually decoded, never
+    // trusted by declared Content-Type alone — `validateAndProcessImage`
+    // rejects a magic-byte mismatch, a corrupt/truncated file, or an
+    // oversized pixel grid, and returns a re-encoded buffer with
+    // EXIF/GPS metadata stripped and orientation already baked in.
+    // Video/document bytes pass through unchanged — no processing
+    // capability exists for those kinds in this step.
+    const storedBuffer =
+      category === 'image'
+        ? (await validateAndProcessImage(buffer, mimeType)).buffer
+        : buffer;
+
+    // Step L3 (brief §18): a cryptographically strong key, not the
+    // millisecond-resolution `Date.now()` this replaced — two uploads
+    // landing in the same millisecond (realistic once a Partner selects
+    // several images at once; `MediaStep.jsx` fires one request per file
+    // in parallel) would otherwise collide and overwrite each other in
+    // object storage.
     const extension = mimeType.split('/')[1];
-    const key = `listings/${listingId}/${Date.now()}.${extension}`;
-    const { url } = await this.#storageProvider.put(key, buffer, {
+    const key = `listings/${listingId}/${randomUUID()}.${extension}`;
+    const { url } = await this.#storageProvider.put(key, storedBuffer, {
       contentType: mimeType,
     });
 
-    const media = await this.#listingRepository.attachMedia({
-      listingId,
-      mediaTypeCode: category.toUpperCase(),
-      url,
-      mimeType,
-      fileSizeBytes: buffer.length,
-      ownerUserId: principal.userId,
-      position: listing.media.length,
-      isCover: listing.media.length === 0,
-    });
+    // Step L3 (brief §19-20): nothing is stored permanently until every
+    // validation above has already passed (reject first, store second),
+    // and if the DB write itself still fails — a stale `listingId` FK
+    // race, a transient connection error — the just-stored object is
+    // deleted rather than left orphaned in object storage.
+    let media;
+    try {
+      media = await withTransaction(async (connection) => {
+        // Step L3 (brief §22-23): locks the parent listing row FIRST
+        // (a locking read, not a snapshot read — see the repository
+        // method's own header for why this ordering matters), so two
+        // concurrent attachMedia calls for the same listing serialize
+        // instead of both computing the same next `position`/`is_cover`
+        // from a stale, independently-read `listing.media.length`.
+        const locked = await this.#listingRepository.lockById(
+          listingId,
+          connection,
+        );
+        if (!locked || locked.deletedAt) {
+          throw new NotFoundError('Listing not found.');
+        }
+        return this.#listingRepository.attachMedia(
+          {
+            listingId,
+            mediaTypeCode: category.toUpperCase(),
+            url,
+            mimeType,
+            fileSizeBytes: storedBuffer.length,
+            ownerUserId: principal.userId,
+          },
+          connection,
+        );
+      });
+    } catch (err) {
+      await this.#storageProvider.delete(key).catch(() => {});
+      throw err;
+    }
 
     await this.#auditLogger.record({
       actorId: principal.userId,

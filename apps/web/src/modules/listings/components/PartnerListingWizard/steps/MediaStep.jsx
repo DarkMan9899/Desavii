@@ -27,7 +27,20 @@ import { useRemoveListingMediaMutation } from '../../../mutations/useRemoveListi
 import WizardStepActions from '../WizardStepActions.jsx';
 import styles from './MediaStep.module.scss';
 
-const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
+// Step L3 (brief §2, §7-9) — mirrors the backend's own locked constants
+// (`apps/api/src/modules/media/validators/mediaConstraints.js`); the two
+// apps can't literally share a JS module across the Vite/Node boundary,
+// so these are kept in sync by convention the same way
+// `CoverImageUploader.jsx`/`AvatarUploader.jsx` already keep their own
+// local image-upload constants in sync with the backend. Images and
+// video previously shared ONE flat 200 MiB ceiling (`MAX_UPLOAD_BYTES`)
+// even though the backend has only ever accepted images up to 10 MiB —
+// that mismatch is exactly the defect this step closes.
+const ACCEPTED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_IMAGE_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_FILES_PER_SELECTION = 5;
+const ACCEPTED_VIDEO_MIME_TYPES = ['video/mp4', 'video/webm'];
+const MAX_VIDEO_FILE_SIZE_BYTES = 200 * 1024 * 1024;
 
 export default function MediaStep({
   listingId,
@@ -42,14 +55,48 @@ export default function MediaStep({
 
   const [uploads, setUploads] = useState([]);
   const [continueError, setContinueError] = useState(null);
+  // Step L3 (brief §5, §11) — the FileDropzone-level "whole selection
+  // rejected" message (too many images at once); distinct from the
+  // per-file `uploads` list below, since a count-overflow selection
+  // never starts a single upload to list one for.
+  const [selectionError, setSelectionError] = useState(null);
   const [captionFieldEdits, setCaptionFieldEdits] = useState({});
 
+  // Step L3 (brief §10) — maps a rejection/failure reason to a specific,
+  // actionable message instead of one generic "upload failed" for every
+  // cause. `isImage` picks between the image- and video-flavored copy
+  // for the two reasons (size/type) both kinds can trigger client-side.
+  function statusTextFor(upload) {
+    if (upload.status !== 'error') {
+      return t('partner.listingWizard.media.uploading');
+    }
+    if (upload.reason === 'size') {
+      return upload.isImage
+        ? t('partner.listingWizard.media.imageTooLarge')
+        : t('partner.listingWizard.media.videoTooLarge');
+    }
+    if (upload.reason === 'type') {
+      return upload.isImage
+        ? t('partner.listingWizard.media.unsupportedImageFormat')
+        : t('partner.listingWizard.media.unsupportedVideoFormat');
+    }
+    if (upload.reason === 'server') {
+      return t('partner.listingWizard.media.uploadRejectedByServer');
+    }
+    return t('partner.listingWizard.media.uploadFailed');
+  }
+
   function handleFilesSelected(files) {
+    setSelectionError(null);
     files.forEach((file) => {
       const uploadId = `${file.name}-${file.size}-${file.lastModified}`;
+      // MIME-family check, not allow-list membership — an unsupported
+      // format like GIF/BMP/SVG is still "image-shaped" for the purpose
+      // of picking which flavor of error copy to show.
+      const isImage = file.type.startsWith('image/');
       setUploads((current) => [
         ...current,
-        { id: uploadId, name: file.name, status: 'pending' },
+        { id: uploadId, name: file.name, status: 'pending', isImage },
       ]);
       attachMutation
         .mutateAsync({ id: listingId, file })
@@ -58,10 +105,19 @@ export default function MediaStep({
             current.filter((upload) => upload.id !== uploadId),
           );
         })
-        .catch(() => {
+        .catch((err) => {
+          // Step L3 (brief §10) — never surface the raw backend message
+          // (English-only, not translated) directly in HY/RU; 413 means
+          // the server's own size ceiling rejected it (a defense-in-depth
+          // catch, since the client already checks size before this
+          // request is even sent), any other 4xx means the server's real
+          // content/dimension validation rejected it.
+          const reason = err?.status === 413 ? 'size' : 'server';
           setUploads((current) =>
             current.map((upload) =>
-              upload.id === uploadId ? { ...upload, status: 'error' } : upload,
+              upload.id === uploadId
+                ? { ...upload, status: 'error', reason }
+                : upload,
             ),
           );
         });
@@ -69,6 +125,7 @@ export default function MediaStep({
   }
 
   function handleRejected(rejections) {
+    setSelectionError(null);
     setUploads((current) => [
       ...current,
       ...rejections.map(({ file, reason }) => ({
@@ -76,8 +133,21 @@ export default function MediaStep({
         name: file.name,
         status: 'error',
         reason,
+        isImage: file.type.startsWith('image/'),
       })),
     ]);
+  }
+
+  // Step L3 (brief §5, §11) — the whole selection is rejected before any
+  // upload starts; the message states the fixed limit, not the
+  // attempted count, matching the brief's own example copy ("maximum 5
+  // images can be selected at once").
+  function handleTooManyFiles() {
+    setSelectionError(
+      t('partner.listingWizard.media.tooManyImages', {
+        max: MAX_IMAGE_FILES_PER_SELECTION,
+      }),
+    );
   }
 
   const sortedMedia = [...media].sort((a, b) => a.position - b.position);
@@ -153,13 +223,25 @@ export default function MediaStep({
 
       <FileDropzone
         label={t('partner.listingWizard.media.dropzoneLabel')}
-        accept="image/*,video/*"
-        maxSizeBytes={MAX_UPLOAD_BYTES}
+        rules={[
+          {
+            accept: ACCEPTED_IMAGE_MIME_TYPES.join(','),
+            maxSizeBytes: MAX_IMAGE_FILE_SIZE_BYTES,
+          },
+          {
+            accept: ACCEPTED_VIDEO_MIME_TYPES.join(','),
+            maxSizeBytes: MAX_VIDEO_FILE_SIZE_BYTES,
+          },
+        ]}
+        maxSelectionCount={MAX_IMAGE_FILES_PER_SELECTION}
+        maxSelectionAccept={ACCEPTED_IMAGE_MIME_TYPES.join(',')}
         currentCount={sortedMedia.length}
         onFilesSelected={(files) => handleFilesSelected(files)}
         onRejected={(rejections) => handleRejected(rejections)}
+        onTooManyFiles={() => handleTooManyFiles()}
         emphasisText={t('partner.listingWizard.media.dropzoneEmphasis')}
         instructionsText={t('partner.listingWizard.media.dropzoneInstructions')}
+        error={selectionError}
       />
 
       {uploads.length > 0 && (
@@ -168,9 +250,7 @@ export default function MediaStep({
             <li key={upload.id} className={styles.uploadItem}>
               {upload.name}
               {' — '}
-              {upload.status === 'error'
-                ? t('partner.listingWizard.media.uploadFailed')
-                : t('partner.listingWizard.media.uploading')}
+              {statusTextFor(upload)}
             </li>
           ))}
         </ul>
