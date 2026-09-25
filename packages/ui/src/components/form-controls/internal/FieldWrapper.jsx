@@ -41,18 +41,31 @@ export default function FieldWrapper({
   size = 'md',
   error = undefined,
   helperText = undefined,
+  // Step L2 — `{ current, max }`: an optional live character count for a
+  // bounded text field (`Input`/`Textarea`'s own `maxLength`). Rendered
+  // as a plain, non-`aria-live` paragraph — referenced by
+  // `aria-describedby` so a screen-reader user can check it deliberately
+  // (e.g. "read description"), but never announced on every keystroke
+  // the way a live region would (brief §23's "no excessive
+  // screen-reader noise").
+  characterCount = undefined,
   children,
 }) {
   const generatedId = useId();
   const fieldId = id || generatedId;
   const helperId = `${fieldId}-helper`;
   const errorId = `${fieldId}-error`;
-  // Only reference an id that is actually rendered below — helperText is
-  // suppressed while an error is present, so it must drop out of
-  // aria-describedby too, or the attribute would point at a non-existent
-  // element.
+  const countId = `${fieldId}-count`;
+  // Only reference an id that is actually rendered below — helperText/
+  // characterCount are suppressed while an error is present, so they
+  // must drop out of aria-describedby too, or the attribute would point
+  // at a non-existent element.
   const describedBy =
-    [error ? errorId : null, helperText && !error ? helperId : null]
+    [
+      error ? errorId : null,
+      helperText && !error ? helperId : null,
+      characterCount && !error ? countId : null,
+    ]
       .filter(Boolean)
       .join(' ') || undefined;
 
@@ -69,10 +82,19 @@ export default function FieldWrapper({
         </Label>
       )}
       {children({ id: fieldId, describedBy, hasError: Boolean(error) })}
-      {helperText && !error && (
-        <p id={helperId} className={styles.helperText}>
-          {helperText}
-        </p>
+      {(helperText || characterCount) && !error && (
+        <div className={styles.footer}>
+          {helperText && (
+            <p id={helperId} className={styles.helperText}>
+              {helperText}
+            </p>
+          )}
+          {characterCount && (
+            <p id={countId} className={styles.characterCount}>
+              {characterCount.current}/{characterCount.max}
+            </p>
+          )}
+        </div>
       )}
       {error && (
         <p id={errorId} className={styles.errorText} role="alert">
@@ -92,5 +114,9 @@ FieldWrapper.propTypes = {
   size: PropTypes.oneOf(['sm', 'md', 'lg']),
   error: PropTypes.string,
   helperText: PropTypes.string,
+  characterCount: PropTypes.shape({
+    current: PropTypes.number.isRequired,
+    max: PropTypes.number.isRequired,
+  }),
   children: PropTypes.func.isRequired,
 };

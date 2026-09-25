@@ -34,6 +34,7 @@ const Textarea = forwardRef(function Textarea(
     id = undefined,
     name = undefined,
     required = false,
+    maxLength = undefined,
   },
   forwardedRef,
 ) {
@@ -55,6 +56,12 @@ const Textarea = forwardRef(function Textarea(
       size={size}
       error={error}
       helperText={helperText}
+      // Step L2 — see `Input.jsx`'s identical rationale.
+      characterCount={
+        maxLength != null
+          ? { current: value.length, max: maxLength }
+          : undefined
+      }
     >
       {({ id: fieldId, describedBy }) => (
         <textarea
@@ -84,6 +91,7 @@ const Textarea = forwardRef(function Textarea(
           placeholder={placeholder}
           disabled={disabled}
           required={required}
+          maxLength={maxLength}
           aria-invalid={error ? 'true' : undefined}
           aria-describedby={describedBy}
         />
@@ -113,6 +121,7 @@ Textarea.propTypes = {
   id: PropTypes.string,
   name: PropTypes.string,
   required: PropTypes.bool,
+  maxLength: PropTypes.number,
 };
 /* eslint-enable react/require-default-props */
 

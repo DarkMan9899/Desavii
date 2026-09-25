@@ -61,6 +61,21 @@ export default function CategoryStep({
     );
   }
 
+  // Step L2 (brief §9) — `GET /search/categories` has no description
+  // field of its own (a schema/seed addition purely for wizard copy
+  // would be scope creep this step's own boundary forbids), so this is
+  // presentation-side text keyed by the category's stable `slug` — the
+  // same "translated string keyed by a stable code" convention already
+  // established for `listingTypes.*`/`options.*` elsewhere in this
+  // wizard. `defaultValue: ''` degrades gracefully (no description
+  // shown, not a missing-key warning) for any category this list
+  // doesn't yet cover.
+  function categoryDescription(slug) {
+    return t(`partner.listingWizard.category.descriptions.${slug}`, {
+      defaultValue: '',
+    });
+  }
+
   if (readOnly) {
     const currentCategory = categories.find(
       (category) => category.id === value,
@@ -78,9 +93,11 @@ export default function CategoryStep({
           ].join(' ')}
           aria-current="true"
         >
-          {currentCategory?.name}
+          <span className={styles.cardName}>{currentCategory?.name}</span>
         </div>
-        <p>{t('partner.listingWizard.category.fixedNote')}</p>
+        <p className={styles.fixedNote}>
+          {t('partner.listingWizard.category.fixedNote')}
+        </p>
         <WizardStepActions
           onContinue={onNext}
           backLabel={t('partner.listingWizard.back')}
@@ -95,6 +112,9 @@ export default function CategoryStep({
       <h2 className={styles.title}>
         {t('partner.listingWizard.steps.category')}
       </h2>
+      <p className={styles.stepIntro}>
+        {t('partner.listingWizard.category.stepIntro')}
+      </p>
       <div
         role="radiogroup"
         aria-label={t('partner.listingWizard.steps.category')}
@@ -102,6 +122,7 @@ export default function CategoryStep({
         <div className={styles.categoryGrid}>
           {categories.map((category) => {
             const isSelected = value === category.id;
+            const description = categoryDescription(category.slug);
             return (
               <button
                 key={category.id}
@@ -113,7 +134,10 @@ export default function CategoryStep({
                   .join(' ')}
                 onClick={() => onChange(category.id)}
               >
-                {category.name}
+                <span className={styles.cardName}>{category.name}</span>
+                {description && (
+                  <span className={styles.cardDescription}>{description}</span>
+                )}
               </button>
             );
           })}

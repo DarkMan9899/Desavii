@@ -157,6 +157,9 @@ export default function AvailabilityStep({
           <Input
             type="number"
             label={t('partner.listingWizard.availability.minimumStayNights')}
+            helperText={t(
+              'partner.listingWizard.availability.minimumStayNightsHint',
+            )}
             value={rules.minimumStayNights}
             onChange={(event) =>
               setRule('minimumStayNights', event.target.value)
@@ -165,6 +168,9 @@ export default function AvailabilityStep({
           <Input
             type="number"
             label={t('partner.listingWizard.availability.maximumStayNights')}
+            helperText={t(
+              'partner.listingWizard.availability.maximumStayNightsHint',
+            )}
             value={rules.maximumStayNights}
             onChange={(event) =>
               setRule('maximumStayNights', event.target.value)
@@ -175,6 +181,9 @@ export default function AvailabilityStep({
             label={t(
               'partner.listingWizard.availability.advanceBookingMinHours',
             )}
+            helperText={t(
+              'partner.listingWizard.availability.advanceBookingMinHoursHint',
+            )}
             value={rules.advanceBookingMinHours}
             onChange={(event) =>
               setRule('advanceBookingMinHours', event.target.value)
@@ -184,6 +193,9 @@ export default function AvailabilityStep({
             type="number"
             label={t(
               'partner.listingWizard.availability.advanceBookingMaxDays',
+            )}
+            helperText={t(
+              'partner.listingWizard.availability.advanceBookingMaxDaysHint',
             )}
             value={rules.advanceBookingMaxDays}
             onChange={(event) =>

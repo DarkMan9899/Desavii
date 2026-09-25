@@ -9,3 +9,10 @@
 .stepBody {
   margin-top: tokens.$space-8;
 }
+
+// Step L2 — the once-per-step required-field legend.
+.requiredLegend {
+  margin: tokens.$space-4 0 0;
+  font-size: 0.8125rem;
+  color: tokens.$color-gray-600;
+}

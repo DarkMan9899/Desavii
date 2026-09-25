@@ -54,6 +54,7 @@ const Input = forwardRef(function Input(
     id = undefined,
     name = undefined,
     required = false,
+    maxLength = undefined,
     ...rest
   },
   ref,
@@ -67,6 +68,15 @@ const Input = forwardRef(function Input(
       size={size}
       error={error}
       helperText={helperText}
+      // Step L2 — only for a genuinely bounded text field (`maxLength`
+      // set); `value.length` errs toward `String(value)` since a
+      // `type="number"` input's controlled `value` may be a number, not
+      // already a string.
+      characterCount={
+        maxLength != null
+          ? { current: String(value).length, max: maxLength }
+          : undefined
+      }
     >
       {({ id: fieldId, describedBy }) => (
         <span
@@ -97,6 +107,7 @@ const Input = forwardRef(function Input(
             placeholder={placeholder}
             disabled={disabled}
             required={required}
+            maxLength={maxLength}
             aria-invalid={error ? 'true' : undefined}
             aria-describedby={describedBy}
             // See file header: forwards arbitrary DOM attributes/handlers.
@@ -136,6 +147,7 @@ Input.propTypes = {
   id: PropTypes.string,
   name: PropTypes.string,
   required: PropTypes.bool,
+  maxLength: PropTypes.number,
 };
 /* eslint-enable react/require-default-props */
 

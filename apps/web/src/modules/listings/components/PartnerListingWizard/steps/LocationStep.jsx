@@ -18,9 +18,22 @@
  * side effect) would otherwise land in whatever shared chunk this
  * wizard-steps barrel resolves to, bloating every other step (and every
  * other consumer of that barrel) with map code most of them never use.
+ *
+ * Step L2 (brief §13) — L0 found the map-first design already good, but
+ * the raw latitude/longitude number fields sat directly below the map
+ * unconditionally, asking every Partner to understand technical
+ * coordinates even though clicking the map already sets both (via
+ * `handleMapPick`). They now live behind a native `<details>` disclosure
+ * (keyboard/screen-reader accessible with zero extra ARIA wiring — no
+ * new shared component needed for a two-field reveal), collapsed by
+ * default. The underlying react-hook-form values/validation are
+ * unchanged either way; the disclosure only controls visibility. It
+ * auto-opens the moment either field actually has a validation error
+ * (a Partner who never touched the map and hit Continue anyway), so an
+ * error can never be silently hidden inside a collapsed section.
  */
 
-import { lazy, Suspense, useCallback } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +42,7 @@ import { Alert, Skeleton } from '@desavii/ui/components/feedback-overlays';
 import { Stack } from '@desavii/ui/components/layout';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
 import WizardStepActions from '../WizardStepActions.jsx';
+import styles from './LocationStep.module.scss';
 
 const LocationPicker = lazy(() => import('./LocationPicker.jsx'));
 
@@ -78,6 +92,16 @@ export default function LocationStep({
     [setValue],
   );
 
+  // Step L2 — collapsed by default; auto-opens the instant either field
+  // actually has a validation error (Continue clicked with no marker
+  // ever placed), so the error is never hidden inside a closed
+  // disclosure.
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const hasCoordinateError = Boolean(errors.latitude || errors.longitude);
+  useEffect(() => {
+    if (hasCoordinateError) setIsAdvancedOpen(true);
+  }, [hasCoordinateError]);
+
   async function onSubmit(values) {
     await updateListingMutation.mutateAsync({
       id: listingId,
@@ -107,57 +131,71 @@ export default function LocationStep({
           />
         </Suspense>
 
-        <Controller
-          name="latitude"
-          control={control}
-          rules={{
-            required: t('partner.listingWizard.validation.required'),
-            min: {
-              value: -90,
-              message: t('partner.listingWizard.validation.latitudeRange'),
-            },
-            max: {
-              value: 90,
-              message: t('partner.listingWizard.validation.latitudeRange'),
-            },
-          }}
-          render={({ field }) => (
-            <Input
-              type="number"
-              label={t('partner.listingWizard.location.latitude')}
-              error={errors.latitude?.message}
-              required
-              // eslint-disable-next-line react/jsx-props-no-spreading
-              {...field}
+        <details
+          className={styles.advanced}
+          open={isAdvancedOpen}
+          onToggle={(event) => setIsAdvancedOpen(event.target.open)}
+        >
+          <summary className={styles.advancedSummary}>
+            {t('partner.listingWizard.location.advancedToggle')}
+          </summary>
+          <Stack gap="4" className={styles.advancedContent}>
+            <p className={styles.advancedHint}>
+              {t('partner.listingWizard.location.advancedHint')}
+            </p>
+            <Controller
+              name="latitude"
+              control={control}
+              rules={{
+                required: t('partner.listingWizard.validation.required'),
+                min: {
+                  value: -90,
+                  message: t('partner.listingWizard.validation.latitudeRange'),
+                },
+                max: {
+                  value: 90,
+                  message: t('partner.listingWizard.validation.latitudeRange'),
+                },
+              }}
+              render={({ field }) => (
+                <Input
+                  type="number"
+                  label={t('partner.listingWizard.location.latitude')}
+                  error={errors.latitude?.message}
+                  required
+                  // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...field}
+                />
+              )}
             />
-          )}
-        />
 
-        <Controller
-          name="longitude"
-          control={control}
-          rules={{
-            required: t('partner.listingWizard.validation.required'),
-            min: {
-              value: -180,
-              message: t('partner.listingWizard.validation.longitudeRange'),
-            },
-            max: {
-              value: 180,
-              message: t('partner.listingWizard.validation.longitudeRange'),
-            },
-          }}
-          render={({ field }) => (
-            <Input
-              type="number"
-              label={t('partner.listingWizard.location.longitude')}
-              error={errors.longitude?.message}
-              required
-              // eslint-disable-next-line react/jsx-props-no-spreading
-              {...field}
+            <Controller
+              name="longitude"
+              control={control}
+              rules={{
+                required: t('partner.listingWizard.validation.required'),
+                min: {
+                  value: -180,
+                  message: t('partner.listingWizard.validation.longitudeRange'),
+                },
+                max: {
+                  value: 180,
+                  message: t('partner.listingWizard.validation.longitudeRange'),
+                },
+              }}
+              render={({ field }) => (
+                <Input
+                  type="number"
+                  label={t('partner.listingWizard.location.longitude')}
+                  error={errors.longitude?.message}
+                  required
+                  // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...field}
+                />
+              )}
             />
-          )}
-        />
+          </Stack>
+        </details>
       </Stack>
 
       <WizardStepActions

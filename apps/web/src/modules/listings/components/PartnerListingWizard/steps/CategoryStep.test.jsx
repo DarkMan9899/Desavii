@@ -56,13 +56,16 @@ describe('CategoryStep (PartnerListingWizard)', () => {
     expect(refetch).toHaveBeenCalled();
   });
 
+  // Uses a slug with no `category.descriptions.*` entry so the radio's
+  // accessible name stays exactly the category name — description
+  // rendering itself is covered separately below (Step L2).
   test('renders every category as a selectable radio card', () => {
     useListingCategoriesQuery.mockReturnValue({
       isPending: false,
       isError: false,
       data: [
-        { id: 1, slug: 'villas', name: 'Villas', listing_count: 4 },
-        { id: 2, slug: 'hotels', name: 'Hotels', listing_count: 10 },
+        { id: 1, slug: 'campsites', name: 'Villas', listing_count: 4 },
+        { id: 2, slug: 'boutique-lodges', name: 'Hotels', listing_count: 10 },
       ],
     });
     renderStep({ value: 1 });
@@ -83,12 +86,70 @@ describe('CategoryStep (PartnerListingWizard)', () => {
     useListingCategoriesQuery.mockReturnValue({
       isPending: false,
       isError: false,
-      data: [{ id: 2, slug: 'hotels', name: 'Hotels', listing_count: 10 }],
+      data: [
+        { id: 2, slug: 'boutique-lodges', name: 'Hotels', listing_count: 10 },
+      ],
     });
     renderStep({ onChange });
 
     await user.click(screen.getByRole('radio', { name: 'Hotels' }));
     expect(onChange).toHaveBeenCalledWith(2);
+  });
+
+  // Step L2 (brief §15): a short comprehension description, keyed by the
+  // category's own stable `slug`, is presented alongside its name so a
+  // non-technical Partner can tell categories like Apartments/Villas/
+  // Guest Houses apart at a glance.
+  describe('category comprehension (Step L2)', () => {
+    test('renders a per-category description under the category name', () => {
+      useListingCategoriesQuery.mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: [{ id: 2, slug: 'hotels', name: 'Hotels', listing_count: 10 }],
+      });
+      renderStep({});
+
+      expect(
+        screen.getByText(
+          'Հյուրասենյակներ հյուրանոցում, հանգստյան համալիրում կամ նմանատիպ սպասարկվող օբյեկտում։',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    test('renders no description text for a category slug with no known description', () => {
+      useListingCategoriesQuery.mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: [
+          {
+            id: 9,
+            slug: 'some-future-category',
+            name: 'Mystery',
+            listing_count: 0,
+          },
+        ],
+      });
+      renderStep({});
+
+      expect(
+        screen.getByRole('radio', { name: 'Mystery' }),
+      ).toBeInTheDocument();
+    });
+
+    test('shows an intro explaining the category choice is permanent', () => {
+      useListingCategoriesQuery.mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: [{ id: 2, slug: 'hotels', name: 'Hotels', listing_count: 10 }],
+      });
+      renderStep({});
+
+      expect(
+        screen.getByText(
+          'Ընտրեք ձեր հայտարարությանը լավագույնս համապատասխանող կատեգորիան։ Հետագայում այն հնարավոր չի լինի փոխել, ուստի ընտրեք ուշադիր։',
+        ),
+      ).toBeInTheDocument();
+    });
   });
 
   test('Continue is disabled until a category is selected', () => {
@@ -160,6 +221,24 @@ describe('CategoryStep (PartnerListingWizard)', () => {
       expect(screen.getByText('Hotels')).toBeInTheDocument();
       expect(screen.queryByRole('radio')).not.toBeInTheDocument();
       expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+    });
+
+    // Step L2 (brief §16): the fixed-category explanation must read as a
+    // neutral, friendly statement of fact — never as an error message —
+    // in every supported locale.
+    test('explains the fixed category in friendly, non-error-like copy', () => {
+      useListingCategoriesQuery.mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: [{ id: 2, slug: 'hotels', name: 'Hotels', listing_count: 10 }],
+      });
+      renderStep({ value: 2, readOnly: true });
+
+      expect(
+        screen.getByText(
+          'Այս հայտարարության կատեգորիան սահմանված է և հնարավոր չէ փոխել ստեղծումից հետո։',
+        ),
+      ).toBeInTheDocument();
     });
 
     test('the fixed category is not a clickable element — no onChange call is even structurally possible', () => {

@@ -142,6 +142,55 @@ describe('BasicInfoStep (PartnerListingWizard)', () => {
     ).not.toBeInTheDocument();
   });
 
+  // Step L2.
+  describe('field guidance', () => {
+    test('title has a visible example placeholder, helper text, and a live character count', async () => {
+      const user = userEvent.setup();
+      renderStep({});
+
+      const title = screen.getByLabelText(/^Վերնագիր/);
+      expect(title).toHaveAttribute(
+        'placeholder',
+        'Հարմարավետ ստուդիո Հանրապետության հրապարակի մոտ',
+      );
+      expect(
+        screen.getByText(
+          'Սա առաջինն է, ինչ տեսնում են հյուրերը․ եղեք հակիրճ և կոնկրետ։',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByText('0/255')).toBeInTheDocument();
+
+      await user.type(title, 'A');
+      expect(screen.getByText('1/255')).toBeInTheDocument();
+    });
+
+    test('summary has an example placeholder and helper text', () => {
+      renderStep({});
+      const summary = screen.getByLabelText('Կարճ նկարագրություն');
+      expect(summary).toHaveAttribute(
+        'placeholder',
+        'Հանգիստ մեկ ննջասենյականոց բնակարան քաղաքի կենտրոնում',
+      );
+      expect(
+        screen.getByText(
+          'Մեկ նախադասությամբ ակնարկ, որը ցուցադրվում է որոնման արդյունքներում։',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByText('0/500')).toBeInTheDocument();
+    });
+
+    test('description has helper text explaining what to write', () => {
+      renderStep({});
+      expect(screen.getByLabelText('Նկարագրություն')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'Նկարագրեք, թե ինչն է առանձնացնում այս հայտարարությունը՝ տարածքը, հարմարությունները և մոտակայքը։',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByText('0/20000')).toBeInTheDocument();
+    });
+  });
+
   test('submitting with no listing yet calls createListing with translations + categoryIds for the active locale, then onCreated', async () => {
     const user = userEvent.setup();
     const onCreated = vi.fn();

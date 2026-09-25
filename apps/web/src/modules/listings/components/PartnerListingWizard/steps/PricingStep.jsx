@@ -66,6 +66,20 @@ export default function PricingStep({
   const isComplete =
     Boolean(modelCode) && amount !== '' && Boolean(currencyCode);
 
+  // Step L2 (brief §11) — the amount field's meaning depends entirely on
+  // the pricing model picked just above it ("40" means nothing on its
+  // own — "40 per night" does); once a model is chosen, reuse its own
+  // already-translated label to say so directly, rather than a second,
+  // separately-maintained copy of the same four basis strings.
+  const amountHelperText = modelCode
+    ? t('partner.listingWizard.pricing.amountHintWithBasis', {
+        basis: t(
+          `partner.listingWizard.pricingModels.${modelCode}`,
+          modelCode,
+        ).toLowerCase(),
+      })
+    : t('partner.listingWizard.pricing.amountHint');
+
   async function handleContinue() {
     if (isComplete) {
       await updateListingMutation.mutateAsync({
@@ -81,6 +95,9 @@ export default function PricingStep({
   return (
     <div>
       <h2>{t('partner.listingWizard.steps.pricing')}</h2>
+      {pricingModels.length > 0 && (
+        <p>{t('partner.listingWizard.pricing.stepIntro')}</p>
+      )}
       {pricingModels.length === 0 && (
         <p>{t('partner.listingWizard.pricing.empty')}</p>
       )}
@@ -105,6 +122,7 @@ export default function PricingStep({
           <Input
             type="number"
             label={t('partner.listingWizard.pricing.amount')}
+            helperText={amountHelperText}
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
           />

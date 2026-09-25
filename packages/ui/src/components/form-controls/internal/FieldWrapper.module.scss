@@ -11,11 +11,33 @@
   width: 100%;
 }
 
+// Step L2 — lays helperText and characterCount out side by side when
+// both exist, helperText taking the remaining width so a long count
+// (e.g. "20000/20000") never squeezes the guidance text onto its own
+// awkward wrap.
+.footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: spacing.$space-2;
+}
+
 .helperText {
+  flex: 1 1 auto;
   margin: 0;
   font-size: fn.rem(14px);
   line-height: fn.rem(20px);
   color: colors.$color-gray-600;
+}
+
+.characterCount {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: fn.rem(13px);
+  line-height: fn.rem(20px);
+  color: colors.$color-gray-600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .errorText {

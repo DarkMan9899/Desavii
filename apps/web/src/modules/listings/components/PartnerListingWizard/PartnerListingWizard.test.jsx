@@ -188,6 +188,37 @@ describe('PartnerListingWizard (orchestrator)', () => {
     expect(screen.getByText('ContentStep')).toBeInTheDocument();
   });
 
+  // Step L2 (brief §5): a required-field legend explains the `*` marker
+  // on every step except Category, which has no required-field markers
+  // of its own (it's a single-choice picker, not a labeled-field form).
+  describe('required-field legend (Step L2)', () => {
+    test('is hidden on the Category step', () => {
+      useListingQuery.mockReturnValue({ data: undefined, isPending: false });
+      useListingMetadataQuery.mockReturnValue({ data: undefined });
+      useToast.mockReturnValue({ showToast: vi.fn() });
+
+      renderWizard('/hy/partner/listings/new');
+      expect(
+        screen.queryByText(
+          '* նշված դաշտերը պարտադիր են։ Մնացած բոլորը կամընտիր են։',
+        ),
+      ).not.toBeInTheDocument();
+    });
+
+    test('is shown on the Basic Info step', () => {
+      useListingQuery.mockReturnValue({ data: undefined, isPending: false });
+      useListingMetadataQuery.mockReturnValue({ data: undefined });
+      useToast.mockReturnValue({ showToast: vi.fn() });
+
+      renderWizard('/hy/partner/listings/new?step=basicInfo&categoryId=3');
+      expect(
+        screen.getByText(
+          '* նշված դաշտերը պարտադիր են։ Մնացած բոլորը կամընտիր են։',
+        ),
+      ).toBeInTheDocument();
+    });
+  });
+
   test('renders the WizardProgress step indicator', () => {
     useListingQuery.mockReturnValue({ data: undefined, isPending: false });
     useListingMetadataQuery.mockReturnValue({ data: undefined });

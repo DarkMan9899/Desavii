@@ -4,10 +4,23 @@
 @use 'mixins/respond' as respond;
 
 .title {
-  margin: 0 0 tokens.$space-4;
+  margin: 0 0 tokens.$space-2;
   font-size: 1.25rem;
   font-weight: 600;
   color: tokens.$color-gray-900;
+}
+
+// Step L2.
+.stepIntro {
+  margin: 0 0 tokens.$space-4;
+  font-size: 0.9375rem;
+  color: tokens.$color-gray-600;
+}
+
+.fixedNote {
+  margin: tokens.$space-2 0 0;
+  font-size: 0.9375rem;
+  color: tokens.$color-gray-600;
 }
 
 // P2.1: was `<Grid columns={3}>`, which pins the column count at every
@@ -30,19 +43,23 @@
   }
 }
 
+// Step L2: switched from centered single-line text to a left-aligned
+// column (name + optional description) — a description paragraph reads
+// poorly centered, and not every category has one (brief §15's
+// "especially Apartments/Villas/Guest Houses/Attractions/Entertainment
+// Venues"), so the layout must hold up with just a name too.
 .card {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   justify-content: center;
+  gap: tokens.$space-1;
   min-height: 88px;
   padding: tokens.$space-4;
-  text-align: center;
+  text-align: left;
   background-color: tokens.$color-white;
   border: 1.5px solid tokens.$color-gray-200;
   border-radius: tokens.$radius-md;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: tokens.$color-gray-900;
   cursor: pointer;
 
   &:hover {
@@ -55,10 +72,25 @@
   }
 }
 
+.cardName {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
+.cardDescription {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: tokens.$color-gray-600;
+}
+
 .card--selected {
   border-color: tokens.$color-royal-blue;
   background-color: rgba(29, 95, 214, 0.06);
-  color: tokens.$color-royal-blue;
+
+  .cardName {
+    color: tokens.$color-royal-blue;
+  }
 }
 
 // Step L1 — the fixed/read-only category display (a `<div>`, not a
@@ -67,7 +99,6 @@
 // whose border/background already render correctly with nothing left to
 // hover.
 .card--static {
-  display: block;
   max-width: max-content;
   cursor: default;
 }

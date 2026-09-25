@@ -127,6 +127,19 @@ export default function PartnerListingWizard({ partnerships }) {
         }
       />
 
+      {
+        // Step L2 (brief §5) — a single, persistent legend explaining the
+        // asterisk convention every required field already uses
+        // (`Label.jsx`), instead of repeating "(required)" beside each
+        // one. Omitted on Category, which has no labeled form fields at
+        // all (a card picker, not text/select inputs).
+        wizard.currentStepId !== 'category' && (
+          <p className={styles.requiredLegend}>
+            {t('partner.listingWizard.requiredLegend')}
+          </p>
+        )
+      }
+
       <div className={styles.stepBody}>
         {wizard.currentStepId === 'category' && (
           <CategoryStep

@@ -194,6 +194,32 @@ describe('AvailabilityStep (PartnerListingWizard)', () => {
     ).toBeDisabled();
   });
 
+  // Step L2 (brief §10): each booking-rule field states its unit and
+  // meaning in plain language, since "nights"/"hours"/"days" alone in
+  // the label isn't enough context for a first-time Partner.
+  test('each booking-rule field has helper text explaining its unit and effect', () => {
+    renderStep({ listingId: 7, onNext: vi.fn() });
+
+    expect(
+      screen.getByText(
+        'Ամենակարճ մնալը, որը դուք ընդունելի եք համարում, գիշերներով։ Թողեք դատարկ՝ նվազագույն սահմանափակում չունենալու համար։',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Ամենաերկար մնալը, որը դուք ընդունելի եք համարում, գիշերներով։ Թողեք դատարկ՝ առավելագույն սահմանափակում չունենալու համար։',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Որքան նախապես պետք է հյուրերը ամրագրեն՝ մուտքից առաջ, ժամերով։',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Որքան առաջ կարող են հյուրերը ամրագրել, օրերով։'),
+    ).toBeInTheDocument();
+  });
+
   test('Continue with no booking-rule fields filled in skips the updateListing PATCH', async () => {
     const user = userEvent.setup();
     const onNext = vi.fn();

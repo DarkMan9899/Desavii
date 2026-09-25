@@ -62,6 +62,32 @@ describe('LocationStep (PartnerListingWizard)', () => {
     expect(mutateAsync).not.toHaveBeenCalled();
   });
 
+  // Step L2 (brief §13): raw coordinates sit behind a collapsed, clearly
+  // labeled disclosure since the map already sets both fields — but an
+  // error inside it must never be silently hidden.
+  describe('coordinates disclosure (Step L2)', () => {
+    test('the manual coordinate fields are collapsed behind a disclosure by default', () => {
+      render(<LocationStep listingId={7} onNext={vi.fn()} />);
+
+      const details = screen
+        .getByText('Մուտքագրել կոորդինատները ձեռքով')
+        .closest('details');
+      expect(details).not.toHaveAttribute('open');
+    });
+
+    test('the disclosure auto-opens when Continue is clicked with no coordinates picked', async () => {
+      const user = userEvent.setup();
+      render(<LocationStep listingId={7} onNext={vi.fn()} />);
+
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      const details = await screen
+        .findByText('Մուտքագրել կոորդինատները ձեռքով')
+        .then((summary) => summary.closest('details'));
+      expect(details).toHaveAttribute('open');
+    });
+  });
+
   test('renders no Back button when onBack is not given (first-in-flow edge case)', () => {
     render(<LocationStep listingId={7} onNext={vi.fn()} />);
     expect(

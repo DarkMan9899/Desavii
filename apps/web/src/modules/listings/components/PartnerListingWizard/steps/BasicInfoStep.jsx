@@ -51,6 +51,16 @@ import AuthoringLocaleTabs from '../AuthoringLocaleTabs/AuthoringLocaleTabs.jsx'
 import WizardStepActions from '../WizardStepActions.jsx';
 import styles from './BasicInfoStep.module.scss';
 
+// Step L2 (brief §6/§18) — mirrors `translationSchema`'s own
+// `title`/`summary`/`description` caps
+// (`apps/api/src/modules/listings/validators/listingValidators.js`)
+// exactly, so the visible character count and the native `maxLength`
+// guard never claim a different limit than the one the backend actually
+// enforces.
+const TITLE_MAX_LENGTH = 255;
+const SUMMARY_MAX_LENGTH = 500;
+const DESCRIPTION_MAX_LENGTH = 20000;
+
 function emptyDraft() {
   return { title: '', summary: '', description: '' };
 }
@@ -283,24 +293,38 @@ export default function BasicInfoStep({
             <Stack gap="4">
               <Input
                 label={t('partner.listingWizard.basicInfo.title')}
+                placeholder={t(
+                  'partner.listingWizard.basicInfo.titlePlaceholder',
+                )}
+                helperText={t('partner.listingWizard.basicInfo.titleHelper')}
                 value={activeDraft.title}
                 error={titleErrorMessage}
                 required
+                maxLength={TITLE_MAX_LENGTH}
                 onChange={(event) =>
                   updateActiveDraft('title', event.target.value)
                 }
               />
               <Input
                 label={t('partner.listingWizard.basicInfo.summary')}
+                placeholder={t(
+                  'partner.listingWizard.basicInfo.summaryPlaceholder',
+                )}
+                helperText={t('partner.listingWizard.basicInfo.summaryHelper')}
                 value={activeDraft.summary}
+                maxLength={SUMMARY_MAX_LENGTH}
                 onChange={(event) =>
                   updateActiveDraft('summary', event.target.value)
                 }
               />
               <Textarea
                 label={t('partner.listingWizard.basicInfo.description')}
+                helperText={t(
+                  'partner.listingWizard.basicInfo.descriptionHelper',
+                )}
                 rows={6}
                 value={activeDraft.description}
+                maxLength={DESCRIPTION_MAX_LENGTH}
                 onChange={(event) =>
                   updateActiveDraft('description', event.target.value)
                 }

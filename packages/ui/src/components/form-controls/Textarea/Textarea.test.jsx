@@ -62,4 +62,19 @@ describe('Textarea (COMPONENT_LIBRARY.md Part II §2)', () => {
     await user.type(textarea, 'x');
     expect(textarea).toHaveValue('');
   });
+
+  // Step L2.
+  test('renders a live character count when maxLength is set, updating as the user types', async () => {
+    const user = userEvent.setup();
+    render(<ControlledTextarea label="Description" maxLength={20000} />);
+
+    expect(screen.getByText('0/20000')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Description'), 'A lovely place');
+    expect(screen.getByText('14/20000')).toBeInTheDocument();
+  });
+
+  test('no character count renders when maxLength is not set', () => {
+    render(<ControlledTextarea label="Description" />);
+    expect(screen.queryByText(/^\d+\/\d+$/)).not.toBeInTheDocument();
+  });
 });

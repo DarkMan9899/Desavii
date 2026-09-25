@@ -1428,6 +1428,7 @@
       "progressLabel": "Listing creation progress",
       "progressSummary": "Step {{current}} of {{total}}: {{label}}",
       "goToStep": "Go to {{label}}",
+      "requiredLegend": "Fields marked with * are required. Everything else is optional.",
       "publishSuccess": "Your listing has been published.",
       "decrease": "Decrease {{label}}",
       "increase": "Increase {{label}}",
@@ -1550,13 +1551,30 @@
       "category": {
         "loading": "Loading categories…",
         "errorTitle": "We couldn't load categories.",
-        "fixedNote": "The category can't be changed after a listing is created."
+        "stepIntro": "Choose the category that best fits your listing. This can't be changed later, so pick carefully.",
+        "fixedNote": "This listing's category is set and can't be changed after creation.",
+        "descriptions": {
+          "hotels": "Rooms in a hotel, resort, or similar guest-service property.",
+          "apartments": "A self-contained furnished unit, rented as a whole.",
+          "villas": "A standalone house, often with a private garden or pool.",
+          "guest-houses": "A small, homely property with a few rooms, often family-run.",
+          "restaurants": "A place where guests dine — no overnight stay.",
+          "tours": "A guided experience or excursion with a set itinerary.",
+          "car-rentals": "Vehicles available for hire, with or without a driver.",
+          "attractions": "A sight, landmark, or activity guests can visit or book.",
+          "entertainment-venues": "A venue for shows, events, or nightlife."
+        }
       },
       "basicInfo": {
         "partner": "Partner organization",
         "title": "Title",
+        "titlePlaceholder": "Cozy Loft near Republic Square",
+        "titleHelper": "This is the first thing guests see — keep it short and specific.",
         "summary": "Short summary",
-        "description": "Description"
+        "summaryPlaceholder": "A quiet one-bedroom apartment in the city center",
+        "summaryHelper": "A one-sentence overview shown in search results.",
+        "description": "Description",
+        "descriptionHelper": "Describe what makes this listing special — the space, amenities, and what's nearby."
       },
       "contentLocale": {
         "hy": "Հայերեն",
@@ -1574,7 +1592,9 @@
       "location": {
         "latitude": "Latitude",
         "longitude": "Longitude",
-        "mapHint": "Click the map to place a marker at your exact location, or enter coordinates directly below."
+        "mapHint": "Click the map to place a marker at your exact location.",
+        "advancedToggle": "Enter coordinates manually",
+        "advancedHint": "Only needed if you already know the exact latitude and longitude — most Partners can just use the map above."
       },
       "attributes": {
         "loading": "Loading details…",
@@ -1674,8 +1694,11 @@
         "loading": "Loading pricing models…",
         "errorTitle": "We couldn't load pricing models.",
         "empty": "This category has no pricing model to configure.",
+        "stepIntro": "Set a base price for this listing. It applies by default unless a specific date or room has its own price.",
         "model": "Pricing model",
         "amount": "Amount",
+        "amountHint": "Choose a pricing model above to see what this amount applies to.",
+        "amountHintWithBasis": "The price {{basis}}.",
         "currency": "Currency"
       },
       "pricingModels": {
@@ -1694,9 +1717,13 @@
         "addBlackout": "Add blackout dates",
         "bookingRules": "Booking rules",
         "minimumStayNights": "Minimum stay (nights)",
+        "minimumStayNightsHint": "The shortest stay you'll accept, in nights. Leave blank for no minimum.",
         "maximumStayNights": "Maximum stay (nights)",
+        "maximumStayNightsHint": "The longest stay you'll accept, in nights. Leave blank for no maximum.",
         "advanceBookingMinHours": "Minimum advance booking (hours)",
+        "advanceBookingMinHoursHint": "How much notice guests must give before check-in, in hours.",
         "advanceBookingMaxDays": "Maximum advance booking (days)",
+        "advanceBookingMaxDaysHint": "How far ahead guests can book, in days.",
         "unitLabel": "Room/unit name",
         "unitLabelPlaceholder": "e.g. Standard Room, Deluxe Suite",
         "timeSlotStart": "Departure start time",

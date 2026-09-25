@@ -1,0 +1,31 @@
+// LocationStep — Step L2's advanced/manual-coordinates disclosure.
+
+@use 'tokens' as tokens;
+
+.advanced {
+  border: 1px solid tokens.$color-gray-200;
+  border-radius: tokens.$radius-md;
+  padding: tokens.$space-3 tokens.$space-4;
+}
+
+.advancedSummary {
+  cursor: pointer;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(29, 95, 214, 0.15);
+  }
+}
+
+.advancedHint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: tokens.$color-gray-600;
+}
+
+.advancedContent {
+  margin-top: tokens.$space-3;
+}

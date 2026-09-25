@@ -68,6 +68,37 @@ describe('Input (COMPONENT_LIBRARY.md Part II §2)', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  // Step L2.
+  test('renders a live character count when maxLength is set, updating as the user types', async () => {
+    const user = userEvent.setup();
+    render(<ControlledInput label="Title" maxLength={255} />);
+
+    expect(screen.getByText('0/255')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Title'), 'Cozy Loft');
+    expect(screen.getByText('9/255')).toBeInTheDocument();
+  });
+
+  test('character count is referenced via aria-describedby alongside helperText', () => {
+    render(
+      <ControlledInput
+        initialValue="Cozy"
+        label="Title"
+        helperText="Keep it short and specific."
+        maxLength={255}
+      />,
+    );
+    const input = screen.getByLabelText('Title');
+    const helper = screen.getByText('Keep it short and specific.');
+    const count = screen.getByText('4/255');
+    expect(input.getAttribute('aria-describedby')).toContain(helper.id);
+    expect(input.getAttribute('aria-describedby')).toContain(count.id);
+  });
+
+  test('no character count renders when maxLength is not set', () => {
+    render(<ControlledInput label="Title" />);
+    expect(screen.queryByText(/^\d+\/\d+$/)).not.toBeInTheDocument();
+  });
+
   test('renders iconLeft and iconRight content', () => {
     render(
       <ControlledInput
