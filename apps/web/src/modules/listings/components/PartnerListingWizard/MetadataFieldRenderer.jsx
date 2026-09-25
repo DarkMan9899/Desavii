@@ -92,6 +92,7 @@ export default function MetadataFieldRenderer({
         onChange={onChange}
         error={error}
         required={definition.is_required}
+        integerOnly={definition.data_type === 'INTEGER'}
         decreaseAriaLabel={t('partner.listingWizard.decrease', { label })}
         increaseAriaLabel={t('partner.listingWizard.increase', { label })}
       />

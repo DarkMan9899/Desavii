@@ -33,9 +33,40 @@ import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMut
 import BookableUnitsManager from '../../BookableUnitsManager/BookableUnitsManager.jsx';
 import WizardStepActions from '../WizardStepActions.jsx';
 
-function toOptionalInt(value) {
-  return value === '' ? undefined : Number(value);
+// Step L4 (brief §6, §12) — a plain integer string only: optional
+// leading `-` (so a negative entry is parsed and rejected with a real
+// domain message below, rather than the string simply failing to
+// match), digits only. Rejects decimals ("1.5"), scientific notation
+// ("1e3"), and garbage ("12abc") at the string level, before `Number()`
+// ever runs — `Number("1.9")` would otherwise silently carry the
+// fractional part through to the backend instead of being caught here,
+// and `Number("12abc")` is `NaN`, which is a value, not an error, unless
+// something explicitly checks for it.
+const INTEGER_STRING_PATTERN = /^-?\d+$/;
+
+// Step L4 (brief §6-7, §12, §15-16) — returns `{ value, malformed }`:
+// `value` is `undefined` for an empty/optional field (never coerced to
+// `0` via `Number('')`), a real integer otherwise; `malformed` is true
+// for anything that isn't a plain optionally-negative integer string
+// (decimals, scientific notation, non-numeric text) — including "-0",
+// which `INTEGER_STRING_PATTERN` matches and `Number('-0')` normalizes
+// to `0` like any other zero, so it's never a bypass for a
+// positive-required field.
+function parseBookingRuleField(rawValue) {
+  const trimmed = String(rawValue ?? '').trim();
+  if (trimmed === '') return { value: undefined, malformed: false };
+  if (!INTEGER_STRING_PATTERN.test(trimmed)) {
+    return { value: undefined, malformed: true };
+  }
+  return { value: Number(trimmed), malformed: false };
 }
+
+const BOOKING_RULE_FIELDS = [
+  { key: 'minimumStayNights', kind: 'positive' },
+  { key: 'maximumStayNights', kind: 'positive' },
+  { key: 'advanceBookingMinHours', kind: 'nonnegative' },
+  { key: 'advanceBookingMaxDays', kind: 'nonnegative' },
+];
 
 export default function AvailabilityStep({
   listingId,
@@ -61,11 +92,60 @@ export default function AvailabilityStep({
     advanceBookingMinHours: initialValues.advanceBookingMinHours ?? '',
     advanceBookingMaxDays: initialValues.advanceBookingMaxDays ?? '',
   });
+  // Step L4 (brief §22-23) — field-level errors shown immediately next
+  // to the relevant Input, never deferred to a later step or to the
+  // backend's own round-trip.
+  const [ruleErrors, setRuleErrors] = useState({});
 
   const blackouts = blackoutsQuery.data ?? [];
 
   function setRule(field, value) {
     setRules((current) => ({ ...current, [field]: value }));
+  }
+
+  // Step L4 (brief §6-7, §12) — parses and validates every booking-rule
+  // field client-side (whole-number-ness, positive-vs-nonnegative domain,
+  // and the minimumStayNights <= maximumStayNights cross-field rule),
+  // returning both the per-field error messages and the parsed values so
+  // `handleContinue` never has to reparse.
+  function validateBookingRules() {
+    const errors = {};
+    const parsed = {};
+
+    BOOKING_RULE_FIELDS.forEach(({ key, kind }) => {
+      const { value, malformed } = parseBookingRuleField(rules[key]);
+      if (malformed) {
+        errors[key] = t(`partner.listingWizard.availability.${key}Invalid`);
+        return;
+      }
+      if (value === undefined) {
+        parsed[key] = undefined;
+        return;
+      }
+      if (kind === 'positive' && value < 1) {
+        errors[key] = t(`partner.listingWizard.availability.${key}Invalid`);
+        return;
+      }
+      if (kind === 'nonnegative' && value < 0) {
+        errors[key] = t(`partner.listingWizard.availability.${key}Invalid`);
+        return;
+      }
+      parsed[key] = value;
+    });
+
+    if (
+      !errors.minimumStayNights &&
+      !errors.maximumStayNights &&
+      parsed.minimumStayNights !== undefined &&
+      parsed.maximumStayNights !== undefined &&
+      parsed.minimumStayNights > parsed.maximumStayNights
+    ) {
+      errors.minimumStayNights = t(
+        'partner.listingWizard.availability.minExceedsMax',
+      );
+    }
+
+    return { errors, parsed };
   }
 
   function handleAddBlackout() {
@@ -81,19 +161,17 @@ export default function AvailabilityStep({
   }
 
   async function handleContinue() {
-    const bookingRules = {
-      minimumStayNights: toOptionalInt(rules.minimumStayNights),
-      maximumStayNights: toOptionalInt(rules.maximumStayNights),
-      advanceBookingMinHours: toOptionalInt(rules.advanceBookingMinHours),
-      advanceBookingMaxDays: toOptionalInt(rules.advanceBookingMaxDays),
-    };
-    const hasAnyRule = Object.values(bookingRules).some(
+    const { errors, parsed } = validateBookingRules();
+    setRuleErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    const hasAnyRule = Object.values(parsed).some(
       (value) => value !== undefined,
     );
     if (hasAnyRule) {
       await updateListingMutation.mutateAsync({
         id: listingId,
-        payload: { bookingRules },
+        payload: { bookingRules: parsed },
       });
     }
     onNext();
@@ -156,28 +234,44 @@ export default function AvailabilityStep({
         <Stack gap="4">
           <Input
             type="number"
+            min={1}
+            step={1}
             label={t('partner.listingWizard.availability.minimumStayNights')}
             helperText={t(
               'partner.listingWizard.availability.minimumStayNightsHint',
             )}
             value={rules.minimumStayNights}
-            onChange={(event) =>
-              setRule('minimumStayNights', event.target.value)
-            }
+            error={ruleErrors.minimumStayNights}
+            onChange={(event) => {
+              setRule('minimumStayNights', event.target.value);
+              setRuleErrors((current) => ({
+                ...current,
+                minimumStayNights: undefined,
+              }));
+            }}
           />
           <Input
             type="number"
+            min={1}
+            step={1}
             label={t('partner.listingWizard.availability.maximumStayNights')}
             helperText={t(
               'partner.listingWizard.availability.maximumStayNightsHint',
             )}
             value={rules.maximumStayNights}
-            onChange={(event) =>
-              setRule('maximumStayNights', event.target.value)
-            }
+            error={ruleErrors.maximumStayNights}
+            onChange={(event) => {
+              setRule('maximumStayNights', event.target.value);
+              setRuleErrors((current) => ({
+                ...current,
+                maximumStayNights: undefined,
+              }));
+            }}
           />
           <Input
             type="number"
+            min={0}
+            step={1}
             label={t(
               'partner.listingWizard.availability.advanceBookingMinHours',
             )}
@@ -185,12 +279,19 @@ export default function AvailabilityStep({
               'partner.listingWizard.availability.advanceBookingMinHoursHint',
             )}
             value={rules.advanceBookingMinHours}
-            onChange={(event) =>
-              setRule('advanceBookingMinHours', event.target.value)
-            }
+            error={ruleErrors.advanceBookingMinHours}
+            onChange={(event) => {
+              setRule('advanceBookingMinHours', event.target.value);
+              setRuleErrors((current) => ({
+                ...current,
+                advanceBookingMinHours: undefined,
+              }));
+            }}
           />
           <Input
             type="number"
+            min={0}
+            step={1}
             label={t(
               'partner.listingWizard.availability.advanceBookingMaxDays',
             )}
@@ -198,9 +299,14 @@ export default function AvailabilityStep({
               'partner.listingWizard.availability.advanceBookingMaxDaysHint',
             )}
             value={rules.advanceBookingMaxDays}
-            onChange={(event) =>
-              setRule('advanceBookingMaxDays', event.target.value)
-            }
+            error={ruleErrors.advanceBookingMaxDays}
+            onChange={(event) => {
+              setRule('advanceBookingMaxDays', event.target.value);
+              setRuleErrors((current) => ({
+                ...current,
+                advanceBookingMaxDays: undefined,
+              }));
+            }}
           />
         </Stack>
       </section>

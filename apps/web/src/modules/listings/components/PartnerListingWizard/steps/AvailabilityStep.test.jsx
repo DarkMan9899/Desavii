@@ -259,4 +259,175 @@ describe('AvailabilityStep (PartnerListingWizard)', () => {
     });
     expect(onNext).toHaveBeenCalled();
   });
+
+  // Step L4 (brief §6-7, §12, §25): booking-rule numeric domain rules
+  // enforced client-side, matching the backend's own positive/nonnegative
+  // contract exactly, plus the minimumStayNights <= maximumStayNights
+  // cross-field rule.
+  describe('numeric validation (Step L4)', () => {
+    test('0 nights is rejected for a positive-required field, PATCH never sent', async () => {
+      const user = userEvent.setup();
+      renderStep({ listingId: 7, onNext: vi.fn() });
+
+      await user.type(
+        screen.getByLabelText('Նվազագույն մնալու տևողություն (գիշեր)'),
+        '0',
+      );
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      expect(
+        await screen.findByText('Մուտքագրեք ամբողջ թիվ՝ առնվազն 1 գիշեր։'),
+      ).toBeInTheDocument();
+      expect(updateListingMutateAsync).not.toHaveBeenCalled();
+    });
+
+    test('a negative night count is rejected, PATCH never sent', async () => {
+      const user = userEvent.setup();
+      renderStep({ listingId: 7, onNext: vi.fn() });
+
+      await user.type(
+        screen.getByLabelText('Նվազագույն մնալու տևողություն (գիշեր)'),
+        '-1',
+      );
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      expect(
+        await screen.findByText('Մուտքագրեք ամբողջ թիվ՝ առնվազն 1 գիշեր։'),
+      ).toBeInTheDocument();
+      expect(updateListingMutateAsync).not.toHaveBeenCalled();
+    });
+
+    test('1 night is accepted for a positive-required field', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+      renderStep({ listingId: 7, onNext });
+
+      await user.type(
+        screen.getByLabelText('Նվազագույն մնալու տևողություն (գիշեր)'),
+        '1',
+      );
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      await waitFor(() => expect(updateListingMutateAsync).toHaveBeenCalled());
+      expect(updateListingMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: {
+            bookingRules: expect.objectContaining({ minimumStayNights: 1 }),
+          },
+        }),
+      );
+    });
+
+    test('a decimal value is rejected as not a whole number', async () => {
+      const user = userEvent.setup();
+      renderStep({ listingId: 7, onNext: vi.fn() });
+
+      await user.type(
+        screen.getByLabelText('Նվազագույն մնալու տևողություն (գիշեր)'),
+        '1.5',
+      );
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      expect(
+        await screen.findByText('Մուտքագրեք ամբողջ թիվ՝ առնվազն 1 գիշեր։'),
+      ).toBeInTheDocument();
+      expect(updateListingMutateAsync).not.toHaveBeenCalled();
+    });
+
+    test('0 is accepted for a nonnegative field (advance booking hours)', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+      renderStep({ listingId: 7, onNext });
+
+      await user.type(
+        screen.getByLabelText('Ամրագրման նվազագույն ժամկետ (ժամ)'),
+        '0',
+      );
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      await waitFor(() => expect(updateListingMutateAsync).toHaveBeenCalled());
+      expect(updateListingMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: {
+            bookingRules: expect.objectContaining({
+              advanceBookingMinHours: 0,
+            }),
+          },
+        }),
+      );
+    });
+
+    test('a negative advance-booking value is rejected, PATCH never sent', async () => {
+      const user = userEvent.setup();
+      renderStep({ listingId: 7, onNext: vi.fn() });
+
+      await user.type(
+        screen.getByLabelText('Ամրագրման նվազագույն ժամկետ (ժամ)'),
+        '-3',
+      );
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      expect(
+        await screen.findByText('Մուտքագրեք ամբողջ թիվ՝ 0 կամ ավելի ժամ։'),
+      ).toBeInTheDocument();
+      expect(updateListingMutateAsync).not.toHaveBeenCalled();
+    });
+
+    test('minimumStayNights > maximumStayNights is rejected with a cross-field error, PATCH never sent', async () => {
+      const user = userEvent.setup();
+      renderStep({ listingId: 7, onNext: vi.fn() });
+
+      await user.type(
+        screen.getByLabelText('Նվազագույն մնալու տևողություն (գիշեր)'),
+        '6',
+      );
+      await user.type(
+        screen.getByLabelText('Առավելագույն մնալու տևողություն (գիշեր)'),
+        '5',
+      );
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      expect(
+        await screen.findByText(
+          'Նվազագույն մնալու տևողությունը չի կարող գերազանցել առավելագույնը։',
+        ),
+      ).toBeInTheDocument();
+      expect(updateListingMutateAsync).not.toHaveBeenCalled();
+    });
+
+    test('minimumStayNights === maximumStayNights is accepted (equality is not forbidden)', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+      renderStep({ listingId: 7, onNext });
+
+      await user.type(
+        screen.getByLabelText('Նվազագույն մնալու տևողություն (գիշեր)'),
+        '5',
+      );
+      await user.type(
+        screen.getByLabelText('Առավելագույն մնալու տևողություն (գիշեր)'),
+        '5',
+      );
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      await waitFor(() => expect(updateListingMutateAsync).toHaveBeenCalled());
+      expect(onNext).toHaveBeenCalled();
+    });
+
+    test('an empty optional field is sent as undefined, never coerced to 0', async () => {
+      const user = userEvent.setup();
+      renderStep({ listingId: 7, onNext: vi.fn() });
+
+      await user.type(
+        screen.getByLabelText('Նվազագույն մնալու տևողություն (գիշեր)'),
+        '3',
+      );
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      await waitFor(() => expect(updateListingMutateAsync).toHaveBeenCalled());
+      const [[call]] = updateListingMutateAsync.mock.calls;
+      expect(call.payload.bookingRules.advanceBookingMinHours).toBeUndefined();
+      expect(call.payload.bookingRules.advanceBookingMaxDays).toBeUndefined();
+    });
+  });
 });

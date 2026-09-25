@@ -103,14 +103,20 @@ export default function LocationStep({
   }, [hasCoordinateError]);
 
   async function onSubmit(values) {
+    // Step L4 (brief §14-16) — `Number('')` is `0`, a mathematically
+    // valid latitude (the equator); RHF's own `required` rule on both
+    // fields already keeps this branch unreachable in normal use (see
+    // this file's own JSDoc header), but that's an indirect guarantee —
+    // this is the direct one, so a blank coordinate can never silently
+    // become "0,0" no matter how this form is reached in the future.
+    const latitude = Number(values.latitude);
+    const longitude = Number(values.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return;
+    }
     await updateListingMutation.mutateAsync({
       id: listingId,
-      payload: {
-        location: {
-          latitude: Number(values.latitude),
-          longitude: Number(values.longitude),
-        },
-      },
+      payload: { location: { latitude, longitude } },
     });
     onNext();
   }

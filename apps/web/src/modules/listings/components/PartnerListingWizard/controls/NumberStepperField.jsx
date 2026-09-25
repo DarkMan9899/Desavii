@@ -17,6 +17,17 @@ import { Label } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import styles from './NumberStepperField.module.scss';
 
+// Step L4 (brief §18) — a plain decimal string only (optional leading
+// `-`, digits, optional single `.`, digits), permissive enough to match
+// every legitimate intermediate typing state ("", "-", "1.", ...).
+// Structurally cannot match anything containing `e`/`E`/`+`, so
+// scientific notation ("1e3") is rejected before `Number()` ever sees
+// it — `Number("1e3")` is a normal finite number (1000), so the
+// existing `Number.isFinite` guard alone can't tell a deliberate large
+// integer from an accidental "e" keystroke a native `type="number"`
+// input happily accepts.
+const PLAIN_DECIMAL_STRING_PATTERN = /^-?\d*\.?\d*$/;
+
 export default function NumberStepperField({
   label,
   unit = undefined,
@@ -28,6 +39,7 @@ export default function NumberStepperField({
   error = undefined,
   required = false,
   disabled = false,
+  integerOnly = false,
   decreaseAriaLabel,
   increaseAriaLabel,
 }) {
@@ -41,6 +53,24 @@ export default function NumberStepperField({
     if (min != null) result = Math.max(min, result);
     if (max != null) result = Math.min(max, result);
     onChange(result);
+  }
+
+  // Step L4 (brief §12, §18) — the typed-input path only (the +/- step
+  // buttons below already always move by exactly `step`, which for the
+  // `step={1}` an INTEGER attribute is given can never itself produce a
+  // fraction). A malformed or (for an INTEGER attribute) fractional
+  // value is rejected outright — the same "invalid input, don't call
+  // onChange" convention `clamp`'s own non-finite guard already
+  // established — never silently rounded/truncated into a different
+  // number the Partner didn't type.
+  function handleTypedChange(event) {
+    const raw = event.target.value;
+    if (!PLAIN_DECIMAL_STRING_PATTERN.test(raw)) return;
+    const next = Number(raw);
+    if (integerOnly && Number.isFinite(next) && !Number.isInteger(next)) {
+      return;
+    }
+    clamp(next);
   }
 
   return (
@@ -69,7 +99,7 @@ export default function NumberStepperField({
           disabled={disabled}
           aria-describedby={error ? errorId : undefined}
           aria-invalid={error ? 'true' : undefined}
-          onChange={(event) => clamp(Number(event.target.value))}
+          onChange={handleTypedChange}
         />
         <Button
           variant="secondary"
@@ -102,6 +132,7 @@ NumberStepperField.propTypes = {
   error: PropTypes.string,
   required: PropTypes.bool,
   disabled: PropTypes.bool,
+  integerOnly: PropTypes.bool,
   decreaseAriaLabel: PropTypes.string.isRequired,
   increaseAriaLabel: PropTypes.string.isRequired,
 };

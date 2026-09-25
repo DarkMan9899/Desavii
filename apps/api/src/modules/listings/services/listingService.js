@@ -80,6 +80,11 @@ const MANAGER_ALLOWED_PERMISSION_KEYS = new Set([
 ]);
 
 const ENUM_ATTRIBUTE_DATA_TYPES = ['ENUM', 'MULTI_ENUM'];
+// Step L4 (brief §9) — `validationMin`/`validationMax`/integer-ness only
+// ever apply to a genuinely numeric attribute; BOOLEAN/STRING/DATE never
+// carried a meaningful range in the first place (see the fix below for
+// why this used to matter).
+const NUMERIC_ATTRIBUTE_DATA_TYPES = ['INTEGER', 'DECIMAL'];
 // Stage 11.3 (Admin Platform — Listing Moderation): this schema's shared
 // `moderation_statuses` lookup — same 4 values `partnerService.js` uses
 // for verification, applied here to the previously-dormant
@@ -251,8 +256,39 @@ export class ListingService {
           dataTypeCode: definition.dataTypeCode,
           optionIds,
         });
-      } else {
+      } else if (
+        NUMERIC_ATTRIBUTE_DATA_TYPES.includes(definition.dataTypeCode)
+      ) {
+        // Step L4 (brief §9, §12) — three real bugs fixed here:
+        // 1. `Number.isFinite` (catches NaN AND +/-Infinity) now gates
+        //    the range checks — previously a non-numeric `entry.value`
+        //    (e.g. a malformed string) coerced to `NaN`, and `NaN <
+        //    min`/`NaN > max` are BOTH `false` in JS, so an invalid
+        //    value silently passed the "validation" that was supposed
+        //    to reject it.
+        // 2. An INTEGER-typed attribute (`seats`, `total_rooms`,
+        //    `doors`, ...) now explicitly rejects a fractional value
+        //    instead of silently letting MySQL round it on insert into
+        //    the `INT` column.
+        // 3. The *coerced* `numericValue` is what gets stored below, not
+        //    the original `entry.value` — previously the raw,
+        //    unvalidated client value was pushed even after the numeric
+        //    checks above had run.
         const numericValue = Number(entry.value);
+        if (!Number.isFinite(numericValue)) {
+          throw new ValidationError(
+            `"${entry.code}" must be a valid, finite number.`,
+            [{ field: 'attributeValues', issue: 'INVALID_NUMBER' }],
+          );
+        }
+        if (
+          definition.dataTypeCode === 'INTEGER' &&
+          !Number.isInteger(numericValue)
+        ) {
+          throw new ValidationError(`"${entry.code}" must be a whole number.`, [
+            { field: 'attributeValues', issue: 'MUST_BE_INTEGER' },
+          ]);
+        }
         if (
           definition.validationMin !== null &&
           numericValue < definition.validationMin
@@ -271,6 +307,12 @@ export class ListingService {
             [{ field: 'attributeValues', issue: 'ABOVE_MAXIMUM' }],
           );
         }
+        resolved.push({
+          attributeDefinitionId: definition.id,
+          dataTypeCode: definition.dataTypeCode,
+          value: numericValue,
+        });
+      } else {
         const isBoolean = definition.dataTypeCode === 'BOOLEAN';
         resolved.push({
           attributeDefinitionId: definition.id,

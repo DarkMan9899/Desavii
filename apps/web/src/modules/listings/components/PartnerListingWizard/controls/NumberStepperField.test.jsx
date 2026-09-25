@@ -137,4 +137,105 @@ describe('NumberStepperField (PartnerListingWizard)', () => {
     );
     expect(screen.getByRole('alert')).toHaveTextContent('Bedrooms is required');
   });
+
+  // Step L4 (brief §10, §12, §18): integer-only enforcement and
+  // scientific-notation rejection for the typed-input path — the +/-
+  // step buttons already can't produce either case on their own.
+  describe('numeric hardening (Step L4)', () => {
+    test('integerOnly rejects a typed decimal value — onChange is never called', () => {
+      const onChange = vi.fn();
+      render(
+        <NumberStepperField
+          label="Seats"
+          decreaseAriaLabel="Decrease Seats"
+          increaseAriaLabel="Increase Seats"
+          value={2}
+          min={1}
+          max={60}
+          integerOnly
+          onChange={onChange}
+        />,
+      );
+      fireEvent.change(screen.getByLabelText('Seats'), {
+        target: { value: '2.5' },
+      });
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    test('without integerOnly, a typed decimal value is accepted (DECIMAL attributes, e.g. bathrooms)', () => {
+      const onChange = vi.fn();
+      render(
+        <NumberStepperField
+          label="Bathrooms"
+          decreaseAriaLabel="Decrease Bathrooms"
+          increaseAriaLabel="Increase Bathrooms"
+          value={1}
+          min={0}
+          max={10}
+          onChange={onChange}
+        />,
+      );
+      fireEvent.change(screen.getByLabelText('Bathrooms'), {
+        target: { value: '1.5' },
+      });
+      expect(onChange).toHaveBeenCalledWith(1.5);
+    });
+
+    test('scientific notation is rejected — onChange is never called', () => {
+      const onChange = vi.fn();
+      render(
+        <NumberStepperField
+          label="Seats"
+          decreaseAriaLabel="Decrease Seats"
+          increaseAriaLabel="Increase Seats"
+          value={2}
+          max={60}
+          onChange={onChange}
+        />,
+      );
+      fireEvent.change(screen.getByLabelText('Seats'), {
+        target: { value: '1e3' },
+      });
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    test('a typed integer value is still accepted with integerOnly set', () => {
+      const onChange = vi.fn();
+      render(
+        <NumberStepperField
+          label="Seats"
+          decreaseAriaLabel="Decrease Seats"
+          increaseAriaLabel="Increase Seats"
+          value={2}
+          min={1}
+          max={60}
+          integerOnly
+          onChange={onChange}
+        />,
+      );
+      fireEvent.change(screen.getByLabelText('Seats'), {
+        target: { value: '7' },
+      });
+      expect(onChange).toHaveBeenCalledWith(7);
+    });
+
+    test('a negative typed value is clamped to min when one is set', () => {
+      const onChange = vi.fn();
+      render(
+        <NumberStepperField
+          label="Seats"
+          decreaseAriaLabel="Decrease Seats"
+          increaseAriaLabel="Increase Seats"
+          value={2}
+          min={1}
+          integerOnly
+          onChange={onChange}
+        />,
+      );
+      fireEvent.change(screen.getByLabelText('Seats'), {
+        target: { value: '-5' },
+      });
+      expect(onChange).toHaveBeenCalledWith(1);
+    });
+  });
 });

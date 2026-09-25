@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import { decimalMoneyAmountSchema } from '../../../validation/decimalMoneyAmount.js';
 
 const listingIdParams = z.object({ id: z.coerce.number().int().positive() });
 const menuIdParams = z.object({
@@ -97,7 +98,7 @@ export const createItemSchema = z.object({
   body: z.object({
     title: z.string().trim().min(1).max(150),
     description: z.string().trim().max(1000).optional(),
-    priceAmount: z.coerce.number().nonnegative(),
+    priceAmount: decimalMoneyAmountSchema,
     priceCurrencyCode: z.string().trim().length(3),
     mediaId: z.coerce.number().int().positive().optional(),
     dietaryMarkers: DIETARY_MARKERS,
@@ -111,7 +112,7 @@ export const updateItemSchema = z.object({
   body: z.object({
     title: z.string().trim().min(1).max(150).optional(),
     description: z.string().trim().max(1000).nullable().optional(),
-    priceAmount: z.coerce.number().nonnegative().optional(),
+    priceAmount: decimalMoneyAmountSchema.optional(),
     priceCurrencyCode: z.string().trim().length(3).optional(),
     mediaId: z.coerce.number().int().positive().nullable().optional(),
     dietaryMarkers: DIETARY_MARKERS,

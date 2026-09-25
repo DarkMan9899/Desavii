@@ -13,6 +13,7 @@
 
 import { z } from 'zod';
 import { LISTING_STATUSES } from '../../../core/domain/listingStatusTransitions.js';
+import { decimalMoneyAmountSchema } from '../../../validation/decimalMoneyAmount.js';
 
 const idParams = z.object({ id: z.coerce.number().int().positive() });
 // Phase 20 (SEO): the public single-listing GET route is the one place a
@@ -72,18 +73,69 @@ const policyValueSchema = z.object({
   value: z.string().trim().min(1).max(255),
 });
 
+// Step L4 (brief §8) — zero-price semantics are NOT changed here: no
+// documented product rule anywhere in the repo says whether a paid
+// pricing model requires `amount > 0`, so the existing `.nonnegative()`
+// contract (zero allowed, from the shared `decimalMoneyAmountSchema`)
+// is kept exactly as-is. See the L4 handoff's "PRICE ZERO SEMANTICS:
+// PRODUCT DECISION REQUIRED" line — only the previously-missing upper
+// bound and decimal-precision check (both already in the shared
+// schema) are newly enforced here.
 const pricingSchema = z.object({
   modelCode: z.string().trim().min(1).max(30),
-  amount: z.coerce.number().nonnegative(),
+  amount: decimalMoneyAmountSchema,
   currencyCode: z.string().trim().length(3),
 });
 
-const bookingRulesSchema = z.object({
-  minimumStayNights: z.coerce.number().int().positive().optional(),
-  maximumStayNights: z.coerce.number().int().positive().optional(),
-  advanceBookingMinHours: z.coerce.number().int().min(0).optional(),
-  advanceBookingMaxDays: z.coerce.number().int().min(0).optional(),
-});
+// Step L4 (brief §6-7) — upper bounds mirror the real DB column ceilings
+// (`listing_booking_rules`: `SMALLINT UNSIGNED` for the two stay-night
+// fields, `INT UNSIGNED` for the two advance-booking fields — migration
+// 0015) rather than an invented product number (brief §5/§17), so an
+// overflow value is rejected with a clean 422 instead of a raw MySQL
+// range error. `bookingRulesRefinements` below adds the
+// `minimumStayNights <= maximumStayNights` cross-field rule brief §7
+// requires — a `.refine()` on the object, not on either field alone,
+// since it depends on both.
+const SMALLINT_UNSIGNED_MAX = 65535;
+const INT_UNSIGNED_MAX = 4294967295;
+
+const bookingRulesSchema = z
+  .object({
+    minimumStayNights: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(SMALLINT_UNSIGNED_MAX)
+      .optional(),
+    maximumStayNights: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(SMALLINT_UNSIGNED_MAX)
+      .optional(),
+    advanceBookingMinHours: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(INT_UNSIGNED_MAX)
+      .optional(),
+    advanceBookingMaxDays: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(INT_UNSIGNED_MAX)
+      .optional(),
+  })
+  .refine(
+    (data) =>
+      data.minimumStayNights === undefined ||
+      data.maximumStayNights === undefined ||
+      data.minimumStayNights <= data.maximumStayNights,
+    {
+      message: 'minimumStayNights cannot exceed maximumStayNights.',
+      path: ['minimumStayNights'],
+    },
+  );
 
 export const listingIdParamsSchema = z.object({
   params: idParams,

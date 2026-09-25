@@ -25,6 +25,15 @@ import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMut
 import { CURRENCY_CODES } from '../../../constants/currencies.js';
 import WizardStepActions from '../WizardStepActions.jsx';
 
+// Step L4 (brief §8, §17-18) — mirrors the backend's own
+// `decimalMoneyAmountSchema` (apps/api/src/validation/
+// decimalMoneyAmount.js): a plain, optionally-negative decimal string
+// (permissive enough for every legitimate typing state — "", "-", "1.")
+// that structurally cannot match scientific notation, and the real
+// `DECIMAL(12,2)` column ceiling `listing_pricing.amount` is stored in.
+const PRICE_STRING_PATTERN = /^-?\d*\.?\d*$/;
+const PRICE_MAX = 9999999999.99;
+
 export default function PricingStep({
   listingId,
   categoryId = null,
@@ -47,6 +56,10 @@ export default function PricingStep({
   const [currencyCode, setCurrencyCode] = useState(
     initialValues.currencyCode ?? null,
   );
+  // Step L4 (brief §8, §22-23) — the amount field's own client-side
+  // validation error, shown immediately next to the field rather than
+  // only surfacing after a backend round-trip.
+  const [amountError, setAmountError] = useState(undefined);
 
   if (isPending) {
     return <Spinner label={t('partner.listingWizard.pricing.loading')} />;
@@ -63,8 +76,49 @@ export default function PricingStep({
   }
 
   const { pricing_models: pricingModels } = metadata;
-  const isComplete =
-    Boolean(modelCode) && amount !== '' && Boolean(currencyCode);
+
+  // Step L4 (brief §8, §12-13, §17-18) — mirrors the backend's own
+  // `decimalMoneyAmountSchema` exactly (nonnegative, DECIMAL(12,2)
+  // ceiling, at-most-2-decimal-places), so a Partner sees the same
+  // rejection client-side that the backend would otherwise only report
+  // after a round-trip. Zero-price semantics are unchanged — see that
+  // schema's own header comment on why zero stays allowed here.
+  function validateAmount(rawValue) {
+    const trimmed = String(rawValue ?? '').trim();
+    if (trimmed === '') return { value: undefined, error: undefined };
+    if (!PRICE_STRING_PATTERN.test(trimmed)) {
+      return {
+        value: undefined,
+        error: t('partner.listingWizard.pricing.amountInvalid'),
+      };
+    }
+    const numeric = Number(trimmed);
+    if (!Number.isFinite(numeric)) {
+      return {
+        value: undefined,
+        error: t('partner.listingWizard.pricing.amountInvalid'),
+      };
+    }
+    if (numeric < 0) {
+      return {
+        value: undefined,
+        error: t('partner.listingWizard.pricing.amountNegative'),
+      };
+    }
+    if (numeric > PRICE_MAX) {
+      return {
+        value: undefined,
+        error: t('partner.listingWizard.pricing.amountTooLarge'),
+      };
+    }
+    if (Math.abs(Math.round(numeric * 100) - numeric * 100) >= 1e-6) {
+      return {
+        value: undefined,
+        error: t('partner.listingWizard.pricing.amountPrecision'),
+      };
+    }
+    return { value: numeric, error: undefined };
+  }
 
   // Step L2 (brief §11) — the amount field's meaning depends entirely on
   // the pricing model picked just above it ("40" means nothing on its
@@ -81,11 +135,20 @@ export default function PricingStep({
     : t('partner.listingWizard.pricing.amountHint');
 
   async function handleContinue() {
-    if (isComplete) {
+    const { value: parsedAmount, error: amountValidationError } =
+      validateAmount(amount);
+    setAmountError(amountValidationError);
+    if (amountValidationError) return;
+
+    if (
+      Boolean(modelCode) &&
+      parsedAmount !== undefined &&
+      Boolean(currencyCode)
+    ) {
       await updateListingMutation.mutateAsync({
         id: listingId,
         payload: {
-          pricing: { modelCode, amount: Number(amount), currencyCode },
+          pricing: { modelCode, amount: parsedAmount, currencyCode },
         },
       });
     }
@@ -121,10 +184,16 @@ export default function PricingStep({
           />
           <Input
             type="number"
+            min={0}
+            step={0.01}
             label={t('partner.listingWizard.pricing.amount')}
             helperText={amountHelperText}
             value={amount}
-            onChange={(event) => setAmount(event.target.value)}
+            error={amountError}
+            onChange={(event) => {
+              setAmount(event.target.value);
+              setAmountError(undefined);
+            }}
           />
           <Select
             label={t('partner.listingWizard.pricing.currency')}

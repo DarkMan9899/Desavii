@@ -141,4 +141,109 @@ describe('PricingStep (PartnerListingWizard)', () => {
     expect(mutateAsync).not.toHaveBeenCalled();
     expect(onNext).toHaveBeenCalled();
   });
+
+  // Step L4 (brief §8, §12-13, §17-18, §25): amount validation matching
+  // the backend's own nonnegative/precision/max-value contract.
+  describe('amount validation (Step L4)', () => {
+    async function fillModelAndCurrency(user) {
+      const [modelTrigger, currencyTrigger] =
+        screen.getAllByTestId('select-trigger');
+      await user.click(modelTrigger);
+      await user.click(screen.getByRole('option', { name: 'Գիշերվա համար' }));
+      await user.click(currencyTrigger);
+      await user.click(screen.getByRole('option', { name: 'AMD' }));
+    }
+
+    test('a negative amount is rejected client-side, PATCH never sent', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+      useListingMetadataQuery.mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: { pricing_models: [{ code: 'PER_NIGHT' }] },
+      });
+      render(<PricingStep listingId={7} categoryId={3} onNext={onNext} />);
+
+      await fillModelAndCurrency(user);
+      await user.type(screen.getByLabelText('Գումար'), '-50');
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      expect(
+        await screen.findByText('Գումարը չի կարող բացասական լինել։'),
+      ).toBeInTheDocument();
+      expect(mutateAsync).not.toHaveBeenCalled();
+    });
+
+    test('zero is accepted (existing nonnegative contract, unchanged by L4)', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+      useListingMetadataQuery.mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: { pricing_models: [{ code: 'PER_NIGHT' }] },
+      });
+      render(<PricingStep listingId={7} categoryId={3} onNext={onNext} />);
+
+      await fillModelAndCurrency(user);
+      await user.type(screen.getByLabelText('Գումար'), '0');
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+      expect(mutateAsync).toHaveBeenCalledWith({
+        id: 7,
+        payload: {
+          pricing: { modelCode: 'PER_NIGHT', amount: 0, currencyCode: 'AMD' },
+        },
+      });
+    });
+
+    test('an amount with more than 2 decimal places is rejected client-side, PATCH never sent', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+      useListingMetadataQuery.mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: { pricing_models: [{ code: 'PER_NIGHT' }] },
+      });
+      render(<PricingStep listingId={7} categoryId={3} onNext={onNext} />);
+
+      await fillModelAndCurrency(user);
+      await user.type(screen.getByLabelText('Գումար'), '19.999');
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      expect(
+        await screen.findByText(
+          'Գումարը կարող է ունենալ առավելագույնը 2 տասնորդական նիշ։',
+        ),
+      ).toBeInTheDocument();
+      expect(mutateAsync).not.toHaveBeenCalled();
+    });
+
+    test('a valid two-decimal amount is accepted', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+      useListingMetadataQuery.mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: { pricing_models: [{ code: 'PER_NIGHT' }] },
+      });
+      render(<PricingStep listingId={7} categoryId={3} onNext={onNext} />);
+
+      await fillModelAndCurrency(user);
+      await user.type(screen.getByLabelText('Գումար'), '19.99');
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+      expect(mutateAsync).toHaveBeenCalledWith({
+        id: 7,
+        payload: {
+          pricing: {
+            modelCode: 'PER_NIGHT',
+            amount: 19.99,
+            currencyCode: 'AMD',
+          },
+        },
+      });
+    });
+  });
 });
