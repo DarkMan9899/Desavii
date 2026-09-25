@@ -53,9 +53,18 @@ export function createListingController(
       try {
         const { id } = req.validated.params;
         const listing = await listingService.getListing(req.principal, id);
+        // Step M4.1: reuses the exact same "Owner or `listing.update`"
+        // rule that already governs private access inside `getListing`
+        // itself (see `ListingService#canManageListing`'s own doc
+        // comment) — an anonymous visitor or an authenticated Customer
+        // both resolve to `false` here, same as they always have.
+        const includeModerationNotes = await listingService.canManageListing(
+          req.principal,
+          listing,
+        );
         res.status(200).json({
           success: true,
-          data: toListingResponse(listing),
+          data: toListingResponse(listing, { includeModerationNotes }),
           meta: null,
           error: null,
         });

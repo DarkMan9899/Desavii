@@ -317,6 +317,204 @@ describe('GET /listings/:id — visibility', () => {
   });
 });
 
+describe('GET /listings/:id — private moderation_notes (Step M4.1)', () => {
+  const FIXTURE_PASSWORD = 'M41WorkflowFixture!2024';
+  const REJECTION_REASON = 'Please add exterior photos and a floor plan.';
+
+  let moderatorToken;
+  let managerToken;
+  let wrongPartnerOwnerToken;
+
+  async function registerFixtureUser(label) {
+    const email = `m41-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+    const res = await request(app).post('/api/v1/auth/register').send({
+      email,
+      password: FIXTURE_PASSWORD,
+      firstName: 'M41',
+      lastName: label,
+    });
+    return { userId: res.body.data.user.id, email };
+  }
+
+  async function createRejectedDraftListing() {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    const submitRes = await request(app)
+      .post(`/api/v1/listings/${listingId}/submit-for-review`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
+    expect(submitRes.status).toBe(200);
+    const rejectRes = await request(app)
+      .patch(`/api/v1/listings/admin/${listingId}/moderation-status`)
+      .set('Authorization', `Bearer ${moderatorToken}`)
+      .send({ status: 'REJECTED', notes: REJECTION_REASON });
+    expect(rejectRes.status).toBe(200);
+    return listingId;
+  }
+
+  beforeAll(async () => {
+    // Moderator fixture — mirrors `listingModerationWorkflow.test.js`'s own
+    // MODERATOR-seeding convention (direct `role_user` insert), never a
+    // second, divergent implementation.
+    const modReg = await registerFixtureUser('moderator');
+    await pool.query(
+      `INSERT IGNORE INTO role_user (role_id, user_id) SELECT id, ? FROM roles WHERE code = 'MODERATOR'`,
+      [modReg.userId],
+    );
+    ({ accessToken: moderatorToken } = await login(
+      modReg.email,
+      FIXTURE_PASSWORD,
+    ));
+
+    // Manager fixture, assigned to the SAME partner the rejected fixture
+    // listing below belongs to — mirrors `listingModerationWorkflow
+    // .test.js`'s own `createAssignedManager` helper.
+    const managerReg = await registerFixtureUser('manager');
+    await request(app)
+      .post('/api/v1/managers/admin/promote')
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ userId: managerReg.userId });
+    await request(app)
+      .post(`/api/v1/managers/admin/${managerReg.userId}/companies`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ partnerId });
+    ({ accessToken: managerToken } = await login(
+      managerReg.email,
+      FIXTURE_PASSWORD,
+    ));
+
+    // A genuinely different Partner owner (own partner row, own
+    // ownership), never assigned to `partnerId` in any way — the "wrong
+    // Partner" case.
+    const wrongOwnerReg = await registerFixtureUser('wrong-owner');
+    const [[pendingStatus]] = await pool.query(
+      "SELECT id FROM moderation_statuses WHERE code = 'PENDING'",
+    );
+    const [[approvedStatus]] = await pool.query(
+      "SELECT id FROM moderation_statuses WHERE code = 'APPROVED'",
+    );
+    const [[ownerRole]] = await pool.query(
+      "SELECT id FROM partner_employee_roles WHERE code = 'OWNER'",
+    );
+    const [wrongPartnerResult] = await pool.query(
+      `INSERT INTO partners
+        (legal_name, display_name, slug, verification_status_id, moderation_status_id, owner_user_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        'Wrong Partner LLC',
+        'Wrong Partner',
+        `wrong-partner-${Date.now()}`,
+        pendingStatus.id,
+        approvedStatus.id,
+        wrongOwnerReg.userId,
+      ],
+    );
+    await pool.query(
+      'INSERT INTO partner_employees (partner_id, user_id, role_id) VALUES (?, ?, ?)',
+      [wrongPartnerResult.insertId, wrongOwnerReg.userId, ownerRole.id],
+    );
+    ({ accessToken: wrongPartnerOwnerToken } = await login(
+      wrongOwnerReg.email,
+      FIXTURE_PASSWORD,
+    ));
+  }, 30_000);
+
+  test('A: an anonymous caller never receives moderation_notes, even when one is present in the DB on a PUBLISHED listing', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
+    // Forces a non-null moderation_notes directly, bypassing the normal
+    // state machine (which always clears it on approval) — proves the
+    // omission holds structurally, not merely because the column happens
+    // to be empty in the ordinary case.
+    await pool.query('UPDATE listings SET moderation_notes = ? WHERE id = ?', [
+      'Internal-only note that must never reach the public.',
+      listingId,
+    ]);
+
+    const res = await request(app).get(`/api/v1/listings/${listingId}`);
+    expect(res.status).toBe(200);
+    expect('moderation_notes' in res.body.data).toBe(false);
+  });
+
+  test('B: an authenticated Customer viewing the same public listing never receives moderation_notes — authentication alone is not sufficient', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
+    await pool.query('UPDATE listings SET moderation_notes = ? WHERE id = ?', [
+      'Internal-only note that must never reach a customer.',
+      listingId,
+    ]);
+
+    const res = await request(app)
+      .get(`/api/v1/listings/${listingId}`)
+      .set('Authorization', `Bearer ${customer.accessToken}`);
+    expect(res.status).toBe(200);
+    expect('moderation_notes' in res.body.data).toBe(false);
+  });
+
+  test('C: a different Partner viewing the same public listing never receives moderation_notes — only the unchanged public shape', async () => {
+    const created = await createDraftListing();
+    const listingId = created.body.data.id;
+    await makePublishable(listingId);
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ publicationPeriodDays: 90 });
+    await pool.query('UPDATE listings SET moderation_notes = ? WHERE id = ?', [
+      'Internal-only note that must never reach a competing partner.',
+      listingId,
+    ]);
+
+    const res = await request(app)
+      .get(`/api/v1/listings/${listingId}`)
+      .set('Authorization', `Bearer ${wrongPartnerOwnerToken}`);
+    expect(res.status).toBe(200);
+    expect('moderation_notes' in res.body.data).toBe(false);
+  });
+
+  test('D: the owner viewing their own DRAFT+REJECTED listing sees the exact moderation reason', async () => {
+    const listingId = await createRejectedDraftListing();
+
+    const res = await request(app)
+      .get(`/api/v1/listings/${listingId}`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('DRAFT');
+    expect(res.body.data.moderation_status).toBe('REJECTED');
+    expect(res.body.data.moderation_notes).toBe(REJECTION_REASON);
+  });
+
+  test('E: a Manager assigned to the same partner (grants listing.update) also sees the exact moderation reason', async () => {
+    const listingId = await createRejectedDraftListing();
+
+    const res = await request(app)
+      .get(`/api/v1/listings/${listingId}`)
+      .set('Authorization', `Bearer ${managerToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.moderation_notes).toBe(REJECTION_REASON);
+  });
+
+  test('F: a different Partner viewing this non-public returned listing is masked exactly as before (404), with no reason leak', async () => {
+    const listingId = await createRejectedDraftListing();
+
+    const res = await request(app)
+      .get(`/api/v1/listings/${listingId}`)
+      .set('Authorization', `Bearer ${wrongPartnerOwnerToken}`);
+    expect(res.status).toBe(404);
+    expect(res.body.data).toBeNull();
+  });
+});
+
 // Step A3 (Listing → Company Linking): the listing detail page's company
 // attribution block reads this `company` field directly off `GET
 // /listings/:id`.

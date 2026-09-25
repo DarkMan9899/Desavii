@@ -337,12 +337,20 @@ describe('PATCH /listings/admin/:id/moderation-status (approve/reject with notes
  * P2.1 (Admin Listing Detail): `moderation_notes` was already fetched by
  * the repository but never exposed by any DTO — the admin detail page
  * this section verifies had no data source for it. Confirms it's now
- * present on the admin response, and deliberately absent from the
- * public one (a moderation/rejection note is internal admin content,
- * not something a public visitor should see).
+ * present on the admin response, and always absent from a genuinely
+ * public/anonymous request (a moderation/rejection note is internal
+ * content, not something an anonymous visitor should see).
+ *
+ * Step M4.1: `GET /listings/:id` now DELIBERATELY also includes
+ * `moderation_notes` for the listing's own owner (see
+ * `ListingService#canManageListing` / `toListingResponse`'s
+ * `includeModerationNotes` option) — that is the whole point of M4.1, not
+ * a regression. This test's own "public" claim previously used the
+ * vendor's own token, which conflated "the owner's authorized response"
+ * with "the public shape"; it now asserts each separately.
  */
 describe('GET /listings/admin/:id exposes moderation_notes (P2.1)', () => {
-  test('a note set via reject is returned on the admin detail response, never on the public one', async () => {
+  test("a note set via reject is returned on the admin detail response, on the owner's own response (M4.1), and never on a genuinely anonymous request", async () => {
     const rejectRes = await request(app)
       .patch(`/api/v1/listings/admin/${listingId}/moderation-status`)
       .set('Authorization', `Bearer ${admin.accessToken}`)
@@ -357,18 +365,30 @@ describe('GET /listings/admin/:id exposes moderation_notes (P2.1)', () => {
       'Please add exterior photos.',
     );
 
-    // The vendor owns this listing, so the public route's owner-fallback
-    // visibility rule lets them see it despite it being
-    // UNPUBLISHED/REJECTED (Step M2B: a Moderator's REJECTED on an
-    // already-PUBLISHED listing moves it to UNPUBLISHED, never deletes
-    // or archives it) — the point here is only that `moderation_notes`
-    // itself is absent from this response shape, regardless of who can
-    // reach it.
-    const publicRes = await request(app)
+    // Step M4.1: the vendor owns this listing, so `GET /listings/:id`
+    // now legitimately includes the reason for them too — the exact gap
+    // M4.1 closed (see `listingCrud.test.js`'s own "private
+    // moderation_notes" suite for the full owner/manager/wrong-partner
+    // matrix; this is just a targeted regression check alongside the
+    // admin-detail assertion above).
+    const ownerRes = await request(app)
       .get(`/api/v1/listings/${listingId}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`);
-    expect(publicRes.status).toBe(200);
-    expect(publicRes.body.data.moderation_notes).toBeUndefined();
+    expect(ownerRes.status).toBe(200);
+    expect(ownerRes.body.data.moderation_notes).toBe(
+      'Please add exterior photos.',
+    );
+
+    // The listing is UNPUBLISHED/REJECTED at this point (Step M2B: a
+    // Moderator's REJECTED on an already-PUBLISHED listing moves it to
+    // UNPUBLISHED, never deletes or archives it), so it isn't publicly
+    // visible at all — a genuinely anonymous request 404s, never leaking
+    // the reason (or anything else about this listing's existence).
+    const anonymousRes = await request(app).get(
+      `/api/v1/listings/${listingId}`,
+    );
+    expect(anonymousRes.status).toBe(404);
+    expect(anonymousRes.body.data).toBeNull();
   });
 });
 

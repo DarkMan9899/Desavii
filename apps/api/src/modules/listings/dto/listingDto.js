@@ -133,7 +133,22 @@ export function toCompanyAttributionResponse(company) {
   };
 }
 
-export function toListingResponse(listing) {
+/**
+ * Step M4.1 — `includeModerationNotes` defaults to `false` so every
+ * existing caller (the public/shared `GET /listings/:id` route, every
+ * mutation response, `toListingOwnerResponse`) keeps returning the exact
+ * same public-safe shape unchanged. Only `listingController.get` passes
+ * `true`, and only after confirming (via `ListingService#canManageListing`
+ * — the identical "Owner or `listing.update`" rule `getListing`'s own
+ * private-access branch already applies) that this specific caller is
+ * privately authorized to manage THIS listing. Omitted (not merely
+ * `null`) when `false`, so the key is genuinely absent from the response,
+ * not just empty.
+ */
+export function toListingResponse(
+  listing,
+  { includeModerationNotes = false } = {},
+) {
   return {
     id: listing.id,
     partner_id: listing.partnerId,
@@ -141,6 +156,9 @@ export function toListingResponse(listing) {
     slug: listing.slug,
     status: listing.statusCode,
     moderation_status: listing.moderationStatusCode,
+    ...(includeModerationNotes
+      ? { moderation_notes: listing.moderationNotes ?? null }
+      : {}),
     is_contact_visible: listing.isContactVisible,
     is_featured: listing.isFeatured,
     published_at: listing.publishedAt,

@@ -550,6 +550,26 @@ export class ListingService {
   }
 
   /**
+   * Step M4.1 — whether `principal` may access `listing` through the
+   * private management path: the exact same "Owner or `listing.update`"
+   * rule `getListing`'s own non-public branch already applies (same
+   * `#isOwnerOrHasPermission` call, same permission key), just exposed as
+   * its own read so a caller that already has a resolved `listing` can
+   * ask "is it safe to also show this principal the private moderation
+   * reason" without duplicating that authorization rule or re-deriving
+   * public-visibility from scratch. Never used to gate an action — only
+   * to decide response shape (`listingController.get`) — so it takes an
+   * already-resolved `listing`, not an id/slug, and never throws.
+   */
+  async canManageListing(principal, listing) {
+    return this.#isOwnerOrHasPermission(
+      principal,
+      listing.partnerId,
+      'listing.update',
+    );
+  }
+
+  /**
    * Booking-eligibility guard (Listing Lifetime / Renewal, Step B4) —
    * deliberately narrower than `getListing`'s visibility masking: this
    * only rejects a listing whose publication period has already expired

@@ -951,7 +951,15 @@ describe('Public visibility regression after M2B (brief §23, §32)', () => {
     expect(hoursRes.status).toBe(404);
   });
 
-  test('moderation_notes is never exposed on the public response shape', async () => {
+  // Step M4.1: `GET /listings/:id` now deliberately includes
+  // `moderation_notes` for the listing's own owner (see
+  // `ListingService#canManageListing`) — that's the fix M4.1 shipped, not
+  // a regression. This test's original "public response shape" claim
+  // used the owner's own token, which conflated the two; it now checks
+  // each explicitly (full owner/manager/wrong-partner/anonymous/customer
+  // matrix lives in `listingCrud.test.js`'s "private moderation_notes"
+  // suite — this is just a targeted regression check in place).
+  test('moderation_notes reaches the owner (Step M4.1) but never a genuinely public/anonymous request', async () => {
     const id = await createPendingReviewListing();
     await request(app)
       .patch(`/api/v1/listings/admin/${id}/moderation-status`)
@@ -962,7 +970,16 @@ describe('Public visibility regression after M2B (brief §23, §32)', () => {
       .get(`/api/v1/listings/${id}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`);
     expect(ownerRes.status).toBe(200);
-    expect(ownerRes.body.data.moderation_notes).toBeUndefined();
+    expect(ownerRes.body.data.moderation_notes).toBe(
+      'Confidential internal note.',
+    );
+
+    // The listing is DRAFT+REJECTED here (PENDING_REVIEW + REJECTED ->
+    // DRAFT), so it isn't publicly visible at all — a genuinely anonymous
+    // request 404s, never leaking the reason.
+    const anonymousRes = await request(app).get(`/api/v1/listings/${id}`);
+    expect(anonymousRes.status).toBe(404);
+    expect(anonymousRes.body.data).toBeNull();
   });
 });
 
