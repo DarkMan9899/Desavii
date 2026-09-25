@@ -8,6 +8,16 @@
  * deliberate MVP simplification for this sprint; `position` is still set
  * server-side at upload time (upload order), so the gallery is never
  * unordered.
+ *
+ * Step L3.1 (brief §4): exact JPEG/PNG/WebP accept list (was a broad
+ * `image/*`), and a `maxSelectionCount` matching the listing gallery's
+ * own per-selection limit — this gallery already supported selecting
+ * several files at once (the sequential upload loop below), so brief §4's
+ * "if it supports multi-select, apply the same maximum 5" applies as-is,
+ * no redesign needed. Reuses the exact `partner.listingWizard.media.*`
+ * error copy `MediaStep.jsx` already established in Step L3, the same
+ * way this file already borrowed `dropzoneEmphasis`/`dropzoneInstructions`/
+ * `cover`/`remove` from that namespace rather than duplicating them.
  */
 
 import { useState } from 'react';
@@ -22,7 +32,9 @@ import {
   useRemoveBookableUnitMediaMutation,
 } from '../../../availability/index.js';
 
+const ACCEPTED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_FILES_PER_SELECTION = 5;
 
 export default function RoomMediaGallery({ unitId, listingId, media = [] }) {
   const { t } = useTranslation();
@@ -30,14 +42,32 @@ export default function RoomMediaGallery({ unitId, listingId, media = [] }) {
   const removeMutation = useRemoveBookableUnitMediaMutation();
 
   const [uploads, setUploads] = useState([]);
+  const [selectionError, setSelectionError] = useState(null);
 
-  // Sequential, never `Promise.all`/parallel `forEach`: the server derives
-  // each new photo's `position`/`is_cover` from how many photos already
-  // exist for this room at request time — two uploads racing in parallel
-  // would both see "0 existing photos" and both become the cover. Only
-  // ever one attach request in flight for this room at a time.
+  function statusTextFor(upload) {
+    if (upload.status !== 'error') {
+      return t('partner.listingWizard.media.uploading');
+    }
+    if (upload.reason === 'size') {
+      return t('partner.listingWizard.media.imageTooLarge');
+    }
+    if (upload.reason === 'type') {
+      return t('partner.listingWizard.media.unsupportedImageFormat');
+    }
+    if (upload.reason === 'server') {
+      return t('partner.listingWizard.media.uploadRejectedByServer');
+    }
+    return t('partner.listingWizard.media.uploadFailed');
+  }
+
+  // Sequential, never `Promise.all`/parallel `forEach`: kept even though
+  // the backend's own position/cover assignment is now transactionally
+  // safe under concurrency (Step L3.1) — sequential upload is still the
+  // simpler, perfectly adequate design for "select up to 5 photos and
+  // watch them upload in order," not something that needed fixing.
   async function handleFilesSelected(files) {
-    // eslint-disable-next-line no-restricted-syntax -- must upload one at a time, in order
+    setSelectionError(null);
+    // eslint-disable-next-line no-restricted-syntax -- sequential by design, see comment above
     for (const file of files) {
       const uploadId = `${file.name}-${file.size}-${file.lastModified}`;
       setUploads((current) => [
@@ -50,10 +80,13 @@ export default function RoomMediaGallery({ unitId, listingId, media = [] }) {
         setUploads((current) =>
           current.filter((upload) => upload.id !== uploadId),
         );
-      } catch {
+      } catch (err) {
+        const reason = err?.status === 413 ? 'size' : 'server';
         setUploads((current) =>
           current.map((upload) =>
-            upload.id === uploadId ? { ...upload, status: 'error' } : upload,
+            upload.id === uploadId
+              ? { ...upload, status: 'error', reason }
+              : upload,
           ),
         );
       }
@@ -61,6 +94,7 @@ export default function RoomMediaGallery({ unitId, listingId, media = [] }) {
   }
 
   function handleRejected(rejections) {
+    setSelectionError(null);
     setUploads((current) => [
       ...current,
       ...rejections.map(({ file, reason }) => ({
@@ -70,6 +104,14 @@ export default function RoomMediaGallery({ unitId, listingId, media = [] }) {
         reason,
       })),
     ]);
+  }
+
+  function handleTooManyFiles() {
+    setSelectionError(
+      t('partner.listingWizard.media.tooManyImages', {
+        max: MAX_IMAGE_FILES_PER_SELECTION,
+      }),
+    );
   }
 
   function remove(mediaId) {
@@ -89,13 +131,16 @@ export default function RoomMediaGallery({ unitId, listingId, media = [] }) {
 
       <FileDropzone
         label={t('partner.listingWizard.availability.roomGalleryDropzone')}
-        accept="image/*"
+        accept={ACCEPTED_IMAGE_MIME_TYPES.join(',')}
         maxSizeBytes={MAX_UPLOAD_BYTES}
+        maxSelectionCount={MAX_IMAGE_FILES_PER_SELECTION}
         currentCount={sortedMedia.length}
         onFilesSelected={(files) => handleFilesSelected(files)}
         onRejected={(rejections) => handleRejected(rejections)}
+        onTooManyFiles={() => handleTooManyFiles()}
         emphasisText={t('partner.listingWizard.media.dropzoneEmphasis')}
         instructionsText={t('partner.listingWizard.media.dropzoneInstructions')}
+        error={selectionError}
       />
 
       {uploads.length > 0 && (
@@ -104,9 +149,7 @@ export default function RoomMediaGallery({ unitId, listingId, media = [] }) {
             <li key={upload.id}>
               {upload.name}
               {' — '}
-              {upload.status === 'error'
-                ? t('partner.listingWizard.media.uploadFailed')
-                : t('partner.listingWizard.media.uploading')}
+              {statusTextFor(upload)}
             </li>
           ))}
         </ul>

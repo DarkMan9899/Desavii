@@ -32,7 +32,10 @@
 
 import express, { Router } from 'express';
 import { validate } from '../../validation/validate.js';
-import { ALLOWED_IMAGE_MIME_TYPES } from '../media/validators/mediaConstraints.js';
+import {
+  ALLOWED_IMAGE_MIME_TYPES,
+  MAX_FILE_SIZE_BYTES,
+} from '../media/validators/mediaConstraints.js';
 import {
   registerUnitSchema,
   unitIdParamsSchema,
@@ -122,8 +125,14 @@ export default function createAvailabilityRoutes({
     requireAuth,
     // Scoped to this one route only, same pattern as the Listings
     // module's own `/media` route — the global body parser skips
-    // non-JSON content-types.
-    express.raw({ type: ALLOWED_IMAGE_MIME_TYPES, limit: '20mb' }),
+    // non-JSON content-types. Step L3.1: was a 20 MiB pre-check buffer
+    // against the same 10 MiB real image limit every other image route
+    // now enforces — the canonical byte constant closes that gap here
+    // too, same as L3 did for listings media.
+    express.raw({
+      type: ALLOWED_IMAGE_MIME_TYPES,
+      limit: MAX_FILE_SIZE_BYTES.image,
+    }),
     validate(unitIdParamsSchema),
     availabilityController.attachUnitMedia,
   );

@@ -1827,6 +1827,17 @@ export class ListingService {
 
     await this.#listingRepository.removeMedia(mediaId, principal.userId);
 
+    // Step L3.1 (brief §10) — the DB row is already soft-deleted (and so
+    // excluded from every `scopeActive` read) before this runs, so a
+    // storage-delete failure here can only ever leave an orphaned
+    // object, never a live/public DB record pointing at a file that's
+    // already gone. Best-effort: `StorageProvider.delete` already logs
+    // its own failure (S3) or is a safe no-op on a missing file (local).
+    const key = this.#storageProvider.getKeyFromUrl(media.url);
+    if (key) {
+      await this.#storageProvider.delete(key).catch(() => {});
+    }
+
     await this.#auditLogger.record({
       actorId: principal.userId,
       action: 'listing.media_removed',

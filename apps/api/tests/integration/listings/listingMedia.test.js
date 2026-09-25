@@ -8,6 +8,8 @@
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
 import sharp from 'sharp';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { up } from '../../../src/infrastructure/database/migrate.js';
 import { seedAll } from '../../../src/infrastructure/database/seeds/index.js';
 import app from '../../../src/app.js';
@@ -387,4 +389,27 @@ describe('Step L3 — media upload security hardening', () => {
     expect(positions).toEqual([0, 1, 2, 3, 4]);
     expect(listRes.body.data.filter((m) => m.is_cover)).toHaveLength(1);
   }, 30_000);
+
+  // Step L3.1 (brief §10, §18) — closes the confirmed gap L3 left open:
+  // `DELETE /listings/:id/media/:mediaId` used to soft-delete the DB row
+  // only, leaving the underlying object in local/object storage forever.
+  test('deleting listing media removes the underlying stored file, not just the DB row', async () => {
+    const listingId = await createDraftListing();
+    const attachRes = await request(app)
+      .post(`/api/v1/listings/${listingId}/media`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Content-Type', 'image/png')
+      .send(await makeImage('png'));
+    const filePath = path.resolve(
+      'uploads',
+      attachRes.body.data.url.replace(/^\/uploads\//, ''),
+    );
+    await expect(fs.access(filePath)).resolves.toBeUndefined();
+
+    await request(app)
+      .delete(`/api/v1/listings/${listingId}/media/${attachRes.body.data.id}`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+
+    await expect(fs.access(filePath)).rejects.toThrow();
+  });
 });

@@ -99,6 +99,13 @@ export class S3StorageProvider extends StorageProvider {
     return `${this.#publicBaseUrl}/${key}`;
   }
 
+  getKeyFromUrl(url) {
+    if (!this.#publicBaseUrl || typeof url !== 'string') return null;
+    const prefix = `${this.#publicBaseUrl}/`;
+    if (!url.startsWith(prefix)) return null;
+    return url.slice(prefix.length);
+  }
+
   async delete(key) {
     try {
       await this.#client.send(

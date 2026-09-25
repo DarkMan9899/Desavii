@@ -72,6 +72,12 @@ export class LocalStorageProvider extends StorageProvider {
     return `${this.#publicPathPrefix}/${key}`;
   }
 
+  getKeyFromUrl(url) {
+    const prefix = `${this.#publicPathPrefix}/`;
+    if (typeof url !== 'string' || !url.startsWith(prefix)) return null;
+    return url.slice(prefix.length);
+  }
+
   async delete(key) {
     const filePath = this.#resolvePath(key);
     await fs.rm(filePath, { force: true });

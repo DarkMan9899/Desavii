@@ -123,6 +123,23 @@ export class MySqlBookableUnitRepository {
     return toDomain(rows[0]);
   }
 
+  /**
+   * Step L3.1 — row-locks the unit for a media-attach transaction, same
+   * convention as `mysqlListingRepository.js#lockById`: the identical
+   * base-row shape `findById` reads, plus `FOR UPDATE`, so it's only ever
+   * meaningful inside a transaction. Unlike the listings version, this
+   * keeps the `scopeActive` filter — there is no admin flow here that
+   * needs to resolve a soft-deleted unit, so "not found" is the correct,
+   * simple outcome for a unit retired mid-flight.
+   */
+  async lockById(id, connection) {
+    const [rows] = await connection.query(
+      `SELECT ${SELECT_COLUMNS} ${FROM_JOINED} WHERE bu.id = ? AND ${scopeActive('bu')} FOR UPDATE`,
+      [id],
+    );
+    return toDomain(rows[0]);
+  }
+
   async listForListing(listingId, connection = this.#pool) {
     const [rows] = await connection.query(
       `SELECT ${SELECT_COLUMNS} ${FROM_JOINED} WHERE bu.listing_id = ? AND ${scopeActive('bu')} ORDER BY bu.id ASC`,
@@ -387,6 +404,16 @@ export class MySqlBookableUnitRepository {
     return rows[0] ? toMediaDomain(rows[0]) : null;
   }
 
+  /**
+   * Step L3.1 — mirrors `mysqlListingRepository.js#attachMedia` exactly:
+   * `position`/`is_cover` are computed inside this single
+   * `INSERT ... SELECT`, never read-then-written by the caller. Real
+   * cross-request safety additionally requires the caller to open this
+   * on a connection that already holds `lockById`'s row lock on the
+   * parent `bookable_units` row as the transaction's first statement
+   * (`AvailabilityService#attachUnitMedia`) — see that repository
+   * method's own header for the full reasoning, identical here.
+   */
   async attachMedia(
     {
       bookableUnitId,
@@ -395,8 +422,6 @@ export class MySqlBookableUnitRepository {
       mimeType,
       fileSizeBytes,
       ownerUserId,
-      position,
-      isCover,
     },
     connection = this.#pool,
   ) {
@@ -415,13 +440,20 @@ export class MySqlBookableUnitRepository {
       const [result] = await connection.query(
         `INSERT INTO media
           (mediable_type, mediable_id, media_type_id, url, position, is_cover, upload_status_id, moderation_status_id, mime_type, file_size_bytes, owner_user_id, created_by, updated_by)
-         VALUES ('bookable_unit', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         SELECT 'bookable_unit', ?, ?, ?,
+           COALESCE(MAX(m.position) + 1, 0),
+           NOT EXISTS (
+             SELECT 1 FROM media m2
+             WHERE m2.mediable_type = 'bookable_unit' AND m2.mediable_id = ? AND m2.deleted_at IS NULL
+           ),
+           ?, ?, ?, ?, ?, ?, ?
+         FROM media m
+         WHERE m.mediable_type = 'bookable_unit' AND m.mediable_id = ? AND m.deleted_at IS NULL`,
         [
           bookableUnitId,
           mediaType.id,
           url,
-          position,
-          isCover ? 1 : 0,
+          bookableUnitId,
           completedStatus.id,
           pendingStatus.id,
           mimeType,
@@ -429,6 +461,7 @@ export class MySqlBookableUnitRepository {
           ownerUserId,
           ownerUserId,
           ownerUserId,
+          bookableUnitId,
         ],
       );
       return this.findMediaById(result.insertId, connection);

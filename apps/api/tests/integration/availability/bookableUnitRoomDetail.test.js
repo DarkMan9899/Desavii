@@ -11,6 +11,9 @@
 
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
+import sharp from 'sharp';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { up } from '../../../src/infrastructure/database/migrate.js';
 import { seedAll } from '../../../src/infrastructure/database/seeds/index.js';
 import app from '../../../src/app.js';
@@ -447,6 +450,176 @@ describe('room media (POST/GET/DELETE /availability/units/:id/media)', () => {
       )
       .set('Authorization', `Bearer ${vendor.accessToken}`);
     expect(res.status).toBe(404);
+  });
+});
+
+// Step L3.1 — room/unit media reuses the exact L3 security primitives
+// (real content validation, UUID keys, transactional position/cover,
+// storage cleanup). `imageContentValidator.test.js`/`mediaConstraints
+// .test.js` already unit-test that shared logic in isolation; this
+// proves it's actually wired into the unit-media route, mirroring
+// `listingMedia.test.js`'s own Step L3 additions for the listing route.
+describe('Step L3.1 — room/unit media security hardening', () => {
+  async function makeImage(format, { width = 2, height = 2 } = {}) {
+    const image = sharp({
+      create: {
+        width,
+        height,
+        channels: 3,
+        background: { r: 20, g: 40, b: 60 },
+      },
+    });
+    if (format === 'jpeg') return image.jpeg().toBuffer();
+    if (format === 'webp') return image.webp().toBuffer();
+    return image.png().toBuffer();
+  }
+
+  function localFilePathFromUrl(url) {
+    const relative = url.replace(/^\/uploads\//, '');
+    return path.resolve('uploads', relative);
+  }
+
+  test('a genuine JPEG is accepted', async () => {
+    const unit = await registerUnit(listingId, { unitLabel: 'L3.1 JPEG Room' });
+    const res = await request(app)
+      .post(`/api/v1/availability/units/${unit.id}/media`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Content-Type', 'image/jpeg')
+      .send(await makeImage('jpeg'));
+    expect(res.status).toBe(201);
+  });
+
+  test('a genuine WebP is accepted', async () => {
+    const unit = await registerUnit(listingId, { unitLabel: 'L3.1 WebP Room' });
+    const res = await request(app)
+      .post(`/api/v1/availability/units/${unit.id}/media`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Content-Type', 'image/webp')
+      .send(await makeImage('webp'));
+    expect(res.status).toBe(201);
+  });
+
+  test('SVG is rejected', async () => {
+    const unit = await registerUnit(listingId, { unitLabel: 'L3.1 SVG Room' });
+    const res = await request(app)
+      .post(`/api/v1/availability/units/${unit.id}/media`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Content-Type', 'image/svg+xml')
+      .send(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>'));
+    expect([415, 422]).toContain(res.status);
+  });
+
+  test('GIF is rejected', async () => {
+    const unit = await registerUnit(listingId, { unitLabel: 'L3.1 GIF Room' });
+    const res = await request(app)
+      .post(`/api/v1/availability/units/${unit.id}/media`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Content-Type', 'image/gif')
+      .send(Buffer.from('GIF89a not really decodable'));
+    expect([415, 422]).toContain(res.status);
+  });
+
+  test('BMP is rejected', async () => {
+    const unit = await registerUnit(listingId, { unitLabel: 'L3.1 BMP Room' });
+    const res = await request(app)
+      .post(`/api/v1/availability/units/${unit.id}/media`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Content-Type', 'image/bmp')
+      .send(Buffer.from('BM not really decodable'));
+    expect([415, 422]).toContain(res.status);
+  });
+
+  test('a declared image/png whose actual bytes are a JPEG is rejected as a content mismatch', async () => {
+    const unit = await registerUnit(listingId, {
+      unitLabel: 'L3.1 Mismatch Room',
+    });
+    const res = await request(app)
+      .post(`/api/v1/availability/units/${unit.id}/media`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Content-Type', 'image/png')
+      .send(await makeImage('jpeg'));
+    expect(res.status).toBe(422);
+  });
+
+  test('a truncated/corrupt PNG is rejected', async () => {
+    const unit = await registerUnit(listingId, {
+      unitLabel: 'L3.1 Corrupt Room',
+    });
+    const truncated = ONE_PX_PNG.subarray(0, Math.floor(ONE_PX_PNG.length / 2));
+    const res = await request(app)
+      .post(`/api/v1/availability/units/${unit.id}/media`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Content-Type', 'image/png')
+      .send(truncated);
+    expect(res.status).toBe(422);
+  });
+
+  test('an image over 10 MiB is rejected at the body-parser boundary (413), not the old 20 MiB ceiling', async () => {
+    const unit = await registerUnit(listingId, {
+      unitLabel: 'L3.1 Oversized Room',
+    });
+    const oversized = Buffer.alloc(10 * 1024 * 1024 + 1, 0);
+    const res = await request(app)
+      .post(`/api/v1/availability/units/${unit.id}/media`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Content-Type', 'image/png')
+      .send(oversized);
+    expect(res.status).toBe(413);
+    expect(res.body.error.code).toBe('PAYLOAD_TOO_LARGE');
+  }, 30_000);
+
+  test('concurrent uploads to the same room get distinct positions and exactly one cover image', async () => {
+    const unit = await registerUnit(listingId, {
+      unitLabel: 'L3.1 Concurrency Room',
+    });
+    const uploadOne = () =>
+      makeImage('png').then((buf) =>
+        request(app)
+          .post(`/api/v1/availability/units/${unit.id}/media`)
+          .set('Authorization', `Bearer ${vendor.accessToken}`)
+          .set('Content-Type', 'image/png')
+          .send(buf),
+      );
+
+    const responses = await Promise.all([
+      uploadOne(),
+      uploadOne(),
+      uploadOne(),
+      uploadOne(),
+      uploadOne(),
+    ]);
+    responses.forEach((res) => expect(res.status).toBe(201));
+
+    const listRes = await request(app)
+      .get(`/api/v1/availability/units/${unit.id}/media`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+
+    const positions = listRes.body.data
+      .map((m) => m.position)
+      .sort((a, b) => a - b);
+    expect(positions).toEqual([0, 1, 2, 3, 4]);
+    expect(listRes.body.data.filter((m) => m.is_cover)).toHaveLength(1);
+  }, 30_000);
+
+  test('deleting a room photo removes the underlying stored file, not just the DB row', async () => {
+    const unit = await registerUnit(listingId, {
+      unitLabel: 'L3.1 Delete Cleanup Room',
+    });
+    const attachRes = await request(app)
+      .post(`/api/v1/availability/units/${unit.id}/media`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .set('Content-Type', 'image/png')
+      .send(await makeImage('png'));
+    const filePath = localFilePathFromUrl(attachRes.body.data.url);
+    await expect(fs.access(filePath)).resolves.toBeUndefined();
+
+    await request(app)
+      .delete(
+        `/api/v1/availability/units/${unit.id}/media/${attachRes.body.data.id}`,
+      )
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+
+    await expect(fs.access(filePath)).rejects.toThrow();
   });
 });
 

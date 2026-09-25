@@ -150,12 +150,24 @@ export class BookableUnitService {
     return this.#bookableUnitRepository.findMediaById(mediaId);
   }
 
-  async attachMedia(fields) {
-    return this.#bookableUnitRepository.attachMedia(fields);
+  /**
+   * Step L3.1 — `connection` is optional and forwarded as-is; passed by
+   * `AvailabilityService#attachUnitMedia` when it needs this insert to
+   * run on the same row-locked transaction as `lockById` below, omitted
+   * by any other caller (falls back to the repository's own pooled
+   * connection default).
+   */
+  async attachMedia(fields, connection) {
+    return this.#bookableUnitRepository.attachMedia(fields, connection);
   }
 
   async removeMedia(mediaId, deletedBy) {
     await this.#bookableUnitRepository.removeMedia(mediaId, deletedBy);
+  }
+
+  /** Step L3.1 — thin pass-through to `lockById`; always call inside `withTransaction`. */
+  async lockById(id, connection) {
+    return this.#bookableUnitRepository.lockById(id, connection);
   }
 }
 

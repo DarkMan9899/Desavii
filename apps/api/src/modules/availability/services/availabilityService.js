@@ -49,6 +49,7 @@
  * `registerUnit` already established.
  */
 
+import { randomUUID } from 'node:crypto';
 import {
   AuthenticationError,
   AuthorizationError,
@@ -88,6 +89,7 @@ import {
   isWithinSizeLimit,
   classifyMimeType,
 } from '../../media/validators/mediaConstraints.js';
+import { validateAndProcessImage } from '../../media/validators/imageContentValidator.js';
 
 const MANAGE_PERMISSION = 'listing.update';
 const ADMIN_PERMISSION = 'listing.moderate';
@@ -558,14 +560,24 @@ export class AvailabilityService {
 
   /**
    * Room photo upload — mirrors `ListingService.attachMedia` exactly
-   * (same MIME/size validation, same StorageProvider abstraction, same
-   * "first photo becomes the cover" rule), scoped to
+   * (same MIME/size validation, same real-content validation via
+   * `validateAndProcessImage`, same StorageProvider abstraction, same
+   * "first photo becomes the cover" rule, same UUID storage key, same
+   * transactional row-locked position/cover computation, same
+   * storage-cleanup-on-DB-failure), scoped to
    * `mediable_type = 'bookable_unit'` instead of `'listing'`. Never trusts
    * a client-supplied unit id without resolving its listing and checking
    * ownership first — the same rule every other unit mutation here
    * already follows, load-bearing here specifically because a media
    * attach/remove is exactly the "attach to a resource I don't own" attack
    * this sprint's own security requirement calls out.
+   *
+   * Step L3.1: this used to diverge from `ListingService.attachMedia` in
+   * exactly the ways L3 hardened there — a `Date.now()` key, a racy
+   * `existingMedia.length` position/cover read, no real content
+   * validation, and a 20 MiB pre-check body buffer against the same
+   * 10 MiB real image limit. All four are closed here by reusing the
+   * same L3 primitives rather than a second parallel implementation.
    */
   async attachUnitMedia(principal, id, buffer, mimeType) {
     if (!principal) throw new AuthenticationError();
@@ -581,23 +593,39 @@ export class AvailabilityService {
     }
 
     const category = classifyMimeType(mimeType);
+    const storedBuffer =
+      category === 'image'
+        ? (await validateAndProcessImage(buffer, mimeType)).buffer
+        : buffer;
+
     const extension = mimeType.split('/')[1];
-    const key = `bookable-units/${id}/${Date.now()}.${extension}`;
-    const { url } = await this.#storageProvider.put(key, buffer, {
+    const key = `bookable-units/${id}/${randomUUID()}.${extension}`;
+    const { url } = await this.#storageProvider.put(key, storedBuffer, {
       contentType: mimeType,
     });
 
-    const existingMedia = await this.#bookableUnitService.listMedia(id);
-    const media = await this.#bookableUnitService.attachMedia({
-      bookableUnitId: id,
-      mediaTypeCode: category.toUpperCase(),
-      url,
-      mimeType,
-      fileSizeBytes: buffer.length,
-      ownerUserId: principal.userId,
-      position: existingMedia.length,
-      isCover: existingMedia.length === 0,
-    });
+    let media;
+    try {
+      media = await withTransaction(async (connection) => {
+        const locked = await this.#bookableUnitService.lockById(id, connection);
+        if (!locked) throw new NotFoundError('Bookable unit not found.');
+        return this.#bookableUnitService.attachMedia(
+          {
+            bookableUnitId: id,
+            mediaTypeCode: category.toUpperCase(),
+            url,
+            mimeType,
+            fileSizeBytes: storedBuffer.length,
+            ownerUserId: principal.userId,
+          },
+          connection,
+        );
+      });
+    } catch (err) {
+      await this.#storageProvider.delete(key).catch(() => {});
+      throw err;
+    }
+
     await this.#auditLogger.record({
       actorId: principal.userId,
       action: 'bookable_unit.media_attached',
@@ -623,6 +651,18 @@ export class AvailabilityService {
     }
 
     await this.#bookableUnitService.removeMedia(mediaId, principal.userId);
+
+    // Step L3.1 (brief §10) — the DB row is already soft-deleted (and so
+    // excluded from every `scopeActive` read) before this runs, so a
+    // storage-delete failure here can only ever leave an orphaned
+    // object, never a live/public DB record pointing at a file that's
+    // already gone. Best-effort: `StorageProvider.delete` already logs
+    // its own failure (S3) or is a safe no-op on a missing file (local).
+    const key = this.#storageProvider.getKeyFromUrl(media.url);
+    if (key) {
+      await this.#storageProvider.delete(key).catch(() => {});
+    }
+
     await this.#auditLogger.record({
       actorId: principal.userId,
       action: 'bookable_unit.media_removed',

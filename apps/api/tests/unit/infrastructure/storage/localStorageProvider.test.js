@@ -59,4 +59,29 @@ describe('LocalStorageProvider (Sprint 5 §8)', () => {
       /escapes the storage root/,
     );
   });
+
+  // Step L3.1 (brief §10): `getKeyFromUrl` is the inverse of `getUrl` —
+  // lets a caller that only ever persisted `url` (never `key`) recover
+  // the key for a later delete.
+  describe('getKeyFromUrl (Step L3.1)', () => {
+    test('recovers the exact key a matching getUrl() produced', () => {
+      const provider = new LocalStorageProvider();
+      const key = 'listings/1/cover.jpg';
+      expect(provider.getKeyFromUrl(provider.getUrl(key))).toBe(key);
+    });
+
+    test('honors a custom publicPathPrefix', () => {
+      const provider = new LocalStorageProvider({ publicPathPrefix: '/media' });
+      expect(provider.getKeyFromUrl('/media/avatars/7.png')).toBe(
+        'avatars/7.png',
+      );
+    });
+
+    test('returns null for a URL that does not match this prefix', () => {
+      const provider = new LocalStorageProvider();
+      expect(provider.getKeyFromUrl('https://cdn.example/foo.png')).toBeNull();
+      expect(provider.getKeyFromUrl(null)).toBeNull();
+      expect(provider.getKeyFromUrl(undefined)).toBeNull();
+    });
+  });
 });

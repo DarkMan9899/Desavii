@@ -96,4 +96,29 @@ describe('S3StorageProvider (P0.7)', () => {
       ExternalServiceError,
     );
   });
+
+  // Step L3.1 (brief §10): `getKeyFromUrl` is the inverse of `getUrl` —
+  // lets a caller that only ever persisted `url` (never `key`) recover
+  // the key for a later delete.
+  describe('getKeyFromUrl (Step L3.1)', () => {
+    test('recovers the exact key a matching getUrl() produced', () => {
+      const { provider } = buildProvider();
+      const key = 'listings/42/cover.jpg';
+      expect(provider.getKeyFromUrl(provider.getUrl(key))).toBe(key);
+    });
+
+    test('returns null when no publicBaseUrl is configured', () => {
+      const { provider } = buildProvider({ publicBaseUrl: '' });
+      expect(
+        provider.getKeyFromUrl('https://media.desavii.com/a/b.png'),
+      ).toBeNull();
+    });
+
+    test("returns null for a URL that does not match this bucket's base URL", () => {
+      const { provider } = buildProvider();
+      expect(
+        provider.getKeyFromUrl('https://other-cdn.example/a/b.png'),
+      ).toBeNull();
+    });
+  });
 });

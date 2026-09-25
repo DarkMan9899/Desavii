@@ -36,6 +36,21 @@ export class StorageProvider {
     );
   }
 
+  /**
+   * The inverse of `getUrl` — recovers the logical key from a URL this
+   * same adapter previously produced. Step L3.1: lets a caller that only
+   * ever persisted `url` (never `key`) still delete the right object
+   * later, without a schema change to store `key` redundantly.
+   * @param {string} url
+   * @returns {string | null} the key, or `null` if `url` wasn't produced
+   *   by this adapter (a stale/foreign URL — never guess).
+   */
+  getKeyFromUrl(url) {
+    throw new Error(
+      'StorageProvider.getKeyFromUrl must be implemented by a concrete adapter.',
+    );
+  }
+
   /** @param {string} key @returns {Promise<void>} */
   async delete(key) {
     throw new Error(
