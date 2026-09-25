@@ -82,6 +82,58 @@ async function createListing(title) {
   return listingId;
 }
 
+/**
+ * Step L1 — a category-scoped variant of `createListing()`, for the
+ * handful of tests below that also set LISTING-level pricing
+ * (`ListingService#resolvePricing` requires a category to validate
+ * against). `categoryIds` must be set at creation now — the primary
+ * category is immutable afterward (`updateListingSchema` no longer
+ * accepts it) — so, unlike the plain `createListing()` above (which is
+ * deliberately category-less: most tests in this file never touch
+ * listing-level pricing and don't need the hotels category's own
+ * required policies satisfied), this variant sets both the category and
+ * those policies up front so its own publish call still succeeds.
+ */
+async function createListingWithCategory(title) {
+  const res = await request(app)
+    .post('/api/v1/listings')
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({
+      partnerId,
+      listingType: 'HOTEL',
+      translations: [{ languageId, title }],
+      categoryIds: [hotelCategoryId],
+    });
+  const listingId = res.body.data.id;
+
+  await request(app)
+    .patch(`/api/v1/listings/${listingId}`)
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({
+      location: { latitude: 40.1772, longitude: 44.5035 },
+      policyValues: [
+        { code: 'cancellation_policy', value: 'FLEXIBLE' },
+        { code: 'check_in_time', value: '14:00' },
+        { code: 'check_out_time', value: '11:00' },
+      ],
+    });
+  await request(app)
+    .post(`/api/v1/listings/${listingId}/media`)
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .set('Content-Type', 'image/png')
+    .send(ONE_PX_PNG);
+  await request(app)
+    .post('/api/v1/availability/units')
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
+  await request(app)
+    .post(`/api/v1/listings/${listingId}/publish`)
+    .set('Authorization', `Bearer ${admin.accessToken}`)
+    .send({ publicationPeriodDays: 90 });
+
+  return listingId;
+}
+
 async function registerUnit(
   listingId,
   bookableUnitType = 'HOTEL_ROOM',
@@ -367,25 +419,24 @@ describe('P2.2A — accommodation price-resolution precedence (date override -> 
   }
 
   async function setListingBasePrice(listingId, amount, currencyCode = 'AMD') {
-    // A listing's pricing is validated against its category's allowed
-    // pricing models (`category_pricing_models`) — `createListing` above
-    // never sets one, so it must be set here first. `createListing`
-    // already leaves the listing PUBLISHED, and Step M2B blocks content
-    // edits on a PUBLISHED listing outright — unpublish, make the
-    // change, then republish via `admin` (the only path back to
-    // PUBLISHED once the ordinary Partner publish bypass is closed).
+    // `createListing` above already sets `categoryIds` (Step L1: the
+    // primary category is immutable after creation, so it must be set at
+    // creation, not here) and already leaves the listing PUBLISHED — Step
+    // M2B blocks content edits on a PUBLISHED listing outright, so
+    // unpublish, make the change, then republish via `admin` (the only
+    // path back to PUBLISHED once the ordinary Partner publish bypass is
+    // closed).
     await request(app)
       .post(`/api/v1/listings/${listingId}/unpublish`)
       .set('Authorization', `Bearer ${vendor.accessToken}`);
-    // Assigning `categoryIds` here means readiness now also checks the
-    // hotels category's required policies on republish — set alongside,
-    // same fixture shape `listingCrud.test.js`'s own `makePublishable`
-    // establishes for this exact category.
+    // The hotels category's required policies must be satisfied before
+    // republish readiness passes — same fixture shape
+    // `listingCrud.test.js`'s own `makePublishable` establishes for this
+    // exact category.
     await request(app)
       .patch(`/api/v1/listings/${listingId}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
       .send({
-        categoryIds: [hotelCategoryId],
         policyValues: [
           { code: 'cancellation_policy', value: 'FLEXIBLE' },
           { code: 'check_in_time', value: '14:00' },
@@ -499,7 +550,7 @@ describe('P2.2A — accommodation price-resolution precedence (date override -> 
   });
 
   test("the unit's base price takes precedence over the listing's fallback price", async () => {
-    const listingId = await createListing(
+    const listingId = await createListingWithCategory(
       `P2.2A Unit Base Beats Listing Fallback ${Date.now()}`,
     );
     await setListingBasePrice(listingId, 40);
@@ -523,7 +574,7 @@ describe('P2.2A — accommodation price-resolution precedence (date override -> 
   });
 
   test('a legacy unit with no base price still falls back to the listing price — pre-P2.2A behavior unchanged', async () => {
-    const listingId = await createListing(
+    const listingId = await createListingWithCategory(
       `P2.2A Legacy Unit Listing Fallback ${Date.now()}`,
     );
     await setListingBasePrice(listingId, 40);
@@ -821,15 +872,15 @@ describe('P2.2B final review — listing-fallback stay: UI estimate must equal t
     await request(app)
       .post(`/api/v1/listings/${listingId}/unpublish`)
       .set('Authorization', `Bearer ${vendor.accessToken}`);
-    // Assigning `categoryIds` here means readiness now also checks the
-    // hotels category's required policies on republish — set alongside,
-    // same fixture shape `listingCrud.test.js`'s own `makePublishable`
+    // `createListing` already sets `categoryIds` at creation (Step L1:
+    // immutable afterward) — the hotels category's required policies
+    // still must be satisfied before republish readiness passes, same
+    // fixture shape `listingCrud.test.js`'s own `makePublishable`
     // establishes for this exact category.
     await request(app)
       .patch(`/api/v1/listings/${listingId}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
       .send({
-        categoryIds: [hotelCategoryId],
         policyValues: [
           { code: 'cancellation_policy', value: 'FLEXIBLE' },
           { code: 'check_in_time', value: '14:00' },
@@ -857,7 +908,7 @@ describe('P2.2B final review — listing-fallback stay: UI estimate must equal t
   }
 
   test('a unit with no base price of its own, no calendar override, and a listing fallback price — calendar and booking total agree', async () => {
-    const listingId = await createListing(
+    const listingId = await createListingWithCategory(
       `P2.2B Listing Fallback Stay ${Date.now()}`,
     );
     await setListingBasePrice(listingId, 45);

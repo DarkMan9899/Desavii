@@ -2,7 +2,8 @@
  * `bookable_unit_types` — a fixed backend enum
  * (`apps/api/src/core/domain/bookableUnitTypes.js`, seeded once, not a
  * per-category dynamic catalog), mirrored here the same way
- * `modules/listings/constants/listingTypes.js` mirrors `listing_types`.
+ * `modules/listings/constants/categoryListingTypeMapping.js` mirrors its
+ * own backend counterpart.
  */
 
 export const BOOKABLE_UNIT_TYPES = [

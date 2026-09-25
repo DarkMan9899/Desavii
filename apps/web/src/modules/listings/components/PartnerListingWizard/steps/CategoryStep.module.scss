@@ -60,3 +60,14 @@
   background-color: rgba(29, 95, 214, 0.06);
   color: tokens.$color-royal-blue;
 }
+
+// Step L1 — the fixed/read-only category display (a `<div>`, not a
+// `<button>`): only overrides `cursor` from the base `.card` rule (meant
+// for the clickable picker) — always paired with `.card--selected`,
+// whose border/background already render correctly with nothing left to
+// hover.
+.card--static {
+  display: block;
+  max-width: max-content;
+  cursor: default;
+}

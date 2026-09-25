@@ -2,7 +2,7 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PropTypes from 'prop-types';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import ToastProvider from '../../../../providers/ToastProvider.jsx';
 import ConfirmProvider from '../../../../providers/ConfirmProvider.jsx';
 import PartnerListingsList from './PartnerListingsList.jsx';
@@ -96,6 +96,15 @@ function listingFixture(overrides) {
   };
 }
 
+// Step L1: probes wherever `onEdit`'s `navigate()` actually lands, since
+// there's no real wizard route mounted in this test — a plain
+// `<Route path="*">` catch-all reading `useLocation` is enough to assert
+// the resulting URL without needing to render the real wizard.
+function LocationProbe() {
+  const location = useLocation();
+  return <p data-testid="location">{location.pathname + location.search}</p>;
+}
+
 function renderList({
   listings = [],
   isPending = false,
@@ -124,6 +133,7 @@ function renderList({
                 />
               }
             />
+            <Route path="*" element={<LocationProbe />} />
           </Routes>
         </ConfirmProvider>
       </ToastProvider>
@@ -220,6 +230,23 @@ describe('PartnerListingsList (apps/web/src/modules/partner)', () => {
     expect(
       screen.getByRole('button', { name: 'Խմբագրել' }),
     ).toBeInTheDocument();
+  });
+
+  // Step L1 (brief §5): omitting `step=` here made the wizard fall back
+  // to the Category step for every existing listing, regardless of
+  // progress (L0's #1 finding) — Edit must resume at Basic Information,
+  // never at the now-fixed Category step.
+  test('Edit navigates to the wizard at step=basicInfo, never a bare listingId with no step', async () => {
+    const user = userEvent.setup();
+    renderList({ listings: [listingFixture({ id: 9 })] });
+
+    await user.click(screen.getByRole('button', { name: 'Խմբագրել' }));
+
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/hy/partner/listings/new',
+    );
+    expect(screen.getByTestId('location')).toHaveTextContent('listingId=9');
+    expect(screen.getByTestId('location')).toHaveTextContent('step=basicInfo');
   });
 
   test('the overflow menu shows Publish for a DRAFT listing and not Unpublish', async () => {

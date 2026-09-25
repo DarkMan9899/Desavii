@@ -14,7 +14,11 @@
  * A direct URL edit that jumps past Basic Information without a
  * `listingId` (no legitimate UI path produces this, but URLs are
  * user-editable) is redirected back to `basicInfo` — every step from
- * Location onward assumes a real listing id.
+ * Location onward assumes a real listing id. Step L1: a direct URL edit
+ * that reaches `basicInfo` itself with no category chosen at all (and no
+ * `listingId` yet) is likewise redirected back to `category` — Basic
+ * Information's own creation submit no longer asks for `listingType`
+ * (§8), so it has no fallback if the category was skipped entirely.
  */
 
 import { useEffect } from 'react';
@@ -56,15 +60,33 @@ export default function PartnerListingWizard({ partnerships }) {
   const metadataQuery = useListingMetadataQuery(categoryId, locale);
 
   const requiresListing = wizard.currentStepIndex > 1;
+  // Step L1: Basic Information is where the listing (and therefore its
+  // fixed category) is actually created — reaching it with no category
+  // chosen at all (a direct/manually-edited `?step=basicInfo` URL,
+  // skipping Category entirely) would otherwise let `createListing` fall
+  // through to requiring an explicit `listingType`, exactly the
+  // redundant question this step closed. Only applies pre-creation —
+  // once `listingId` exists the category is already fixed server-side.
+  const requiresCategory =
+    wizard.currentStepId === LISTING_CREATION_STEP_ID &&
+    !wizard.listingId &&
+    !wizard.categoryId;
   useEffect(() => {
     if (requiresListing && !wizard.listingId) {
       wizard.goToStep(LISTING_CREATION_STEP_ID, { replace: true });
+      return;
     }
-    // Only re-check when the step or listing id actually changes.
+    if (requiresCategory) {
+      wizard.goToStep('category', { replace: true });
+    }
+    // Only re-check when the step or listing/category id actually changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requiresListing, wizard.listingId]);
+  }, [requiresListing, requiresCategory, wizard.listingId, wizard.categoryId]);
 
   if (requiresListing && !wizard.listingId) {
+    return null;
+  }
+  if (requiresCategory) {
     return null;
   }
 
@@ -111,6 +133,13 @@ export default function PartnerListingWizard({ partnerships }) {
             value={categoryId}
             onChange={wizard.setCategoryId}
             onNext={wizard.goToNextStep}
+            // Step L1: the primary category is immutable once a listing
+            // exists (brief §2) — manually navigating back to this step
+            // (the progress bar's own "Category" button is clickable once
+            // `listingId` exists, see `completedStepIds`) must show the
+            // stored category as fixed, never re-offer it as a live,
+            // silently-inert choice.
+            readOnly={Boolean(wizard.listingId)}
           />
         )}
 

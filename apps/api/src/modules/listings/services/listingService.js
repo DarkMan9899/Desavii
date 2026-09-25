@@ -38,6 +38,7 @@ import { withTransaction } from '../../../infrastructure/database/transaction.js
 import { slugify } from '../../../core/domain/slugify.js';
 import { isValidListingStatusTransition } from '../../../core/domain/listingStatusTransitions.js';
 import { resolveModerationDecision } from '../../../core/domain/listingModerationDecisions.js';
+import { deriveListingTypeCodeFromCategorySlug } from '../../../core/domain/categoryListingTypeMapping.js';
 import {
   isValidPublicationPeriodDays,
   isFrozen,
@@ -386,8 +387,32 @@ export class ListingService {
       'listing.create',
     );
 
+    // Step L1: the category the Partner already picked is the sole
+    // authority on listing type whenever it resolves to one of the
+    // closed mappings (`core/domain/categoryListingTypeMapping.js`) — a
+    // client-supplied `listingType` is never trusted merely because it
+    // was sent; it's used only as a fallback for callers (internal
+    // tooling, fixtures, tests) that don't supply a mapped category at
+    // all. This is what makes `categoryIds: [restaurantsId],
+    // listingType: 'HOTEL'` impossible to persist as a contradiction:
+    // the derived RESTAURANT code always wins over the client's HOTEL
+    // claim once a category is present.
+    const primaryCategoryId = input.categoryIds?.[0];
+    const primaryCategorySlug = primaryCategoryId
+      ? await this.#listingRepository.findCategorySlugById(primaryCategoryId)
+      : null;
+    const derivedListingTypeCode =
+      deriveListingTypeCodeFromCategorySlug(primaryCategorySlug);
+    const canonicalListingTypeCode =
+      derivedListingTypeCode ?? input.listingType;
+    if (!canonicalListingTypeCode) {
+      throw new ValidationError(
+        'A category or an explicit listing type is required.',
+        [{ field: 'listingType', issue: 'UNKNOWN_LISTING_TYPE' }],
+      );
+    }
     const listingTypeId = await this.#listingRepository.findListingTypeIdByCode(
-      input.listingType,
+      canonicalListingTypeCode,
     );
     if (!listingTypeId) {
       throw new ValidationError('Unknown listing type.', [
@@ -416,7 +441,6 @@ export class ListingService {
 
     // Resolved/validated BEFORE the transaction starts — a bad attribute/
     // policy/pricing code should never leave a half-inserted listing.
-    const primaryCategoryId = input.categoryIds?.[0];
     const [
       draftStatusId,
       pendingModerationId,
@@ -1254,12 +1278,11 @@ export class ListingService {
         }
       }
 
-      // Falls back to the listing's EXISTING category when this particular
-      // PATCH doesn't include `categoryIds` — the wizard's Dynamic
-      // Attributes/Pricing/Policies steps each PATCH independently, after
-      // Category was already set on an earlier step.
-      const primaryCategoryId =
-        fields.categoryIds?.[0] ?? listing.categoryIds?.[0];
+      // Step L1: `categoryIds` is not part of `updateListingSchema` at
+      // all (the primary category is immutable after creation) — every
+      // PATCH-driven attribute/pricing/policy resolution always uses the
+      // listing's own already-stored category.
+      const primaryCategoryId = listing.categoryIds?.[0];
       const [resolvedAttributeValues, resolvedPolicyValues, resolvedPricing] =
         await Promise.all([
           this.#resolveAttributeValues(
@@ -1305,13 +1328,6 @@ export class ListingService {
       if (fields.location) {
         await this.#listingRepository.upsertLocation(
           { listingId: id, ...fields.location },
-          connection,
-        );
-      }
-      if (fields.categoryIds) {
-        await this.#listingRepository.replaceCategoryLinks(
-          id,
-          fields.categoryIds,
           connection,
         );
       }

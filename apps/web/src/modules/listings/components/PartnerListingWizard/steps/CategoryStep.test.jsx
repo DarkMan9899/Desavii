@@ -140,4 +140,58 @@ describe('CategoryStep (PartnerListingWizard)', () => {
     await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
     expect(onNext).toHaveBeenCalled();
   });
+
+  // Step L1 (brief §6) — reached by deliberately navigating back to this
+  // step once a listing already exists (the progress bar's own
+  // "Category" button stays clickable). The category must show as
+  // fixed, never as a live, silently-inert choice.
+  describe('readOnly (Step L1 — existing listing, category is immutable)', () => {
+    test('renders the current category as a fixed, non-interactive statement, not a radio group', () => {
+      useListingCategoriesQuery.mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: [
+          { id: 1, slug: 'villas', name: 'Villas', listing_count: 4 },
+          { id: 2, slug: 'hotels', name: 'Hotels', listing_count: 10 },
+        ],
+      });
+      renderStep({ value: 2, readOnly: true });
+
+      expect(screen.getByText('Hotels')).toBeInTheDocument();
+      expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+      expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+    });
+
+    test('the fixed category is not a clickable element — no onChange call is even structurally possible', () => {
+      useListingCategoriesQuery.mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: [{ id: 2, slug: 'hotels', name: 'Hotels', listing_count: 10 }],
+      });
+      const onChange = vi.fn();
+      renderStep({ value: 2, readOnly: true, onChange });
+
+      const fixedCategory = screen.getByText('Hotels');
+      expect(fixedCategory.tagName).not.toBe('BUTTON');
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    test('Continue is enabled (never disabled by a missing selection) and calls onNext', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+      useListingCategoriesQuery.mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: [{ id: 2, slug: 'hotels', name: 'Hotels', listing_count: 10 }],
+      });
+      renderStep({ value: 2, readOnly: true, onNext });
+
+      const continueButton = screen.getByRole('button', {
+        name: 'Շարունակել',
+      });
+      expect(continueButton).not.toBeDisabled();
+      await user.click(continueButton);
+      expect(onNext).toHaveBeenCalled();
+    });
+  });
 });

@@ -2,12 +2,18 @@
  * BasicInfoStep — step 2, and the step that actually calls
  * `POST /listings` (React Hook Form + `Controller`, per
  * FRONTEND_ARCHITECTURE.md §15.1 — same pattern `LoginForm.jsx`
- * established, kept for the non-locale-specific `partnerId`/
- * `listingType` fields). Once a `listingId` exists, `partnerId`/
- * `listingType` become read-only: `updateListingSchema`'s body has no
- * field for either (a listing's owning partner and fundamental type are
- * only ever set at creation) — so this step edits translations only
- * from then on.
+ * established, kept for the non-locale-specific `partnerId` field). Once
+ * a `listingId` exists, `partnerId` becomes read-only:
+ * `updateListingSchema`'s body has no field for it (a listing's owning
+ * partner is only ever set at creation) — so this step edits
+ * translations only from then on.
+ *
+ * Step L1 (brief §8): no longer asks for `listingType` at all — the
+ * category picked on the previous step already determines it
+ * server-side (`ListingService#createListing`'s own derivation from
+ * `categoryIds`, `core/domain/categoryListingTypeMapping.js`). This step
+ * only ever sends `categoryId` through to `createListing`, never a
+ * `listingType` value.
  *
  * 2026 Partner Workspace redesign (Sprint 3): title/summary/description
  * are no longer a single implicit-locale form field set — they're one
@@ -23,7 +29,7 @@
  * "Continue" validates and saves whichever locale is CURRENTLY active
  * (never all three, never an unrelated default) then advances the
  * wizard step — this is the only save path before a listing exists,
- * since creating one requires `partnerId`/`listingType` too. Once a
+ * since creating one requires `partnerId`/`categoryId` too. Once a
  * `listingId` exists, a second "Save {locale} translation" action lets
  * a partner persist an additional locale without leaving the step.
  */
@@ -39,7 +45,6 @@ import { Stack, Inline } from '@desavii/ui/components/layout';
 import { useToast } from '../../../../../contexts/ToastContext.jsx';
 import { useCreateListingMutation } from '../../../mutations/useCreateListingMutation.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
-import { LISTING_TYPES } from '../../../constants/listingTypes.js';
 import { LANGUAGE_ID_BY_LOCALE } from '../../../constants/languageIds.js';
 import { SUPPORTED_LOCALES } from '../../../../../translations/i18n.js';
 import AuthoringLocaleTabs from '../AuthoringLocaleTabs/AuthoringLocaleTabs.jsx';
@@ -97,7 +102,6 @@ export default function BasicInfoStep({
   } = useForm({
     defaultValues: {
       partnerId: partnerships[0]?.partner_id ?? null,
-      listingType: null,
     },
   });
 
@@ -133,9 +137,9 @@ export default function BasicInfoStep({
     return false;
   }
 
-  // Only reachable once `listingId` exists — a listing's `partnerId`/
-  // `listingType` can't be set via this endpoint, so this never needs
-  // those RHF-owned fields. `advance: false` (the standalone "Save
+  // Only reachable once `listingId` exists — a listing's `partnerId`
+  // can't be set via this endpoint, so this never needs the RHF-owned
+  // `partnerId` field. `advance: false` (the standalone "Save
   // translation" button) is exactly why this step ever needs a save
   // path that ISN'T also a step transition.
   async function saveActiveLocale({ advance }) {
@@ -183,7 +187,6 @@ export default function BasicInfoStep({
     if (!validateActiveTitle()) return;
     const { data } = await createListingMutation.mutateAsync({
       partnerId: values.partnerId,
-      listingType: values.listingType,
       translations: [translationPayloadForLocale(authoringLocale)],
       categoryIds: categoryId ? [categoryId] : undefined,
     });
@@ -259,31 +262,6 @@ export default function BasicInfoStep({
                   )}
                 />
               )}
-
-              <Controller
-                name="listingType"
-                control={control}
-                rules={{
-                  required: t('partner.listingWizard.validation.required'),
-                }}
-                render={({ field }) => (
-                  <Select
-                    label={t('partner.listingWizard.basicInfo.listingType')}
-                    placeholder={t('partner.listingWizard.selectPlaceholder')}
-                    options={LISTING_TYPES.map((code) => ({
-                      value: code,
-                      label: t(
-                        `partner.listingWizard.listingTypes.${code}`,
-                        code,
-                      ),
-                    }))}
-                    error={errors.listingType?.message}
-                    required
-                    // eslint-disable-next-line react/jsx-props-no-spreading
-                    {...field}
-                  />
-                )}
-              />
             </Stack>
           </form>
         )}

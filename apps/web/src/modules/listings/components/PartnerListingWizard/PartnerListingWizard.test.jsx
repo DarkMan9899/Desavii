@@ -76,23 +76,56 @@ describe('PartnerListingWizard (orchestrator)', () => {
     expect(screen.getByText('CategoryStep')).toBeInTheDocument();
   });
 
-  test('renders BasicInfoStep for ?step=basicInfo', () => {
+  test('renders BasicInfoStep for ?step=basicInfo once a category is already chosen', () => {
+    useListingQuery.mockReturnValue({ data: undefined, isPending: false });
+    useListingMetadataQuery.mockReturnValue({ data: undefined });
+    useToast.mockReturnValue({ showToast: vi.fn() });
+
+    renderWizard('/hy/partner/listings/new?step=basicInfo&categoryId=3');
+    expect(screen.getByText('BasicInfoStep')).toBeInTheDocument();
+  });
+
+  // Step L1 (brief §7): Basic Information's own creation submit no
+  // longer asks for `listingType` — reaching it with no category chosen
+  // at all (no `listingId` either) has no fallback, so it redirects back
+  // to Category instead of rendering an unusable form.
+  test('redirects ?step=basicInfo with no listingId and no categoryId back to Category', () => {
     useListingQuery.mockReturnValue({ data: undefined, isPending: false });
     useListingMetadataQuery.mockReturnValue({ data: undefined });
     useToast.mockReturnValue({ showToast: vi.fn() });
 
     renderWizard('/hy/partner/listings/new?step=basicInfo');
-    expect(screen.getByText('BasicInfoStep')).toBeInTheDocument();
+    expect(screen.getByText('CategoryStep')).toBeInTheDocument();
+    expect(screen.queryByText('BasicInfoStep')).not.toBeInTheDocument();
   });
 
-  test('redirects back to basicInfo when a later step is requested with no listingId', () => {
+  // Step L1: a later step requested with neither listingId nor
+  // categoryId ultimately resolves all the way back to Category (via
+  // basicInfo) — the original "no listingId -> basicInfo" redirect and
+  // the new "no categoryId -> category" redirect both apply in sequence.
+  test('redirects back to Category (via basicInfo) when a later step is requested with no listingId or category', () => {
     useListingQuery.mockReturnValue({ data: undefined, isPending: false });
     useListingMetadataQuery.mockReturnValue({ data: undefined });
     useToast.mockReturnValue({ showToast: vi.fn() });
 
     renderWizard('/hy/partner/listings/new?step=media');
+    expect(screen.getByText('CategoryStep')).toBeInTheDocument();
+    expect(screen.queryByText('MediaStep')).not.toBeInTheDocument();
+    expect(screen.queryByText('BasicInfoStep')).not.toBeInTheDocument();
+  });
+
+  // The pre-existing "no listingId -> basicInfo" redirect still holds on
+  // its own once a category IS already chosen — it just doesn't bounce
+  // any further, since basicInfo now has what it needs.
+  test('redirects a later step with no listingId but a chosen category to basicInfo, not further back to Category', () => {
+    useListingQuery.mockReturnValue({ data: undefined, isPending: false });
+    useListingMetadataQuery.mockReturnValue({ data: undefined });
+    useToast.mockReturnValue({ showToast: vi.fn() });
+
+    renderWizard('/hy/partner/listings/new?step=media&categoryId=3');
     expect(screen.getByText('BasicInfoStep')).toBeInTheDocument();
     expect(screen.queryByText('MediaStep')).not.toBeInTheDocument();
+    expect(screen.queryByText('CategoryStep')).not.toBeInTheDocument();
   });
 
   test('shows a PageLoader while the listing is still loading for a resumed draft', () => {

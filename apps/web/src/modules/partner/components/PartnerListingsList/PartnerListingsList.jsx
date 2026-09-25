@@ -238,9 +238,20 @@ export default function PartnerListingsList({
                 onView={() =>
                   navigate(`/${locale}/listings/${listing.slug ?? listing.id}`)
                 }
+                // Step L1: explicit `step=basicInfo` — omitting it made
+                // `useListingWizardState` fall back to `WIZARD_STEPS[0]`
+                // ('category'), reopening every existing listing at an
+                // interactive Category step regardless of how far along
+                // it actually was (L0's #1 finding). No persisted
+                // per-listing wizard-progress concept exists to resume
+                // into a LATER step instead — Basic Information is the
+                // deterministic, always-safe target: the earliest step
+                // that assumes a real listing id and is still genuinely
+                // editable content, immediately after the now-fixed
+                // Category step.
                 onEdit={() =>
                   navigate(
-                    `/${locale}/${basePath}/listings/new?listingId=${listing.id}`,
+                    `/${locale}/${basePath}/listings/new?listingId=${listing.id}&step=basicInfo`,
                   )
                 }
                 onManageRooms={() =>

@@ -243,7 +243,14 @@ export default function PartnerDashboardOverviewContent() {
                     <ListingTableRow
                       key={listing.id}
                       as={RouterLink}
-                      href={`/${locale}/partner/listings/new?listingId=${listing.id}`}
+                      // Step L1: kept in sync with `PartnerListingsList
+                      // .jsx`'s own `onEdit` URL (explicit
+                      // `step=basicInfo`) for consistency, though
+                      // `ListingTableRow` doesn't currently accept
+                      // `as`/`href`/`interactive` at all (pre-existing,
+                      // unrelated to this step — this row isn't actually
+                      // rendered as a link today).
+                      href={`/${locale}/partner/listings/new?listingId=${listing.id}&step=basicInfo`}
                       interactive
                       title={listing.title ?? listing.slug}
                       thumbnailUrl={listing.cover_image_url}

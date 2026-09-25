@@ -36,6 +36,13 @@ async function login(email, password) {
 }
 
 async function createPublishedListing(title) {
+  // Step L1: `categoryIds` must be set at creation — the primary
+  // category is immutable afterward (`updateListingSchema` no longer
+  // accepts it), so it can no longer be assigned via a later PATCH the
+  // way this fixture originally deferred it.
+  const [[hotelsCategory]] = await getMysqlPool().query(
+    "SELECT id FROM listing_categories WHERE slug = 'hotels'",
+  );
   const createRes = await request(app)
     .post('/api/v1/listings')
     .set('Authorization', `Bearer ${vendor.accessToken}`)
@@ -43,19 +50,15 @@ async function createPublishedListing(title) {
       partnerId,
       listingType: 'HOTEL',
       translations: [{ languageId, title, description: 'A test listing.' }],
-      categoryIds: [],
+      categoryIds: [hotelsCategory.id],
       location: { cityId: yerevanCityId },
     });
   const listingId = createRes.body.data.id;
 
-  const [[hotelsCategory]] = await getMysqlPool().query(
-    "SELECT id FROM listing_categories WHERE slug = 'hotels'",
-  );
   await request(app)
     .patch(`/api/v1/listings/${listingId}`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)
     .send({
-      categoryIds: [hotelsCategory.id],
       location: { latitude: 40.18, longitude: 44.5 },
       pricing: { modelCode: 'PER_NIGHT', amount: 100, currencyCode: 'AMD' },
       policyValues: [

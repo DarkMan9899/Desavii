@@ -1831,6 +1831,23 @@ export class MySqlListingRepository extends ListingRepositoryPort {
     return rows[0]?.id ?? null;
   }
 
+  /**
+   * Step L1 — backs `ListingService#createListing`'s server-side
+   * `categoryId -> listing_type` derivation
+   * (`core/domain/categoryListingTypeMapping.js`). No existing method
+   * resolved a bare category id to its own `slug` (every other module
+   * that reads `listing_categories` does so for its own, differently-
+   * shaped taxonomy browse — `mysqlSearchRepository.js#searchCategories`
+   * — not a single-row lookup by id).
+   */
+  async findCategorySlugById(categoryId, connection = this.#pool) {
+    const [rows] = await connection.query(
+      'SELECT slug FROM listing_categories WHERE id = ? LIMIT 1',
+      [categoryId],
+    );
+    return rows[0]?.slug ?? null;
+  }
+
   async findStatusIdByCode(code, connection = this.#pool) {
     const [rows] = await connection.query(
       'SELECT id FROM listing_statuses WHERE code = ? LIMIT 1',

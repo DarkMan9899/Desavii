@@ -206,8 +206,18 @@ describe('POST /listings — create', () => {
     expect(res.body.error.code).toBe('PARTNER_NOT_VERIFIED');
   });
 
-  test('rejects an unknown listing type with 422', async () => {
-    const res = await createDraftListing({ listingType: 'SPACESHIP' });
+  // Step L1: with a real, mapped category present (`buildPayload`'s own
+  // default `categoryIds`), the category-derived type always wins —
+  // an invalid/mismatched explicit `listingType` is silently
+  // corrected, never trusted (see `listingCategoryTypeMapping.test.js`
+  // for the full derivation/mismatch matrix). This test now exercises
+  // the genuinely unmapped case: no category at all, so the explicit
+  // (here invalid) `listingType` is the only thing left to validate.
+  test('rejects an unknown listing type with 422 when no category is present to derive one instead', async () => {
+    const res = await createDraftListing({
+      listingType: 'SPACESHIP',
+      categoryIds: undefined,
+    });
     expect(res.status).toBe(422);
     expect(
       res.body.error.details.some((d) => d.issue === 'UNKNOWN_LISTING_TYPE'),

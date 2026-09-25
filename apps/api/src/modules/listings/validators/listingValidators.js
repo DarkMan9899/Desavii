@@ -177,7 +177,12 @@ export const createListingSchema = z.object({
   query: passthroughQuery,
   body: z.object({
     partnerId: z.coerce.number().int().positive(),
-    listingType: z.string().trim().min(1).max(30),
+    // Step L1: no longer required at the structural layer — the
+    // Partner wizard derives this server-side from `categoryIds`
+    // (`ListingService#createListing`); a caller with no mapped
+    // category (internal tooling/fixtures/tests) still supplies this
+    // explicitly, so it stays accepted, just optional.
+    listingType: z.string().trim().min(1).max(30).optional(),
     slug: z.string().trim().min(1).max(180).optional(),
     isContactVisible: z.boolean().optional(),
     translations: z.array(translationSchema).min(1),
@@ -204,7 +209,13 @@ export const updateListingSchema = z.object({
       isContactVisible: z.boolean().optional(),
       translations: z.array(translationSchema).min(1).optional(),
       location: locationSchema.optional(),
-      categoryIds: positiveIdArray.optional(),
+      // Step L1: deliberately no `categoryIds` here (unlike
+      // `createListingSchema`) — the primary category is immutable
+      // after creation (brief §2 "PRIMARY CATEGORY IS IMMUTABLE TO
+      // PARTNER AFTER LISTING CREATION"). Zod's default strip-unknown-
+      // keys behavior drops any `categoryIds` a caller sends, same
+      // precedent as `status`/`moderation_status` already being absent
+      // from this schema (Step M2B's closed direct-publish bypass).
       amenityIds: positiveIdArray.optional(),
       attributeValues: z.array(attributeValueSchema).optional(),
       policyValues: z.array(policyValueSchema).optional(),

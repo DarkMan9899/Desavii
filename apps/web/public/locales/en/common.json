@@ -1549,11 +1549,11 @@
       },
       "category": {
         "loading": "Loading categories…",
-        "errorTitle": "We couldn't load categories."
+        "errorTitle": "We couldn't load categories.",
+        "fixedNote": "The category can't be changed after a listing is created."
       },
       "basicInfo": {
         "partner": "Partner organization",
-        "listingType": "Listing type",
         "title": "Title",
         "summary": "Short summary",
         "description": "Description"
@@ -1570,14 +1570,6 @@
         "translationSaved": "{{locale}} translation saved.",
         "emptyNotice": "No {{locale}} content yet. What you save here is stored as the {{locale}} translation — it is never copied from another language.",
         "autoSaveOtherLocalesFailed": "The listing was created, but saving your other language drafts failed. Use the \"Save translation\" button on each language tab to try again."
-      },
-      "listingTypes": {
-        "HOTEL": "Hotel",
-        "PROPERTY": "Property",
-        "RESTAURANT": "Restaurant",
-        "TOUR": "Tour",
-        "CAR_RENTAL": "Car rental",
-        "ATTRACTION": "Attraction"
       },
       "location": {
         "latitude": "Latitude",

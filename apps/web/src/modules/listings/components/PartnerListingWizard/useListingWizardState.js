@@ -30,6 +30,14 @@
  * `:locale` — the workspace's UI language and the content-authoring
  * language are independent choices; switching one must never silently
  * change the other.
+ *
+ * Step L1: `categoryId` is now a fourth URL-persisted value
+ * (`?categoryId=`) for the same reason — L0 found a pre-creation page
+ * refresh silently lost the just-picked category (plain `useState`).
+ * Only meaningful pre-creation: once `listingId` exists, `categoryId`
+ * always resolves from the listing's own stored `category_ids[0]`
+ * (`PartnerListingWizard.jsx`'s own fallback), which takes precedence
+ * over this param by construction — see that component's own header.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -41,13 +49,23 @@ import { WIZARD_STEPS } from './wizardSteps.js';
 
 export function useListingWizardState() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [categoryId, setCategoryId] = useState(null);
-  // Listing Lifetime / Renewal, Step B3: same "plain useState, not a URL
-  // param" choice as `categoryId` above — this only matters on the very
-  // last step, right before publish, so it doesn't need to survive a
-  // refresh/shared-link the way step position or listing identity do; a
-  // reload simply re-defaults to 90, which the brief's own §19 explicitly
-  // allows.
+
+  const categoryIdParam = searchParams.get('categoryId');
+  const categoryId = categoryIdParam ? Number(categoryIdParam) : null;
+  const setCategoryId = useCallback(
+    (id) => {
+      const next = new URLSearchParams(searchParams);
+      next.set('categoryId', String(id));
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+  // Listing Lifetime / Renewal, Step B3: plain `useState`, not a URL
+  // param — this only matters on the very last step, right before
+  // publish, so it doesn't need to survive a refresh/shared-link the
+  // way step position, listing identity, or (as of Step L1) category
+  // selection do; a reload simply re-defaults to 90, which the brief's
+  // own §19 explicitly allows.
   const [publicationPeriodDays, setPublicationPeriodDays] = useState(
     DEFAULT_PUBLICATION_PERIOD_DAYS,
   );

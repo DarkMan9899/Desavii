@@ -99,10 +99,21 @@ describe('useListingWizardState (PartnerListingWizard)', () => {
     expect(screen.getByTestId('step')).toHaveTextContent('category');
   });
 
-  test('setCategoryId stores the locally-picked category before a listing exists', async () => {
+  test('setCategoryId stores the picked category before a listing exists', async () => {
     const user = userEvent.setup();
     renderHarness();
     await user.click(screen.getByRole('button', { name: 'pick category' }));
+    expect(screen.getByTestId('categoryId')).toHaveTextContent('3');
+  });
+
+  // Step L1 (brief §7) — L0 found a pre-creation page refresh silently
+  // lost the just-picked category (plain `useState`). `categoryId` is
+  // now URL-persisted (`?categoryId=`) like `listingId`/`step`
+  // already are — a fresh render at that same URL (RTL's equivalent of
+  // a reload) must read the selection straight back, with no click
+  // needed to reproduce it.
+  test('categoryId survives a pre-creation refresh via the ?categoryId= URL param', () => {
+    renderHarness('/hy/partner/listings/new?categoryId=3');
     expect(screen.getByTestId('categoryId')).toHaveTextContent('3');
   });
 

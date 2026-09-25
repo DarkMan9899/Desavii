@@ -251,6 +251,23 @@ beforeAll(async () => {
     categoryId: hotelsCategoryId,
     cityId: gyumriCityId,
   });
+  // Step L1: `ListingService#createListing` now derives `listing_type`
+  // from the primary category whenever one is present (hotels ->
+  // HOTEL), so the API itself can no longer create this category/type
+  // mismatch — the explicit `listingType: 'PROPERTY'` above is silently
+  // overridden to HOTEL. This fixture deliberately WANTS the mismatch
+  // (proving `categoryId`/`listingType` are independently-filterable
+  // search axes below), which is exactly the "existing mismatched row"
+  // shape L1's own boundary explicitly allows to keep existing/remain
+  // readable — reproduced here via a direct write, simulating a legacy
+  // row the ordinary create flow can no longer produce.
+  const [[propertyType]] = await pool.query(
+    "SELECT id FROM listing_types WHERE code = 'PROPERTY'",
+  );
+  await pool.query('UPDATE listings SET listing_type_id = ? WHERE id = ?', [
+    propertyType.id,
+    gyumriId,
+  ]);
   listingDraft = await createListing({
     title: 'Draft Only Listing',
     listingType: 'HOTEL',

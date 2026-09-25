@@ -116,7 +116,11 @@ describe('BasicInfoStep (PartnerListingWizard)', () => {
     });
   });
 
-  test('shows listingType and (multi-partner) partner selects when no listing exists yet', () => {
+  // Step L1: the "Listing type" Select is gone entirely — the category
+  // picked on the previous wizard step already determines it
+  // server-side, so this step never renders it regardless of partner
+  // count.
+  test('shows the partner select only when the partner has more than one partnership', () => {
     renderStep({
       partnerships: [
         ...PARTNERSHIPS,
@@ -128,7 +132,7 @@ describe('BasicInfoStep (PartnerListingWizard)', () => {
       ],
     });
     expect(screen.getByText('Գործընկեր կազմակերպություն')).toBeInTheDocument();
-    expect(screen.getByText('Հայտարարության տեսակ')).toBeInTheDocument();
+    expect(screen.queryByText('Հայտարարության տեսակ')).not.toBeInTheDocument();
   });
 
   test('hides the partner select when the partner has exactly one partnership', () => {
@@ -144,8 +148,6 @@ describe('BasicInfoStep (PartnerListingWizard)', () => {
     const onNext = vi.fn();
     renderStep({ categoryId: 3, onCreated, onNext });
 
-    await user.click(screen.getByTestId('select-trigger'));
-    await user.click(screen.getByRole('option', { name: 'Հյուրանոց' }));
     await user.type(
       screen.getByLabelText(/Վերնագիր/),
       'Boutique Yerevan Hotel',
@@ -156,7 +158,6 @@ describe('BasicInfoStep (PartnerListingWizard)', () => {
     expect(createMutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         partnerId: 1,
-        listingType: 'HOTEL',
         categoryIds: [3],
         translations: [
           // authoringLocale defaults to 'en' (the platform content
@@ -173,6 +174,11 @@ describe('BasicInfoStep (PartnerListingWizard)', () => {
     );
     expect(onCreated).toHaveBeenCalledWith(42);
     expect(onNext).not.toHaveBeenCalled();
+    // Step L1: never sends a `listingType` — the backend derives it from
+    // `categoryIds` alone.
+    expect(createMutateAsync.mock.calls[0][0]).not.toHaveProperty(
+      'listingType',
+    );
   });
 
   test('once a listing exists, only translations are editable; Continue saves the active locale and advances', async () => {
@@ -184,7 +190,6 @@ describe('BasicInfoStep (PartnerListingWizard)', () => {
       onNext,
     });
 
-    expect(screen.queryByText('Հայտարարության տեսակ')).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Վերնագիր/)).toHaveValue('Existing title');
 
     await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
@@ -244,10 +249,7 @@ describe('BasicInfoStep (PartnerListingWizard)', () => {
     test('creating the listing while multiple locale drafts are unsaved persists every one of them, not just the active locale', async () => {
       const user = userEvent.setup();
       const onCreated = vi.fn();
-      renderStep({ onCreated });
-
-      await user.click(screen.getByTestId('select-trigger'));
-      await user.click(screen.getByRole('option', { name: 'Հյուրանոց' }));
+      renderStep({ onCreated, categoryId: 3 });
 
       // startLocale defaults to 'en' — type the English draft first.
       await user.type(
@@ -296,10 +298,8 @@ describe('BasicInfoStep (PartnerListingWizard)', () => {
 
     test('creating the listing with only one locale filled in never calls the extra-locale save', async () => {
       const user = userEvent.setup();
-      renderStep({});
+      renderStep({ categoryId: 3 });
 
-      await user.click(screen.getByTestId('select-trigger'));
-      await user.click(screen.getByRole('option', { name: 'Հյուրանոց' }));
       await user.type(
         screen.getByLabelText(/Վերնագիր/),
         'Boutique Yerevan Hotel',
