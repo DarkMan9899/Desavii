@@ -16,6 +16,7 @@ import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMut
 vi.mock('../../../../availability/index.js', () => ({
   BOOKABLE_UNIT_TYPES: ['HOTEL_ROOM', 'PROPERTY_UNIT'],
   BED_TYPES: ['SINGLE', 'DOUBLE', 'QUEEN', 'KING', 'TWIN', 'SOFA_BED', 'BUNK'],
+  INT_UNSIGNED_MAX: 4294967295,
   BATHROOM_TYPES: ['PRIVATE', 'SHARED', 'ENSUITE'],
   VIEW_TYPES: [
     'CITY',

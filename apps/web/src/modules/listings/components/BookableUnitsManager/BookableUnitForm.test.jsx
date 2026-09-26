@@ -1,5 +1,5 @@
 import { describe, test, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BookableUnitForm from './BookableUnitForm.jsx';
 
@@ -720,7 +720,47 @@ describe('BookableUnitForm (P2.2A)', () => {
       await user.click(screen.getByRole('button', { name: 'Save' }));
 
       expect(
-        await screen.findByText('Մուտքագրեք ամբողջ թիվ՝ առնվազն 1։'),
+        await screen.findByText('Առավելագույնը 4 294 967 295 է։'),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    // Step L4.2 — capacity mirrors the backend's new INT UNSIGNED ceiling.
+    test('capacity at the INT UNSIGNED max (4294967295) is accepted', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.type(screen.getByLabelText('Գույքագրման քանակ'), '4294967295');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ capacity: 4294967295 }),
+      );
+    });
+
+    test('capacity one above the INT UNSIGNED max is rejected with the max message', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.type(screen.getByLabelText('Գույքագրման քանակ'), '4294967296');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText('Առավելագույնը 4 294 967 295 է։'),
       ).toBeInTheDocument();
       expect(onSubmit).not.toHaveBeenCalled();
     });
@@ -799,6 +839,130 @@ describe('BookableUnitForm (P2.2A)', () => {
       }
 
       expect(addBedButton).toBeDisabled();
+    });
+  });
+
+  // Step L4.2 (brief §4, §14) — roomSizeSqm mirrors `availabilityValidators
+  // .js`: optional, strictly positive, <= 1000, at most 2 decimal places
+  // (`DECIMAL(6,2)` would otherwise silently round). The default unit type
+  // is HOTEL_ROOM, so the field renders without extra setup.
+  describe('room size validation (Step L4.2)', () => {
+    const ROOM_SIZE_LABEL = 'Սենյակի մակերես (մ²)';
+
+    async function submitRoomSize(user, typed) {
+      if (typed !== '') {
+        await user.type(screen.getByLabelText(ROOM_SIZE_LABEL), typed);
+      }
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+    }
+
+    test.each([
+      ['a valid decimal', '24.5', 24.5],
+      ['the exact max', '1000', 1000],
+      ['the smallest 2-decimal value', '0.01', 0.01],
+    ])('%s is accepted', async (_label, typed, expected) => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(<BookableUnitForm submitLabel="Save" onSubmit={onSubmit} />);
+
+      await submitRoomSize(user, typed);
+
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ roomSizeSqm: expected }),
+      );
+    });
+
+    test('blank stays undefined — never coerced to 0', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(<BookableUnitForm submitLabel="Save" onSubmit={onSubmit} />);
+
+      await submitRoomSize(user, '');
+
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ roomSizeSqm: undefined }),
+      );
+    });
+
+    test.each([
+      ['zero', '0', 'Մուտքագրեք 0 մ²-ից մեծ մակերես։'],
+      ['a negative value', '-5', 'Մուտքագրեք 0 մ²-ից մեծ մակերես։'],
+      ['above the max', '1000.01', 'Առավելագույնը 1000 մ² է։'],
+      [
+        'more than 2 decimal places',
+        '24.555',
+        'Մուտքագրեք մակերես՝ ոչ ավելի, քան 2 տասնորդական նիշով։',
+      ],
+    ])(
+      '%s is rejected with a field-level error',
+      async (_label, typed, message) => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn();
+        render(<BookableUnitForm submitLabel="Save" onSubmit={onSubmit} />);
+
+        await submitRoomSize(user, typed);
+
+        expect(await screen.findByText(message)).toBeInTheDocument();
+        expect(screen.getByLabelText(ROOM_SIZE_LABEL)).toHaveAttribute(
+          'aria-invalid',
+          'true',
+        );
+        expect(onSubmit).not.toHaveBeenCalled();
+      },
+    );
+
+    // user-event normalizes a typed "1e3" in a number input to "1000";
+    // `fireEvent.change` keeps the raw string a real browser would hold.
+    test('scientific notation is rejected, not read as 1000', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(<BookableUnitForm submitLabel="Save" onSubmit={onSubmit} />);
+
+      fireEvent.change(screen.getByLabelText(ROOM_SIZE_LABEL), {
+        target: { value: '1e3' },
+      });
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText('Մուտքագրեք սենյակի վավեր մակերես։'),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('editing the field clears its error', async () => {
+      const user = userEvent.setup();
+      render(<BookableUnitForm submitLabel="Save" onSubmit={vi.fn()} />);
+
+      await submitRoomSize(user, '0');
+      expect(
+        await screen.findByText('Մուտքագրեք 0 մ²-ից մեծ մակերես։'),
+      ).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText(ROOM_SIZE_LABEL), '5');
+
+      expect(
+        screen.queryByText('Մուտքագրեք 0 մ²-ից մեծ մակերես։'),
+      ).not.toBeInTheDocument();
+    });
+
+    test('a stale invalid room size never blocks saving a non-room unit type', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{
+            bookableUnitType: 'PROPERTY_UNIT',
+            roomSizeSqm: 5000,
+          }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('roomSizeSqm');
     });
   });
 });

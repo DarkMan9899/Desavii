@@ -19,6 +19,11 @@ import {
 } from '../../../core/domain/roomAttributes.js';
 import { isoDateSchema } from '../../../validation/isoDate.js';
 import {
+  positiveDecimalMoneyAmountSchema,
+  hasAtMostTwoDecimals,
+} from '../../../validation/decimalMoneyAmount.js';
+import { INT_UNSIGNED_MAX } from '../../../validation/sqlIntegerBounds.js';
+import {
   BLOCK_REASON_CODES,
   EXTERNAL_RESERVATION_SOURCE_CODES,
 } from '../services/availabilityService.js';
@@ -55,6 +60,22 @@ const bedConfigurationSchema = z
   .max(12)
   .optional();
 
+// Integer quantities/capacities are all `INT UNSIGNED` columns
+// (`bookable_units.capacity`, `inventory_blocks.quantity`,
+// `external_reservations.quantity`, `availability_calendar.
+// quantity_available`) — capped at that ceiling, not an invented one.
+const unsignedIntQuantity = z.coerce.number().int().max(INT_UNSIGNED_MAX);
+
+// `bookable_units.room_size_sqm` is `DECIMAL(6,2)`; the 1000 m² ceiling is
+// the existing, tighter product rule.
+const roomSizeSqmSchema = z.coerce
+  .number()
+  .positive()
+  .max(1000)
+  .refine(hasAtMostTwoDecimals, {
+    message: 'roomSizeSqm must have at most 2 decimal places.',
+  });
+
 /** Both-or-neither: a base price is meaningless without its currency — mirrors `refinePriceOverridePair` below. */
 function refineBasePricePair(data, ctx) {
   const hasAmount = data.basePriceAmount !== undefined;
@@ -76,7 +97,7 @@ export const registerUnitSchema = z.object({
     .object({
       listingId: z.coerce.number().int().positive(),
       bookableUnitType: z.enum(BOOKABLE_UNIT_TYPES),
-      capacity: z.coerce.number().int().positive().optional(),
+      capacity: unsignedIntQuantity.positive().optional(),
       // Phase 17 §Service-Specific Flows — an Activity/Guide-style listing
       // registers one unit per distinct time slot (e.g. a "09:00" and a
       // "14:00" departure), distinguished by `unitLabel` (see
@@ -96,13 +117,13 @@ export const registerUnitSchema = z.object({
       // (inventory quantity of this room/unit TYPE, unchanged meaning).
       maxGuests: z.coerce.number().int().positive().max(100).optional(),
       bedConfiguration: bedConfigurationSchema,
-      basePriceAmount: z.coerce.number().positive().optional(),
+      basePriceAmount: positiveDecimalMoneyAmountSchema.optional(),
       basePriceCurrency: z.string().trim().length(3).toUpperCase().optional(),
       // Sprint C-1 (Accommodation room-level product data) — structured,
       // nullable room fields. Generic on `bookable_units` (any unit type
       // could in principle carry them, same as maxGuests/bedConfiguration
       // above) but only ever sent by the Partner UI for a HOTEL_ROOM unit.
-      roomSizeSqm: z.coerce.number().positive().max(1000).optional(),
+      roomSizeSqm: roomSizeSqmSchema.optional(),
       bathroomType: z.enum(BATHROOM_TYPES).optional(),
       viewType: z.enum(VIEW_TYPES).optional(),
       smokingPolicy: z.enum(SMOKING_POLICIES).optional(),
@@ -125,12 +146,12 @@ export const updateUnitSchema = z.object({
   body: z
     .object({
       unitLabel: z.string().trim().min(1).max(120).optional(),
-      capacity: z.coerce.number().int().positive().optional(),
+      capacity: unsignedIntQuantity.positive().optional(),
       maxGuests: z.coerce.number().int().positive().max(100).optional(),
       bedConfiguration: bedConfigurationSchema,
-      basePriceAmount: z.coerce.number().positive().optional(),
+      basePriceAmount: positiveDecimalMoneyAmountSchema.optional(),
       basePriceCurrency: z.string().trim().length(3).toUpperCase().optional(),
-      roomSizeSqm: z.coerce.number().positive().max(1000).optional(),
+      roomSizeSqm: roomSizeSqmSchema.optional(),
       bathroomType: z.enum(BATHROOM_TYPES).optional(),
       viewType: z.enum(VIEW_TYPES).optional(),
       smokingPolicy: z.enum(SMOKING_POLICIES).optional(),
@@ -202,8 +223,8 @@ export const setAvailabilitySchema = z.object({
       dateFrom: isoDateSchema,
       dateTo: isoDateSchema,
       status: z.enum(CALENDAR_DAY_STATUSES).default('AVAILABLE'),
-      quantityAvailable: z.coerce.number().int().min(0).optional(),
-      priceOverrideAmount: z.coerce.number().positive().optional(),
+      quantityAvailable: unsignedIntQuantity.min(0).optional(),
+      priceOverrideAmount: positiveDecimalMoneyAmountSchema.optional(),
       priceOverrideCurrency: z
         .string()
         .trim()
@@ -224,8 +245,8 @@ export const updateCalendarEntrySchema = z.object({
   body: z
     .object({
       status: z.enum(CALENDAR_DAY_STATUSES).optional(),
-      quantityAvailable: z.coerce.number().int().min(0).optional(),
-      priceOverrideAmount: z.coerce.number().positive().optional(),
+      quantityAvailable: unsignedIntQuantity.min(0).optional(),
+      priceOverrideAmount: positiveDecimalMoneyAmountSchema.optional(),
       priceOverrideCurrency: z
         .string()
         .trim()
@@ -450,7 +471,7 @@ export const createManualBlockSchema = z.object({
     .object({
       unitId: z.coerce.number().int().positive(),
       ...dateRangeShape,
-      quantity: z.coerce.number().int().positive(),
+      quantity: unsignedIntQuantity.positive(),
       reasonCode: z.enum(BLOCK_REASON_CODES),
       notes: z.string().max(500).optional(),
     })
@@ -479,7 +500,7 @@ export const createExternalReservationSchema = z.object({
     .object({
       unitId: z.coerce.number().int().positive(),
       ...dateRangeShape,
-      quantity: z.coerce.number().int().positive().optional(),
+      quantity: unsignedIntQuantity.positive().optional(),
       sourceCode: z.enum(EXTERNAL_RESERVATION_SOURCE_CODES),
       externalReference: z.string().max(120).optional(),
       guestName: z.string().max(150).optional(),
@@ -504,7 +525,7 @@ export const listExternalReservationsQuerySchema = listBlocksQuerySchema;
 const csvRowShape = z.object({
   dateFrom: isoDateSchema,
   dateTo: isoDateSchema,
-  quantity: z.coerce.number().int().positive().optional(),
+  quantity: unsignedIntQuantity.positive().optional(),
   externalReference: z.string().max(120).optional(),
   guestName: z.string().max(150).optional(),
   guestPhone: z.string().max(40).optional(),

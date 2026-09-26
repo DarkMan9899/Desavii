@@ -26,7 +26,10 @@ import { z } from 'zod';
 
 export const DECIMAL_12_2_MAX = 9999999999.99;
 
-function hasAtMostTwoDecimals(value) {
+// Also used for any other 2-decimal column (e.g. `DECIMAL(6,2)` room size):
+// MySQL silently rounds extra fractional digits instead of erroring, so
+// this is the only thing standing between "24.555" and a stored 24.56.
+export function hasAtMostTwoDecimals(value) {
   return Math.abs(Math.round(value * 100) - value * 100) < 1e-6;
 }
 
@@ -37,5 +40,12 @@ export const decimalMoneyAmountSchema = z.coerce
   .refine(hasAtMostTwoDecimals, {
     message: 'amount must have at most 2 decimal places.',
   });
+
+// For callers whose contract already required `.positive()` (bookable-unit
+// base price, calendar price override) — same column rules, zero excluded.
+export const positiveDecimalMoneyAmountSchema = decimalMoneyAmountSchema.refine(
+  (value) => value > 0,
+  { message: 'amount must be greater than 0.' },
+);
 
 export default decimalMoneyAmountSchema;

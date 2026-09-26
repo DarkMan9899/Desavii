@@ -29,6 +29,7 @@ import { parseCsv } from '../../../../availability/utils/csvParser.js';
 import {
   useBulkImportExternalReservationsMutation,
   EXTERNAL_RESERVATION_SOURCE_CODES,
+  INT_UNSIGNED_MAX,
 } from '../../../../availability/index.js';
 import { useToast } from '../../../../../contexts/ToastContext.jsx';
 
@@ -38,14 +39,14 @@ function validateRow(row) {
   if (!ISO_DATE_RE.test(row.dateFrom ?? '')) return 'INVALID_DATE_FROM';
   if (!ISO_DATE_RE.test(row.dateTo ?? '')) return 'INVALID_DATE_TO';
   if (row.dateTo < row.dateFrom) return 'DATE_TO_BEFORE_DATE_FROM';
-  // Step L4.1 (brief §21) — `createExternalReservationSchema`'s own
-  // `quantity` is `z.coerce.number().int().positive().optional()`; the
-  // former `^\d+$` check alone accepted `"0"` client-side (a valid digit
-  // string) only for the server to reject it on import — this now mirrors
-  // the backend's positivity requirement, not just its integer-ness.
+  // Mirrors the bulk-import row schema: an optional integer from 1 to the
+  // `INT UNSIGNED` max. `^\d+$` alone accepted "0" and overflow values that
+  // the server then rejected for the whole batch.
   if (
     row.quantity &&
-    (!/^\d+$/.test(row.quantity) || Number(row.quantity) < 1)
+    (!/^\d+$/.test(row.quantity) ||
+      Number(row.quantity) < 1 ||
+      Number(row.quantity) > INT_UNSIGNED_MAX)
   ) {
     return 'INVALID_QUANTITY';
   }

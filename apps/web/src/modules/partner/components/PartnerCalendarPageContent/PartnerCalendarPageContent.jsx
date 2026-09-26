@@ -67,6 +67,7 @@ import {
   PARTNER_CAPABILITIES,
   BLOCK_REASON_CODES,
   EXTERNAL_RESERVATION_SOURCE_CODES,
+  INT_UNSIGNED_MAX,
 } from '../../../availability/index.js';
 import { useUnitBookingsQuery } from '../../../bookings/index.js';
 
@@ -90,12 +91,10 @@ function todayViewMonth() {
   return { year: now.getFullYear(), month: now.getMonth() };
 }
 
-// Step L4.1 (brief §9-13) — mirrors `availabilityValidators.js`'s
-// `createManualBlockSchema.quantity` (`z.coerce.number().int().positive()`,
-// REQUIRED) and `createExternalReservationSchema.quantity` (same rule,
-// optional). Previously both handlers did `Number(form.quantity) || 1`,
-// which silently turned `0`/a negative/a decimal/`NaN` into `1` instead of
-// rejecting it — exactly the "no silent clamping" defect this step closes.
+// Mirrors `availabilityValidators.js`'s block quantity (integer, 1 to the
+// `INT UNSIGNED` max, REQUIRED) and external-reservation quantity (same
+// range, optional — the server defaults an omitted value to 1). Invalid
+// typed values are rejected, never coerced into `1`.
 const INTEGER_STRING_PATTERN = /^-?\d+$/;
 
 function parseQuantityField(rawValue) {
@@ -105,14 +104,19 @@ function parseQuantityField(rawValue) {
     return { value: undefined, malformed: true };
   }
   const value = Number(trimmed);
-  if (!Number.isSafeInteger(value)) {
-    return { value: undefined, malformed: true };
+  // Past MAX_SAFE_INTEGER the parsed number isn't what was typed, but it's
+  // still unambiguously "too large", which is the more useful message.
+  if (!Number.isSafeInteger(value) || value > INT_UNSIGNED_MAX) {
+    return { value: undefined, malformed: value <= 0, tooLarge: value > 0 };
   }
   return { value, malformed: false };
 }
 
 function validateBlockQuantity(rawValue, t) {
-  const { value, malformed } = parseQuantityField(rawValue);
+  const { value, malformed, tooLarge } = parseQuantityField(rawValue);
+  if (tooLarge) {
+    return { value: undefined, error: t('partner.calendar.quantityTooLarge') };
+  }
   if (malformed || value === undefined || value < 1) {
     return {
       value: undefined,
@@ -123,7 +127,10 @@ function validateBlockQuantity(rawValue, t) {
 }
 
 function validateExternalQuantity(rawValue, t) {
-  const { value, malformed } = parseQuantityField(rawValue);
+  const { value, malformed, tooLarge } = parseQuantityField(rawValue);
+  if (tooLarge) {
+    return { value: undefined, error: t('partner.calendar.quantityTooLarge') };
+  }
   if (malformed || (value !== undefined && value < 1)) {
     return {
       value: undefined,
@@ -537,6 +544,7 @@ export default function PartnerCalendarPageContent() {
               label={t('partner.calendar.blocks.quantityLabel')}
               type="number"
               min={1}
+              max={INT_UNSIGNED_MAX}
               step={1}
               value={blockForm.quantity}
               error={blockQuantityError}
@@ -592,6 +600,7 @@ export default function PartnerCalendarPageContent() {
               label={t('partner.calendar.external.quantityLabel')}
               type="number"
               min={1}
+              max={INT_UNSIGNED_MAX}
               step={1}
               value={externalForm.quantity}
               error={externalQuantityError}

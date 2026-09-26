@@ -365,6 +365,114 @@ describe('PartnerCalendarPageContent (apps/web/src/modules/partner)', () => {
     expect(createExternal).not.toHaveBeenCalled();
   });
 
+  // Step L4.2 — both quantities mirror the backend's INT UNSIGNED ceiling.
+  describe('quantity storage bounds (Step L4.2)', () => {
+    let createBlock;
+    let createExternal;
+
+    async function openActionTab(user, tabName) {
+      useMyListingsQuery.mockReturnValue({
+        data: {
+          pages: [
+            {
+              results: [{ id: 1, title: 'Seaside Villa', status: 'PUBLISHED' }],
+            },
+          ],
+        },
+        isPending: false,
+      });
+      useBookableUnitsQuery.mockReturnValue({
+        data: [{ id: 5, bookable_unit_type: 'PROPERTY_UNIT' }],
+        isPending: false,
+      });
+      useListingCalendarQuery.mockReturnValue({
+        data: [],
+        isPending: false,
+        isError: false,
+      });
+      createBlock = vi.fn().mockResolvedValue({});
+      createExternal = vi.fn().mockResolvedValue({});
+      useCreateInventoryBlockMutation.mockReturnValue({
+        mutateAsync: createBlock,
+        isPending: false,
+      });
+      useCreateExternalReservationMutation.mockReturnValue({
+        mutateAsync: createExternal,
+        isPending: false,
+      });
+      renderPage();
+
+      const cells = screen.getAllByRole('gridcell', { name: /2026/ });
+      await user.click(cells.find((cell) => !cell.hasAttribute('disabled')));
+      await user.click(screen.getByRole('tab', { name: tabName }));
+    }
+
+    async function typeQuantity(user, label, value) {
+      const input = screen.getByLabelText(label);
+      await user.clear(input);
+      await user.type(input, value);
+    }
+
+    test('a block quantity above the INT UNSIGNED max shows the max message and is never sent', async () => {
+      const user = userEvent.setup();
+      await openActionTab(user, /Արգելափակել/);
+
+      await typeQuantity(user, 'Արգելափակվող քանակ', '4294967296');
+      await user.click(screen.getByRole('button', { name: 'Արգելափակել' }));
+
+      expect(
+        await screen.findByText('Առավելագույնը 4 294 967 295 է։'),
+      ).toBeInTheDocument();
+      expect(createBlock).not.toHaveBeenCalled();
+    });
+
+    test('a block quantity at the INT UNSIGNED max is sent as-is', async () => {
+      const user = userEvent.setup();
+      await openActionTab(user, /Արգելափակել/);
+
+      await typeQuantity(user, 'Արգելափակվող քանակ', '4294967295');
+      await user.click(screen.getByRole('button', { name: 'Արգելափակել' }));
+
+      await waitFor(() =>
+        expect(createBlock).toHaveBeenCalledWith(
+          expect.objectContaining({ quantity: 4294967295 }),
+        ),
+      );
+    });
+
+    test('an external quantity above the INT UNSIGNED max shows the max message and is never sent', async () => {
+      const user = userEvent.setup();
+      await openActionTab(user, 'Արտաքին ամրագրում');
+
+      await typeQuantity(user, 'Քանակ', '4294967296');
+      await user.click(
+        screen.getByRole('button', { name: 'Գրանցել ամրագրումը' }),
+      );
+
+      expect(
+        await screen.findByText('Առավելագույնը 4 294 967 295 է։'),
+      ).toBeInTheDocument();
+      expect(createExternal).not.toHaveBeenCalled();
+    });
+
+    test('a huge negative external quantity is rejected, never treated as blank (which would default to 1)', async () => {
+      const user = userEvent.setup();
+      await openActionTab(user, 'Արտաքին ամրագրում');
+
+      await typeQuantity(user, 'Քանակ', '-99999999999999999999');
+      await user.click(
+        screen.getByRole('button', { name: 'Գրանցել ամրագրումը' }),
+      );
+
+      expect(
+        await screen.findByText(
+          'Մուտքագրեք ամբողջ թիվ՝ առնվազն 1, կամ թողեք դատարկ։',
+        ),
+      ).toBeInTheDocument();
+      expect(createExternal).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Week/Day views (Sprint 5 P0 — real intraday scheduling)', () => {
     test('a date-only unit (no time_slot_start) shows a date-only Week strip — never a fake hour grid', async () => {
       useMyListingsQuery.mockReturnValue({

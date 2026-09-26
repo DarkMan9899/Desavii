@@ -14,6 +14,10 @@
 import { z } from 'zod';
 import { LISTING_STATUSES } from '../../../core/domain/listingStatusTransitions.js';
 import { decimalMoneyAmountSchema } from '../../../validation/decimalMoneyAmount.js';
+import {
+  SMALLINT_UNSIGNED_MAX,
+  INT_UNSIGNED_MAX,
+} from '../../../validation/sqlIntegerBounds.js';
 
 const idParams = z.object({ id: z.coerce.number().int().positive() });
 // Phase 20 (SEO): the public single-listing GET route is the one place a
@@ -96,9 +100,6 @@ const pricingSchema = z.object({
 // `minimumStayNights <= maximumStayNights` cross-field rule brief §7
 // requires — a `.refine()` on the object, not on either field alone,
 // since it depends on both.
-const SMALLINT_UNSIGNED_MAX = 65535;
-const INT_UNSIGNED_MAX = 4294967295;
-
 const bookingRulesSchema = z
   .object({
     minimumStayNights: z.coerce
@@ -353,7 +354,7 @@ export const updateListingMediaSchema = z.object({
   query: passthroughQuery,
   body: z
     .object({
-      position: z.coerce.number().int().min(0).optional(),
+      position: z.coerce.number().int().min(0).max(INT_UNSIGNED_MAX).optional(),
       isCover: z.boolean().optional(),
       altText: z.string().trim().max(255).optional(),
       caption: z.string().trim().max(500).optional(),

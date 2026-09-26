@@ -7,6 +7,10 @@
 
 import { z } from 'zod';
 import { decimalMoneyAmountSchema } from '../../../validation/decimalMoneyAmount.js';
+import { INT_UNSIGNED_MAX } from '../../../validation/sqlIntegerBounds.js';
+
+// Every `sort_order` column in the menu tables is `INT UNSIGNED` (0045).
+const sortOrderSchema = z.coerce.number().int().min(0).max(INT_UNSIGNED_MAX);
 
 const listingIdParams = z.object({ id: z.coerce.number().int().positive() });
 const menuIdParams = z.object({
@@ -33,7 +37,7 @@ export const createMenuSchema = z.object({
     languageCode: z.enum(['en', 'hy', 'ru']).optional(),
     name: z.string().trim().min(1).max(150),
     description: z.string().trim().max(2000).optional(),
-    sortOrder: z.coerce.number().int().min(0).optional(),
+    sortOrder: sortOrderSchema.optional(),
   }),
 });
 
@@ -44,7 +48,7 @@ export const updateMenuSchema = z.object({
     name: z.string().trim().min(1).max(150).optional(),
     description: z.string().trim().max(2000).nullable().optional(),
     isActive: z.boolean().optional(),
-    sortOrder: z.coerce.number().int().min(0).optional(),
+    sortOrder: sortOrderSchema.optional(),
   }),
 });
 
@@ -59,7 +63,7 @@ export const createSectionSchema = z.object({
   query: z.object({}).optional(),
   body: z.object({
     title: z.string().trim().min(1).max(150),
-    sortOrder: z.coerce.number().int().min(0).optional(),
+    sortOrder: sortOrderSchema.optional(),
   }),
 });
 
@@ -68,7 +72,7 @@ export const updateSectionSchema = z.object({
   query: z.object({}).optional(),
   body: z.object({
     title: z.string().trim().min(1).max(150).optional(),
-    sortOrder: z.coerce.number().int().min(0).optional(),
+    sortOrder: sortOrderSchema.optional(),
   }),
 });
 
@@ -102,7 +106,7 @@ export const createItemSchema = z.object({
     priceCurrencyCode: z.string().trim().length(3),
     mediaId: z.coerce.number().int().positive().optional(),
     dietaryMarkers: DIETARY_MARKERS,
-    sortOrder: z.coerce.number().int().min(0).optional(),
+    sortOrder: sortOrderSchema.optional(),
   }),
 });
 
@@ -117,7 +121,7 @@ export const updateItemSchema = z.object({
     mediaId: z.coerce.number().int().positive().nullable().optional(),
     dietaryMarkers: DIETARY_MARKERS,
     isActive: z.boolean().optional(),
-    sortOrder: z.coerce.number().int().min(0).optional(),
+    sortOrder: sortOrderSchema.optional(),
   }),
 });
 

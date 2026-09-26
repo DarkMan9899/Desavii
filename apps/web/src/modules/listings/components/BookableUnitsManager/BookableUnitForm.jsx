@@ -35,6 +35,7 @@ import {
   BATHROOM_TYPES,
   VIEW_TYPES,
   SMOKING_POLICIES,
+  INT_UNSIGNED_MAX,
 } from '../../../availability/index.js';
 import { CURRENCY_CODES } from '../../constants/currencies.js';
 import RoomDescriptionEditor from './RoomDescriptionEditor.jsx';
@@ -50,28 +51,37 @@ import RoomMediaGallery from './RoomMediaGallery.jsx';
 // gallery upload.
 const HOTEL_ROOM_TYPE = 'HOTEL_ROOM';
 
-// Step L4.1 (brief §5-7, §10, §12-13) — mirrors the exact backend contract
-// in `availabilityValidators.js`'s `registerUnitSchema`/`updateUnitSchema`:
-// `capacity`/`maxGuests`/bed `count` are `z.coerce.number().int().positive()`
-// (capacity has no upper bound there — none is invented here either, per
-// brief §4's "do not invent arbitrary bounds"; maxGuests/bed-count DO have
-// real schema ceilings, mirrored below), `basePriceAmount` is
-// `z.coerce.number().positive()` — POSITIVE, not nonnegative, unlike
-// listing pricing/restaurant menu price — so zero is invalid here even
-// though it's valid for those other money fields (brief §14).
+// Mirrors `availabilityValidators.js`'s `registerUnitSchema`/
+// `updateUnitSchema` exactly. `capacity` is capped at its `INT UNSIGNED`
+// column ceiling (no smaller product rule exists). `basePriceAmount` is
+// strictly POSITIVE — unlike listing pricing/menu price, zero is invalid
+// here. `basePriceAmount`/`roomSizeSqm` both allow at most 2 decimal
+// places: their DECIMAL columns would otherwise silently round.
 const INTEGER_STRING_PATTERN = /^-?\d+$/;
-const PRICE_STRING_PATTERN = /^-?\d*\.?\d*$/;
+const DECIMAL_STRING_PATTERN = /^-?\d*\.?\d*$/;
 const MAX_GUESTS_MAX = 100; // availabilityValidators.js: maxGuests.max(100)
 const BED_COUNT_MAX = 20; // availabilityValidators.js: bedConfigurationSchema count.max(20)
 const BED_ROWS_MAX = 12; // availabilityValidators.js: bedConfigurationSchema array.max(12)
-const BASE_PRICE_MAX = 9999999999.99; // bookable_units.base_price_amount DECIMAL(12,2), same column precision as listing pricing/menu item price
+const BASE_PRICE_MAX = 9999999999.99; // bookable_units.base_price_amount DECIMAL(12,2)
+const ROOM_SIZE_SQM_MAX = 1000; // availabilityValidators.js: roomSizeSqm.max(1000)
 
-function toOptionalNumber(value) {
-  return value === '' ? undefined : Number(value);
-}
+const BASE_PRICE_MESSAGES = {
+  invalid: 'partner.listingWizard.availability.basePriceAmountInvalid',
+  notPositive: 'partner.listingWizard.availability.basePriceAmountNotPositive',
+  tooLarge: 'partner.listingWizard.availability.basePriceAmountTooLarge',
+  precision: 'partner.listingWizard.availability.basePriceAmountPrecision',
+};
+
+const ROOM_SIZE_MESSAGES = {
+  invalid: 'partner.listingWizard.availability.roomSizeSqmInvalid',
+  notPositive: 'partner.listingWizard.availability.roomSizeSqmNotPositive',
+  tooLarge: 'partner.listingWizard.availability.roomSizeSqmTooLarge',
+  precision: 'partner.listingWizard.availability.roomSizeSqmPrecision',
+};
 
 // A digit string past Number.MAX_SAFE_INTEGER parses to a rounded value,
-// never the one the Partner typed — treated as malformed (brief §12).
+// never the one the Partner typed — it's never accepted, and `tooLarge`
+// lets a field say so instead of calling it malformed.
 function parseIntegerField(rawValue) {
   const trimmed = String(rawValue ?? '').trim();
   if (trimmed === '') return { value: undefined, malformed: false };
@@ -80,13 +90,19 @@ function parseIntegerField(rawValue) {
   }
   const value = Number(trimmed);
   if (!Number.isSafeInteger(value)) {
-    return { value: undefined, malformed: true };
+    return { value: undefined, malformed: true, tooLarge: value > 0 };
   }
   return { value, malformed: false };
 }
 
 function validateCapacity(rawValue, t) {
-  const { value, malformed } = parseIntegerField(rawValue);
+  const { value, malformed, tooLarge } = parseIntegerField(rawValue);
+  if (tooLarge || (value !== undefined && value > INT_UNSIGNED_MAX)) {
+    return {
+      value: undefined,
+      error: t('partner.listingWizard.availability.capacityTooLarge'),
+    };
+  }
   if (malformed || (value !== undefined && value < 1)) {
     return {
       value: undefined,
@@ -123,39 +139,23 @@ function validateBedCount(rawValue, t) {
   return { value, error: undefined };
 }
 
-function validateBasePriceAmount(rawValue, t) {
+// Optional, strictly positive, at most 2 decimal places, capped at `max`.
+// Blank stays `undefined` (never `Number('') === 0`).
+function validatePositiveTwoDecimal(rawValue, max, messages, t) {
   const trimmed = String(rawValue ?? '').trim();
   if (trimmed === '') return { value: undefined, error: undefined };
-  if (!PRICE_STRING_PATTERN.test(trimmed)) {
-    return {
-      value: undefined,
-      error: t('partner.listingWizard.availability.basePriceAmountInvalid'),
-    };
-  }
-  const numeric = Number(trimmed);
+  const numeric = DECIMAL_STRING_PATTERN.test(trimmed) ? Number(trimmed) : NaN;
   if (!Number.isFinite(numeric)) {
-    return {
-      value: undefined,
-      error: t('partner.listingWizard.availability.basePriceAmountInvalid'),
-    };
+    return { value: undefined, error: t(messages.invalid) };
   }
   if (numeric <= 0) {
-    return {
-      value: undefined,
-      error: t('partner.listingWizard.availability.basePriceAmountNotPositive'),
-    };
+    return { value: undefined, error: t(messages.notPositive) };
   }
-  if (numeric > BASE_PRICE_MAX) {
-    return {
-      value: undefined,
-      error: t('partner.listingWizard.availability.basePriceAmountTooLarge'),
-    };
+  if (numeric > max) {
+    return { value: undefined, error: t(messages.tooLarge) };
   }
   if (Math.abs(Math.round(numeric * 100) - numeric * 100) >= 1e-6) {
-    return {
-      value: undefined,
-      error: t('partner.listingWizard.availability.basePriceAmountPrecision'),
-    };
+    return { value: undefined, error: t(messages.precision) };
   }
   return { value: numeric, error: undefined };
 }
@@ -265,13 +265,29 @@ export default function BookableUnitForm({
   function handleSubmit() {
     const capacityResult = validateCapacity(capacity, t);
     const maxGuestsResult = validateMaxGuests(maxGuests, t);
-    const basePriceResult = validateBasePriceAmount(basePriceAmount, t);
+    const basePriceResult = validatePositiveTwoDecimal(
+      basePriceAmount,
+      BASE_PRICE_MAX,
+      BASE_PRICE_MESSAGES,
+      t,
+    );
+    // Only a HOTEL_ROOM ever renders/sends roomSizeSqm — a hidden value
+    // must never block saving any other unit type.
+    const roomSizeResult = isHotelRoom
+      ? validatePositiveTwoDecimal(
+          roomSizeSqm,
+          ROOM_SIZE_SQM_MAX,
+          ROOM_SIZE_MESSAGES,
+          t,
+        )
+      : { value: undefined, error: undefined };
     const bedRowResults = bedRows.map((row) => validateBedCount(row.count, t));
 
     const nextFieldErrors = {
       capacity: capacityResult.error,
       maxGuests: maxGuestsResult.error,
       basePriceAmount: basePriceResult.error,
+      roomSizeSqm: roomSizeResult.error,
     };
     const nextBedRowErrors = bedRowResults.map((result) => result.error);
 
@@ -305,7 +321,7 @@ export default function BookableUnitForm({
       basePriceCurrency: basePriceAmount === '' ? undefined : basePriceCurrency,
       ...(isHotelRoom
         ? {
-            roomSizeSqm: toOptionalNumber(roomSizeSqm),
+            roomSizeSqm: roomSizeResult.value,
             bathroomType: bathroomType ?? undefined,
             viewType: viewType ?? undefined,
             smokingPolicy: smokingPolicy ?? undefined,
@@ -377,6 +393,7 @@ export default function BookableUnitForm({
         <Input
           type="number"
           min={1}
+          max={INT_UNSIGNED_MAX}
           step={1}
           label={t('partner.listingWizard.availability.capacity')}
           helperText={t('partner.listingWizard.availability.capacityHint')}
@@ -406,10 +423,18 @@ export default function BookableUnitForm({
             type="number"
             label={t('partner.listingWizard.availability.roomSizeSqm')}
             helperText={t('partner.listingWizard.availability.roomSizeSqmHint')}
-            min="1"
-            max="1000"
+            min={0.01}
+            max={ROOM_SIZE_SQM_MAX}
+            step={0.01}
             value={roomSizeSqm}
-            onChange={(event) => setRoomSizeSqm(event.target.value)}
+            error={fieldErrors.roomSizeSqm}
+            onChange={(event) => {
+              setRoomSizeSqm(event.target.value);
+              setFieldErrors((current) => ({
+                ...current,
+                roomSizeSqm: undefined,
+              }));
+            }}
           />
         )}
       </Inline>

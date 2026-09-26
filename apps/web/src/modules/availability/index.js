@@ -12,6 +12,7 @@
 export { default as availabilityKeys } from './constants/queryKeys.js';
 export { default as BOOKABLE_UNIT_TYPES } from './constants/bookableUnitTypes.js';
 export { default as BED_TYPES } from './constants/bedTypes.js';
+export { INT_UNSIGNED_MAX } from './constants/numericBounds.js';
 export {
   BATHROOM_TYPES,
   VIEW_TYPES,

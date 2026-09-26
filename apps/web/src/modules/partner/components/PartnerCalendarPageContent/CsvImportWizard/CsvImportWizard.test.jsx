@@ -123,6 +123,41 @@ describe('CsvImportWizard (apps/web/src/modules/partner)', () => {
     expect(screen.getByText('Անվավեր քանակ')).toBeInTheDocument();
   });
 
+  // Step L4.2 — the bulk-import row schema now caps quantity at the
+  // INT UNSIGNED max; an over-limit row would reject the whole batch.
+  test.each([
+    ['above the INT UNSIGNED max', '4294967296'],
+    ['a decimal', '1.5'],
+    ['negative', '-2'],
+  ])(
+    'a row with a quantity %s is flagged invalid',
+    async (_label, quantity) => {
+      renderWizard();
+      const csv = `dateFrom,dateTo,quantity,guestName\n2026-03-10,2026-03-12,${quantity},Anna`;
+      fireEvent.change(getFileInput(), {
+        target: { files: [makeCsvFile(csv)] },
+      });
+
+      expect(
+        await screen.findByText('Գտնվել է 1 տող՝ 0 վավեր, 1 անվավեր։'),
+      ).toBeInTheDocument();
+      expect(screen.getByText('Անվավեր քանակ')).toBeInTheDocument();
+    },
+  );
+
+  test('a row with a quantity at the INT UNSIGNED max is valid', async () => {
+    renderWizard();
+    const csv =
+      'dateFrom,dateTo,quantity,guestName\n2026-03-10,2026-03-12,4294967295,Anna';
+    fireEvent.change(getFileInput(), {
+      target: { files: [makeCsvFile(csv)] },
+    });
+
+    expect(
+      await screen.findByText('Գտնվել է 1 տող՝ 1 վավեր, 0 անվավեր։'),
+    ).toBeInTheDocument();
+  });
+
   test('an empty CSV file shows an error instead of advancing to preview', async () => {
     renderWizard();
     fireEvent.change(getFileInput(), {
