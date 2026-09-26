@@ -19,7 +19,6 @@ import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Card, Button, Badge } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
-import { Alert } from '@desavii/ui/components/feedback-overlays';
 import { PriceTag } from '@desavii/ui/components/data-display';
 import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
 import { useCreateListingMenuSectionMutation } from '../../mutations/useCreateListingMenuSectionMutation.js';
@@ -29,6 +28,7 @@ import { useCreateListingMenuItemMutation } from '../../mutations/useCreateListi
 import { useUpdateListingMenuItemMutation } from '../../mutations/useUpdateListingMenuItemMutation.js';
 import { useDeleteListingMenuItemMutation } from '../../mutations/useDeleteListingMenuItemMutation.js';
 import SectionForm from './SectionForm.jsx';
+import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import ItemForm from './ItemForm.jsx';
 
 function ItemRow({ item, onEdit, onDelete }) {
@@ -144,10 +144,12 @@ export default function MenuPanel({ menu, listingId, locale }) {
                 )
               }
               onCancel={() => setEditingSectionId(null)}
+              serverError={
+                updateSection.variables?.sectionId === section.id
+                  ? updateSection.error
+                  : null
+              }
             />
-            {updateSection.error && (
-              <Alert variant="danger">{updateSection.error.message}</Alert>
-            )}
           </Card>
         ) : (
           <Card key={section.id} padding="md">
@@ -175,10 +177,9 @@ export default function MenuPanel({ menu, listingId, locale }) {
                   </Button>
                 </Inline>
               </Inline>
-              {deleteSection.error &&
-                deleteSection.variables?.sectionId === section.id && (
-                  <Alert variant="danger">{deleteSection.error.message}</Alert>
-                )}
+              {deleteSection.variables?.sectionId === section.id && (
+                <ApiErrorAlert error={deleteSection.error} />
+              )}
 
               {section.items.length === 0 &&
                 addingItemForSectionId !== section.id && (
@@ -207,12 +208,12 @@ export default function MenuPanel({ menu, listingId, locale }) {
                           )
                         }
                         onCancel={() => setEditingItemId(null)}
+                        serverError={
+                          updateItem.variables?.itemId === item.id
+                            ? updateItem.error
+                            : null
+                        }
                       />
-                      {updateItem.error && (
-                        <Alert variant="danger">
-                          {updateItem.error.message}
-                        </Alert>
-                      )}
                     </Card>
                   ) : (
                     <ItemRow
@@ -240,10 +241,12 @@ export default function MenuPanel({ menu, listingId, locale }) {
                       )
                     }
                     onCancel={() => setAddingItemForSectionId(null)}
+                    serverError={
+                      createItem.variables?.sectionId === section.id
+                        ? createItem.error
+                        : null
+                    }
                   />
-                  {createItem.error && (
-                    <Alert variant="danger">{createItem.error.message}</Alert>
-                  )}
                 </Card>
               ) : (
                 <Button
@@ -274,10 +277,12 @@ export default function MenuPanel({ menu, listingId, locale }) {
               )
             }
             onCancel={() => setIsAddingSection(false)}
+            serverError={
+              createSection.variables?.menuId === menu.id
+                ? createSection.error
+                : null
+            }
           />
-          {createSection.error && (
-            <Alert variant="danger">{createSection.error.message}</Alert>
-          )}
         </Card>
       ) : (
         <Button

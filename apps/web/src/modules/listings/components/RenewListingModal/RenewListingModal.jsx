@@ -11,19 +11,20 @@
  * `onClose`/`onRenewed` — no mutation wiring duplicated per caller.
  *
  * A readiness failure (a frozen listing that went stale — brief §7) shows
- * inline via the same itemized-issues `Alert` pattern `ReviewStep.jsx`
- * already uses for publish-readiness errors, never a raw/generic message.
+ * inline through the shared `ApiErrorAlert` `ReviewStep.jsx` also uses
+ * for publish-readiness errors, never a raw/generic message.
  */
 
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { Modal, Alert } from '@desavii/ui/components/feedback-overlays';
+import { Modal } from '@desavii/ui/components/feedback-overlays';
 import { Button } from '@desavii/ui/components/primitives';
 import { ChipGroup } from '@desavii/ui/components/form-controls';
 import { useRenewListingMutation } from '../../mutations/useRenewListingMutation.js';
 import { PUBLICATION_PERIOD_DAYS_OPTIONS } from '../../constants/publicationPeriod.js';
 import { resolveDefaultRenewalPeriod } from '../../utils/listingLifecyclePresentation.js';
+import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 
 const FALLBACK_PERIOD_DAYS = 90;
 
@@ -70,7 +71,6 @@ export default function RenewListingModal({
     }
   }
 
-  const issues = renewMutation.error?.details ?? [];
   const isFrozen = listing.frozen_at != null;
 
   return (
@@ -108,23 +108,7 @@ export default function RenewListingModal({
         )}
       </p>
 
-      {renewMutation.error && (
-        <Alert variant="danger">
-          {renewMutation.error.message}
-          {issues.length > 0 && (
-            <ul>
-              {issues.map((issue) => (
-                <li key={`${issue.field}-${issue.issue}`}>
-                  {t(`partner.listingWizard.publishIssues.${issue.issue}`, {
-                    field: issue.field,
-                    defaultValue: `${issue.field}: ${issue.issue}`,
-                  })}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Alert>
-      )}
+      <ApiErrorAlert error={renewMutation.error} />
 
       <ChipGroup
         label={t('partner.listingWizard.publicationPeriod.heading')}

@@ -14,15 +14,13 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import {
-  Spinner,
-  ErrorState,
-  Alert,
-} from '@desavii/ui/components/feedback-overlays';
+import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
 import { Stack } from '@desavii/ui/components/layout';
 import { useListingMetadataQuery } from '../../../queries/useListingMetadataQuery.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
 import { toAttributeValuesPayload } from '../../../utils/attributeValueMapping.js';
+import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import useApiFieldErrors from '../../../../../hooks/useApiFieldErrors.js';
 import MetadataFieldRenderer from '../MetadataFieldRenderer.jsx';
 import WizardStepActions from '../WizardStepActions.jsx';
 
@@ -45,6 +43,11 @@ export default function DynamicAttributesStep({
 
   const [values, setValues] = useState(initialValues);
   const [validationErrors, setValidationErrors] = useState({});
+  // Server errors arrive per code at `attributeValues.<code>` — the same path
+  // the publish-readiness check uses for a missing required value.
+  const { fieldError, clearFieldError } = useApiFieldErrors(
+    updateListingMutation.error,
+  );
 
   if (isPending) {
     return <Spinner label={t('partner.listingWizard.attributes.loading')} />;
@@ -64,6 +67,7 @@ export default function DynamicAttributesStep({
 
   function setFieldValue(code, value) {
     setValues((current) => ({ ...current, [code]: value }));
+    clearFieldError(`attributeValues.${code}`);
   }
 
   async function handleContinue() {
@@ -84,12 +88,17 @@ export default function DynamicAttributesStep({
     setValidationErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    await updateListingMutation.mutateAsync({
-      id: listingId,
-      payload: {
-        attributeValues: toAttributeValuesPayload(attributes, values),
-      },
-    });
+    try {
+      await updateListingMutation.mutateAsync({
+        id: listingId,
+        payload: {
+          attributeValues: toAttributeValuesPayload(attributes, values),
+        },
+      });
+    } catch {
+      // Rendered from the mutation's own `error` (ApiErrorAlert + fields).
+      return;
+    }
     onNext();
   }
 
@@ -99,9 +108,12 @@ export default function DynamicAttributesStep({
       {attributes.length === 0 && (
         <p>{t('partner.listingWizard.attributes.empty')}</p>
       )}
-      {updateListingMutation.error && (
-        <Alert variant="danger">{updateListingMutation.error.message}</Alert>
-      )}
+      <ApiErrorAlert
+        error={updateListingMutation.error}
+        inlinePaths={attributes.map(
+          (attribute) => `attributeValues.${attribute.code}`,
+        )}
+      />
       <Stack gap="4">
         {attributes.map((attribute) => (
           <MetadataFieldRenderer
@@ -110,7 +122,10 @@ export default function DynamicAttributesStep({
             definition={attribute}
             value={values[attribute.code]}
             onChange={(value) => setFieldValue(attribute.code, value)}
-            error={validationErrors[attribute.code]}
+            error={
+              validationErrors[attribute.code] ??
+              fieldError(`attributeValues.${attribute.code}`)
+            }
           />
         ))}
       </Stack>

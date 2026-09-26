@@ -22,11 +22,7 @@ import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Card, Button, Badge } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
-import {
-  Spinner,
-  ErrorState,
-  Alert,
-} from '@desavii/ui/components/feedback-overlays';
+import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
 import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
 import { useListingMenuQuery } from '../../queries/useListingMenuQuery.js';
 import { useCreateListingMenuMutation } from '../../mutations/useCreateListingMenuMutation.js';
@@ -36,6 +32,7 @@ import { SUPPORTED_LOCALES } from '../../../../translations/i18n.js';
 import AuthoringLocaleTabs from '../PartnerListingWizard/AuthoringLocaleTabs/AuthoringLocaleTabs.jsx';
 import MenuForm from './MenuForm.jsx';
 import MenuPanel from './MenuPanel.jsx';
+import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 
 function LocaleMenuList({ listingId, locale }) {
   const { t } = useTranslation();
@@ -99,10 +96,12 @@ function LocaleMenuList({ listingId, locale }) {
                 )
               }
               onCancel={() => setEditingMenuId(null)}
+              serverError={
+                updateMenu.variables?.menuId === menu.id
+                  ? updateMenu.error
+                  : null
+              }
             />
-            {updateMenu.error && (
-              <Alert variant="danger">{updateMenu.error.message}</Alert>
-            )}
           </Card>
         ) : (
           <Card key={menu.id} padding="lg">
@@ -141,8 +140,8 @@ function LocaleMenuList({ listingId, locale }) {
                   </Button>
                 </Inline>
               </Inline>
-              {deleteMenu.error && deleteMenu.variables?.menuId === menu.id && (
-                <Alert variant="danger">{deleteMenu.error.message}</Alert>
+              {deleteMenu.variables?.menuId === menu.id && (
+                <ApiErrorAlert error={deleteMenu.error} />
               )}
               <MenuPanel menu={menu} listingId={listingId} locale={locale} />
             </Stack>
@@ -163,17 +162,19 @@ function LocaleMenuList({ listingId, locale }) {
                 { onSuccess: () => setIsAddingMenu(false) },
               )
             }
-            onCancel={() => setIsAddingMenu(false)}
+            onCancel={() => {
+              createMenu.reset();
+              setIsAddingMenu(false);
+            }}
+            serverError={createMenu.error}
           />
-          {createMenu.error && (
-            <Alert variant="danger">{createMenu.error.message}</Alert>
-          )}
         </Card>
       ) : (
         <Button
           variant="secondary"
           onClick={() => {
             setEditingMenuId(null);
+            createMenu.reset();
             setIsAddingMenu(true);
           }}
         >

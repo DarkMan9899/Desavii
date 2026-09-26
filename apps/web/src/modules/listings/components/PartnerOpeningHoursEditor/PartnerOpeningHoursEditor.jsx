@@ -22,11 +22,8 @@ import { useTranslation } from 'react-i18next';
 import { Input, Select } from '@desavii/ui/components/form-controls';
 import { Button, Card } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
-import {
-  Spinner,
-  ErrorState,
-  Alert,
-} from '@desavii/ui/components/feedback-overlays';
+import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
+import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
 import { useListingOpeningHoursQuery } from '../../queries/useListingOpeningHoursQuery.js';
 import { useReplaceListingOpeningHoursMutation } from '../../mutations/useReplaceListingOpeningHoursMutation.js';
@@ -168,9 +165,7 @@ export default function PartnerOpeningHoursEditor({ listingId }) {
       {incompleteRows.length > 0 && (
         <p>{t('partner.listingOpeningHours.incompleteHint')}</p>
       )}
-      {replaceMutation.error && (
-        <Alert variant="danger">{replaceMutation.error.message}</Alert>
-      )}
+      <ApiErrorAlert error={replaceMutation.error} />
       <Inline>
         <Button
           variant="primary"

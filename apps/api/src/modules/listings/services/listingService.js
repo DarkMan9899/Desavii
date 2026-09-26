@@ -36,6 +36,7 @@ import { findCurrencyByCode } from '../../../infrastructure/database/repositorie
 import { resolveLocaleIds } from '../../../infrastructure/database/repositories/languageRepository.js';
 import { withTransaction } from '../../../infrastructure/database/transaction.js';
 import { slugify } from '../../../core/domain/slugify.js';
+import { isoDateSchema } from '../../../validation/isoDate.js';
 import { isValidListingStatusTransition } from '../../../core/domain/listingStatusTransitions.js';
 import { resolveModerationDecision } from '../../../core/domain/listingModerationDecisions.js';
 import { deriveListingTypeCodeFromCategorySlug } from '../../../core/domain/categoryListingTypeMapping.js';
@@ -85,6 +86,68 @@ const ENUM_ATTRIBUTE_DATA_TYPES = ['ENUM', 'MULTI_ENUM'];
 // carried a meaningful range in the first place (see the fix below for
 // why this used to matter).
 const NUMERIC_ATTRIBUTE_DATA_TYPES = ['INTEGER', 'DECIMAL'];
+
+const BOOLEAN_POLICY_VALUES = ['true', 'false'];
+
+// `listing_attribute_values_string.value` is VARCHAR(255).
+const STRING_ATTRIBUTE_MAX_LENGTH = 255;
+
+function attributeValueError(field, message, detail) {
+  return new ValidationError(message, [{ field, ...detail }]);
+}
+
+/**
+ * BOOLEAN / DATE / STRING attribute values, checked against the exact
+ * wire contract the wizard sends (`attributeValueMapping.js`): a real
+ * boolean, an ISO date, a non-blank string. Previously any value was
+ * accepted here — `Number(Boolean("false"))` stored `true`, and an
+ * unbounded string only failed at the VARCHAR(255) column.
+ */
+function resolveScalarAttributeValue(value, dataTypeCode, field) {
+  if (dataTypeCode === 'BOOLEAN') {
+    if (typeof value !== 'boolean') {
+      throw attributeValueError(field, 'Expected true or false.', {
+        issue: 'invalid_type',
+        received: value === undefined ? 'undefined' : typeof value,
+      });
+    }
+    return Number(value);
+  }
+  if (dataTypeCode === 'DATE') {
+    if (!isoDateSchema.safeParse(value).success) {
+      throw attributeValueError(field, 'Expected a valid YYYY-MM-DD date.', {
+        issue: 'invalid_date',
+      });
+    }
+    return value;
+  }
+  if (typeof value !== 'string') {
+    throw attributeValueError(field, 'Expected text.', {
+      issue: 'invalid_type',
+      received: value === undefined ? 'undefined' : typeof value,
+    });
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw attributeValueError(field, 'A value is required.', {
+      issue: 'too_small',
+      type: 'string',
+      minimum: 1,
+    });
+  }
+  if (trimmed.length > STRING_ATTRIBUTE_MAX_LENGTH) {
+    throw attributeValueError(
+      field,
+      `At most ${STRING_ATTRIBUTE_MAX_LENGTH} characters.`,
+      {
+        issue: 'too_big',
+        type: 'string',
+        maximum: STRING_ATTRIBUTE_MAX_LENGTH,
+      },
+    );
+  }
+  return trimmed;
+}
 // Stage 11.3 (Admin Platform — Listing Moderation): this schema's shared
 // `moderation_statuses` lookup — same 4 values `partnerService.js` uses
 // for verification, applied here to the previously-dormant
@@ -220,20 +283,37 @@ export class ListingService {
     const definitionsByCode =
       await this.#listingMetadataRepository.getAttributeDefinitionsByCode(
         attributeValues.map((entry) => entry.code),
+        categoryId,
       );
 
     const resolved = [];
     // eslint-disable-next-line no-restricted-syntax -- sequential by design, each ENUM entry needs its own option-code lookup
     for (const entry of attributeValues) {
+      // Same `attributeValues.<code>` path `#checkPublishReadiness` uses,
+      // so a client can attach any attribute error to that one field.
+      const field = `attributeValues.${entry.code}`;
       const definition = definitionsByCode.get(entry.code);
       if (!definition) {
-        throw new ValidationError(`Unknown attribute code "${entry.code}".`, [
-          { field: 'attributeValues', issue: 'UNKNOWN_ATTRIBUTE_CODE' },
-        ]);
+        throw new ValidationError(
+          `Attribute "${entry.code}" is not available for this category.`,
+          [{ field, issue: 'UNKNOWN_ATTRIBUTE_CODE' }],
+        );
       }
 
       if (ENUM_ATTRIBUTE_DATA_TYPES.includes(definition.dataTypeCode)) {
         const optionCodes = entry.optionCodes ?? [];
+        if (definition.dataTypeCode === 'ENUM' && optionCodes.length > 1) {
+          throw new ValidationError(
+            `"${entry.code}" accepts a single option.`,
+            [{ field, issue: 'too_big', type: 'array', maximum: 1 }],
+          );
+        }
+        if (new Set(optionCodes).size !== optionCodes.length) {
+          throw new ValidationError(
+            `"${entry.code}" lists the same option more than once.`,
+            [{ field, issue: 'DUPLICATE_OPTION_CODE' }],
+          );
+        }
         const optionIdsByCodePromise =
           this.#listingMetadataRepository.getAttributeOptionIdsByCode(
             definition.id,
@@ -246,7 +326,7 @@ export class ListingService {
           if (!optionId) {
             throw new ValidationError(
               `Unknown option "${code}" for attribute "${entry.code}".`,
-              [{ field: 'attributeValues', issue: 'UNKNOWN_OPTION_CODE' }],
+              [{ field, issue: 'UNKNOWN_OPTION_CODE' }],
             );
           }
           return optionId;
@@ -278,7 +358,7 @@ export class ListingService {
         if (!Number.isFinite(numericValue)) {
           throw new ValidationError(
             `"${entry.code}" must be a valid, finite number.`,
-            [{ field: 'attributeValues', issue: 'INVALID_NUMBER' }],
+            [{ field, issue: 'INVALID_NUMBER' }],
           );
         }
         if (
@@ -286,7 +366,7 @@ export class ListingService {
           !Number.isInteger(numericValue)
         ) {
           throw new ValidationError(`"${entry.code}" must be a whole number.`, [
-            { field: 'attributeValues', issue: 'MUST_BE_INTEGER' },
+            { field, issue: 'MUST_BE_INTEGER' },
           ]);
         }
         if (
@@ -295,7 +375,13 @@ export class ListingService {
         ) {
           throw new ValidationError(
             `"${entry.code}" must be at least ${definition.validationMin}.`,
-            [{ field: 'attributeValues', issue: 'BELOW_MINIMUM' }],
+            [
+              {
+                field,
+                issue: 'BELOW_MINIMUM',
+                minimum: definition.validationMin,
+              },
+            ],
           );
         }
         if (
@@ -304,7 +390,13 @@ export class ListingService {
         ) {
           throw new ValidationError(
             `"${entry.code}" must be at most ${definition.validationMax}.`,
-            [{ field: 'attributeValues', issue: 'ABOVE_MAXIMUM' }],
+            [
+              {
+                field,
+                issue: 'ABOVE_MAXIMUM',
+                maximum: definition.validationMax,
+              },
+            ],
           );
         }
         resolved.push({
@@ -313,11 +405,14 @@ export class ListingService {
           value: numericValue,
         });
       } else {
-        const isBoolean = definition.dataTypeCode === 'BOOLEAN';
         resolved.push({
           attributeDefinitionId: definition.id,
           dataTypeCode: definition.dataTypeCode,
-          value: isBoolean ? Number(Boolean(entry.value)) : entry.value,
+          value: resolveScalarAttributeValue(
+            entry.value,
+            definition.dataTypeCode,
+            field,
+          ),
         });
       }
     }
@@ -343,15 +438,31 @@ export class ListingService {
     const definitionsByCode =
       await this.#listingMetadataRepository.getPolicyDefinitionsByCode(
         policyValues.map((entry) => entry.code),
+        categoryId,
       );
 
     const resolved = [];
     // eslint-disable-next-line no-restricted-syntax -- sequential by design, ENUM entries need their own option-code lookup
     for (const entry of policyValues) {
+      const field = `policyValues.${entry.code}`;
       const definition = definitionsByCode.get(entry.code);
       if (!definition) {
-        throw new ValidationError(`Unknown policy code "${entry.code}".`, [
-          { field: 'policyValues', issue: 'UNKNOWN_POLICY_CODE' },
+        throw new ValidationError(
+          `Policy "${entry.code}" is not available for this category.`,
+          [{ field, issue: 'UNKNOWN_POLICY_CODE' }],
+        );
+      }
+
+      // The wizard sends BOOLEAN policies as the strings "true"/"false"
+      // (`policyValueMapping.js`), whose read side treats anything other
+      // than exactly "true" as false — any other string was silently
+      // stored and then shown as "false".
+      if (
+        definition.dataTypeCode === 'BOOLEAN' &&
+        !BOOLEAN_POLICY_VALUES.includes(entry.value)
+      ) {
+        throw new ValidationError(`"${entry.code}" must be true or false.`, [
+          { field, issue: 'invalid_enum_value' },
         ]);
       }
 
@@ -366,7 +477,7 @@ export class ListingService {
         if (!optionIdsByCode.has(entry.value)) {
           throw new ValidationError(
             `Unknown option "${entry.value}" for policy "${entry.code}".`,
-            [{ field: 'policyValues', issue: 'UNKNOWN_OPTION_CODE' }],
+            [{ field, issue: 'UNKNOWN_OPTION_CODE' }],
           );
         }
       }
@@ -388,18 +499,19 @@ export class ListingService {
     const pricingModelId =
       await this.#listingMetadataRepository.getPricingModelIdByCode(
         pricing.modelCode,
+        categoryId,
       );
     if (!pricingModelId) {
       throw new ValidationError(
-        `Unknown pricing model "${pricing.modelCode}".`,
-        [{ field: 'pricing', issue: 'UNKNOWN_PRICING_MODEL' }],
+        `Pricing model "${pricing.modelCode}" is not available for this category.`,
+        [{ field: 'pricing.modelCode', issue: 'UNKNOWN_PRICING_MODEL' }],
       );
     }
 
     const currency = await findCurrencyByCode(pricing.currencyCode);
     if (!currency) {
       throw new ValidationError(`Unknown currency "${pricing.currencyCode}".`, [
-        { field: 'pricing', issue: 'UNKNOWN_CURRENCY' },
+        { field: 'pricing.currencyCode', issue: 'UNKNOWN_CURRENCY' },
       ]);
     }
 

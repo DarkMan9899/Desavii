@@ -175,6 +175,7 @@ export class RestaurantMenuService {
     if (sectionCount > 0) {
       throw new ConflictError(
         'Remove every section from this menu before deleting it.',
+        'MENU_HAS_SECTIONS',
       );
     }
     await this.#restaurantMenuRepository.deleteMenu(menuId);
@@ -214,6 +215,7 @@ export class RestaurantMenuService {
     if (itemCount > 0) {
       throw new ConflictError(
         'Remove every item from this section before deleting it.',
+        'SECTION_HAS_ITEMS',
       );
     }
     await this.#restaurantMenuRepository.deleteSection(sectionId);

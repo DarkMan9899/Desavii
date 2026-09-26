@@ -255,7 +255,18 @@ export const updateListingSchema = z.object({
   body: z
     .object({
       slug: z.string().trim().min(1).max(180).optional(),
-      canonicalUrl: z.string().trim().url().max(500).optional(),
+      // Zod's `.url()` is `new URL()`, which accepts `javascript:`/`data:`;
+      // this value is echoed in the public listing DTO, so only web
+      // schemes are persisted.
+      canonicalUrl: z
+        .string()
+        .trim()
+        .url()
+        .max(500)
+        .refine((url) => /^https?:\/\//i.test(url), {
+          message: 'canonicalUrl must use http or https.',
+        })
+        .optional(),
       ogImageMediaId: z.coerce.number().int().positive().optional(),
       isIndexable: z.boolean().optional(),
       isSitemapIncluded: z.boolean().optional(),

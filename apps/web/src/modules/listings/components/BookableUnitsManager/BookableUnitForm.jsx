@@ -41,6 +41,9 @@ import { CURRENCY_CODES } from '../../constants/currencies.js';
 import RoomDescriptionEditor from './RoomDescriptionEditor.jsx';
 import RoomAmenitiesEditor from './RoomAmenitiesEditor.jsx';
 import RoomMediaGallery from './RoomMediaGallery.jsx';
+import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import apiErrorPropType from '../../../../components/ApiErrorAlert/apiErrorPropType.js';
+import useApiFieldErrors from '../../../../hooks/useApiFieldErrors.js';
 
 // Sprint C-1 §17 — room-specific fields (size/bathroom/view/smoking,
 // description/amenities/photos) are gated to this one unit type. Generic
@@ -64,6 +67,24 @@ const BED_COUNT_MAX = 20; // availabilityValidators.js: bedConfigurationSchema c
 const BED_ROWS_MAX = 12; // availabilityValidators.js: bedConfigurationSchema array.max(12)
 const BASE_PRICE_MAX = 9999999999.99; // bookable_units.base_price_amount DECIMAL(12,2)
 const ROOM_SIZE_SQM_MAX = 1000; // availabilityValidators.js: roomSizeSqm.max(1000)
+const UNIT_LABEL_MAX_LENGTH = 120; // availabilityValidators.js: unitLabel.max(120), VARCHAR(120)
+
+// Fields that render their own server error inline (bed rows are added
+// per index at render time).
+const INLINE_API_PATHS = [
+  'bookableUnitType',
+  'unitLabel',
+  'timeSlotStart',
+  'timeSlotEnd',
+  'capacity',
+  'maxGuests',
+  'roomSizeSqm',
+  'bathroomType',
+  'viewType',
+  'smokingPolicy',
+  'basePriceAmount',
+  'basePriceCurrency',
+];
 
 const BASE_PRICE_MESSAGES = {
   invalid: 'partner.listingWizard.availability.basePriceAmountInvalid',
@@ -180,6 +201,9 @@ export default function BookableUnitForm({
   translations = [],
   amenityIds = [],
   media = [],
+  // The register/update mutation's rejection, if any — each field shows
+  // its own server issue; anything with no field lands in the summary.
+  serverError = null,
 }) {
   const { t } = useTranslation();
   const [bookableUnitType, setBookableUnitType] = useState(
@@ -217,6 +241,7 @@ export default function BookableUnitForm({
   // generic "Invalid number", always the specific domain rule that was
   // violated.
   const [fieldErrors, setFieldErrors] = useState({});
+  const { fieldError, clearFieldError } = useApiFieldErrors(serverError);
   const [bedRowErrors, setBedRowErrors] = useState([]);
   const [basePriceCurrency, setBasePriceCurrency] = useState(
     initialValues.basePriceCurrency ?? null,
@@ -250,11 +275,20 @@ export default function BookableUnitForm({
         errors.map((error, i) => (i === index ? undefined : error)),
       );
     }
+    Object.keys(patch).forEach((key) =>
+      clearFieldError(`bedConfiguration.${index}.${key}`),
+    );
   }
 
   function removeBedRow(index) {
     setBedRows((rows) => rows.filter((_, i) => i !== index));
     setBedRowErrors((errors) => errors.filter((_, i) => i !== index));
+    // Server bed errors are index-based; after a removal they would point
+    // at the wrong row, so they are all dismissed.
+    bedRows.forEach((_, i) => {
+      clearFieldError(`bedConfiguration.${i}.count`);
+      clearFieldError(`bedConfiguration.${i}.type`);
+    });
   }
 
   // Step L4.1 (brief §5-7, §10-13) — validates every numeric field this
@@ -350,7 +384,11 @@ export default function BookableUnitForm({
             label: t(`partner.listingWizard.bookableUnitTypes.${code}`, code),
           }))}
           value={bookableUnitType}
-          onChange={setBookableUnitType}
+          error={fieldError('bookableUnitType')}
+          onChange={(value) => {
+            setBookableUnitType(value);
+            clearFieldError('bookableUnitType');
+          }}
         />
       )}
       {isHotelRoom && (
@@ -362,7 +400,12 @@ export default function BookableUnitForm({
           'partner.listingWizard.availability.unitLabelPlaceholder',
         )}
         value={unitLabel}
-        onChange={(event) => setUnitLabel(event.target.value)}
+        maxLength={UNIT_LABEL_MAX_LENGTH}
+        error={fieldError('unitLabel')}
+        onChange={(event) => {
+          setUnitLabel(event.target.value);
+          clearFieldError('unitLabel');
+        }}
       />
       {showTypeSelector && (
         <Inline gap="4" wrap align="flex-end">
@@ -371,17 +414,24 @@ export default function BookableUnitForm({
             label={t('partner.listingWizard.availability.timeSlotStart')}
             helperText={t('partner.listingWizard.availability.timeSlotHint')}
             value={timeSlotStart}
-            onChange={(event) => setTimeSlotStart(event.target.value)}
+            error={fieldError('timeSlotStart')}
+            onChange={(event) => {
+              setTimeSlotStart(event.target.value);
+              clearFieldError('timeSlotStart');
+            }}
           />
           <Input
             type="time"
             label={t('partner.listingWizard.availability.timeSlotEnd')}
             value={timeSlotEnd}
-            onChange={(event) => setTimeSlotEnd(event.target.value)}
+            onChange={(event) => {
+              setTimeSlotEnd(event.target.value);
+              clearFieldError('timeSlotEnd');
+            }}
             error={
               timeSlotOutOfOrder
                 ? t('partner.listingWizard.availability.timeSlotOutOfOrder')
-                : undefined
+                : fieldError('timeSlotEnd')
             }
           />
         </Inline>
@@ -398,9 +448,10 @@ export default function BookableUnitForm({
           label={t('partner.listingWizard.availability.capacity')}
           helperText={t('partner.listingWizard.availability.capacityHint')}
           value={capacity}
-          error={fieldErrors.capacity}
+          error={fieldErrors.capacity ?? fieldError('capacity')}
           onChange={(event) => {
             setCapacity(event.target.value);
+            clearFieldError('capacity');
             setFieldErrors((current) => ({ ...current, capacity: undefined }));
           }}
         />
@@ -412,9 +463,10 @@ export default function BookableUnitForm({
           label={t('partner.listingWizard.availability.maxGuests')}
           helperText={t('partner.listingWizard.availability.maxGuestsHint')}
           value={maxGuests}
-          error={fieldErrors.maxGuests}
+          error={fieldErrors.maxGuests ?? fieldError('maxGuests')}
           onChange={(event) => {
             setMaxGuests(event.target.value);
+            clearFieldError('maxGuests');
             setFieldErrors((current) => ({ ...current, maxGuests: undefined }));
           }}
         />
@@ -427,9 +479,10 @@ export default function BookableUnitForm({
             max={ROOM_SIZE_SQM_MAX}
             step={0.01}
             value={roomSizeSqm}
-            error={fieldErrors.roomSizeSqm}
+            error={fieldErrors.roomSizeSqm ?? fieldError('roomSizeSqm')}
             onChange={(event) => {
               setRoomSizeSqm(event.target.value);
+              clearFieldError('roomSizeSqm');
               setFieldErrors((current) => ({
                 ...current,
                 roomSizeSqm: undefined,
@@ -454,6 +507,7 @@ export default function BookableUnitForm({
                 label: t(`partner.listingWizard.bedTypes.${code}`, code),
               }))}
               value={row.type}
+              error={fieldError(`bedConfiguration.${index}.type`)}
               onChange={(value) => updateBedRow(index, { type: value })}
             />
             <Input
@@ -463,7 +517,10 @@ export default function BookableUnitForm({
               step={1}
               label={t('partner.listingWizard.availability.bedCount')}
               value={row.count}
-              error={bedRowErrors[index]}
+              error={
+                bedRowErrors[index] ??
+                fieldError(`bedConfiguration.${index}.count`)
+              }
               onChange={(event) =>
                 updateBedRow(index, { count: event.target.value })
               }
@@ -499,7 +556,11 @@ export default function BookableUnitForm({
                 label: t(`partner.listingWizard.bathroomTypes.${code}`, code),
               }))}
               value={bathroomType}
-              onChange={setBathroomType}
+              error={fieldError('bathroomType')}
+              onChange={(value) => {
+                setBathroomType(value);
+                clearFieldError('bathroomType');
+              }}
             />
             <Select
               label={t('partner.listingWizard.availability.viewType')}
@@ -509,7 +570,11 @@ export default function BookableUnitForm({
                 label: t(`partner.listingWizard.viewTypes.${code}`, code),
               }))}
               value={viewType}
-              onChange={setViewType}
+              error={fieldError('viewType')}
+              onChange={(value) => {
+                setViewType(value);
+                clearFieldError('viewType');
+              }}
             />
             <Select
               label={t('partner.listingWizard.availability.smokingPolicy')}
@@ -519,7 +584,11 @@ export default function BookableUnitForm({
                 label: t(`partner.listingWizard.smokingPolicies.${code}`, code),
               }))}
               value={smokingPolicy}
-              onChange={setSmokingPolicy}
+              error={fieldError('smokingPolicy')}
+              onChange={(value) => {
+                setSmokingPolicy(value);
+                clearFieldError('smokingPolicy');
+              }}
             />
           </Inline>
         </Stack>
@@ -535,9 +604,10 @@ export default function BookableUnitForm({
           step={0.01}
           label={t('partner.listingWizard.availability.basePriceAmount')}
           value={basePriceAmount}
-          error={fieldErrors.basePriceAmount}
+          error={fieldErrors.basePriceAmount ?? fieldError('basePriceAmount')}
           onChange={(event) => {
             setBasePriceAmount(event.target.value);
+            clearFieldError('basePriceAmount');
             setFieldErrors((current) => ({
               ...current,
               basePriceAmount: undefined,
@@ -549,7 +619,11 @@ export default function BookableUnitForm({
           placeholder={t('partner.listingWizard.selectPlaceholder')}
           options={CURRENCY_CODES.map((code) => ({ value: code, label: code }))}
           value={basePriceCurrency}
-          onChange={setBasePriceCurrency}
+          error={fieldError('basePriceCurrency')}
+          onChange={(value) => {
+            setBasePriceCurrency(value);
+            clearFieldError('basePriceCurrency');
+          }}
         />
       </Inline>
       {priceIncomplete && (
@@ -577,6 +651,17 @@ export default function BookableUnitForm({
       {isHotelRoom && unitId && (
         <RoomMediaGallery unitId={unitId} listingId={listingId} media={media} />
       )}
+
+      <ApiErrorAlert
+        error={serverError}
+        inlinePaths={[
+          ...INLINE_API_PATHS,
+          ...bedRows.flatMap((_, i) => [
+            `bedConfiguration.${i}.type`,
+            `bedConfiguration.${i}.count`,
+          ]),
+        ]}
+      />
 
       <Inline gap="2">
         <Button
@@ -633,6 +718,7 @@ BookableUnitForm.propTypes = {
     }),
   ),
   amenityIds: PropTypes.arrayOf(PropTypes.number),
+  serverError: apiErrorPropType,
   media: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number.isRequired,

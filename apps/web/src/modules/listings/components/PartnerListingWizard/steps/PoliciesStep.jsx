@@ -10,15 +10,13 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import {
-  Spinner,
-  ErrorState,
-  Alert,
-} from '@desavii/ui/components/feedback-overlays';
+import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
 import { Stack } from '@desavii/ui/components/layout';
 import { useListingMetadataQuery } from '../../../queries/useListingMetadataQuery.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
 import { toPolicyValuesPayload } from '../../../utils/policyValueMapping.js';
+import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import useApiFieldErrors from '../../../../../hooks/useApiFieldErrors.js';
 import MetadataFieldRenderer from '../MetadataFieldRenderer.jsx';
 import WizardStepActions from '../WizardStepActions.jsx';
 
@@ -41,6 +39,11 @@ export default function PoliciesStep({
 
   const [values, setValues] = useState(initialValues);
   const [validationErrors, setValidationErrors] = useState({});
+  // Server errors arrive per code at `policyValues.<code>` — the same path
+  // the publish-readiness check uses for a missing required value.
+  const { fieldError, clearFieldError } = useApiFieldErrors(
+    updateListingMutation.error,
+  );
 
   if (isPending) {
     return <Spinner label={t('partner.listingWizard.policies.loading')} />;
@@ -60,6 +63,7 @@ export default function PoliciesStep({
 
   function setFieldValue(code, value) {
     setValues((current) => ({ ...current, [code]: value }));
+    clearFieldError(`policyValues.${code}`);
   }
 
   async function handleContinue() {
@@ -76,10 +80,15 @@ export default function PoliciesStep({
     setValidationErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    await updateListingMutation.mutateAsync({
-      id: listingId,
-      payload: { policyValues: toPolicyValuesPayload(policies, values) },
-    });
+    try {
+      await updateListingMutation.mutateAsync({
+        id: listingId,
+        payload: { policyValues: toPolicyValuesPayload(policies, values) },
+      });
+    } catch {
+      // Rendered from the mutation's own `error` (ApiErrorAlert + fields).
+      return;
+    }
     onNext();
   }
 
@@ -89,9 +98,10 @@ export default function PoliciesStep({
       {policies.length === 0 && (
         <p>{t('partner.listingWizard.policies.empty')}</p>
       )}
-      {updateListingMutation.error && (
-        <Alert variant="danger">{updateListingMutation.error.message}</Alert>
-      )}
+      <ApiErrorAlert
+        error={updateListingMutation.error}
+        inlinePaths={policies.map((policy) => `policyValues.${policy.code}`)}
+      />
       <Stack gap="4">
         {policies.map((policy) => (
           <MetadataFieldRenderer
@@ -100,7 +110,10 @@ export default function PoliciesStep({
             definition={policy}
             value={values[policy.code]}
             onChange={(value) => setFieldValue(policy.code, value)}
-            error={validationErrors[policy.code]}
+            error={
+              validationErrors[policy.code] ??
+              fieldError(`policyValues.${policy.code}`)
+            }
           />
         ))}
       </Stack>

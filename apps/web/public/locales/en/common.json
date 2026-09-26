@@ -568,6 +568,61 @@
       "action": "Reload page"
     }
   },
+  "apiErrors": {
+    "summary": {
+      "validation": "Some information needs to be fixed.",
+      "conflict": "This change conflicts with the listing's current state. Refresh the page and try again.",
+      "forbidden": "You don't have permission to do this.",
+      "notFound": "This item could not be found. It may have been removed.",
+      "unauthenticated": "Your session has expired. Please sign in again.",
+      "rateLimited": "Too many attempts. Please wait a moment and try again.",
+      "payloadTooLarge": "The file is too large.",
+      "network": "We couldn't reach the server. Check your connection and try again.",
+      "server": "Something went wrong on our side. Please try again.",
+      "unknown": "Something went wrong. Please try again."
+    },
+    "issues": {
+      "required": "This field is required.",
+      "invalid": "This value isn't valid.",
+      "tooLong": "Use at most {{maximum}} characters.",
+      "tooShort": "Use at least {{minimum}} characters.",
+      "tooLarge": "The maximum is {{maximum}}.",
+      "tooSmall": "The minimum is {{minimum}}.",
+      "tooManyItems": "Select at most {{maximum}}.",
+      "tooFewItems": "Select at least {{minimum}}.",
+      "invalidOption": "Choose one of the available options.",
+      "invalidFormat": "This value isn't in a valid format.",
+      "invalidUrl": "Enter a web address that starts with http:// or https://.",
+      "invalidEmail": "Enter a valid email address.",
+      "invalidDate": "Enter a valid date.",
+      "invalidNumber": "Enter a valid number.",
+      "mustBeInteger": "Enter a whole number.",
+      "notAvailableForCategory": "This isn't available for this listing's category.",
+      "duplicateOption": "Each option can be selected only once.",
+      "unknownCurrency": "Choose a supported currency.",
+      "dateOrder": "The end date can't be before the start date.",
+      "AT_LEAST_ONE_TRANSLATION_REQUIRED": "Add a title before publishing.",
+      "AT_LEAST_ONE_IMAGE_REQUIRED": "Add at least one photo before publishing.",
+      "COMPLETE_LOCATION_REQUIRED": "Set the listing's location before publishing.",
+      "REQUIRED_ATTRIBUTE_MISSING": "A required detail is missing.",
+      "REQUIRED_POLICY_MISSING": "A required policy is missing.",
+      "AT_LEAST_ONE_BOOKABLE_UNIT_REQUIRED": "Register at least one bookable unit before publishing.",
+      "PUBLICATION_PERIOD_REQUIRED": "Choose how long this listing should stay published.",
+      "INVALID_PUBLICATION_PERIOD": "Choose one of the available publication periods."
+    },
+    "codes": {
+      "PARTNER_NOT_VERIFIED": "Your company must be verified before it can create listings.",
+      "LISTING_UNDER_REVIEW": "This listing is being reviewed by a moderator and can't be edited until they respond.",
+      "LISTING_PUBLISHED_EDIT_BLOCKED": "A published listing can't be edited directly. Unpublish it first, then edit it and submit it for review again.",
+      "LISTING_FROZEN_REQUIRES_RENEWAL": "This listing's publication period has ended. Renew it instead of submitting it for review.",
+      "LISTING_NOT_RENEWABLE": "This listing can't be renewed in its current state.",
+      "RENEWAL_STATE_CHANGED": "This listing changed before the renewal could be applied. Please try again.",
+      "OVERLAPPING_RANGE": "These dates overlap a period that is already blocked.",
+      "AVAILABILITY_CONFLICT": "The requested quantity isn't available for one or more of these dates.",
+      "MENU_HAS_SECTIONS": "Remove every section from this menu before deleting it.",
+      "SECTION_HAS_ITEMS": "Remove every item from this section before deleting it."
+    }
+  },
   "auth": {
     "login": {
       "title": "Log in",
@@ -1884,16 +1939,6 @@
           "NONE": "No view",
           "SEA": "Sea view"
         }
-      },
-      "publishIssues": {
-        "AT_LEAST_ONE_TRANSLATION_REQUIRED": "Add a title before publishing.",
-        "AT_LEAST_ONE_IMAGE_REQUIRED": "Add at least one photo before publishing.",
-        "COMPLETE_LOCATION_REQUIRED": "Set the listing's location before publishing.",
-        "REQUIRED_ATTRIBUTE_MISSING": "A required detail is missing: {{field}}",
-        "REQUIRED_POLICY_MISSING": "A required policy is missing: {{field}}",
-        "AT_LEAST_ONE_BOOKABLE_UNIT_REQUIRED": "Register at least one bookable unit before publishing.",
-        "PUBLICATION_PERIOD_REQUIRED": "Choose how long this listing should stay published.",
-        "INVALID_PUBLICATION_PERIOD": "Choose one of the available publication periods."
       },
       "review": {
         "title": "Title",

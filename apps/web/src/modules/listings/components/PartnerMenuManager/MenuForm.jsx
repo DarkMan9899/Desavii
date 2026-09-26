@@ -21,6 +21,15 @@ import {
 import { Button } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import { SUPPORTED_LOCALES } from '../../../../translations/i18n.js';
+import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import apiErrorPropType from '../../../../components/ApiErrorAlert/apiErrorPropType.js';
+import useApiFieldErrors from '../../../../hooks/useApiFieldErrors.js';
+import {
+  MENU_NAME_MAX_LENGTH,
+  MENU_DESCRIPTION_MAX_LENGTH,
+} from '../../constants/textLimits.js';
+
+const INLINE_API_PATHS = ['languageCode', 'name', 'description'];
 
 export default function MenuForm({
   initialValues = {},
@@ -29,8 +38,10 @@ export default function MenuForm({
   submitLabel,
   onSubmit,
   onCancel = undefined,
+  serverError = null,
 }) {
   const { t } = useTranslation();
+  const { fieldError, clearFieldError } = useApiFieldErrors(serverError);
   const [languageCode, setLanguageCode] = useState(
     initialValues.languageCode ?? SUPPORTED_LOCALES[0],
   );
@@ -61,20 +72,34 @@ export default function MenuForm({
             label: t(`partner.listingWizard.contentLocale.${code}`),
           }))}
           value={languageCode}
-          onChange={setLanguageCode}
+          error={fieldError('languageCode')}
+          onChange={(value) => {
+            setLanguageCode(value);
+            clearFieldError('languageCode');
+          }}
         />
       )}
       <Input
         label={t('partner.listingMenu.nameLabel')}
         placeholder={t('partner.listingMenu.namePlaceholder')}
         value={name}
-        onChange={(event) => setName(event.target.value)}
+        maxLength={MENU_NAME_MAX_LENGTH}
+        error={fieldError('name')}
+        onChange={(event) => {
+          setName(event.target.value);
+          clearFieldError('name');
+        }}
         required
       />
       <Textarea
         label={t('partner.listingMenu.descriptionLabel')}
         value={description}
-        onChange={(event) => setDescription(event.target.value)}
+        maxLength={MENU_DESCRIPTION_MAX_LENGTH}
+        error={fieldError('description')}
+        onChange={(event) => {
+          setDescription(event.target.value);
+          clearFieldError('description');
+        }}
         rows={2}
       />
       {!showLanguageSelector && (
@@ -84,6 +109,7 @@ export default function MenuForm({
           label={t('partner.listingMenu.activeLabel')}
         />
       )}
+      <ApiErrorAlert error={serverError} inlinePaths={INLINE_API_PATHS} />
       <Inline gap="2">
         <Button
           variant="primary"
@@ -115,4 +141,5 @@ MenuForm.propTypes = {
   submitLabel: PropTypes.string.isRequired,
   onSubmit: PropTypes.func.isRequired,
   onCancel: PropTypes.func,
+  serverError: apiErrorPropType,
 };

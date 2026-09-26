@@ -19,11 +19,7 @@ import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Card, Button } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
-import {
-  Spinner,
-  ErrorState,
-  Alert,
-} from '@desavii/ui/components/feedback-overlays';
+import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
 import {
   useBookableUnitsQuery,
   useRegisterBookableUnitMutation,
@@ -144,21 +140,27 @@ export default function BookableUnitsManager({ listingId, categoryId = null }) {
     );
   }
 
+  // Each opened/closed form starts clean: a previous submit's rejection
+  // must never reappear on (or attach its field errors to) another unit.
   function startEditing(unitId) {
     setIsAdding(false);
+    updateMutation.reset();
     setEditingUnitId(unitId);
   }
 
   function startAdding() {
     setEditingUnitId(null);
+    registerMutation.reset();
     setIsAdding(true);
   }
 
   function cancelEditing() {
+    updateMutation.reset();
     setEditingUnitId(null);
   }
 
   function cancelAdding() {
+    registerMutation.reset();
     setIsAdding(false);
   }
 
@@ -194,10 +196,8 @@ export default function BookableUnitsManager({ listingId, categoryId = null }) {
                   translations={unit.translations}
                   amenityIds={unit.amenity_ids}
                   media={unit.media}
+                  serverError={updateMutation.error}
                 />
-                {updateMutation.error && (
-                  <Alert variant="danger">{updateMutation.error.message}</Alert>
-                )}
               </Card>
             ) : (
               <UnitSummaryRow
@@ -218,10 +218,8 @@ export default function BookableUnitsManager({ listingId, categoryId = null }) {
             submitLabel={t('partner.listingWizard.availability.registerUnit')}
             onSubmit={(values) => handleAdd(values)}
             onCancel={() => cancelAdding()}
+            serverError={registerMutation.error}
           />
-          {registerMutation.error && (
-            <Alert variant="danger">{registerMutation.error.message}</Alert>
-          )}
         </Card>
       ) : (
         <Button variant="secondary" onClick={() => startAdding()}>

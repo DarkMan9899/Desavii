@@ -17,15 +17,22 @@
  * ignored (an ordinary republish) — this step never needs to know which
  * case applies, keeping `PUBLICATION_PERIOD_REQUIRED`/
  * `INVALID_PUBLICATION_PERIOD` just two more entries in the same
- * `publishIssues` list every other readiness failure already renders
- * through.
+ * readiness list every other failure already renders through.
+ *
+ * Step L5: readiness issues usually belong to earlier steps. Each one is
+ * labelled with what's missing (the attribute/policy name, never the raw
+ * `attributeValues.<code>` path) and offers a jump to the step where it
+ * is fixed — the same `goToStep` the stepper itself uses; nothing
+ * navigates on its own.
  */
 
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { Alert } from '@desavii/ui/components/feedback-overlays';
 import { Stack } from '@desavii/ui/components/layout';
 import { ChipGroup } from '@desavii/ui/components/form-controls';
+import { Button } from '@desavii/ui/components/primitives';
+import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import { parseApiError } from '../../../../../utils/apiErrorFeedback.js';
 import { usePublishListingMutation } from '../../../mutations/usePublishListingMutation.js';
 import { PartnerAiToolsPanel, AskAiButton } from '../../../../ai/index.js';
 import { PUBLICATION_PERIOD_DAYS_OPTIONS } from '../../../constants/publicationPeriod.js';
@@ -34,18 +41,58 @@ import TranslationCompletenessWidget from '../TranslationCompletenessWidget.jsx'
 import WizardStepActions from '../WizardStepActions.jsx';
 import styles from './ReviewStep.module.scss';
 
+// Readiness issue path (first segment) -> the wizard step that fixes it.
+const STEP_ID_BY_ISSUE_ROOT = {
+  translations: 'basicInfo',
+  location: 'location',
+  attributeValues: 'attributes',
+  media: 'media',
+  bookableUnits: 'availability',
+  policyValues: 'policies',
+};
+
+// `attributeValues.<code>` / `policyValues.<code>` -> the same label the
+// field itself shows (`MetadataFieldRenderer`'s namespaces).
+const LABEL_NAMESPACE_BY_ISSUE_ROOT = {
+  attributeValues: 'attributes',
+  policyValues: 'policies',
+};
+
 export default function ReviewStep({
   listing,
   publicationPeriodDays,
   onPublicationPeriodDaysChange,
   onBack = undefined,
+  onGoToStep = undefined,
   onPublished,
 }) {
   const { t } = useTranslation();
   const publishMutation = usePublishListingMutation();
 
   const title = listing.translations[0]?.title;
-  const issues = publishMutation.error?.details ?? [];
+  const issueFieldLabels = {};
+  (parseApiError(publishMutation.error)?.issues ?? []).forEach(({ path }) => {
+    const [root, code] = path.split('.');
+    const namespace = LABEL_NAMESPACE_BY_ISSUE_ROOT[root];
+    if (namespace && code) {
+      issueFieldLabels[path] = t(
+        `partner.listingWizard.${namespace}.${code}`,
+        code,
+      );
+    }
+  });
+
+  function renderGoToStep(issue) {
+    const stepId = STEP_ID_BY_ISSUE_ROOT[issue.path.split('.')[0]];
+    if (!stepId || !onGoToStep) return null;
+    return (
+      <Button variant="ghost" size="sm" onClick={() => onGoToStep(stepId)}>
+        {t('partner.listingWizard.goToStep', {
+          label: t(`partner.listingWizard.steps.${stepId}`),
+        })}
+      </Button>
+    );
+  }
 
   const periodOptions = PUBLICATION_PERIOD_DAYS_OPTIONS.map((days) => ({
     value: String(days),
@@ -80,23 +127,11 @@ export default function ReviewStep({
     <div>
       <h2>{t('partner.listingWizard.steps.review')}</h2>
 
-      {publishMutation.error && (
-        <Alert variant="danger">
-          {publishMutation.error.message}
-          {issues.length > 0 && (
-            <ul>
-              {issues.map((issue) => (
-                <li key={`${issue.field}-${issue.issue}`}>
-                  {t(`partner.listingWizard.publishIssues.${issue.issue}`, {
-                    field: issue.field,
-                    defaultValue: `${issue.field}: ${issue.issue}`,
-                  })}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Alert>
-      )}
+      <ApiErrorAlert
+        error={publishMutation.error}
+        fieldLabels={issueFieldLabels}
+        renderIssueAction={(issue) => renderGoToStep(issue)}
+      />
 
       <Stack gap="2" as="dl">
         <div>
@@ -215,5 +250,6 @@ ReviewStep.propTypes = {
   publicationPeriodDays: PropTypes.number.isRequired,
   onPublicationPeriodDaysChange: PropTypes.func.isRequired,
   onBack: PropTypes.func,
+  onGoToStep: PropTypes.func,
   onPublished: PropTypes.func.isRequired,
 };

@@ -14,12 +14,10 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import {
-  Spinner,
-  ErrorState,
-  Alert,
-} from '@desavii/ui/components/feedback-overlays';
+import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
 import { Input, Select } from '@desavii/ui/components/form-controls';
+import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import useApiFieldErrors from '../../../../../hooks/useApiFieldErrors.js';
 import { useListingMetadataQuery } from '../../../queries/useListingMetadataQuery.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
 import { CURRENCY_CODES } from '../../../constants/currencies.js';
@@ -33,6 +31,12 @@ import WizardStepActions from '../WizardStepActions.jsx';
 // `DECIMAL(12,2)` column ceiling `listing_pricing.amount` is stored in.
 const PRICE_STRING_PATTERN = /^-?\d*\.?\d*$/;
 const PRICE_MAX = 9999999999.99;
+
+const PRICING_API_PATHS = {
+  modelCode: 'pricing.modelCode',
+  amount: 'pricing.amount',
+  currencyCode: 'pricing.currencyCode',
+};
 
 export default function PricingStep({
   listingId,
@@ -60,6 +64,9 @@ export default function PricingStep({
   // validation error, shown immediately next to the field rather than
   // only surfacing after a backend round-trip.
   const [amountError, setAmountError] = useState(undefined);
+  const { fieldError, clearFieldError } = useApiFieldErrors(
+    updateListingMutation.error,
+  );
 
   if (isPending) {
     return <Spinner label={t('partner.listingWizard.pricing.loading')} />;
@@ -145,12 +152,17 @@ export default function PricingStep({
       parsedAmount !== undefined &&
       Boolean(currencyCode)
     ) {
-      await updateListingMutation.mutateAsync({
-        id: listingId,
-        payload: {
-          pricing: { modelCode, amount: parsedAmount, currencyCode },
-        },
-      });
+      try {
+        await updateListingMutation.mutateAsync({
+          id: listingId,
+          payload: {
+            pricing: { modelCode, amount: parsedAmount, currencyCode },
+          },
+        });
+      } catch {
+        // Rendered from the mutation's own `error` (ApiErrorAlert + fields).
+        return;
+      }
     }
     onNext();
   }
@@ -164,9 +176,12 @@ export default function PricingStep({
       {pricingModels.length === 0 && (
         <p>{t('partner.listingWizard.pricing.empty')}</p>
       )}
-      {updateListingMutation.error && (
-        <Alert variant="danger">{updateListingMutation.error.message}</Alert>
-      )}
+      <ApiErrorAlert
+        error={updateListingMutation.error}
+        inlinePaths={
+          pricingModels.length > 0 ? Object.values(PRICING_API_PATHS) : []
+        }
+      />
       {pricingModels.length > 0 && (
         <>
           <Select
@@ -180,7 +195,11 @@ export default function PricingStep({
               ),
             }))}
             value={modelCode}
-            onChange={setModelCode}
+            error={fieldError(PRICING_API_PATHS.modelCode)}
+            onChange={(nextModelCode) => {
+              setModelCode(nextModelCode);
+              clearFieldError(PRICING_API_PATHS.modelCode);
+            }}
           />
           <Input
             type="number"
@@ -189,10 +208,11 @@ export default function PricingStep({
             label={t('partner.listingWizard.pricing.amount')}
             helperText={amountHelperText}
             value={amount}
-            error={amountError}
+            error={amountError ?? fieldError(PRICING_API_PATHS.amount)}
             onChange={(event) => {
               setAmount(event.target.value);
               setAmountError(undefined);
+              clearFieldError(PRICING_API_PATHS.amount);
             }}
           />
           <Select
@@ -203,7 +223,11 @@ export default function PricingStep({
               label: code,
             }))}
             value={currencyCode}
-            onChange={setCurrencyCode}
+            error={fieldError(PRICING_API_PATHS.currencyCode)}
+            onChange={(nextCurrencyCode) => {
+              setCurrencyCode(nextCurrencyCode);
+              clearFieldError(PRICING_API_PATHS.currencyCode);
+            }}
           />
         </>
       )}

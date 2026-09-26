@@ -1,10 +1,11 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import ToastProvider from '../../../../../providers/ToastProvider.jsx';
+import ApiError from '../../../../../api/ApiError.js';
 import BasicInfoStep from './BasicInfoStep.jsx';
 import { useCreateListingMutation } from '../../../mutations/useCreateListingMutation.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
@@ -412,6 +413,86 @@ describe('BasicInfoStep (PartnerListingWizard)', () => {
       expect(
         screen.getByRole('tab', { name: /Русский ·/ }),
       ).toBeInTheDocument();
+    });
+  });
+  // Step L5 (brief §8, §26): a server rejection of the saved translation
+  // lands on the exact field it names, for the locale that was saved.
+  describe('server field errors (Step L5)', () => {
+    const TITLE_TOO_LONG = new ApiError({
+      code: 'VALIDATION_FAILED',
+      status: 422,
+      message: 'One or more fields are invalid.',
+      details: [
+        {
+          field: 'body.translations.0.title',
+          issue: 'too_big',
+          maximum: 255,
+          type: 'string',
+        },
+      ],
+    });
+
+    beforeEach(() => {
+      updateMutateAsync.mockRejectedValue(TITLE_TOO_LONG);
+      useUpdateListingMutation.mockReturnValue({
+        mutateAsync: updateMutateAsync,
+        isPending: false,
+        error: TITLE_TOO_LONG,
+      });
+    });
+
+    test('the title input mirrors the 255-character backend cap', () => {
+      renderStep({ listingId: 7 });
+      expect(screen.getByLabelText(/^Վերնագիր/)).toHaveAttribute(
+        'maxLength',
+        '255',
+      );
+    });
+
+    test('after saving, the error is on the title field (aria-invalid) and clears once edited — no English, no console rejection', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+      renderStep({
+        listingId: 7,
+        onNext,
+        initialTranslations: [{ language_code: 'en', title: 'Hotel' }],
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      const title = screen.getByLabelText(/^Վերնագիր/);
+      expect(title).toHaveAttribute('aria-invalid', 'true');
+      expect(
+        screen.getByText('Օգտագործեք առավելագույնը 255 նիշ։'),
+      ).toBeInTheDocument();
+      // The summary and the field's own message are both alerts.
+      screen.getAllByRole('alert').forEach((alert) => {
+        expect(alert).not.toHaveTextContent('One or more fields are invalid.');
+      });
+      expect(onNext).not.toHaveBeenCalled();
+
+      await user.type(title, 'x');
+      expect(
+        screen.queryByText('Օգտագործեք առավելագույնը 255 նիշ։'),
+      ).not.toBeInTheDocument();
+    });
+
+    test('after switching to another locale tab, the error moves to the labelled summary instead of the other language field', async () => {
+      const user = userEvent.setup();
+      renderStep({
+        listingId: 7,
+        initialTranslations: [{ language_code: 'en', title: 'Hotel' }],
+      });
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+      await user.click(screen.getByRole('tab', { name: /Հայերեն/ }));
+
+      expect(screen.getByLabelText(/^Վերնագիր/)).not.toHaveAttribute(
+        'aria-invalid',
+        'true',
+      );
+      expect(
+        within(screen.getByRole('alert')).getByRole('listitem'),
+      ).toHaveTextContent('Վերնագիր: Օգտագործեք առավելագույնը 255 նիշ։');
     });
   });
 });

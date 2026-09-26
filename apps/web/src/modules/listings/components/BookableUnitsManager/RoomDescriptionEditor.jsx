@@ -14,11 +14,15 @@ import { useTranslation } from 'react-i18next';
 import { Textarea } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import { Stack } from '@desavii/ui/components/layout';
-import { Alert } from '@desavii/ui/components/feedback-overlays';
 import { getLocalizedItemsExact } from '../../utils/getLocalizedItems.js';
+import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import useApiFieldErrors from '../../../../hooks/useApiFieldErrors.js';
 import { SUPPORTED_LOCALES } from '../../../../translations/i18n.js';
 import AuthoringLocaleTabs from '../PartnerListingWizard/AuthoringLocaleTabs/AuthoringLocaleTabs.jsx';
 import { useUpdateBookableUnitDescriptionMutation } from '../../../availability/index.js';
+
+// availabilityValidators.js: updateUnitDescriptionSchema description.max(4000).
+const ROOM_DESCRIPTION_MAX_LENGTH = 4000;
 
 function buildDescriptionsByLocale(translations) {
   const byLocale = {};
@@ -40,6 +44,11 @@ export default function RoomDescriptionEditor({
     buildDescriptionsByLocale(translations),
   );
   const mutation = useUpdateBookableUnitDescriptionMutation();
+  const { fieldError, clearFieldError } = useApiFieldErrors(mutation.error);
+  // A server error belongs to the locale that was saved; after a tab
+  // switch it is shown in the summary instead of under another language.
+  const [savedLocale, setSavedLocale] = useState(null);
+  const showsSavedLocale = savedLocale === authoringLocale;
 
   const completionByLocale = SUPPORTED_LOCALES.reduce((acc, code) => {
     acc[code] = descriptionsByLocale[code].trim().length > 0;
@@ -47,6 +56,7 @@ export default function RoomDescriptionEditor({
   }, {});
 
   function handleSave() {
+    setSavedLocale(authoringLocale);
     mutation.mutate({
       id: unitId,
       listingId,
@@ -58,9 +68,15 @@ export default function RoomDescriptionEditor({
   return (
     <Stack gap="3">
       <h4>{t('partner.listingWizard.availability.roomDescriptionHeading')}</h4>
-      {mutation.isError && (
-        <Alert variant="danger">{mutation.error.message}</Alert>
-      )}
+      <ApiErrorAlert
+        error={mutation.error}
+        inlinePaths={showsSavedLocale ? ['description'] : []}
+        fieldLabels={{
+          description: t(
+            'partner.listingWizard.availability.roomDescriptionLabel',
+          ),
+        }}
+      />
       <AuthoringLocaleTabs
         activeLocale={authoringLocale}
         onChange={setAuthoringLocale}
@@ -70,12 +86,15 @@ export default function RoomDescriptionEditor({
         <Textarea
           label={t('partner.listingWizard.availability.roomDescriptionLabel')}
           value={descriptionsByLocale[authoringLocale]}
-          onChange={(event) =>
+          maxLength={ROOM_DESCRIPTION_MAX_LENGTH}
+          error={showsSavedLocale ? fieldError('description') : undefined}
+          onChange={(event) => {
             setDescriptionsByLocale((current) => ({
               ...current,
               [authoringLocale]: event.target.value,
-            }))
-          }
+            }));
+            if (showsSavedLocale) clearFieldError('description');
+          }}
         />
       </AuthoringLocaleTabs>
       <Button

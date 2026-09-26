@@ -10,6 +10,12 @@ import { useTranslation } from 'react-i18next';
 import { Input } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
+import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import apiErrorPropType from '../../../../components/ApiErrorAlert/apiErrorPropType.js';
+import useApiFieldErrors from '../../../../hooks/useApiFieldErrors.js';
+import { MENU_SECTION_TITLE_MAX_LENGTH } from '../../constants/textLimits.js';
+
+const INLINE_API_PATHS = ['title'];
 
 export default function SectionForm({
   initialValues = {},
@@ -17,8 +23,10 @@ export default function SectionForm({
   submitLabel,
   onSubmit,
   onCancel = undefined,
+  serverError = null,
 }) {
   const { t } = useTranslation();
+  const { fieldError, clearFieldError } = useApiFieldErrors(serverError);
   const [title, setTitle] = useState(initialValues.title ?? '');
 
   const titleMissing = title.trim() === '';
@@ -33,9 +41,15 @@ export default function SectionForm({
         label={t('partner.listingMenu.sectionTitleLabel')}
         placeholder={t('partner.listingMenu.sectionTitlePlaceholder')}
         value={title}
-        onChange={(event) => setTitle(event.target.value)}
+        maxLength={MENU_SECTION_TITLE_MAX_LENGTH}
+        error={fieldError('title')}
+        onChange={(event) => {
+          setTitle(event.target.value);
+          clearFieldError('title');
+        }}
         required
       />
+      <ApiErrorAlert error={serverError} inlinePaths={INLINE_API_PATHS} />
       <Inline gap="2">
         <Button
           variant="primary"
@@ -62,4 +76,5 @@ SectionForm.propTypes = {
   submitLabel: PropTypes.string.isRequired,
   onSubmit: PropTypes.func.isRequired,
   onCancel: PropTypes.func,
+  serverError: apiErrorPropType,
 };

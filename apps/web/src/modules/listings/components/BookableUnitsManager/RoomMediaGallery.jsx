@@ -23,10 +23,10 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { Alert } from '@desavii/ui/components/feedback-overlays';
 import { Button } from '@desavii/ui/components/primitives';
 import { FileDropzone } from '@desavii/ui/components/listing-media';
 import { Stack } from '@desavii/ui/components/layout';
+import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import {
   useAttachBookableUnitMediaMutation,
   useRemoveBookableUnitMediaMutation,
@@ -123,11 +123,7 @@ export default function RoomMediaGallery({ unitId, listingId, media = [] }) {
   return (
     <Stack gap="3">
       <h4>{t('partner.listingWizard.availability.roomGalleryHeading')}</h4>
-      {(attachMutation.isError || removeMutation.isError) && (
-        <Alert variant="danger">
-          {(attachMutation.error ?? removeMutation.error).message}
-        </Alert>
-      )}
+      <ApiErrorAlert error={attachMutation.error ?? removeMutation.error} />
 
       <FileDropzone
         label={t('partner.listingWizard.availability.roomGalleryDropzone')}

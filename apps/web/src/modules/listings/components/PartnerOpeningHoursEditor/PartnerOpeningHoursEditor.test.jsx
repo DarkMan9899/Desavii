@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import PartnerOpeningHoursEditor from './PartnerOpeningHoursEditor.jsx';
 import { useListingOpeningHoursQuery } from '../../queries/useListingOpeningHoursQuery.js';
 import { useReplaceListingOpeningHoursMutation } from '../../mutations/useReplaceListingOpeningHoursMutation.js';
+import ApiError from '../../../../api/ApiError.js';
 
 vi.mock('../../queries/useListingOpeningHoursQuery.js', () => ({
   useListingOpeningHoursQuery: vi.fn(),
@@ -128,10 +129,19 @@ describe('PartnerOpeningHoursEditor (Pass 6, Restaurant vertical)', () => {
     useReplaceListingOpeningHoursMutation.mockReturnValue({
       mutate: replaceMutate,
       isPending: false,
-      error: { message: 'Something broke' },
+      error: new ApiError({
+        code: 'INTERNAL_ERROR',
+        status: 500,
+        message: 'Something broke',
+      }),
     });
     render(<PartnerOpeningHoursEditor listingId={7} />);
 
-    expect(screen.getByText('Something broke')).toBeInTheDocument();
+    // Step L5: a translated, safe summary — never the server's own text.
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(
+      'Մեր կողմում խնդիր առաջացավ։ Խնդրում ենք փորձել կրկին։',
+    );
+    expect(alert).not.toHaveTextContent('Something broke');
   });
 });

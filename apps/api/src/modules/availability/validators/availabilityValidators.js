@@ -30,6 +30,14 @@ import {
 
 const MAX_CALENDAR_SPAN_DAYS = 366;
 
+// `blackout_dates.reason` is VARCHAR(255) — the schema previously allowed
+// 500 characters, so anything past 255 only failed at the DB.
+const BLACKOUT_REASON_MAX_LENGTH = 255;
+
+// A real time of day (`TIME` columns). The old `^\d{2}:\d{2}` shape
+// accepted "99:99", which only the DB then rejected.
+const TIME_OF_DAY_PATTERN = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+
 const idParams = z.object({ id: z.coerce.number().int().positive() });
 const listingIdParams = z.object({
   listingId: z.coerce.number().int().positive(),
@@ -106,11 +114,11 @@ export const registerUnitSchema = z.object({
       // `HH:MM`) — capacity/date logic never branches on them.
       timeSlotStart: z
         .string()
-        .regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Invalid time.')
+        .regex(TIME_OF_DAY_PATTERN, 'Invalid time.')
         .optional(),
       timeSlotEnd: z
         .string()
-        .regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Invalid time.')
+        .regex(TIME_OF_DAY_PATTERN, 'Invalid time.')
         .optional(),
       unitLabel: z.string().trim().min(1).max(120).optional(),
       // P2.2A: guest occupancy — deliberately separate from `capacity`
@@ -289,7 +297,7 @@ export const createBlackoutSchema = z.object({
       listingId: z.coerce.number().int().positive(),
       dateFrom: isoDateSchema,
       dateTo: isoDateSchema,
-      reason: z.string().trim().max(500).optional(),
+      reason: z.string().trim().max(BLACKOUT_REASON_MAX_LENGTH).optional(),
     })
     .refine((data) => data.dateTo >= data.dateFrom, {
       message: 'dateTo must not be before dateFrom.',
@@ -304,7 +312,7 @@ export const updateBlackoutSchema = z.object({
     .object({
       dateFrom: isoDateSchema.optional(),
       dateTo: isoDateSchema.optional(),
-      reason: z.string().trim().max(500).optional(),
+      reason: z.string().trim().max(BLACKOUT_REASON_MAX_LENGTH).optional(),
     })
     .refine((data) => Object.keys(data).length > 0, {
       message: 'At least one field must be provided.',
@@ -473,7 +481,7 @@ export const createManualBlockSchema = z.object({
       ...dateRangeShape,
       quantity: unsignedIntQuantity.positive(),
       reasonCode: z.enum(BLOCK_REASON_CODES),
-      notes: z.string().max(500).optional(),
+      notes: z.string().trim().max(500).optional(),
     })
     .refine((data) => data.dateTo >= data.dateFrom, {
       message: 'dateTo must not be before dateFrom.',
@@ -502,11 +510,11 @@ export const createExternalReservationSchema = z.object({
       ...dateRangeShape,
       quantity: unsignedIntQuantity.positive().optional(),
       sourceCode: z.enum(EXTERNAL_RESERVATION_SOURCE_CODES),
-      externalReference: z.string().max(120).optional(),
-      guestName: z.string().max(150).optional(),
-      guestPhone: z.string().max(40).optional(),
-      guestEmail: z.string().email().max(190).optional(),
-      notes: z.string().max(500).optional(),
+      externalReference: z.string().trim().max(120).optional(),
+      guestName: z.string().trim().max(150).optional(),
+      guestPhone: z.string().trim().max(40).optional(),
+      guestEmail: z.string().trim().email().max(190).optional(),
+      notes: z.string().trim().max(500).optional(),
     })
     .refine((data) => data.dateTo >= data.dateFrom, {
       message: 'dateTo must not be before dateFrom.',
@@ -522,16 +530,23 @@ export const externalReservationIdParamsSchema = z.object({
 
 export const listExternalReservationsQuerySchema = listBlocksQuerySchema;
 
-const csvRowShape = z.object({
-  dateFrom: isoDateSchema,
-  dateTo: isoDateSchema,
-  quantity: unsignedIntQuantity.positive().optional(),
-  externalReference: z.string().max(120).optional(),
-  guestName: z.string().max(150).optional(),
-  guestPhone: z.string().max(40).optional(),
-  guestEmail: z.string().email().max(190).optional(),
-  notes: z.string().max(500).optional(),
-});
+// Same date-order rule `createExternalReservationSchema` enforces for a
+// single reservation — a bulk row must not be able to skip it.
+const csvRowShape = z
+  .object({
+    dateFrom: isoDateSchema,
+    dateTo: isoDateSchema,
+    quantity: unsignedIntQuantity.positive().optional(),
+    externalReference: z.string().trim().max(120).optional(),
+    guestName: z.string().trim().max(150).optional(),
+    guestPhone: z.string().trim().max(40).optional(),
+    guestEmail: z.string().trim().email().max(190).optional(),
+    notes: z.string().trim().max(500).optional(),
+  })
+  .refine((row) => row.dateTo >= row.dateFrom, {
+    message: 'dateTo must not be before dateFrom.',
+    path: ['dateTo'],
+  });
 
 export const bulkImportExternalReservationsSchema = z.object({
   params: passthroughParams,

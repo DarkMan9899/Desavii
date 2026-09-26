@@ -40,6 +40,7 @@ import {
   DatePicker,
 } from '@desavii/ui/components/form-controls';
 import NumberStepperField from './controls/NumberStepperField.jsx';
+import { METADATA_TEXT_VALUE_MAX_LENGTH } from '../../constants/textLimits.js';
 
 const NUMERIC_DATA_TYPES = ['INTEGER', 'DECIMAL'];
 
@@ -156,6 +157,7 @@ export default function MetadataFieldRenderer({
     <Input
       label={label}
       value={value ?? ''}
+      maxLength={METADATA_TEXT_VALUE_MAX_LENGTH}
       onChange={(event) => onChange(event.target.value)}
       error={error}
       required={definition.is_required}

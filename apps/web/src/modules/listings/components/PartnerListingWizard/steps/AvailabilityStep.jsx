@@ -22,7 +22,6 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Input, DatePicker } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
-import { Alert } from '@desavii/ui/components/feedback-overlays';
 import { Stack } from '@desavii/ui/components/layout';
 import {
   useBlackoutsQuery,
@@ -31,6 +30,8 @@ import {
 } from '../../../../availability/index.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
 import BookableUnitsManager from '../../BookableUnitsManager/BookableUnitsManager.jsx';
+import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import useApiFieldErrors from '../../../../../hooks/useApiFieldErrors.js';
 import WizardStepActions from '../WizardStepActions.jsx';
 
 // Step L4 (brief §6, §12) — a plain integer string only: optional
@@ -96,6 +97,9 @@ export default function AvailabilityStep({
   // to the relevant Input, never deferred to a later step or to the
   // backend's own round-trip.
   const [ruleErrors, setRuleErrors] = useState({});
+  const { fieldError, clearFieldError } = useApiFieldErrors(
+    updateListingMutation.error,
+  );
 
   const blackouts = blackoutsQuery.data ?? [];
 
@@ -169,10 +173,15 @@ export default function AvailabilityStep({
       (value) => value !== undefined,
     );
     if (hasAnyRule) {
-      await updateListingMutation.mutateAsync({
-        id: listingId,
-        payload: { bookingRules: parsed },
-      });
+      try {
+        await updateListingMutation.mutateAsync({
+          id: listingId,
+          payload: { bookingRules: parsed },
+        });
+      } catch {
+        // Rendered from the mutation's own `error` (ApiErrorAlert + fields).
+        return;
+      }
     }
     onNext();
   }
@@ -188,6 +197,11 @@ export default function AvailabilityStep({
 
       <section>
         <h3>{t('partner.listingWizard.availability.blackoutDates')}</h3>
+        {/* A rejected add (e.g. an overlapping range) or remove was
+            previously invisible — these mutations only had onSuccess. */}
+        <ApiErrorAlert
+          error={createBlackoutMutation.error ?? removeBlackoutMutation.error}
+        />
         {blackouts.length > 0 && (
           <ul>
             {blackouts.map((blackout) => (
@@ -228,9 +242,12 @@ export default function AvailabilityStep({
 
       <section>
         <h3>{t('partner.listingWizard.availability.bookingRules')}</h3>
-        {updateListingMutation.error && (
-          <Alert variant="danger">{updateListingMutation.error.message}</Alert>
-        )}
+        <ApiErrorAlert
+          error={updateListingMutation.error}
+          inlinePaths={BOOKING_RULE_FIELDS.map(
+            ({ key }) => `bookingRules.${key}`,
+          )}
+        />
         <Stack gap="4">
           <Input
             type="number"
@@ -241,9 +258,13 @@ export default function AvailabilityStep({
               'partner.listingWizard.availability.minimumStayNightsHint',
             )}
             value={rules.minimumStayNights}
-            error={ruleErrors.minimumStayNights}
+            error={
+              ruleErrors.minimumStayNights ??
+              fieldError('bookingRules.minimumStayNights')
+            }
             onChange={(event) => {
               setRule('minimumStayNights', event.target.value);
+              clearFieldError('bookingRules.minimumStayNights');
               setRuleErrors((current) => ({
                 ...current,
                 minimumStayNights: undefined,
@@ -259,9 +280,13 @@ export default function AvailabilityStep({
               'partner.listingWizard.availability.maximumStayNightsHint',
             )}
             value={rules.maximumStayNights}
-            error={ruleErrors.maximumStayNights}
+            error={
+              ruleErrors.maximumStayNights ??
+              fieldError('bookingRules.maximumStayNights')
+            }
             onChange={(event) => {
               setRule('maximumStayNights', event.target.value);
+              clearFieldError('bookingRules.maximumStayNights');
               setRuleErrors((current) => ({
                 ...current,
                 maximumStayNights: undefined,
@@ -279,9 +304,13 @@ export default function AvailabilityStep({
               'partner.listingWizard.availability.advanceBookingMinHoursHint',
             )}
             value={rules.advanceBookingMinHours}
-            error={ruleErrors.advanceBookingMinHours}
+            error={
+              ruleErrors.advanceBookingMinHours ??
+              fieldError('bookingRules.advanceBookingMinHours')
+            }
             onChange={(event) => {
               setRule('advanceBookingMinHours', event.target.value);
+              clearFieldError('bookingRules.advanceBookingMinHours');
               setRuleErrors((current) => ({
                 ...current,
                 advanceBookingMinHours: undefined,
@@ -299,9 +328,13 @@ export default function AvailabilityStep({
               'partner.listingWizard.availability.advanceBookingMaxDaysHint',
             )}
             value={rules.advanceBookingMaxDays}
-            error={ruleErrors.advanceBookingMaxDays}
+            error={
+              ruleErrors.advanceBookingMaxDays ??
+              fieldError('bookingRules.advanceBookingMaxDays')
+            }
             onChange={(event) => {
               setRule('advanceBookingMaxDays', event.target.value);
+              clearFieldError('bookingRules.advanceBookingMaxDays');
               setRuleErrors((current) => ({
                 ...current,
                 advanceBookingMaxDays: undefined,

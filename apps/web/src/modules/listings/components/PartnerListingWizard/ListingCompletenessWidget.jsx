@@ -5,7 +5,7 @@
  *
  * `required_missing`/`recommended_missing` codes are `listingService
  * .getListingCompleteness`'s own vocabulary — a *different* set from
- * `publishIssues.*`'s `issue.issue` codes (`AT_LEAST_ONE_...REQUIRED`) used
+ * the readiness `issue` codes (`AT_LEAST_ONE_...REQUIRED`, `apiErrors.issues.*`) used
  * elsewhere on this step, so it isn't reused here. Static codes
  * (`translations`, `media`, `location`, `bookableUnits`, `highlights`,
  * `media.moreImages`, `faqs`, `pricing`, `translations.description`) get a

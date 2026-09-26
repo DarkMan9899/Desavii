@@ -298,6 +298,7 @@ export default function PartnerListingWizard({ partnerships }) {
             publicationPeriodDays={wizard.publicationPeriodDays}
             onPublicationPeriodDaysChange={wizard.setPublicationPeriodDays}
             onBack={wizard.goToPreviousStep}
+            onGoToStep={wizard.goToStep}
             onPublished={() => handlePublished()}
           />
         )}

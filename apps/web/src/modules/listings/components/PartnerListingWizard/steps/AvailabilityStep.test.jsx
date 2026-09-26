@@ -79,20 +79,24 @@ describe('AvailabilityStep (PartnerListingWizard)', () => {
     useBlackoutsQuery.mockReturnValue({ data: [] });
     useRegisterBookableUnitMutation.mockReturnValue({
       mutate: registerUnitMutate,
+      reset: vi.fn(),
       isPending: false,
       error: null,
     });
     useUpdateBookableUnitMutation.mockReturnValue({
       mutate: updateUnitMutate,
+      reset: vi.fn(),
       isPending: false,
       error: null,
     });
     useCreateBlackoutMutation.mockReturnValue({
       mutate: createBlackoutMutate,
+      reset: vi.fn(),
       isPending: false,
     });
     useRemoveBlackoutMutation.mockReturnValue({
       mutate: removeBlackoutMutate,
+      reset: vi.fn(),
       isPending: false,
     });
     useUpdateListingMutation.mockReturnValue({

@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import ApiError from '../../../../../api/ApiError.js';
 import ReviewStep from './ReviewStep.jsx';
 import { usePublishListingMutation } from '../../../mutations/usePublishListingMutation.js';
 import { PUBLICATION_PERIOD_DAYS_OPTIONS } from '../../../constants/publicationPeriod.js';
@@ -43,6 +44,7 @@ function renderReviewStep(overrides = {}) {
     publicationPeriodDays: 90,
     onPublicationPeriodDaysChange: vi.fn(),
     onPublished: vi.fn(),
+    onGoToStep: vi.fn(),
     ...overrides,
   };
   const utils = render(
@@ -50,6 +52,7 @@ function renderReviewStep(overrides = {}) {
       listing={props.listing}
       publicationPeriodDays={props.publicationPeriodDays}
       onPublicationPeriodDaysChange={props.onPublicationPeriodDaysChange}
+      onGoToStep={props.onGoToStep}
       onPublished={props.onPublished}
     />,
   );
@@ -105,16 +108,19 @@ describe('ReviewStep (PartnerListingWizard)', () => {
     usePublishListingMutation.mockReturnValue({
       mutateAsync,
       isPending: false,
-      error: {
-        message: 'One or more fields are invalid.',
+      error: new ApiError({
+        code: 'VALIDATION_FAILED',
+        status: 422,
+        message: 'Listing is not ready to publish.',
         details: [{ field: 'media', issue: 'AT_LEAST_ONE_IMAGE_REQUIRED' }],
-      },
+      }),
     });
     const { props } = renderReviewStep();
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'One or more fields are invalid.',
-    );
+    // Step L5: a translated summary, never the backend's English message.
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Որոշ տվյալներ պետք է ուղղել։');
+    expect(alert).not.toHaveTextContent('Listing is not ready to publish.');
     expect(
       screen.getByText('Հրապարակելուց առաջ ավելացրեք առնվազն մեկ լուսանկար։'),
     ).toBeInTheDocument();
@@ -149,6 +155,73 @@ describe('ReviewStep (PartnerListingWizard)', () => {
         'Ընտրեք, թե որքան ժամանակով պետք է հրապարակված մնա այս հայտարարությունը։',
       ),
     ).toBeInTheDocument();
+  });
+
+  // Step L5 (brief §9): readiness issues belong to earlier steps.
+  describe('readiness issues routed to their steps (Step L5)', () => {
+    function rejectWith(details) {
+      usePublishListingMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+        error: new ApiError({
+          code: 'VALIDATION_FAILED',
+          status: 422,
+          message: 'Listing is not ready to publish.',
+          details,
+        }),
+      });
+    }
+
+    test('a missing required attribute shows its label — never the raw attributeValues.<code> path', () => {
+      rejectWith([
+        {
+          field: 'attributeValues.total_rooms',
+          issue: 'REQUIRED_ATTRIBUTE_MISSING',
+        },
+      ]);
+      renderReviewStep();
+
+      const item = within(screen.getByRole('alert')).getByRole('listitem');
+      expect(item).toHaveTextContent(
+        'Սենյակների ընդհանուր թիվ: Պարտադիր մանրամասը բացակայում է։',
+      );
+      expect(item).not.toHaveTextContent('attributeValues');
+      expect(item).not.toHaveTextContent('total_rooms');
+    });
+
+    test('each issue offers a jump to the step that fixes it — nothing navigates on its own', async () => {
+      const user = userEvent.setup();
+      rejectWith([
+        { field: 'media', issue: 'AT_LEAST_ONE_IMAGE_REQUIRED' },
+        {
+          field: 'policyValues.check_in_time',
+          issue: 'REQUIRED_POLICY_MISSING',
+        },
+      ]);
+      const { props } = renderReviewStep();
+      expect(props.onGoToStep).not.toHaveBeenCalled();
+
+      await user.click(
+        screen.getByRole('button', { name: 'Անցնել Պատկերասրահ' }),
+      );
+      expect(props.onGoToStep).toHaveBeenLastCalledWith('media');
+
+      await user.click(screen.getByRole('button', { name: 'Անցնել Կանոններ' }));
+      expect(props.onGoToStep).toHaveBeenLastCalledWith('policies');
+    });
+
+    test('an issue with no owning step (publication period) gets no jump button', () => {
+      rejectWith([
+        {
+          field: 'publicationPeriodDays',
+          issue: 'PUBLICATION_PERIOD_REQUIRED',
+        },
+      ]);
+      renderReviewStep();
+      expect(
+        within(screen.getByRole('alert')).queryByRole('button'),
+      ).not.toBeInTheDocument();
+    });
   });
 
   test('renders "not set" placeholders when location/pricing are absent', () => {

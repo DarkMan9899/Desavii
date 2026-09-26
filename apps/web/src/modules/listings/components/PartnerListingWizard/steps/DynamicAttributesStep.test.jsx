@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import ApiError from '../../../../../api/ApiError.js';
 import DynamicAttributesStep from './DynamicAttributesStep.jsx';
 import { useListingMetadataQuery } from '../../../queries/useListingMetadataQuery.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
@@ -138,5 +139,37 @@ describe('DynamicAttributesStep (PartnerListingWizard)', () => {
     expect(
       screen.getByText('Այս կատեգորիան լրացուցիչ մանրամասներ չունի։'),
     ).toBeInTheDocument();
+  });
+  // Step L5: the backend names the attribute (`attributeValues.<code>`),
+  // so its error lands on that attribute's own field.
+  test('a server error for one attribute is shown on that attribute field only', () => {
+    useListingMetadataQuery.mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: { attributes: ATTRIBUTES },
+    });
+    useUpdateListingMutation.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+      error: new ApiError({
+        code: 'VALIDATION_FAILED',
+        status: 422,
+        message: 'bedrooms must be at most 10.',
+        details: [
+          {
+            field: 'attributeValues.bedrooms',
+            issue: 'ABOVE_MAXIMUM',
+            maximum: 10,
+          },
+        ],
+      }),
+    });
+    render(
+      <DynamicAttributesStep listingId={7} categoryId={3} onNext={vi.fn()} />,
+    );
+
+    expect(screen.getByText('Առավելագույնը 10 է։')).toBeInTheDocument();
+    expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('bedrooms must be at most');
   });
 });

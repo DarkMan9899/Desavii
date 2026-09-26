@@ -26,6 +26,7 @@ vi.mock('../../mutations/useDeleteListingMenuMutation.js', () => ({
 vi.mock('../../mutations/useCreateListingMenuSectionMutation.js', () => ({
   useCreateListingMenuSectionMutation: () => ({
     mutate: vi.fn(),
+    reset: vi.fn(),
     isPending: false,
     error: null,
   }),
@@ -33,6 +34,7 @@ vi.mock('../../mutations/useCreateListingMenuSectionMutation.js', () => ({
 vi.mock('../../mutations/useUpdateListingMenuSectionMutation.js', () => ({
   useUpdateListingMenuSectionMutation: () => ({
     mutate: vi.fn(),
+    reset: vi.fn(),
     isPending: false,
     error: null,
   }),
@@ -40,6 +42,7 @@ vi.mock('../../mutations/useUpdateListingMenuSectionMutation.js', () => ({
 vi.mock('../../mutations/useDeleteListingMenuSectionMutation.js', () => ({
   useDeleteListingMenuSectionMutation: () => ({
     mutate: vi.fn(),
+    reset: vi.fn(),
     isPending: false,
     error: null,
     variables: undefined,
@@ -48,6 +51,7 @@ vi.mock('../../mutations/useDeleteListingMenuSectionMutation.js', () => ({
 vi.mock('../../mutations/useCreateListingMenuItemMutation.js', () => ({
   useCreateListingMenuItemMutation: () => ({
     mutate: vi.fn(),
+    reset: vi.fn(),
     isPending: false,
     error: null,
   }),
@@ -55,6 +59,7 @@ vi.mock('../../mutations/useCreateListingMenuItemMutation.js', () => ({
 vi.mock('../../mutations/useUpdateListingMenuItemMutation.js', () => ({
   useUpdateListingMenuItemMutation: () => ({
     mutate: vi.fn(),
+    reset: vi.fn(),
     isPending: false,
     error: null,
   }),
@@ -62,6 +67,7 @@ vi.mock('../../mutations/useUpdateListingMenuItemMutation.js', () => ({
 vi.mock('../../mutations/useDeleteListingMenuItemMutation.js', () => ({
   useDeleteListingMenuItemMutation: () => ({
     mutate: vi.fn(),
+    reset: vi.fn(),
     isPending: false,
     error: null,
     variables: undefined,
@@ -100,16 +106,19 @@ describe('PartnerMenuManager (Pass 6, Restaurant vertical, owner issue #13)', ()
     createMenuMutate = vi.fn();
     useCreateListingMenuMutation.mockReturnValue({
       mutate: createMenuMutate,
+      reset: vi.fn(),
       isPending: false,
       error: null,
     });
     useUpdateListingMenuMutation.mockReturnValue({
       mutate: vi.fn(),
+      reset: vi.fn(),
       isPending: false,
       error: null,
     });
     useDeleteListingMenuMutation.mockReturnValue({
       mutate: vi.fn(),
+      reset: vi.fn(),
       isPending: false,
       error: null,
       variables: undefined,

@@ -15,14 +15,11 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import {
-  Spinner,
-  ErrorState,
-  Alert,
-} from '@desavii/ui/components/feedback-overlays';
+import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
 import { Checkbox } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import { Stack } from '@desavii/ui/components/layout';
+import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import { useListingMetadataQuery } from '../../queries/useListingMetadataQuery.js';
 import { useReplaceBookableUnitAmenitiesMutation } from '../../../availability/index.js';
 
@@ -79,9 +76,14 @@ export default function RoomAmenitiesEditor({
   return (
     <Stack gap="3">
       <h4>{t('partner.listingWizard.availability.roomAmenitiesHeading')}</h4>
-      {mutation.isError && (
-        <Alert variant="danger">{mutation.error.message}</Alert>
-      )}
+      <ApiErrorAlert
+        error={mutation.error}
+        fieldLabels={{
+          amenityIds: t(
+            'partner.listingWizard.availability.roomAmenitiesHeading',
+          ),
+        }}
+      />
       {amenityGroups.length === 0 ? (
         <p>{t('partner.listingWizard.amenities.empty')}</p>
       ) : (

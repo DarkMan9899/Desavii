@@ -80,20 +80,34 @@ async function createListing({ title, listingType, categoryId, cityId }) {
   return res.body.data.id;
 }
 
+// Each category's own required policies — policies are category-scoped
+// (Step L5), so a tour or a car rental can't carry the hotel-only
+// check-in/check-out policies.
+const HOTEL_POLICY_VALUES = [
+  { code: 'cancellation_policy', value: 'FLEXIBLE' },
+  { code: 'check_in_time', value: '14:00' },
+  { code: 'check_out_time', value: '11:00' },
+];
+const CANCELLATION_ONLY_POLICY_VALUES = [
+  { code: 'cancellation_policy', value: 'FLEXIBLE' },
+];
+
 async function publishListing(
   listingId,
-  { bookableUnitType, capacity, maxGuests, unitLabel },
+  {
+    bookableUnitType,
+    capacity,
+    maxGuests,
+    unitLabel,
+    policyValues = HOTEL_POLICY_VALUES,
+  },
 ) {
   await request(app)
     .patch(`/api/v1/listings/${listingId}`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)
     .send({
       location: { latitude: 40.18, longitude: 44.5 },
-      policyValues: [
-        { code: 'cancellation_policy', value: 'FLEXIBLE' },
-        { code: 'check_in_time', value: '14:00' },
-        { code: 'check_out_time', value: '11:00' },
-      ],
+      policyValues,
     });
   await request(app)
     .post(`/api/v1/listings/${listingId}/media`)
@@ -210,6 +224,7 @@ beforeAll(async () => {
   await publishListing(listingTour, {
     bookableUnitType: 'TOUR_DEPARTURE',
     capacity: 2,
+    policyValues: CANCELLATION_ONLY_POLICY_VALUES,
   });
   // P2.2D: 4 identical rooms (plenty of inventory), each sleeping only 1
   // guest — the exact shape the audited bug missed (capacity != max_guests).
@@ -221,6 +236,7 @@ beforeAll(async () => {
   carUnitId = await publishListing(listingCar, {
     bookableUnitType: 'VEHICLE',
     capacity: 1,
+    policyValues: CANCELLATION_ONLY_POLICY_VALUES,
   });
 
   // Fully consume the sold-out hotel's only unit for the search's stay

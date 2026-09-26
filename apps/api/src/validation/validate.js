@@ -19,6 +19,28 @@
 
 import { ValidationError } from '../errors/AppError.js';
 
+// Only the bounded, non-sensitive context a client needs to explain the
+// problem ("at most 255 characters", "required") — never the rejected
+// value itself or Zod's free-text message.
+const CONTEXT_KEYS = ['minimum', 'maximum', 'type', 'validation'];
+
+function toDetail(issue) {
+  const detail = { field: issue.path.join('.'), issue: issue.code };
+  CONTEXT_KEYS.forEach((key) => {
+    const value = issue[key];
+    if (typeof value === 'number' || typeof value === 'string') {
+      detail[key] = value;
+    }
+  });
+  // `received` is a type name ("undefined", "string") only for
+  // `invalid_type`; on other issues (e.g. `invalid_enum_value`) Zod puts
+  // the rejected input itself there, which must not be echoed back.
+  if (issue.code === 'invalid_type' && typeof issue.received === 'string') {
+    detail.received = issue.received;
+  }
+  return detail;
+}
+
 /**
  * @param {import('zod').ZodSchema} schema - validates { body, query, params }
  */
@@ -31,10 +53,7 @@ export function validate(schema) {
     });
 
     if (!result.success) {
-      const details = result.error.issues.map((issue) => ({
-        field: issue.path.join('.'),
-        issue: issue.code,
-      }));
+      const details = result.error.issues.map(toDetail);
       next(new ValidationError('One or more fields are invalid.', details));
       return;
     }

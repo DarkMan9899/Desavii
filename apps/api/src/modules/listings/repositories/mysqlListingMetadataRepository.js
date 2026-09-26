@@ -220,14 +220,19 @@ export class MySqlListingMetadataRepository {
   // ids, same convention search's attr_{code} params use) ---
 
   /** @returns {Promise<Map<string, {id: number, dataTypeCode: string}>>} */
-  async getAttributeDefinitionsByCode(codes) {
+  // Scoped to one category through the same `category_attributes` link
+  // the metadata read uses, so a code that exists globally but isn't
+  // offered for the listing's category is treated as unknown (likewise
+  // for policies and pricing models below).
+  async getAttributeDefinitionsByCode(codes, categoryId) {
     if (codes.length === 0) return new Map();
     const [rows] = await this.#pool.query(
       `SELECT ad.code, ad.id, ad.validation_min, ad.validation_max, adt.code AS data_type_code
-       FROM attribute_definitions ad
+       FROM category_attributes ca
+       JOIN attribute_definitions ad ON ad.id = ca.attribute_definition_id
        JOIN attribute_data_types adt ON adt.id = ad.data_type_id
-       WHERE ad.code IN (?)`,
-      [codes],
+       WHERE ca.category_id = ? AND ad.code IN (?)`,
+      [categoryId, codes],
     );
     return new Map(
       rows.map((row) => [
@@ -256,14 +261,15 @@ export class MySqlListingMetadataRepository {
   }
 
   /** @returns {Promise<Map<string, {id: number, dataTypeCode: string}>>} */
-  async getPolicyDefinitionsByCode(codes) {
+  async getPolicyDefinitionsByCode(codes, categoryId) {
     if (codes.length === 0) return new Map();
     const [rows] = await this.#pool.query(
       `SELECT pd.code, pd.id, adt.code AS data_type_code
-       FROM policy_definitions pd
+       FROM category_policies cp
+       JOIN policy_definitions pd ON pd.id = cp.policy_definition_id
        JOIN attribute_data_types adt ON adt.id = pd.data_type_id
-       WHERE pd.code IN (?)`,
-      [codes],
+       WHERE cp.category_id = ? AND pd.code IN (?)`,
+      [categoryId, codes],
     );
     return new Map(
       rows.map((row) => [
@@ -285,10 +291,14 @@ export class MySqlListingMetadataRepository {
   }
 
   /** @returns {Promise<number|null>} */
-  async getPricingModelIdByCode(code) {
+  async getPricingModelIdByCode(code, categoryId) {
     const [rows] = await this.#pool.query(
-      'SELECT id FROM pricing_models WHERE code = ? LIMIT 1',
-      [code],
+      `SELECT pm.id
+       FROM category_pricing_models cpm
+       JOIN pricing_models pm ON pm.id = cpm.pricing_model_id
+       WHERE cpm.category_id = ? AND pm.code = ?
+       LIMIT 1`,
+      [categoryId, code],
     );
     return rows[0]?.id ?? null;
   }

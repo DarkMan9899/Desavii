@@ -25,7 +25,6 @@
 import { useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { Alert } from '@desavii/ui/components/feedback-overlays';
 import { Button } from '@desavii/ui/components/primitives';
 import {
   Input,
@@ -44,7 +43,31 @@ import { getLocalizedItemsExact } from '../../../utils/getLocalizedItems.js';
 import { SUPPORTED_LOCALES } from '../../../../../translations/i18n.js';
 import AuthoringLocaleTabs from '../AuthoringLocaleTabs/AuthoringLocaleTabs.jsx';
 import WizardStepActions from '../WizardStepActions.jsx';
+import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import { parseApiError } from '../../../../../utils/apiErrorFeedback.js';
+import {
+  HIGHLIGHT_TEXT_MAX_LENGTH,
+  ITINERARY_TITLE_MAX_LENGTH,
+  ITINERARY_DESCRIPTION_MAX_LENGTH,
+  INCLUDED_ITEM_TEXT_MAX_LENGTH,
+  FAQ_QUESTION_MAX_LENGTH,
+  FAQ_ANSWER_MAX_LENGTH,
+} from '../../../constants/textLimits.js';
 import styles from './ContentStep.module.scss';
+
+// Server issue paths (`highlights.2.text`, `steps.0.title`, ...) index
+// only the non-blank rows that were sent, so they can't be mapped back to
+// a displayed row — the summary names the section instead.
+const SECTION_TITLE_KEY_BY_ISSUE_ROOT = {
+  highlights: 'partner.listingWizard.content.highlightsTitle',
+  steps: 'partner.listingWizard.content.itineraryTitle',
+  items: 'partner.listingWizard.content.includedTitle',
+  faqs: 'partner.listingWizard.content.faqsTitle',
+};
+
+// listingValidators.js itinerary durationMinutes: int, 1..1440.
+const STEP_DURATION_MIN = 1;
+const STEP_DURATION_MAX = 1440;
 
 const HIGHLIGHT_MAX = 12;
 const ITINERARY_MAX = 30;
@@ -230,28 +253,33 @@ export default function ContentStep({
     const validFaqs = validFaqsOrNull();
     if (validFaqs === null) return;
 
-    await Promise.all([
-      replaceHighlights.mutateAsync({
-        id: listingId,
-        highlights: validHighlights,
-        languageCode: authoringLocale,
-      }),
-      replaceItinerary.mutateAsync({
-        id: listingId,
-        steps: validSteps,
-        languageCode: authoringLocale,
-      }),
-      replaceIncludedItems.mutateAsync({
-        id: listingId,
-        items: validIncludedItems,
-        languageCode: authoringLocale,
-      }),
-      replaceFaqs.mutateAsync({
-        id: listingId,
-        faqs: validFaqs,
-        languageCode: authoringLocale,
-      }),
-    ]);
+    try {
+      await Promise.all([
+        replaceHighlights.mutateAsync({
+          id: listingId,
+          highlights: validHighlights,
+          languageCode: authoringLocale,
+        }),
+        replaceItinerary.mutateAsync({
+          id: listingId,
+          steps: validSteps,
+          languageCode: authoringLocale,
+        }),
+        replaceIncludedItems.mutateAsync({
+          id: listingId,
+          items: validIncludedItems,
+          languageCode: authoringLocale,
+        }),
+        replaceFaqs.mutateAsync({
+          id: listingId,
+          faqs: validFaqs,
+          languageCode: authoringLocale,
+        }),
+      ]);
+    } catch {
+      // Rendered from the mutations' own `error` (ApiErrorAlert).
+      return;
+    }
 
     if (advance) {
       onNext();
@@ -275,12 +303,17 @@ export default function ContentStep({
     replaceItinerary.error ||
     replaceIncludedItems.error ||
     replaceFaqs.error;
+  const sectionLabels = {};
+  (parseApiError(mutationError)?.issues ?? []).forEach(({ path }) => {
+    const titleKey = SECTION_TITLE_KEY_BY_ISSUE_ROOT[path.split('.')[0]];
+    if (titleKey) sectionLabels[path] = t(titleKey);
+  });
 
   return (
     <div>
       <h2>{t('partner.listingWizard.steps.content')}</h2>
       <p className={styles.intro}>{t('partner.listingWizard.content.intro')}</p>
-      {mutationError && <Alert variant="danger">{mutationError.message}</Alert>}
+      <ApiErrorAlert error={mutationError} fieldLabels={sectionLabels} />
 
       <p className={styles.localeNotice}>
         {t('partner.listingWizard.locale.notice', {
@@ -324,6 +357,7 @@ export default function ContentStep({
                       'partner.listingWizard.content.highlightTextLabel',
                     )}
                     value={row.text}
+                    maxLength={HIGHLIGHT_TEXT_MAX_LENGTH}
                     onChange={(event) =>
                       updateRow(
                         setHighlightsByLocale,
@@ -396,6 +430,7 @@ export default function ContentStep({
                     size="sm"
                     label={t('partner.listingWizard.content.stepTitleLabel')}
                     value={row.title}
+                    maxLength={ITINERARY_TITLE_MAX_LENGTH}
                     onChange={(event) =>
                       updateRow(
                         setItineraryByLocale,
@@ -412,6 +447,7 @@ export default function ContentStep({
                       'partner.listingWizard.content.stepDescriptionLabel',
                     )}
                     value={row.description}
+                    maxLength={ITINERARY_DESCRIPTION_MAX_LENGTH}
                     onChange={(event) =>
                       updateRow(
                         setItineraryByLocale,
@@ -427,6 +463,9 @@ export default function ContentStep({
                     size="sm"
                     label={t('partner.listingWizard.content.stepDurationLabel')}
                     value={row.durationMinutes}
+                    min={STEP_DURATION_MIN}
+                    max={STEP_DURATION_MAX}
+                    step={1}
                     onChange={(event) =>
                       updateRow(
                         setItineraryByLocale,
@@ -487,6 +526,7 @@ export default function ContentStep({
                     size="sm"
                     label={t('partner.listingWizard.content.itemTextLabel')}
                     value={row.itemText}
+                    maxLength={INCLUDED_ITEM_TEXT_MAX_LENGTH}
                     onChange={(event) =>
                       updateRow(
                         setIncludedByLocale,
@@ -554,6 +594,7 @@ export default function ContentStep({
                     size="sm"
                     label={t('partner.listingWizard.content.questionLabel')}
                     value={row.question}
+                    maxLength={FAQ_QUESTION_MAX_LENGTH}
                     error={faqErrors[row.rowKey]}
                     onChange={(event) =>
                       updateRow(
@@ -569,6 +610,7 @@ export default function ContentStep({
                     size="sm"
                     label={t('partner.listingWizard.content.answerLabel')}
                     value={row.answer}
+                    maxLength={FAQ_ANSWER_MAX_LENGTH}
                     onChange={(event) =>
                       updateRow(
                         setFaqsByLocale,

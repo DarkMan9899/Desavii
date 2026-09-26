@@ -14,15 +14,12 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import {
-  Spinner,
-  ErrorState,
-  Alert,
-} from '@desavii/ui/components/feedback-overlays';
+import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
 import { Input, Checkbox } from '@desavii/ui/components/form-controls';
 import { Stack } from '@desavii/ui/components/layout';
 import { useListingMetadataQuery } from '../../../queries/useListingMetadataQuery.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
+import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import WizardStepActions from '../WizardStepActions.jsx';
 import styles from './AmenitiesStep.module.scss';
 
@@ -91,10 +88,15 @@ export default function AmenitiesStep({
   }
 
   async function handleContinue() {
-    await updateListingMutation.mutateAsync({
-      id: listingId,
-      payload: { amenityIds: Array.from(selectedIds) },
-    });
+    try {
+      await updateListingMutation.mutateAsync({
+        id: listingId,
+        payload: { amenityIds: Array.from(selectedIds) },
+      });
+    } catch {
+      // Rendered from the mutation's own `error` (ApiErrorAlert).
+      return;
+    }
     onNext();
   }
 
@@ -104,9 +106,12 @@ export default function AmenitiesStep({
       {amenityGroups.length === 0 && (
         <p>{t('partner.listingWizard.amenities.empty')}</p>
       )}
-      {updateListingMutation.error && (
-        <Alert variant="danger">{updateListingMutation.error.message}</Alert>
-      )}
+      <ApiErrorAlert
+        error={updateListingMutation.error}
+        fieldLabels={{
+          amenityIds: t('partner.listingWizard.steps.amenities'),
+        }}
+      />
       {amenityGroups.length > 0 && (
         <>
           <Input

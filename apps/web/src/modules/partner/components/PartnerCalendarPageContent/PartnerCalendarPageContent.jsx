@@ -68,6 +68,7 @@ import {
   BLOCK_REASON_CODES,
   EXTERNAL_RESERVATION_SOURCE_CODES,
   INT_UNSIGNED_MAX,
+  INVENTORY_TEXT_MAX_LENGTH,
 } from '../../../availability/index.js';
 import { useUnitBookingsQuery } from '../../../bookings/index.js';
 
@@ -568,6 +569,7 @@ export default function PartnerCalendarPageContent() {
           <Textarea
             label={t('partner.calendar.blocks.notesLabel')}
             value={blockForm.notes}
+            maxLength={INVENTORY_TEXT_MAX_LENGTH.blockNotes}
             onChange={(event) =>
               setBlockForm((prev) => ({ ...prev, notes: event.target.value }))
             }
@@ -617,6 +619,7 @@ export default function PartnerCalendarPageContent() {
             <Input
               label={t('partner.calendar.external.guestNameLabel')}
               value={externalForm.guestName}
+              maxLength={INVENTORY_TEXT_MAX_LENGTH.guestName}
               onChange={(event) =>
                 setExternalForm((prev) => ({
                   ...prev,
@@ -627,6 +630,7 @@ export default function PartnerCalendarPageContent() {
             <Input
               label={t('partner.calendar.external.guestPhoneLabel')}
               value={externalForm.guestPhone}
+              maxLength={INVENTORY_TEXT_MAX_LENGTH.guestPhone}
               onChange={(event) =>
                 setExternalForm((prev) => ({
                   ...prev,
@@ -637,6 +641,7 @@ export default function PartnerCalendarPageContent() {
             <Input
               label={t('partner.calendar.external.referenceLabel')}
               value={externalForm.externalReference}
+              maxLength={INVENTORY_TEXT_MAX_LENGTH.externalReference}
               onChange={(event) =>
                 setExternalForm((prev) => ({
                   ...prev,

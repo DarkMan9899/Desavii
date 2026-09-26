@@ -23,6 +23,20 @@ import { Button } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import { CURRENCY_CODES } from '../../constants/currencies.js';
 import { DIETARY_MARKERS } from '../../constants/dietaryMarkers.js';
+import {
+  MENU_ITEM_TITLE_MAX_LENGTH,
+  MENU_ITEM_DESCRIPTION_MAX_LENGTH,
+} from '../../constants/textLimits.js';
+import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import apiErrorPropType from '../../../../components/ApiErrorAlert/apiErrorPropType.js';
+import useApiFieldErrors from '../../../../hooks/useApiFieldErrors.js';
+
+const INLINE_API_PATHS = [
+  'title',
+  'description',
+  'priceAmount',
+  'priceCurrencyCode',
+];
 
 // Step L4.1 (brief §8, §12-13) — mirrors the backend's own
 // `decimalMoneyAmountSchema` (apps/api/src/validation/decimalMoneyAmount.js,
@@ -84,8 +98,10 @@ export default function ItemForm({
   submitLabel,
   onSubmit,
   onCancel = undefined,
+  serverError = null,
 }) {
   const { t } = useTranslation();
+  const { fieldError, clearFieldError } = useApiFieldErrors(serverError);
   const [title, setTitle] = useState(initialValues.title ?? '');
   const [description, setDescription] = useState(
     initialValues.description ?? '',
@@ -136,13 +152,23 @@ export default function ItemForm({
         label={t('partner.listingMenu.itemTitleLabel')}
         placeholder={t('partner.listingMenu.itemTitlePlaceholder')}
         value={title}
-        onChange={(event) => setTitle(event.target.value)}
+        maxLength={MENU_ITEM_TITLE_MAX_LENGTH}
+        error={fieldError('title')}
+        onChange={(event) => {
+          setTitle(event.target.value);
+          clearFieldError('title');
+        }}
         required
       />
       <Textarea
         label={t('partner.listingMenu.itemDescriptionLabel')}
         value={description}
-        onChange={(event) => setDescription(event.target.value)}
+        maxLength={MENU_ITEM_DESCRIPTION_MAX_LENGTH}
+        error={fieldError('description')}
+        onChange={(event) => {
+          setDescription(event.target.value);
+          clearFieldError('description');
+        }}
         rows={2}
       />
       <Inline gap="4" wrap align="flex-end">
@@ -152,10 +178,11 @@ export default function ItemForm({
           step={0.01}
           label={t('partner.listingMenu.priceAmountLabel')}
           value={priceAmount}
-          error={priceError}
+          error={priceError ?? fieldError('priceAmount')}
           onChange={(event) => {
             setPriceAmount(event.target.value);
             setPriceError(undefined);
+            clearFieldError('priceAmount');
           }}
           required
         />
@@ -163,7 +190,11 @@ export default function ItemForm({
           label={t('partner.listingMenu.priceCurrencyLabel')}
           options={CURRENCY_CODES.map((code) => ({ value: code, label: code }))}
           value={priceCurrencyCode}
-          onChange={setPriceCurrencyCode}
+          error={fieldError('priceCurrencyCode')}
+          onChange={(value) => {
+            setPriceCurrencyCode(value);
+            clearFieldError('priceCurrencyCode');
+          }}
         />
       </Inline>
       <Stack gap="2">
@@ -186,6 +217,13 @@ export default function ItemForm({
           label={t('partner.listingMenu.itemActiveLabel')}
         />
       )}
+      <ApiErrorAlert
+        error={serverError}
+        inlinePaths={INLINE_API_PATHS}
+        fieldLabels={{
+          dietaryMarkers: t('partner.listingMenu.dietaryMarkersLabel'),
+        }}
+      />
       <Inline gap="2">
         <Button
           variant="primary"
@@ -220,4 +258,5 @@ ItemForm.propTypes = {
   submitLabel: PropTypes.string.isRequired,
   onSubmit: PropTypes.func.isRequired,
   onCancel: PropTypes.func,
+  serverError: apiErrorPropType,
 };

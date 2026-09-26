@@ -52,11 +52,13 @@ describe('BookableUnitsManager (P2.2A)', () => {
     updateMutate = vi.fn();
     useRegisterBookableUnitMutation.mockReturnValue({
       mutate: registerMutate,
+      reset: vi.fn(),
       isPending: false,
       error: null,
     });
     useUpdateBookableUnitMutation.mockReturnValue({
       mutate: updateMutate,
+      reset: vi.fn(),
       isPending: false,
       error: null,
     });

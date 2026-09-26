@@ -38,13 +38,24 @@ import { useForm, Controller } from 'react-hook-form';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@desavii/ui/components/form-controls';
-import { Alert, Skeleton } from '@desavii/ui/components/feedback-overlays';
+import { Skeleton } from '@desavii/ui/components/feedback-overlays';
 import { Stack } from '@desavii/ui/components/layout';
+import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import {
+  parseApiError,
+  getIssueMessage,
+} from '../../../../../utils/apiErrorFeedback.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
 import WizardStepActions from '../WizardStepActions.jsx';
 import styles from './LocationStep.module.scss';
 
 const LocationPicker = lazy(() => import('./LocationPicker.jsx'));
+
+// API path -> this form's react-hook-form field name.
+const FORM_FIELD_BY_API_PATH = {
+  'location.latitude': 'latitude',
+  'location.longitude': 'longitude',
+};
 
 export default function LocationStep({
   listingId,
@@ -59,6 +70,7 @@ export default function LocationStep({
     control,
     handleSubmit,
     setValue,
+    setError,
     watch,
     formState: { errors },
   } = useForm({
@@ -102,6 +114,21 @@ export default function LocationStep({
     if (hasCoordinateError) setIsAdvancedOpen(true);
   }, [hasCoordinateError]);
 
+  // A server-side coordinate rejection lands on the field itself (RHF's
+  // own error state), which also opens the disclosure above.
+  const serverError = updateListingMutation.error;
+  useEffect(() => {
+    parseApiError(serverError)?.issues.forEach((issue) => {
+      const fieldName = FORM_FIELD_BY_API_PATH[issue.path];
+      if (fieldName) {
+        setError(fieldName, {
+          type: 'server',
+          message: getIssueMessage(t, issue),
+        });
+      }
+    });
+  }, [serverError, setError, t]);
+
   async function onSubmit(values) {
     // Step L4 (brief §14-16) — `Number('')` is `0`, a mathematically
     // valid latitude (the equator); RHF's own `required` rule on both
@@ -114,10 +141,15 @@ export default function LocationStep({
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
       return;
     }
-    await updateListingMutation.mutateAsync({
-      id: listingId,
-      payload: { location: { latitude, longitude } },
-    });
+    try {
+      await updateListingMutation.mutateAsync({
+        id: listingId,
+        payload: { location: { latitude, longitude } },
+      });
+    } catch {
+      // Rendered from the mutation's own `error` (ApiErrorAlert + fields).
+      return;
+    }
     onNext();
   }
 
@@ -125,9 +157,10 @@ export default function LocationStep({
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
       <h2>{t('partner.listingWizard.steps.location')}</h2>
       <Stack gap="4">
-        {updateListingMutation.error && (
-          <Alert variant="danger">{updateListingMutation.error.message}</Alert>
-        )}
+        <ApiErrorAlert
+          error={serverError}
+          inlinePaths={Object.keys(FORM_FIELD_BY_API_PATH)}
+        />
 
         <Suspense fallback={<Skeleton variant="rect" height={280} />}>
           <LocationPicker

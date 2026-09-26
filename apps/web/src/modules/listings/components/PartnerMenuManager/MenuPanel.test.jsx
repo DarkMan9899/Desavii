@@ -9,6 +9,7 @@ import { useDeleteListingMenuSectionMutation } from '../../mutations/useDeleteLi
 import { useCreateListingMenuItemMutation } from '../../mutations/useCreateListingMenuItemMutation.js';
 import { useUpdateListingMenuItemMutation } from '../../mutations/useUpdateListingMenuItemMutation.js';
 import { useDeleteListingMenuItemMutation } from '../../mutations/useDeleteListingMenuItemMutation.js';
+import ApiError from '../../../../api/ApiError.js';
 
 vi.mock('../../mutations/useCreateListingMenuSectionMutation.js', () => ({
   useCreateListingMenuSectionMutation: vi.fn(),
@@ -140,18 +141,21 @@ describe('MenuPanel (Pass 6, Partner Menu Authoring)', () => {
     useDeleteListingMenuSectionMutation.mockReturnValue({
       mutate: deleteSectionMutate,
       isPending: false,
-      error: {
+      error: new ApiError({
+        code: 'SECTION_HAS_ITEMS',
+        status: 409,
         message: 'Remove every item from this section before deleting it.',
-      },
+      }),
       variables: { sectionId: 10 },
     });
     renderPanel();
 
-    expect(
-      screen.getByText(
-        'Remove every item from this section before deleting it.',
-      ),
-    ).toBeInTheDocument();
+    // Step L5: the code's translated guidance — never the English message.
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(
+      'Բաժինը ջնջելուց առաջ հեռացրեք դրա բոլոր ուտեստները։',
+    );
+    expect(alert).not.toHaveTextContent('Remove every item');
   });
 
   test('adding an item to a section calls the create mutation with a real price and currency', async () => {

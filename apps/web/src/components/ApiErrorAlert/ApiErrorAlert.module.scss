@@ -1,0 +1,25 @@
+// ApiErrorAlert — spacing tokens from @desavii/ui; the design system has no
+// font-weight token, so the label uses the same literal 600 every other
+// Partner-wizard stylesheet uses.
+
+@use 'tokens' as tokens;
+
+.issues {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-1;
+  margin: tokens.$space-2 0 0;
+  padding-inline-start: tokens.$space-4;
+  overflow-wrap: anywhere;
+}
+
+.issue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: tokens.$space-2;
+}
+
+.label {
+  font-weight: 600;
+}

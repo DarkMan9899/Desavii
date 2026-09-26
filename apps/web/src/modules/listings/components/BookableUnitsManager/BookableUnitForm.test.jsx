@@ -1,6 +1,7 @@
 import { describe, test, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import ApiError from '../../../../api/ApiError.js';
 import BookableUnitForm from './BookableUnitForm.jsx';
 
 // Sprint C-1: these three room sub-editors have their own real query/
@@ -963,6 +964,63 @@ describe('BookableUnitForm (P2.2A)', () => {
 
       expect(onSubmit).toHaveBeenCalledTimes(1);
       expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('roomSizeSqm');
+    });
+  });
+  // Step L5 (brief §8): a rejected register/update names its fields.
+  describe('server field errors (Step L5)', () => {
+    const REJECTED = new ApiError({
+      code: 'VALIDATION_FAILED',
+      status: 422,
+      message: 'One or more fields are invalid.',
+      details: [
+        {
+          field: 'body.capacity',
+          issue: 'too_big',
+          maximum: 4294967295,
+          type: 'number',
+        },
+        { field: 'body', issue: 'custom' },
+      ],
+    });
+
+    test('a server error lands on its exact field, marked aria-invalid, and clears when that field is edited', async () => {
+      const user = userEvent.setup();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={vi.fn()}
+          serverError={REJECTED}
+        />,
+      );
+
+      const capacity = screen.getByLabelText('Գույքագրման քանակ');
+      expect(capacity).toHaveAttribute('aria-invalid', 'true');
+      expect(
+        screen.getByText('Առավելագույնը 4294967295 է։'),
+      ).toBeInTheDocument();
+
+      await user.type(capacity, '5');
+      expect(capacity).not.toHaveAttribute('aria-invalid', 'true');
+      expect(
+        screen.queryByText('Առավելագույնը 4294967295 է։'),
+      ).not.toBeInTheDocument();
+    });
+
+    test('an issue with no field of its own is listed in the summary, never dropped', () => {
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={vi.fn()}
+          serverError={REJECTED}
+        />,
+      );
+      const summary = screen
+        .getAllByRole('alert')
+        .find((alert) => alert.textContent.includes('Որոշ տվյալներ'));
+      expect(within(summary).getAllByRole('listitem')).toHaveLength(1);
+      expect(summary).not.toHaveTextContent('One or more fields are invalid.');
     });
   });
 });

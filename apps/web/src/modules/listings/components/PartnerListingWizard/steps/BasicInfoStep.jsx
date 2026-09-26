@@ -39,27 +39,25 @@ import { useForm, Controller } from 'react-hook-form';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Input, Textarea, Select } from '@desavii/ui/components/form-controls';
-import { Alert } from '@desavii/ui/components/feedback-overlays';
 import { Button } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import { useToast } from '../../../../../contexts/ToastContext.jsx';
+import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import useApiFieldErrors from '../../../../../hooks/useApiFieldErrors.js';
 import { useCreateListingMutation } from '../../../mutations/useCreateListingMutation.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
 import { LANGUAGE_ID_BY_LOCALE } from '../../../constants/languageIds.js';
+import {
+  LISTING_TITLE_MAX_LENGTH,
+  LISTING_SUMMARY_MAX_LENGTH,
+  LISTING_DESCRIPTION_MAX_LENGTH,
+} from '../../../constants/textLimits.js';
 import { SUPPORTED_LOCALES } from '../../../../../translations/i18n.js';
 import AuthoringLocaleTabs from '../AuthoringLocaleTabs/AuthoringLocaleTabs.jsx';
 import WizardStepActions from '../WizardStepActions.jsx';
 import styles from './BasicInfoStep.module.scss';
 
-// Step L2 (brief §6/§18) — mirrors `translationSchema`'s own
-// `title`/`summary`/`description` caps
-// (`apps/api/src/modules/listings/validators/listingValidators.js`)
-// exactly, so the visible character count and the native `maxLength`
-// guard never claim a different limit than the one the backend actually
-// enforces.
-const TITLE_MAX_LENGTH = 255;
-const SUMMARY_MAX_LENGTH = 500;
-const DESCRIPTION_MAX_LENGTH = 20000;
+const TRANSLATION_FIELDS = ['title', 'summary', 'description'];
 
 function emptyDraft() {
   return { title: '', summary: '', description: '' };
@@ -99,11 +97,24 @@ export default function BasicInfoStep({
     createListingMutation.isPending || updateListingMutation.isPending;
   const submitError =
     createListingMutation.error || updateListingMutation.error;
+  const { fieldError, clearFieldError } = useApiFieldErrors(submitError);
 
   const [draftsByLocale, setDraftsByLocale] = useState(() =>
     buildDraftsByLocale(initialTranslations),
   );
   const [titleErrorLocale, setTitleErrorLocale] = useState(null);
+  // Every save sends exactly one translation (`translations.0`) — the
+  // locale active when it was submitted. A server error on that path only
+  // belongs inline under the same locale's tab; after a tab switch it is
+  // listed in the summary instead of landing on another language's field.
+  const [submittedLocale, setSubmittedLocale] = useState(null);
+  const showsSubmittedLocale = submittedLocale === authoringLocale;
+
+  function serverTextError(field) {
+    return showsSubmittedLocale
+      ? fieldError(`translations.0.${field}`)
+      : undefined;
+  }
 
   const {
     control,
@@ -126,6 +137,7 @@ export default function BasicInfoStep({
       ...current,
       [authoringLocale]: { ...current[authoringLocale], [field]: value },
     }));
+    if (showsSubmittedLocale) clearFieldError(`translations.0.${field}`);
   }
 
   function translationPayloadForLocale(locale) {
@@ -154,10 +166,18 @@ export default function BasicInfoStep({
   // path that ISN'T also a step transition.
   async function saveActiveLocale({ advance }) {
     if (!validateActiveTitle()) return;
-    await updateListingMutation.mutateAsync({
-      id: listingId,
-      payload: { translations: [translationPayloadForLocale(authoringLocale)] },
-    });
+    setSubmittedLocale(authoringLocale);
+    try {
+      await updateListingMutation.mutateAsync({
+        id: listingId,
+        payload: {
+          translations: [translationPayloadForLocale(authoringLocale)],
+        },
+      });
+    } catch {
+      // Rendered from the mutation's own `error` (ApiErrorAlert + inline).
+      return;
+    }
     if (advance) {
       onNext();
     } else {
@@ -195,11 +215,18 @@ export default function BasicInfoStep({
   // partner to notice the loss and redo the work by hand.
   async function onPreCreationSubmit(values) {
     if (!validateActiveTitle()) return;
-    const { data } = await createListingMutation.mutateAsync({
-      partnerId: values.partnerId,
-      translations: [translationPayloadForLocale(authoringLocale)],
-      categoryIds: categoryId ? [categoryId] : undefined,
-    });
+    setSubmittedLocale(authoringLocale);
+    let data;
+    try {
+      ({ data } = await createListingMutation.mutateAsync({
+        partnerId: values.partnerId,
+        translations: [translationPayloadForLocale(authoringLocale)],
+        categoryIds: categoryId ? [categoryId] : undefined,
+      }));
+    } catch {
+      // Rendered from the mutation's own `error` (ApiErrorAlert + inline).
+      return;
+    }
 
     const otherLocalesWithContent = SUPPORTED_LOCALES.filter(
       (code) => code !== authoringLocale && draftsByLocale[code].title.trim(),
@@ -234,13 +261,30 @@ export default function BasicInfoStep({
   const titleErrorMessage =
     titleErrorLocale === authoringLocale
       ? t('partner.listingWizard.validation.required')
-      : undefined;
+      : serverTextError('title');
 
   return (
     <div>
       <h2>{t('partner.listingWizard.steps.basicInfo')}</h2>
       <Stack gap="4">
-        {submitError && <Alert variant="danger">{submitError.message}</Alert>}
+        <ApiErrorAlert
+          error={submitError}
+          inlinePaths={
+            showsSubmittedLocale
+              ? TRANSLATION_FIELDS.map((field) => `translations.0.${field}`)
+              : []
+          }
+          fieldLabels={{
+            partnerId: t('partner.listingWizard.basicInfo.partner'),
+            'translations.0.title': t('partner.listingWizard.basicInfo.title'),
+            'translations.0.summary': t(
+              'partner.listingWizard.basicInfo.summary',
+            ),
+            'translations.0.description': t(
+              'partner.listingWizard.basicInfo.description',
+            ),
+          }}
+        />
 
         {!listingId && (
           <form
@@ -300,7 +344,7 @@ export default function BasicInfoStep({
                 value={activeDraft.title}
                 error={titleErrorMessage}
                 required
-                maxLength={TITLE_MAX_LENGTH}
+                maxLength={LISTING_TITLE_MAX_LENGTH}
                 onChange={(event) =>
                   updateActiveDraft('title', event.target.value)
                 }
@@ -312,7 +356,8 @@ export default function BasicInfoStep({
                 )}
                 helperText={t('partner.listingWizard.basicInfo.summaryHelper')}
                 value={activeDraft.summary}
-                maxLength={SUMMARY_MAX_LENGTH}
+                error={serverTextError('summary')}
+                maxLength={LISTING_SUMMARY_MAX_LENGTH}
                 onChange={(event) =>
                   updateActiveDraft('summary', event.target.value)
                 }
@@ -324,7 +369,8 @@ export default function BasicInfoStep({
                 )}
                 rows={6}
                 value={activeDraft.description}
-                maxLength={DESCRIPTION_MAX_LENGTH}
+                error={serverTextError('description')}
+                maxLength={LISTING_DESCRIPTION_MAX_LENGTH}
                 onChange={(event) =>
                   updateActiveDraft('description', event.target.value)
                 }

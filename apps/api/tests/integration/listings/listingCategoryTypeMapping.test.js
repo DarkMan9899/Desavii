@@ -230,12 +230,14 @@ describe('PATCH /listings/:id — category and listing_type are immutable after 
       .set('Authorization', `Bearer ${vendor.accessToken}`)
       .send({
         categoryIds: [categoryIdBySlug.restaurants],
-        attributeValues: [{ code: 'bedrooms', value: 3 }],
+        // `total_rooms` is offered only by hotels, so a 200 proves the
+        // stored hotel category (not the ignored restaurants one) scoped it.
+        attributeValues: [{ code: 'total_rooms', value: 3 }],
       });
     expect(res.status).toBe(200);
     expect(
       res.body.data.attribute_values.some(
-        (entry) => entry.code === 'bedrooms' && entry.value === 3,
+        (entry) => entry.code === 'total_rooms' && entry.value === 3,
       ),
     ).toBe(true);
   });
