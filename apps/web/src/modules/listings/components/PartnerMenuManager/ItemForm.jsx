@@ -24,6 +24,59 @@ import { Stack, Inline } from '@desavii/ui/components/layout';
 import { CURRENCY_CODES } from '../../constants/currencies.js';
 import { DIETARY_MARKERS } from '../../constants/dietaryMarkers.js';
 
+// Step L4.1 (brief §8, §12-13) — mirrors the backend's own
+// `decimalMoneyAmountSchema` (apps/api/src/validation/decimalMoneyAmount.js,
+// the exact schema `restaurantMenuValidators.js`'s `priceAmount` already
+// uses): nonnegative (zero allowed — unlike `BookableUnitForm`'s
+// `basePriceAmount`, which requires strictly positive), the real
+// `DECIMAL(12,2)` ceiling, at-most-2-decimal-places. `priceAmount` is
+// REQUIRED on `createItemSchema` (no `.optional()`), so a blank value is
+// its own distinct error, not silently treated as "not yet filled in."
+const PRICE_STRING_PATTERN = /^-?\d*\.?\d*$/;
+const PRICE_MAX = 9999999999.99;
+
+function validatePriceAmount(rawValue, t) {
+  const trimmed = String(rawValue ?? '').trim();
+  if (trimmed === '') {
+    return {
+      value: undefined,
+      error: t('partner.listingMenu.priceAmountRequired'),
+    };
+  }
+  if (!PRICE_STRING_PATTERN.test(trimmed)) {
+    return {
+      value: undefined,
+      error: t('partner.listingMenu.priceAmountInvalid'),
+    };
+  }
+  const numeric = Number(trimmed);
+  if (!Number.isFinite(numeric)) {
+    return {
+      value: undefined,
+      error: t('partner.listingMenu.priceAmountInvalid'),
+    };
+  }
+  if (numeric < 0) {
+    return {
+      value: undefined,
+      error: t('partner.listingMenu.priceAmountNegative'),
+    };
+  }
+  if (numeric > PRICE_MAX) {
+    return {
+      value: undefined,
+      error: t('partner.listingMenu.priceAmountTooLarge'),
+    };
+  }
+  if (Math.abs(Math.round(numeric * 100) - numeric * 100) >= 1e-6) {
+    return {
+      value: undefined,
+      error: t('partner.listingMenu.priceAmountPrecision'),
+    };
+  }
+  return { value: numeric, error: undefined };
+}
+
 export default function ItemForm({
   initialValues = {},
   isEditing = false,
@@ -47,9 +100,11 @@ export default function ItemForm({
     initialValues.dietaryMarkers ?? [],
   );
   const [isActive, setIsActive] = useState(initialValues.isActive ?? true);
+  // Step L4.1 (brief §8, §15-16, §22-23) — the price field's own
+  // client-side validation error, shown immediately next to the field.
+  const [priceError, setPriceError] = useState(undefined);
 
   const titleMissing = title.trim() === '';
-  const priceInvalid = priceAmount === '' || Number(priceAmount) < 0;
 
   function toggleMarker(marker) {
     setDietaryMarkers((current) =>
@@ -60,10 +115,15 @@ export default function ItemForm({
   }
 
   function handleSubmit() {
+    const { value: parsedPrice, error: priceValidationError } =
+      validatePriceAmount(priceAmount, t);
+    setPriceError(priceValidationError);
+    if (priceValidationError) return;
+
     onSubmit({
       title: title.trim(),
       description: description.trim() === '' ? undefined : description.trim(),
-      priceAmount: Number(priceAmount),
+      priceAmount: parsedPrice,
       priceCurrencyCode,
       dietaryMarkers,
       ...(isEditing ? { isActive } : {}),
@@ -88,9 +148,15 @@ export default function ItemForm({
       <Inline gap="4" wrap align="flex-end">
         <Input
           type="number"
+          min={0}
+          step={0.01}
           label={t('partner.listingMenu.priceAmountLabel')}
           value={priceAmount}
-          onChange={(event) => setPriceAmount(event.target.value)}
+          error={priceError}
+          onChange={(event) => {
+            setPriceAmount(event.target.value);
+            setPriceError(undefined);
+          }}
           required
         />
         <Select
@@ -125,7 +191,7 @@ export default function ItemForm({
           variant="primary"
           size="sm"
           loading={isSubmitting}
-          disabled={titleMissing || priceInvalid}
+          disabled={titleMissing}
           onClick={() => handleSubmit()}
         >
           {submitLabel}

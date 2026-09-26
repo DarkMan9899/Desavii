@@ -38,7 +38,17 @@ function validateRow(row) {
   if (!ISO_DATE_RE.test(row.dateFrom ?? '')) return 'INVALID_DATE_FROM';
   if (!ISO_DATE_RE.test(row.dateTo ?? '')) return 'INVALID_DATE_TO';
   if (row.dateTo < row.dateFrom) return 'DATE_TO_BEFORE_DATE_FROM';
-  if (row.quantity && !/^\d+$/.test(row.quantity)) return 'INVALID_QUANTITY';
+  // Step L4.1 (brief §21) — `createExternalReservationSchema`'s own
+  // `quantity` is `z.coerce.number().int().positive().optional()`; the
+  // former `^\d+$` check alone accepted `"0"` client-side (a valid digit
+  // string) only for the server to reject it on import — this now mirrors
+  // the backend's positivity requirement, not just its integer-ness.
+  if (
+    row.quantity &&
+    (!/^\d+$/.test(row.quantity) || Number(row.quantity) < 1)
+  ) {
+    return 'INVALID_QUANTITY';
+  }
   return null;
 }
 

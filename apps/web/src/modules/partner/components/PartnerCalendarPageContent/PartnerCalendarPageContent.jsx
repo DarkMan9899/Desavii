@@ -90,6 +90,49 @@ function todayViewMonth() {
   return { year: now.getFullYear(), month: now.getMonth() };
 }
 
+// Step L4.1 (brief §9-13) — mirrors `availabilityValidators.js`'s
+// `createManualBlockSchema.quantity` (`z.coerce.number().int().positive()`,
+// REQUIRED) and `createExternalReservationSchema.quantity` (same rule,
+// optional). Previously both handlers did `Number(form.quantity) || 1`,
+// which silently turned `0`/a negative/a decimal/`NaN` into `1` instead of
+// rejecting it — exactly the "no silent clamping" defect this step closes.
+const INTEGER_STRING_PATTERN = /^-?\d+$/;
+
+function parseQuantityField(rawValue) {
+  const trimmed = String(rawValue ?? '').trim();
+  if (trimmed === '') return { value: undefined, malformed: false };
+  if (!INTEGER_STRING_PATTERN.test(trimmed)) {
+    return { value: undefined, malformed: true };
+  }
+  const value = Number(trimmed);
+  if (!Number.isSafeInteger(value)) {
+    return { value: undefined, malformed: true };
+  }
+  return { value, malformed: false };
+}
+
+function validateBlockQuantity(rawValue, t) {
+  const { value, malformed } = parseQuantityField(rawValue);
+  if (malformed || value === undefined || value < 1) {
+    return {
+      value: undefined,
+      error: t('partner.calendar.blocks.quantityInvalid'),
+    };
+  }
+  return { value, error: undefined };
+}
+
+function validateExternalQuantity(rawValue, t) {
+  const { value, malformed } = parseQuantityField(rawValue);
+  if (malformed || (value !== undefined && value < 1)) {
+    return {
+      value: undefined,
+      error: t('partner.calendar.external.quantityInvalid'),
+    };
+  }
+  return { value, error: undefined };
+}
+
 function calendarFetchRange({ viewMode, weekStart, viewDate, viewMonth }) {
   if (viewMode === 'week') {
     return { from: weekStart, to: addDays(weekStart, 6) };
@@ -148,6 +191,10 @@ export default function PartnerCalendarPageContent() {
     externalReference: '',
     notes: '',
   });
+  // Step L4.1 (brief §15-16, §22-23) — field-level errors for the two
+  // quantity inputs above, shown immediately next to the relevant field.
+  const [blockQuantityError, setBlockQuantityError] = useState(undefined);
+  const [externalQuantityError, setExternalQuantityError] = useState(undefined);
   const [listTab, setListTab] = useState('blocks');
 
   const listingsQuery = useMyListingsQuery({ partnerId: activePartnerId });
@@ -319,6 +366,8 @@ export default function PartnerCalendarPageContent() {
       externalReference: '',
       notes: '',
     });
+    setBlockQuantityError(undefined);
+    setExternalQuantityError(undefined);
   }
 
   function handleSelectSlot(slotUnitId, date) {
@@ -333,6 +382,8 @@ export default function PartnerCalendarPageContent() {
       externalReference: '',
       notes: '',
     });
+    setBlockQuantityError(undefined);
+    setExternalQuantityError(undefined);
   }
 
   function handleSelectDate(date) {
@@ -357,12 +408,18 @@ export default function PartnerCalendarPageContent() {
 
   async function handleQuickBlock() {
     if (!selection?.start || !effectiveUnitId) return;
+    const { value: quantity, error: quantityError } = validateBlockQuantity(
+      blockForm.quantity,
+      t,
+    );
+    setBlockQuantityError(quantityError);
+    if (quantityError) return;
     try {
       await createBlockMutation.mutateAsync({
         unitId: effectiveUnitId,
         dateFrom: selection.start,
         dateTo: selection.end ?? selection.start,
-        quantity: Number(blockForm.quantity) || 1,
+        quantity,
         reasonCode: blockForm.reasonCode,
         notes: blockForm.notes || undefined,
       });
@@ -392,12 +449,18 @@ export default function PartnerCalendarPageContent() {
 
   async function handleCreateExternal() {
     if (!selection?.start || !effectiveUnitId) return;
+    const { value: quantity, error: quantityError } = validateExternalQuantity(
+      externalForm.quantity,
+      t,
+    );
+    setExternalQuantityError(quantityError);
+    if (quantityError) return;
     try {
       await createExternalMutation.mutateAsync({
         unitId: effectiveUnitId,
         dateFrom: selection.start,
         dateTo: selection.end ?? selection.start,
-        quantity: Number(externalForm.quantity) || 1,
+        quantity,
         sourceCode: externalForm.sourceCode,
         guestName: externalForm.guestName || undefined,
         guestPhone: externalForm.guestPhone || undefined,
@@ -473,13 +536,17 @@ export default function PartnerCalendarPageContent() {
             <Input
               label={t('partner.calendar.blocks.quantityLabel')}
               type="number"
+              min={1}
+              step={1}
               value={blockForm.quantity}
-              onChange={(event) =>
+              error={blockQuantityError}
+              onChange={(event) => {
                 setBlockForm((prev) => ({
                   ...prev,
                   quantity: event.target.value,
-                }))
-              }
+                }));
+                setBlockQuantityError(undefined);
+              }}
             />
             <Select
               ariaLabel={t('partner.calendar.blocks.reasonLabel')}
@@ -524,13 +591,17 @@ export default function PartnerCalendarPageContent() {
             <Input
               label={t('partner.calendar.external.quantityLabel')}
               type="number"
+              min={1}
+              step={1}
               value={externalForm.quantity}
-              onChange={(event) =>
+              error={externalQuantityError}
+              onChange={(event) => {
                 setExternalForm((prev) => ({
                   ...prev,
                   quantity: event.target.value,
-                }))
-              }
+                }));
+                setExternalQuantityError(undefined);
+              }}
             />
           </Inline>
           <Inline gap="3" wrap>

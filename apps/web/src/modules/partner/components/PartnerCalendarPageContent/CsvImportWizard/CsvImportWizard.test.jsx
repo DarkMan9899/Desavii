@@ -106,6 +106,23 @@ describe('CsvImportWizard (apps/web/src/modules/partner)', () => {
     ).toBeInTheDocument();
   });
 
+  // Step L4.1 (brief §21) — `quantity: "0"` previously matched the old
+  // `^\d+$`-only check (a valid digit string) and was marked client-valid,
+  // only for the server's own `positive()` rule to reject it on import.
+  test("a row with quantity 0 is flagged invalid, matching the backend's positive() rule", async () => {
+    renderWizard();
+    const csv =
+      'dateFrom,dateTo,quantity,guestName\n2026-03-10,2026-03-12,0,Anna';
+    fireEvent.change(getFileInput(), {
+      target: { files: [makeCsvFile(csv)] },
+    });
+
+    expect(
+      await screen.findByText('Գտնվել է 1 տող՝ 0 վավեր, 1 անվավեր։'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Անվավեր քանակ')).toBeInTheDocument();
+  });
+
   test('an empty CSV file shows an error instead of advancing to preview', async () => {
     renderWizard();
     fireEvent.change(getFileInput(), {

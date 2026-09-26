@@ -391,4 +391,414 @@ describe('BookableUnitForm (P2.2A)', () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  // Step L4.1 (brief §5-7, §10, §12-13, §19, §25): capacity/maxGuests/
+  // basePriceAmount/bed-count now mirror `availabilityValidators.js`'s own
+  // contract exactly, client-side. `initialValues.bookableUnitType:
+  // 'PROPERTY_UNIT'` keeps these tests focused (no room-only Selects —
+  // bathroom/view/smoking/roomSizeSqm — cluttering the form).
+  describe('numeric field validation (Step L4.1)', () => {
+    test('capacity of 0 is rejected, onSubmit never called', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.type(screen.getByLabelText('Գույքագրման քանակ'), '0');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText('Մուտքագրեք ամբողջ թիվ՝ առնվազն 1։'),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('a negative capacity is rejected', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.type(screen.getByLabelText('Գույքագրման քանակ'), '-2');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText('Մուտքագրեք ամբողջ թիվ՝ առնվազն 1։'),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('a decimal capacity is rejected', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.type(screen.getByLabelText('Գույքագրման քանակ'), '2.5');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText('Մուտքագրեք ամբողջ թիվ՝ առնվազն 1։'),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('maxGuests of 0 is rejected', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.type(
+        screen.getByLabelText('Առավելագույն հյուրեր մեկ սենյակում'),
+        '0',
+      );
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText(
+          'Մուտքագրեք ամբողջ թիվ՝ 1-ից 100-ի միջակայքում։',
+        ),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('maxGuests above the metadata-derived max (100) is rejected', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.type(
+        screen.getByLabelText('Առավելագույն հյուրեր մեկ սենյակում'),
+        '101',
+      );
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText(
+          'Մուտքագրեք ամբողջ թիվ՝ 1-ից 100-ի միջակայքում։',
+        ),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('maxGuests at the exact max (100) is accepted', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.type(
+        screen.getByLabelText('Առավելագույն հյուրեր մեկ սենյակում'),
+        '100',
+      );
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ maxGuests: 100 }),
+      );
+    });
+
+    async function fillCurrency(user) {
+      const [currencyTrigger] = screen.getAllByTestId('select-trigger');
+      await user.click(currencyTrigger);
+      await user.click(screen.getByRole('option', { name: 'AMD' }));
+    }
+
+    test('a base price of 0 is rejected — unlike listing pricing/menu price, basePriceAmount requires strictly positive (backend .positive())', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await fillCurrency(user);
+      await user.type(
+        screen.getByLabelText('Հիմնական գին մեկ գիշերվա համար'),
+        '0',
+      );
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText('Գինը պետք է լինի 0-ից մեծ։'),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('a negative base price is rejected', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await fillCurrency(user);
+      await user.type(
+        screen.getByLabelText('Հիմնական գին մեկ գիշերվա համար'),
+        '-10',
+      );
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText('Գինը պետք է լինի 0-ից մեծ։'),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('a base price with more than 2 decimal places is rejected', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await fillCurrency(user);
+      await user.type(
+        screen.getByLabelText('Հիմնական գին մեկ գիշերվա համար'),
+        '49.999',
+      );
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText(
+          'Մուտքագրեք գին՝ ոչ ավելի, քան 2 տասնորդական նիշով։',
+        ),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('a valid two-decimal base price is accepted', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await fillCurrency(user);
+      await user.type(
+        screen.getByLabelText('Հիմնական գին մեկ գիշերվա համար'),
+        '49.99',
+      );
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          basePriceAmount: 49.99,
+          basePriceCurrency: 'AMD',
+        }),
+      );
+    });
+
+    test('a base price at the exact DECIMAL(12,2) max is accepted', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await fillCurrency(user);
+      await user.type(
+        screen.getByLabelText('Հիմնական գին մեկ գիշերվա համար'),
+        '9999999999.99',
+      );
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ basePriceAmount: 9999999999.99 }),
+      );
+    });
+
+    test('a base price above the DECIMAL(12,2) max is rejected', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await fillCurrency(user);
+      await user.type(
+        screen.getByLabelText('Հիմնական գին մեկ գիշերվա համար'),
+        '10000000000',
+      );
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText('Գումարը չափազանց մեծ է։'),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('capacity at the minimum (1) is accepted', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.type(screen.getByLabelText('Գույքագրման քանակ'), '1');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ capacity: 1 }),
+      );
+    });
+
+    test('an unsafe (beyond Number.MAX_SAFE_INTEGER) capacity is rejected rather than silently rounded', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.type(
+        screen.getByLabelText('Գույքագրման քանակ'),
+        '99999999999999999999',
+      );
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText('Մուտքագրեք ամբողջ թիվ՝ առնվազն 1։'),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('a bed count of 0 is rejected', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole('button', { name: 'Ավելացնել մահճակալ' }),
+      );
+      const countField = screen.getByLabelText('Քանակ');
+      await user.clear(countField);
+      await user.type(countField, '0');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText(
+          'Մուտքագրեք մահճակալների ամբողջ թիվ՝ 1-ից 20-ի միջակայքում։',
+        ),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('a bed count above the metadata-derived max (20) is rejected', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole('button', { name: 'Ավելացնել մահճակալ' }),
+      );
+      const countField = screen.getByLabelText('Քանակ');
+      await user.clear(countField);
+      await user.type(countField, '21');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText(
+          'Մուտքագրեք մահճակալների ամբողջ թիվ՝ 1-ից 20-ի միջակայքում։',
+        ),
+      ).toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('"Add bed" disables once 12 rows (the schema array max) are reached', async () => {
+      const user = userEvent.setup();
+      render(
+        <BookableUnitForm
+          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+          submitLabel="Save"
+          onSubmit={vi.fn()}
+        />,
+      );
+
+      const addBedButton = screen.getByRole('button', {
+        name: 'Ավելացնել մահճակալ',
+      });
+      // eslint-disable-next-line no-plusplus -- straightforward fixed-count loop, not worth a reduce/array-from rewrite
+      for (let i = 0; i < 12; i++) {
+        // eslint-disable-next-line no-await-in-loop -- each click must land before the next (state-dependent disabled check)
+        await user.click(addBedButton);
+      }
+
+      expect(addBedButton).toBeDisabled();
+    });
+  });
 });

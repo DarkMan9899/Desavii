@@ -268,6 +268,103 @@ describe('PartnerCalendarPageContent (apps/web/src/modules/partner)', () => {
     );
   });
 
+  // Step L4.1 (brief §9-13) — mirrors `createManualBlockSchema.quantity`/
+  // `createExternalReservationSchema.quantity`'s own `.int().positive()`
+  // rule client-side: `Number(form.quantity) || 1` previously silently
+  // turned an invalid typed value (0, negative, decimal) into `1` instead
+  // of rejecting it.
+  test('a block quantity of 0 is rejected client-side, the mutation is never called', async () => {
+    useMyListingsQuery.mockReturnValue({
+      data: {
+        pages: [
+          { results: [{ id: 1, title: 'Seaside Villa', status: 'PUBLISHED' }] },
+        ],
+      },
+      isPending: false,
+    });
+    useBookableUnitsQuery.mockReturnValue({
+      data: [{ id: 5, bookable_unit_type: 'PROPERTY_UNIT' }],
+      isPending: false,
+    });
+    useListingCalendarQuery.mockReturnValue({
+      data: [],
+      isPending: false,
+      isError: false,
+    });
+    const createBlock = vi.fn().mockResolvedValue({});
+    useCreateInventoryBlockMutation.mockReturnValue({
+      mutateAsync: createBlock,
+      isPending: false,
+    });
+    const user = userEvent.setup();
+    renderPage();
+
+    const cells = screen.getAllByRole('gridcell', { name: /2026/ });
+    const firstEnabledCell = cells.find(
+      (cell) => !cell.hasAttribute('disabled'),
+    );
+    await user.click(firstEnabledCell);
+    await user.click(screen.getByRole('tab', { name: /Արգելափակել/ }));
+
+    const quantityInput = screen.getByLabelText('Արգելափակվող քանակ');
+    await user.clear(quantityInput);
+    await user.type(quantityInput, '0');
+    await user.click(screen.getByRole('button', { name: 'Արգելափակել' }));
+
+    expect(
+      await screen.findByText('Մուտքագրեք ամբողջ թիվ՝ առնվազն 1։'),
+    ).toBeInTheDocument();
+    expect(createBlock).not.toHaveBeenCalled();
+  });
+
+  test('an external reservation quantity of 0 is rejected client-side, the mutation is never called', async () => {
+    useMyListingsQuery.mockReturnValue({
+      data: {
+        pages: [
+          { results: [{ id: 1, title: 'Seaside Villa', status: 'PUBLISHED' }] },
+        ],
+      },
+      isPending: false,
+    });
+    useBookableUnitsQuery.mockReturnValue({
+      data: [{ id: 5, bookable_unit_type: 'PROPERTY_UNIT' }],
+      isPending: false,
+    });
+    useListingCalendarQuery.mockReturnValue({
+      data: [],
+      isPending: false,
+      isError: false,
+    });
+    const createExternal = vi.fn().mockResolvedValue({});
+    useCreateExternalReservationMutation.mockReturnValue({
+      mutateAsync: createExternal,
+      isPending: false,
+    });
+    const user = userEvent.setup();
+    renderPage();
+
+    const cells = screen.getAllByRole('gridcell', { name: /2026/ });
+    const firstEnabledCell = cells.find(
+      (cell) => !cell.hasAttribute('disabled'),
+    );
+    await user.click(firstEnabledCell);
+    await user.click(screen.getByRole('tab', { name: 'Արտաքին ամրագրում' }));
+
+    const quantityInput = screen.getByLabelText('Քանակ');
+    await user.clear(quantityInput);
+    await user.type(quantityInput, '0');
+    await user.click(
+      screen.getByRole('button', { name: 'Գրանցել ամրագրումը' }),
+    );
+
+    expect(
+      await screen.findByText(
+        'Մուտքագրեք ամբողջ թիվ՝ առնվազն 1, կամ թողեք դատարկ։',
+      ),
+    ).toBeInTheDocument();
+    expect(createExternal).not.toHaveBeenCalled();
+  });
+
   describe('Week/Day views (Sprint 5 P0 — real intraday scheduling)', () => {
     test('a date-only unit (no time_slot_start) shows a date-only Week strip — never a fake hour grid', async () => {
       useMyListingsQuery.mockReturnValue({

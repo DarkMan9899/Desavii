@@ -50,12 +50,114 @@ import RoomMediaGallery from './RoomMediaGallery.jsx';
 // gallery upload.
 const HOTEL_ROOM_TYPE = 'HOTEL_ROOM';
 
-function toOptionalInt(value) {
-  return value === '' ? undefined : Number(value);
-}
+// Step L4.1 (brief §5-7, §10, §12-13) — mirrors the exact backend contract
+// in `availabilityValidators.js`'s `registerUnitSchema`/`updateUnitSchema`:
+// `capacity`/`maxGuests`/bed `count` are `z.coerce.number().int().positive()`
+// (capacity has no upper bound there — none is invented here either, per
+// brief §4's "do not invent arbitrary bounds"; maxGuests/bed-count DO have
+// real schema ceilings, mirrored below), `basePriceAmount` is
+// `z.coerce.number().positive()` — POSITIVE, not nonnegative, unlike
+// listing pricing/restaurant menu price — so zero is invalid here even
+// though it's valid for those other money fields (brief §14).
+const INTEGER_STRING_PATTERN = /^-?\d+$/;
+const PRICE_STRING_PATTERN = /^-?\d*\.?\d*$/;
+const MAX_GUESTS_MAX = 100; // availabilityValidators.js: maxGuests.max(100)
+const BED_COUNT_MAX = 20; // availabilityValidators.js: bedConfigurationSchema count.max(20)
+const BED_ROWS_MAX = 12; // availabilityValidators.js: bedConfigurationSchema array.max(12)
+const BASE_PRICE_MAX = 9999999999.99; // bookable_units.base_price_amount DECIMAL(12,2), same column precision as listing pricing/menu item price
 
 function toOptionalNumber(value) {
   return value === '' ? undefined : Number(value);
+}
+
+// A digit string past Number.MAX_SAFE_INTEGER parses to a rounded value,
+// never the one the Partner typed — treated as malformed (brief §12).
+function parseIntegerField(rawValue) {
+  const trimmed = String(rawValue ?? '').trim();
+  if (trimmed === '') return { value: undefined, malformed: false };
+  if (!INTEGER_STRING_PATTERN.test(trimmed)) {
+    return { value: undefined, malformed: true };
+  }
+  const value = Number(trimmed);
+  if (!Number.isSafeInteger(value)) {
+    return { value: undefined, malformed: true };
+  }
+  return { value, malformed: false };
+}
+
+function validateCapacity(rawValue, t) {
+  const { value, malformed } = parseIntegerField(rawValue);
+  if (malformed || (value !== undefined && value < 1)) {
+    return {
+      value: undefined,
+      error: t('partner.listingWizard.availability.capacityInvalid'),
+    };
+  }
+  return { value, error: undefined };
+}
+
+function validateMaxGuests(rawValue, t) {
+  const { value, malformed } = parseIntegerField(rawValue);
+  if (
+    malformed ||
+    (value !== undefined && (value < 1 || value > MAX_GUESTS_MAX))
+  ) {
+    return {
+      value: undefined,
+      error: t('partner.listingWizard.availability.maxGuestsInvalid'),
+    };
+  }
+  return { value, error: undefined };
+}
+
+// Unlike capacity/maxGuests, a bed row's `count` is required by
+// `bedConfigurationSchema` whenever the row exists — blank is an error.
+function validateBedCount(rawValue, t) {
+  const { value, malformed } = parseIntegerField(rawValue);
+  if (malformed || value === undefined || value < 1 || value > BED_COUNT_MAX) {
+    return {
+      value: undefined,
+      error: t('partner.listingWizard.availability.bedCountInvalid'),
+    };
+  }
+  return { value, error: undefined };
+}
+
+function validateBasePriceAmount(rawValue, t) {
+  const trimmed = String(rawValue ?? '').trim();
+  if (trimmed === '') return { value: undefined, error: undefined };
+  if (!PRICE_STRING_PATTERN.test(trimmed)) {
+    return {
+      value: undefined,
+      error: t('partner.listingWizard.availability.basePriceAmountInvalid'),
+    };
+  }
+  const numeric = Number(trimmed);
+  if (!Number.isFinite(numeric)) {
+    return {
+      value: undefined,
+      error: t('partner.listingWizard.availability.basePriceAmountInvalid'),
+    };
+  }
+  if (numeric <= 0) {
+    return {
+      value: undefined,
+      error: t('partner.listingWizard.availability.basePriceAmountNotPositive'),
+    };
+  }
+  if (numeric > BASE_PRICE_MAX) {
+    return {
+      value: undefined,
+      error: t('partner.listingWizard.availability.basePriceAmountTooLarge'),
+    };
+  }
+  if (Math.abs(Math.round(numeric * 100) - numeric * 100) >= 1e-6) {
+    return {
+      value: undefined,
+      error: t('partner.listingWizard.availability.basePriceAmountPrecision'),
+    };
+  }
+  return { value: numeric, error: undefined };
 }
 
 function emptyBedRow() {
@@ -109,6 +211,13 @@ export default function BookableUnitForm({
       ? String(initialValues.basePriceAmount)
       : '',
   );
+  // Step L4.1 (brief §5-7, §10, §15-16) — field-level errors shown
+  // immediately next to the relevant Input, mirroring the exact
+  // AvailabilityStep/PricingStep convention (brief §22-23): never a
+  // generic "Invalid number", always the specific domain rule that was
+  // violated.
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [bedRowErrors, setBedRowErrors] = useState([]);
   const [basePriceCurrency, setBasePriceCurrency] = useState(
     initialValues.basePriceCurrency ?? null,
   );
@@ -127,20 +236,53 @@ export default function BookableUnitForm({
   const isHotelRoom = bookableUnitType === HOTEL_ROOM_TYPE;
 
   function addBedRow() {
-    setBedRows((rows) => [...rows, emptyBedRow()]);
+    setBedRows((rows) =>
+      rows.length >= BED_ROWS_MAX ? rows : [...rows, emptyBedRow()],
+    );
   }
 
   function updateBedRow(index, patch) {
     setBedRows((rows) =>
       rows.map((row, i) => (i === index ? { ...row, ...patch } : row)),
     );
+    if ('count' in patch) {
+      setBedRowErrors((errors) =>
+        errors.map((error, i) => (i === index ? undefined : error)),
+      );
+    }
   }
 
   function removeBedRow(index) {
     setBedRows((rows) => rows.filter((_, i) => i !== index));
+    setBedRowErrors((errors) => errors.filter((_, i) => i !== index));
   }
 
+  // Step L4.1 (brief §5-7, §10-13) — validates every numeric field this
+  // form owns against the exact backend rule (see the validators above),
+  // never silently clamping/coercing a malformed or out-of-range typed
+  // value into something else. Blocks the write entirely (no partial
+  // submission) when any field is invalid.
   function handleSubmit() {
+    const capacityResult = validateCapacity(capacity, t);
+    const maxGuestsResult = validateMaxGuests(maxGuests, t);
+    const basePriceResult = validateBasePriceAmount(basePriceAmount, t);
+    const bedRowResults = bedRows.map((row) => validateBedCount(row.count, t));
+
+    const nextFieldErrors = {
+      capacity: capacityResult.error,
+      maxGuests: maxGuestsResult.error,
+      basePriceAmount: basePriceResult.error,
+    };
+    const nextBedRowErrors = bedRowResults.map((result) => result.error);
+
+    setFieldErrors(nextFieldErrors);
+    setBedRowErrors(nextBedRowErrors);
+
+    const hasErrors =
+      Object.values(nextFieldErrors).some(Boolean) ||
+      nextBedRowErrors.some(Boolean);
+    if (hasErrors) return;
+
     onSubmit({
       ...(showTypeSelector ? { bookableUnitType } : {}),
       ...(showTypeSelector
@@ -150,13 +292,16 @@ export default function BookableUnitForm({
           }
         : {}),
       unitLabel: unitLabel.trim() === '' ? undefined : unitLabel.trim(),
-      capacity: toOptionalInt(capacity),
-      maxGuests: toOptionalInt(maxGuests),
+      capacity: capacityResult.value,
+      maxGuests: maxGuestsResult.value,
       bedConfiguration:
         bedRows.length > 0
-          ? bedRows.map((row) => ({ type: row.type, count: Number(row.count) }))
+          ? bedRows.map((row, i) => ({
+              type: row.type,
+              count: bedRowResults[i].value,
+            }))
           : undefined,
-      basePriceAmount: toOptionalNumber(basePriceAmount),
+      basePriceAmount: basePriceResult.value,
       basePriceCurrency: basePriceAmount === '' ? undefined : basePriceCurrency,
       ...(isHotelRoom
         ? {
@@ -231,17 +376,30 @@ export default function BookableUnitForm({
       <Inline gap="4" wrap>
         <Input
           type="number"
+          min={1}
+          step={1}
           label={t('partner.listingWizard.availability.capacity')}
           helperText={t('partner.listingWizard.availability.capacityHint')}
           value={capacity}
-          onChange={(event) => setCapacity(event.target.value)}
+          error={fieldErrors.capacity}
+          onChange={(event) => {
+            setCapacity(event.target.value);
+            setFieldErrors((current) => ({ ...current, capacity: undefined }));
+          }}
         />
         <Input
           type="number"
+          min={1}
+          max={MAX_GUESTS_MAX}
+          step={1}
           label={t('partner.listingWizard.availability.maxGuests')}
           helperText={t('partner.listingWizard.availability.maxGuestsHint')}
           value={maxGuests}
-          onChange={(event) => setMaxGuests(event.target.value)}
+          error={fieldErrors.maxGuests}
+          onChange={(event) => {
+            setMaxGuests(event.target.value);
+            setFieldErrors((current) => ({ ...current, maxGuests: undefined }));
+          }}
         />
         {isHotelRoom && (
           <Input
@@ -275,8 +433,12 @@ export default function BookableUnitForm({
             />
             <Input
               type="number"
+              min={1}
+              max={BED_COUNT_MAX}
+              step={1}
               label={t('partner.listingWizard.availability.bedCount')}
               value={row.count}
+              error={bedRowErrors[index]}
               onChange={(event) =>
                 updateBedRow(index, { count: event.target.value })
               }
@@ -290,7 +452,12 @@ export default function BookableUnitForm({
             </Button>
           </Inline>
         ))}
-        <Button variant="secondary" size="sm" onClick={() => addBedRow()}>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={bedRows.length >= BED_ROWS_MAX}
+          onClick={() => addBedRow()}
+        >
           {t('partner.listingWizard.availability.addBed')}
         </Button>
       </Stack>
@@ -339,9 +506,18 @@ export default function BookableUnitForm({
       <Inline gap="4" wrap>
         <Input
           type="number"
+          min={0.01}
+          step={0.01}
           label={t('partner.listingWizard.availability.basePriceAmount')}
           value={basePriceAmount}
-          onChange={(event) => setBasePriceAmount(event.target.value)}
+          error={fieldErrors.basePriceAmount}
+          onChange={(event) => {
+            setBasePriceAmount(event.target.value);
+            setFieldErrors((current) => ({
+              ...current,
+              basePriceAmount: undefined,
+            }));
+          }}
         />
         <Select
           label={t('partner.listingWizard.availability.basePriceCurrency')}
