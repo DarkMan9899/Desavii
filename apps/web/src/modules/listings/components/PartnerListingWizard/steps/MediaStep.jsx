@@ -76,9 +76,14 @@ export default function MediaStep({
         : t('partner.listingWizard.media.videoTooLarge');
     }
     if (upload.reason === 'type') {
-      return upload.isImage
-        ? t('partner.listingWizard.media.unsupportedImageFormat')
-        : t('partner.listingWizard.media.unsupportedVideoFormat');
+      if (upload.isImage) {
+        return t('partner.listingWizard.media.unsupportedImageFormat');
+      }
+      // Step L6: a file that is neither image- nor video-shaped (a PDF, a
+      // text file) never gets the video-only hint.
+      return upload.isVideo
+        ? t('partner.listingWizard.media.unsupportedVideoFormat')
+        : t('partner.listingWizard.media.unsupportedFileFormat');
     }
     if (upload.reason === 'server') {
       return t('partner.listingWizard.media.uploadRejectedByServer');
@@ -134,6 +139,7 @@ export default function MediaStep({
         status: 'error',
         reason,
         isImage: file.type.startsWith('image/'),
+        isVideo: file.type.startsWith('video/'),
       })),
     ]);
   }

@@ -21,7 +21,7 @@
  * (§8), so it has no fallback if the category was skipped entirely.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -58,6 +58,17 @@ export default function PartnerListingWizard({ partnerships }) {
   const listing = listingQuery.data;
   const categoryId = listing?.category_ids?.[0] ?? wizard.categoryId;
   const metadataQuery = useListingMetadataQuery(categoryId, locale);
+  // Step L6: Details/Policies seed their form state from `initialValues`
+  // once, on mount. After a hard refresh the listing resolves before the
+  // category metadata, so they would mount with `{}` and keep it — blank
+  // fields that, on Continue, replace the stored values with nothing.
+  // They are remounted exactly once, when metadata first arrives; a later
+  // refetch (e.g. a UI-language switch) never remounts them, so unsaved
+  // edits survive it.
+  const [hasMetadata, setHasMetadata] = useState(Boolean(metadataQuery.data));
+  useEffect(() => {
+    if (metadataQuery.data) setHasMetadata(true);
+  }, [metadataQuery.data]);
 
   const requiresListing = wizard.currentStepIndex > 1;
   // Step L1: Basic Information is where the listing (and therefore its
@@ -100,6 +111,8 @@ export default function PartnerListingWizard({ partnerships }) {
     });
     navigate(`/${locale}/partner`);
   }
+
+  const metadataStepKey = hasMetadata ? 'metadata-ready' : 'metadata-pending';
 
   const stepLabels = wizard.steps.map((step) => ({
     id: step.id,
@@ -181,6 +194,7 @@ export default function PartnerListingWizard({ partnerships }) {
 
         {wizard.currentStepId === 'attributes' && listing && (
           <DynamicAttributesStep
+            key={metadataStepKey}
             listingId={wizard.listingId}
             categoryId={categoryId}
             initialValues={
@@ -258,6 +272,7 @@ export default function PartnerListingWizard({ partnerships }) {
 
         {wizard.currentStepId === 'policies' && listing && (
           <PoliciesStep
+            key={metadataStepKey}
             listingId={wizard.listingId}
             categoryId={categoryId}
             initialValues={

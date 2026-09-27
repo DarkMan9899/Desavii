@@ -61,8 +61,11 @@ export default function PoliciesStep({
 
   const { policies } = metadata;
 
+  // Step L6: editing a field clears its own client-side error too, not
+  // only the server one — the same "error clears on edit" contract.
   function setFieldValue(code, value) {
     setValues((current) => ({ ...current, [code]: value }));
+    setValidationErrors((current) => ({ ...current, [code]: undefined }));
     clearFieldError(`policyValues.${code}`);
   }
 

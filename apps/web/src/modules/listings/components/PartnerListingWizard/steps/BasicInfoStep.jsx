@@ -138,6 +138,15 @@ export default function BasicInfoStep({
       [authoringLocale]: { ...current[authoringLocale], [field]: value },
     }));
     if (showsSubmittedLocale) clearFieldError(`translations.0.${field}`);
+    // Step L6: the client-side "required" title error clears as soon as
+    // the title has real content, like every other field error does.
+    if (
+      field === 'title' &&
+      value.trim() &&
+      titleErrorLocale === authoringLocale
+    ) {
+      setTitleErrorLocale(null);
+    }
   }
 
   function translationPayloadForLocale(locale) {

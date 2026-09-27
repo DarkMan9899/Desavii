@@ -1,6 +1,7 @@
 // LocationStep — Step L2's advanced/manual-coordinates disclosure.
 
 @use 'tokens' as tokens;
+@use 'mixins/focus-ring' as focus;
 
 .advanced {
   border: 1px solid tokens.$color-gray-200;
@@ -14,10 +15,9 @@
   font-weight: 600;
   color: tokens.$color-gray-900;
 
-  &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(29, 95, 214, 0.15);
-  }
+  // Step L6: the platform focus ring — the previous 15%-opacity shadow
+  // was not a visible keyboard focus indicator (WCAG 2.4.7 / 1.4.11).
+  @include focus.focus-ring;
 }
 
 .advancedHint {

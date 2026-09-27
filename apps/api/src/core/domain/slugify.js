@@ -9,7 +9,7 @@
  * requires a database read).
  */
 
-const MAX_SLUG_LENGTH = 180; // matches listings.slug / partners.slug column width
+export const MAX_SLUG_LENGTH = 180; // matches listings.slug / partners.slug column width
 
 // Combining diacritical marks (U+0300-U+036F) left behind after NFD
 // normalization splits an accented character into base + mark.

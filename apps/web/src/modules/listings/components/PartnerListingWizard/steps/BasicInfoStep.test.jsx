@@ -265,6 +265,22 @@ describe('BasicInfoStep (PartnerListingWizard)', () => {
     expect(createMutateAsync).not.toHaveBeenCalled();
   });
 
+  // Step L6: the required-title error used to stay until the next submit.
+  test('the required-title error clears as soon as the title has content', async () => {
+    const user = userEvent.setup();
+    renderStep({});
+    await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+    const title = screen.getByLabelText(/^Վերնագիր/);
+    expect(title).toHaveAttribute('aria-invalid', 'true');
+
+    await user.type(title, '   ');
+    expect(title).toHaveAttribute('aria-invalid', 'true');
+
+    await user.type(title, 'Արարատ');
+    expect(title).not.toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByText('Այս դաշտը պարտադիր է։')).not.toBeInTheDocument();
+  });
+
   // 2026 Partner Workspace redesign (Sprint 3) — the core new guarantee.
   describe('multilingual authoring', () => {
     test('each locale loads only its own persisted translation, never another locale as a fallback', () => {

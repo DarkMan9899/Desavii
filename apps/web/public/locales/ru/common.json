@@ -1767,6 +1767,7 @@
         "unsupportedImageFormat": "Используйте изображение в формате JPEG, PNG или WebP.",
         "videoTooLarge": "Это видео больше 200 МБ. Используйте видео меньшего размера.",
         "unsupportedVideoFormat": "Используйте видео в формате MP4 или WebM.",
+        "unsupportedFileFormat": "Этот тип файла не поддерживается. Используйте изображение в формате JPEG, PNG или WebP либо видео в формате MP4 или WebM.",
         "uploading": "Загрузка…",
         "cover": "Обложка",
         "setCover": "Сделать обложкой",

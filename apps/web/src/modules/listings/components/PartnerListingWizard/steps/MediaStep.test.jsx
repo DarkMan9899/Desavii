@@ -222,6 +222,27 @@ describe('MediaStep (PartnerListingWizard)', () => {
       expect(attachMutateAsync).not.toHaveBeenCalled();
     });
 
+    // Step L6: a file that is neither an image nor a video used to get
+    // the video-only hint ("Use an MP4 or WebM video").
+    test('a non-media file gets the general file-type message, not the video-only one', async () => {
+      render(<MediaStep listingId={7} media={[]} onNext={vi.fn()} />);
+      const zone = screen
+        .getByLabelText('Լուսանկարներ և տեսանյութեր')
+        .closest('label');
+      const text = makeFile('notes.txt', 'text/plain');
+      fireEvent.drop(zone, { dataTransfer: { files: [text] } });
+
+      expect(
+        await screen.findByText(
+          textIncluding('Այս ֆայլի տեսակը չի աջակցվում։'),
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(textIncluding('Օգտագործեք MP4 կամ WebM տեսանյութ։')),
+      ).not.toBeInTheDocument();
+      expect(attachMutateAsync).not.toHaveBeenCalled();
+    });
+
     test('a server-side rejection (422) shows the safe, translated server-rejection message, not the raw backend error', async () => {
       attachMutateAsync.mockRejectedValueOnce({
         status: 422,

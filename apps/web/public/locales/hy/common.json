@@ -1743,6 +1743,7 @@
         "unsupportedImageFormat": "Օգտագործեք JPEG, PNG կամ WebP պատկեր։",
         "videoTooLarge": "Այս տեսանյութը մեծ է 200 ՄԲ-ից։ Օգտագործեք ավելի փոքր տեսանյութ։",
         "unsupportedVideoFormat": "Օգտագործեք MP4 կամ WebM տեսանյութ։",
+        "unsupportedFileFormat": "Այս ֆայլի տեսակը չի աջակցվում։ Օգտագործեք JPEG, PNG կամ WebP պատկեր, կամ MP4 կամ WebM տեսանյութ։",
         "uploading": "Վերբեռնվում է…",
         "cover": "Կազմի լուսանկար",
         "setCover": "Դարձնել կազմի լուսանկար",

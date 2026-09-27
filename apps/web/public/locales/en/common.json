@@ -1745,6 +1745,7 @@
         "unsupportedImageFormat": "Use a JPEG, PNG or WebP image.",
         "videoTooLarge": "This video is larger than 200 MB. Use a smaller video.",
         "unsupportedVideoFormat": "Use an MP4 or WebM video.",
+        "unsupportedFileFormat": "This file type isn't supported. Use a JPEG, PNG or WebP image, or an MP4 or WebM video.",
         "uploading": "Uploading…",
         "cover": "Cover photo",
         "setCover": "Set as cover",

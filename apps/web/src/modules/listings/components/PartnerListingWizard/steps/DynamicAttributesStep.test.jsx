@@ -94,6 +94,28 @@ describe('DynamicAttributesStep (PartnerListingWizard)', () => {
     expect(mutateAsync).not.toHaveBeenCalled();
   });
 
+  // Step L6: the client-side required error cleared only on the next
+  // Continue before — it now clears as soon as the field is filled.
+  test('a required-attribute error clears as soon as a value is entered', async () => {
+    const user = userEvent.setup();
+    useListingMetadataQuery.mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: { attributes: ATTRIBUTES },
+    });
+    render(
+      <DynamicAttributesStep listingId={7} categoryId={3} onNext={vi.fn()} />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+    expect(
+      await screen.findByText('Այս դաշտը պարտադիր է։'),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByRole('spinbutton'), '3');
+
+    expect(screen.queryByText('Այս դաշտը պարտադիր է։')).not.toBeInTheDocument();
+  });
+
   test('submitting valid values converts to the attributeValues wire shape and calls onNext', async () => {
     const user = userEvent.setup();
     const onNext = vi.fn();

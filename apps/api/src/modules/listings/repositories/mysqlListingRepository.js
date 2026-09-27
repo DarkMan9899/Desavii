@@ -1552,6 +1552,19 @@ export class MySqlListingRepository extends ListingRepositoryPort {
     return this.findMediaById(mediaId, connection);
   }
 
+  /**
+   * Step L6: unsets the current cover (if any) of a listing's live media,
+   * so the caller can promote exactly one new cover in the same
+   * transaction (`ListingService#updateMedia`).
+   */
+  async clearMediaCover(listingId, connection = this.#pool) {
+    await connection.query(
+      `UPDATE media SET is_cover = 0
+       WHERE mediable_type = 'listing' AND mediable_id = ? AND is_cover = 1 AND deleted_at IS NULL`,
+      [listingId],
+    );
+  }
+
   async removeMedia(mediaId, deletedByUserId, connection = this.#pool) {
     await connection.query(
       `UPDATE media SET ${softDeleteAssignment()}, deleted_by = ?, updated_by = ? WHERE id = ?`,

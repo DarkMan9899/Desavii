@@ -35,7 +35,7 @@ import { isManagerAssignedToPartner } from '../../../infrastructure/database/rep
 import { findCurrencyByCode } from '../../../infrastructure/database/repositories/currencyRepository.js';
 import { resolveLocaleIds } from '../../../infrastructure/database/repositories/languageRepository.js';
 import { withTransaction } from '../../../infrastructure/database/transaction.js';
-import { slugify } from '../../../core/domain/slugify.js';
+import { slugify, MAX_SLUG_LENGTH } from '../../../core/domain/slugify.js';
 import { isoDateSchema } from '../../../validation/isoDate.js';
 import { isValidListingStatusTransition } from '../../../core/domain/listingStatusTransitions.js';
 import { resolveModerationDecision } from '../../../core/domain/listingModerationDecisions.js';
@@ -64,6 +64,25 @@ import { validateAndProcessImage } from '../../media/validators/imageContentVali
 // purely numeric; a real one always has at least one letter.
 function ensureNonNumericSlug(slug) {
   return /^\d+$/.test(slug) ? `listing-${slug}` : slug;
+}
+
+// Step L6: a slug DERIVED from the title is an implementation detail the
+// Partner never sees or chooses, so two listings whose titles slugify to
+// the same text ("Hotel Ani" twice, or two mixed-script titles sharing
+// only their Latin part, e.g. "L6 Տուր" / "L6 Тур" -> "l6") must never
+// block creation. A taken derived slug gets a short random suffix instead
+// (same hex source as the empty-slug fallback), trimmed so the result
+// still fits the column. An explicit `slug` keeps its 409 contract.
+const DERIVED_SLUG_SUFFIX_LENGTH = 8;
+
+function withRandomSlugSuffix(slug) {
+  const suffix = randomUUID()
+    .replace(/-/g, '')
+    .slice(0, DERIVED_SLUG_SUFFIX_LENGTH);
+  const base = slug
+    .slice(0, MAX_SLUG_LENGTH - DERIVED_SLUG_SUFFIX_LENGTH - 1)
+    .replace(/-+$/g, '');
+  return `${base}-${suffix}`;
 }
 
 // Sprint F (Manager Workspace): the permission keys a company-assigned
@@ -589,9 +608,15 @@ export class ListingService {
       );
     }
     if (!slug) {
-      slug = randomUUID().slice(0, 8);
+      slug = randomUUID().slice(0, DERIVED_SLUG_SUFFIX_LENGTH);
     }
     slug = ensureNonNumericSlug(slug);
+    if (
+      input.slug === undefined &&
+      (await this.#listingRepository.slugExists(slug, { excludeId: null }))
+    ) {
+      slug = withRandomSlugSuffix(slug);
+    }
     await this.#assertUniqueSlug(slug);
 
     // Resolved/validated BEFORE the transaction starts — a bad attribute/
@@ -1946,11 +1971,32 @@ export class ListingService {
       throw new NotFoundError('Media not found for this listing.');
     }
 
-    const updated = await this.#listingRepository.updateMedia(mediaId, {
+    const mediaFields = {
       position: fields.position,
       isCover: fields.isCover,
       updatedBy: principal.userId,
-    });
+    };
+    // Step L6: a listing has exactly ONE cover. Every card query (search,
+    // favorites, the Partner's own list) joins `media ... is_cover = 1`, so
+    // a second cover duplicates the listing row. Promoting a new cover
+    // therefore clears the previous one in the same transaction, behind
+    // the same parent-row lock `attachMedia` takes (two concurrent "Set as
+    // cover" calls serialize instead of both leaving their media marked).
+    const updated =
+      fields.isCover === true
+        ? await withTransaction(async (connection) => {
+            await this.#listingRepository.lockById(listingId, connection);
+            await this.#listingRepository.clearMediaCover(
+              listingId,
+              connection,
+            );
+            return this.#listingRepository.updateMedia(
+              mediaId,
+              mediaFields,
+              connection,
+            );
+          })
+        : await this.#listingRepository.updateMedia(mediaId, mediaFields);
 
     if (fields.altText !== undefined || fields.caption !== undefined) {
       const { defaultLocaleId } = await resolveLocaleIds();
