@@ -246,7 +246,14 @@ export default async function seedDemoListingRichContent(
         },
       },
       attributeValues: [{ code: 'star_rating', optionCodes: ['4'] }],
-      amenityIds: [1, 4, 5, 2, 19, 11],
+      amenityNames: [
+        'WiFi',
+        'Air Conditioning',
+        'Breakfast Included',
+        'Parking',
+        'Elevator',
+        'Gym',
+      ],
       policyValues: [
         { code: 'pets_allowed', value: 'false' },
         { code: 'smoking_allowed', value: 'false' },
@@ -449,7 +456,13 @@ export default async function seedDemoListingRichContent(
         { code: 'beds', value: 1 },
         { code: 'max_guests', value: 2 },
       ],
-      amenityIds: [1, 4, 17, 18, 23],
+      amenityNames: [
+        'WiFi',
+        'Air Conditioning',
+        'Kitchen',
+        'Washing Machine',
+        'Family Friendly',
+      ],
       policyValues: [
         { code: 'pets_allowed', value: 'false' },
         { code: 'smoking_allowed', value: 'false' },
@@ -636,7 +649,7 @@ export default async function seedDemoListingRichContent(
         { code: 'difficulty', optionCodes: ['MODERATE'] },
         { code: 'max_group_size', value: 12 },
       ],
-      amenityIds: [23],
+      amenityNames: ['Family Friendly'],
       policyValues: [
         { code: 'cancellation_policy', value: 'FLEXIBLE' },
         { code: 'children_allowed', value: 'true' },
@@ -922,7 +935,7 @@ export default async function seedDemoListingRichContent(
         { code: 'languages_offered', optionCodes: ['EN', 'HY', 'RU'] },
         { code: 'max_group_size', value: 8 },
       ],
-      amenityIds: [23],
+      amenityNames: ['Family Friendly'],
       policyValues: [{ code: 'children_allowed', value: 'true' }],
       highlights: {
         en: [
@@ -1080,7 +1093,7 @@ export default async function seedDemoListingRichContent(
         { code: 'languages_offered', optionCodes: ['EN', 'HY', 'RU'] },
         { code: 'max_group_size', value: 6 },
       ],
-      amenityIds: [2, 21],
+      amenityNames: ['Parking', 'Wheelchair Accessible'],
       policyValues: [{ code: 'children_allowed', value: 'true' }],
       highlights: {
         en: [
@@ -1384,7 +1397,7 @@ export default async function seedDemoListingRichContent(
         { code: 'transmission', optionCodes: ['AUTOMATIC'] },
         { code: 'seats', value: 5 },
       ],
-      amenityIds: [4],
+      amenityNames: ['Air Conditioning'],
       policyValues: [
         { code: 'smoking_allowed', value: 'false' },
         { code: 'cancellation_policy', value: 'FLEXIBLE' },
@@ -1548,11 +1561,16 @@ export default async function seedDemoListingRichContent(
       await insertAttributeValue(connection, listingId, entry);
     }
 
-    if (flagship.amenityIds.length > 0) {
-      const values = flagship.amenityIds.map((amenityId) => [
-        listingId,
-        amenityId,
-      ]);
+    // Step L6.1: resolved by the catalog's stable `name` (listing_amenities
+    // has no `code` column), never by a hard-coded auto-increment id that
+    // only matched by insertion order.
+    if (flagship.amenityNames.length > 0) {
+      // eslint-disable-next-line no-await-in-loop -- sequential by design
+      const [amenityRows] = await connection.query(
+        'SELECT id FROM listing_amenities WHERE name IN (?) ORDER BY id',
+        [flagship.amenityNames],
+      );
+      const values = amenityRows.map((row) => [listingId, row.id]);
       // eslint-disable-next-line no-await-in-loop -- sequential by design
       await connection.query(
         'INSERT INTO listing_amenity_listing (listing_id, amenity_id) VALUES ?',

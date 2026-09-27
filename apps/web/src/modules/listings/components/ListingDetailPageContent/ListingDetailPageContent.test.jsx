@@ -361,6 +361,32 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
     ).toHaveAttribute('href', '/hy/companies/yerevan-boutique-hospitality');
   });
 
+  // Step L6.1: a stored amenity outside the listing's category (legacy
+  // data) is never shown — and a listing holding only those gets neither
+  // an Amenities section nor a section-nav link pointing at one.
+  test('hides legacy out-of-category amenities, including the Amenities nav link', () => {
+    useListingQuery.mockReturnValue({
+      data: { ...VILLA_LISTING, amenity_ids: [999] },
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    useListingMetadataQuery.mockReturnValue({
+      data: VILLA_METADATA,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderPage(3);
+
+    expect(
+      screen.getByRole('heading', { name: 'Հրաշալի վիլլա', level: 1 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('WiFi')).not.toBeInTheDocument();
+    expect(screen.queryByText('Հարմարություններ')).not.toBeInTheDocument();
+  });
+
   test('Step A3: renders no company attribution block when the listing has no public company context (graceful degrade)', () => {
     useListingQuery.mockReturnValue({
       data: { ...VILLA_LISTING, company: null },

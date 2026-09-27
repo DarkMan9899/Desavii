@@ -534,7 +534,20 @@ export class AvailabilityService {
     if (!principal) throw new AuthenticationError();
     const unit = await this.#bookableUnitService.findById(id);
     if (!unit) throw new NotFoundError('Bookable unit not found.');
-    await this.#loadListingForManagement(principal, unit.listingId);
+    const listing = await this.#loadListingForManagement(
+      principal,
+      unit.listingId,
+    );
+    // Step L6.1: a room may only gain amenities its parent listing's
+    // category offers (the set `RoomAmenitiesEditor` lists); the room's
+    // already-stored amenities are the legacy baseline that may
+    // round-trip unchanged.
+    const storedAmenityIds = await this.#bookableUnitService.listAmenityIds(id);
+    await this.#listingService.assertUnitAmenityWrite(
+      listing,
+      amenityIds,
+      storedAmenityIds,
+    );
 
     const resolvedAmenityIds = await this.#bookableUnitService.replaceAmenities(
       id,

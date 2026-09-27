@@ -20,6 +20,8 @@ import { Checkbox } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import { Stack } from '@desavii/ui/components/layout';
 import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import LegacyAmenitiesSection from '../LegacyAmenitiesSection/LegacyAmenitiesSection.jsx';
+import { resolveLegacyAmenities } from '../../utils/resolveLegacyAmenities.js';
 import { useListingMetadataQuery } from '../../queries/useListingMetadataQuery.js';
 import { useReplaceBookableUnitAmenitiesMutation } from '../../../availability/index.js';
 
@@ -55,12 +57,27 @@ export default function RoomAmenitiesEditor({
   }
 
   const { amenity_groups: amenityGroups } = metadata;
+  // Step L6.1: the room's stored amenities its listing's category no
+  // longer offers — kept until removed, never silently dropped.
+  const legacyAmenities = resolveLegacyAmenities(
+    amenityGroups,
+    metadata.amenity_catalog,
+    amenityIds,
+  );
 
   function toggleAmenity(id) {
     setSelectedIds((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+  }
+
+  function removeAmenity(id) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      next.delete(id);
       return next;
     });
   }
@@ -110,6 +127,11 @@ export default function RoomAmenitiesEditor({
           ))}
         </Stack>
       )}
+      <LegacyAmenitiesSection
+        legacyAmenities={legacyAmenities}
+        selectedIds={selectedIds}
+        onRemove={(id) => removeAmenity(id)}
+      />
       <Button
         variant="secondary"
         size="sm"

@@ -84,16 +84,7 @@ const CITIES = [
   'ejmiatsin',
 ];
 
-const AMENITIES = [
-  'WiFi',
-  'Parking',
-  'Pool',
-  'Air Conditioning',
-  'Breakfast Included',
-  'Pet Friendly',
-  'Airport Shuttle',
-  'Non-Smoking Rooms',
-];
+const AMENITIES_PER_LISTING = 4;
 
 const ADJECTIVES = [
   'Grand',
@@ -508,12 +499,21 @@ export default async function seedDemoMarketplace(connection) {
     'pricing_models',
     ['PER_NIGHT', 'PER_PERSON', 'PER_DAY', 'PER_HOUR'],
   );
-  // listing_amenities has no `code` column — resolve by name directly.
-  const [amenityRows] = await connection.query(
-    'SELECT id, name FROM listing_amenities WHERE name IN (?)',
-    [AMENITIES],
+  // Step L6.1: each demo listing's amenities come from its own category's
+  // applicability set (`amenity_category_applicability`, seeded by
+  // 006_search_filters.js) — the same source the Partner UI and the API
+  // write rule use — instead of one hotel-style pool for every category.
+  const [applicabilityRows] = await connection.query(
+    `SELECT category_id, amenity_id FROM amenity_category_applicability
+     ORDER BY category_id, amenity_id`,
   );
-  const amenityIdByName = new Map(amenityRows.map((r) => [r.name, r.id]));
+  const applicableAmenityIdsByCategoryId = new Map();
+  applicabilityRows.forEach((row) => {
+    if (!applicableAmenityIdsByCategoryId.has(row.category_id)) {
+      applicableAmenityIdsByCategoryId.set(row.category_id, []);
+    }
+    applicableAmenityIdsByCategoryId.get(row.category_id).push(row.amenity_id);
+  });
 
   // --- Listings (80+, 16 per category) ------------------------------------
   // listings[categorySlug] -> array of { id, status, bookableUnitId }
@@ -606,20 +606,24 @@ export default async function seedDemoMarketplace(connection) {
         [listingId, categoryId],
       );
 
-      // 4 amenities, rotating through the 8-item pool for variety per listing.
-      const amenitySlice = [0, 1, 2, 3].map(
-        (offset) => AMENITIES[(i + offset) % AMENITIES.length],
+      // Up to 4 amenities, rotating through the category's OWN applicable
+      // set for variety per listing (Step L6.1 — never another category's).
+      const categoryAmenityIds =
+        applicableAmenityIdsByCategoryId.get(categoryId) ?? [];
+      const amenitySlice = Array.from(
+        {
+          length: Math.min(AMENITIES_PER_LISTING, categoryAmenityIds.length),
+        },
+        (_, offset) =>
+          categoryAmenityIds[(i + offset) % categoryAmenityIds.length],
       );
       // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order
-      for (const amenityName of amenitySlice) {
-        const amenityId = amenityIdByName.get(amenityName);
-        if (amenityId) {
-          // eslint-disable-next-line no-await-in-loop -- sequential by design
-          await connection.query(
-            'INSERT IGNORE INTO listing_amenity_listing (listing_id, amenity_id) VALUES (?, ?)',
-            [listingId, amenityId],
-          );
-        }
+      for (const amenityId of amenitySlice) {
+        // eslint-disable-next-line no-await-in-loop -- sequential by design
+        await connection.query(
+          'INSERT IGNORE INTO listing_amenity_listing (listing_id, amenity_id) VALUES (?, ?)',
+          [listingId, amenityId],
+        );
       }
 
       const pricingModelCode = category.pricingModelCode(i);

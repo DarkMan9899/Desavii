@@ -54,6 +54,7 @@ import { useListingMenuQuery } from '../../queries/useListingMenuQuery.js';
 import { useListingOpeningHoursQuery } from '../../queries/useListingOpeningHoursQuery.js';
 import getLocalizedTranslation from '../../utils/getLocalizedTranslation.js';
 import getLocalizedItems from '../../utils/getLocalizedItems.js';
+import { resolveAmenityFeatureGroups } from '../../utils/resolveAmenityFeatureGroups.js';
 import { resolveInitialReservationState } from '../../utils/reservationSearchContext.js';
 import { toISODate } from '../../utils/reservationEstimate.js';
 import ListingHero from './ListingHero/ListingHero.jsx';
@@ -399,8 +400,15 @@ export default function ListingDetailPageContent() {
       id: SECTION_ATTRIBUTES,
       label: t('pages.listingDetail.attributes.heading'),
     },
+    // Step L6.1: only when an amenity is actually shown — a stored legacy
+    // amenity outside the category is hidden by the section itself, so a
+    // listing holding only those must not get a link to an empty section.
     metadata?.amenity_groups?.length > 0 &&
-      listing.amenity_ids?.length > 0 && {
+      resolveAmenityFeatureGroups(
+        metadata.amenity_groups,
+        listing.amenity_ids,
+        t,
+      ).length > 0 && {
         id: SECTION_AMENITIES,
         label: t('pages.listingDetail.amenities.heading'),
       },

@@ -1718,7 +1718,10 @@
         "loading": "Loading amenities…",
         "errorTitle": "We couldn't load amenities.",
         "empty": "This category has no amenities to configure.",
-        "search": "Search amenities"
+        "search": "Search amenities",
+        "legacyHeading": "Previously saved",
+        "legacyHint": "These are no longer available for this category. You can keep them for now, or uncheck one to remove it — once removed, it can't be added back.",
+        "legacyRemoved": "{{name}} — will be removed when you save"
       },
       "amenityGroups": {
         "GENERAL": "General",

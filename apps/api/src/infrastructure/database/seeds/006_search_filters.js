@@ -520,6 +520,9 @@ const CATEGORY_AMENITIES = {
     'Kitchenette',
     'Balcony',
     'Washing Machine',
+    // Step L6.1 (locked product decision) — a hotel can accept pets like
+    // every other accommodation category already can.
+    'Pet Friendly',
   ],
   apartments: [
     'WiFi',
@@ -531,6 +534,11 @@ const CATEGORY_AMENITIES = {
     'Family Friendly',
     'Pet Friendly',
     'EV Charger',
+    // Step L6.1 (locked product decision) — apartment complexes commonly
+    // offer a shared pool, breakfast, and an airport transfer.
+    'Pool',
+    'Breakfast Included',
+    'Airport Shuttle',
   ],
   villas: [
     'WiFi',
@@ -571,7 +579,16 @@ const CATEGORY_AMENITIES = {
   ],
   tours: ['Family Friendly', 'Wheelchair Accessible'],
   'car-rentals': ['EV Charger', 'Air Conditioning'],
-  attractions: ['Wheelchair Accessible', 'Family Friendly', 'Parking'],
+  // Step L6.1 (locked product decision): WiFi and Air Conditioning added
+  // for Attractions; Entertainment Venues below gains WiFi (it already
+  // had Air Conditioning).
+  attractions: [
+    'Wheelchair Accessible',
+    'Family Friendly',
+    'Parking',
+    'WiFi',
+    'Air Conditioning',
+  ],
   // Sprint I: same amenity set as Attractions plus Air Conditioning —
   // most entertainment venues (escape rooms, VR/gaming centers, bowling)
   // are indoor, unlike Attractions' broader outdoor/sightseeing mix.
@@ -580,6 +597,7 @@ const CATEGORY_AMENITIES = {
     'Family Friendly',
     'Parking',
     'Air Conditioning',
+    'WiFi',
   ],
 };
 

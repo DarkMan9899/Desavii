@@ -20,6 +20,8 @@ import { Stack } from '@desavii/ui/components/layout';
 import { useListingMetadataQuery } from '../../../queries/useListingMetadataQuery.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
 import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
+import LegacyAmenitiesSection from '../../LegacyAmenitiesSection/LegacyAmenitiesSection.jsx';
+import { resolveLegacyAmenities } from '../../../utils/resolveLegacyAmenities.js';
 import WizardStepActions from '../WizardStepActions.jsx';
 import styles from './AmenitiesStep.module.scss';
 
@@ -59,6 +61,14 @@ export default function AmenitiesStep({
   }
 
   const { amenity_groups: amenityGroups } = metadata;
+  // Step L6.1: stored amenities the category no longer offers — listed
+  // (from the stored set, not the live selection) so a removed one stays
+  // visible as removed instead of silently vanishing.
+  const legacyAmenities = resolveLegacyAmenities(
+    amenityGroups,
+    metadata.amenity_catalog,
+    initialValues,
+  );
   const normalizedQuery = query.trim().toLowerCase();
   const visibleGroups = amenityGroups
     .map((group) => ({
@@ -74,6 +84,14 @@ export default function AmenitiesStep({
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+  }
+
+  function removeAmenity(id) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      next.delete(id);
       return next;
     });
   }
@@ -153,6 +171,11 @@ export default function AmenitiesStep({
           </Stack>
         </>
       )}
+      <LegacyAmenitiesSection
+        legacyAmenities={legacyAmenities}
+        selectedIds={selectedIds}
+        onRemove={(id) => removeAmenity(id)}
+      />
       <WizardStepActions
         onBack={onBack}
         onContinue={() => handleContinue()}

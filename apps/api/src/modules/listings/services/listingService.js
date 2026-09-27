@@ -506,6 +506,59 @@ export class ListingService {
     return resolved;
   }
 
+  /**
+   * Step L6.1 — amenities are category metadata exactly like attributes/
+   * policies/pricing models: the Partner UI only offers the category's own
+   * set (`amenity_category_applicability`), so the API must never ADD one
+   * the category doesn't offer either.
+   *
+   * Legacy compatibility: an amenity already stored before this request
+   * (`storedAmenityIds`) may be sent back unchanged even if its category
+   * no longer offers it — rejecting it would make that listing's/room's
+   * amenities impossible to save. Leaving it out removes it (a normal
+   * full replace); it is never removed server-side on its own. Any NEW
+   * foreign id rejects the whole write (the caller's transaction/
+   * validation-before-write keeps it atomic).
+   */
+  async #assertAmenityWrite(categoryId, amenityIds, storedAmenityIds = []) {
+    if (!amenityIds) return;
+    const stored = new Set(storedAmenityIds);
+    const added = [...new Set(amenityIds)].filter((id) => !stored.has(id));
+    if (added.length === 0) return;
+    if (!categoryId) {
+      throw new ValidationError(
+        'Amenities require a category to validate against.',
+        [{ field: 'amenityIds', issue: 'CATEGORY_REQUIRED' }],
+      );
+    }
+
+    const applicable =
+      await this.#listingMetadataRepository.getApplicableAmenityIds(
+        added,
+        categoryId,
+      );
+    if (added.some((id) => !applicable.has(id))) {
+      throw new ValidationError(
+        'One or more amenities are not available for this category.',
+        [{ field: 'amenityIds', issue: 'UNKNOWN_AMENITY' }],
+      );
+    }
+  }
+
+  /**
+   * Step L6.1: the same rule for a room/unit's amenities
+   * (`AvailabilityService#replaceUnitAmenities`) — scoped by the parent
+   * listing's own stored primary category, with the unit's currently
+   * stored amenities as the legacy baseline.
+   */
+  async assertUnitAmenityWrite(listing, amenityIds, storedAmenityIds) {
+    await this.#assertAmenityWrite(
+      listing.categoryIds?.[0],
+      amenityIds,
+      storedAmenityIds,
+    );
+  }
+
   async #resolvePricing(categoryId, pricing) {
     if (!pricing) return undefined;
     if (!categoryId) {
@@ -633,6 +686,8 @@ export class ListingService {
       this.#resolveAttributeValues(primaryCategoryId, input.attributeValues),
       this.#resolvePolicyValues(primaryCategoryId, input.policyValues),
       this.#resolvePricing(primaryCategoryId, input.pricing),
+      // A new listing has no stored amenities: every id must apply.
+      this.#assertAmenityWrite(primaryCategoryId, input.amenityIds),
     ]);
 
     const listingId = await withTransaction(async (connection) => {
@@ -1471,6 +1526,11 @@ export class ListingService {
           ),
           this.#resolvePolicyValues(primaryCategoryId, fields.policyValues),
           this.#resolvePricing(primaryCategoryId, fields.pricing),
+          this.#assertAmenityWrite(
+            primaryCategoryId,
+            fields.amenityIds,
+            listing.amenityIds,
+          ),
         ]);
 
       if (nextSlug !== undefined && nextSlug !== listing.slug) {

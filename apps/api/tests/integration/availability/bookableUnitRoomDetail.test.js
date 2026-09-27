@@ -31,6 +31,7 @@ let vendor;
 let customer;
 let partnerId;
 let languageId;
+let hotelsCategoryId;
 let listingId;
 
 async function login(email, password) {
@@ -54,7 +55,10 @@ async function createListing(title) {
     .set('Authorization', `Bearer ${vendor.accessToken}`)
     .send({
       partnerId,
-      listingType: 'HOTEL',
+      // Step L6.1: room amenities are scoped by the parent listing's
+      // category, so this hotel carries the hotels category like every
+      // Partner-created listing does.
+      categoryIds: [hotelsCategoryId],
       translations: [{ languageId, title }],
     });
   return res.body.data.id;
@@ -71,7 +75,15 @@ async function publishListing(id) {
   await request(app)
     .patch(`/api/v1/listings/${id}`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)
-    .send({ location: { latitude: 40.1772, longitude: 44.5035 } });
+    .send({
+      location: { latitude: 40.1772, longitude: 44.5035 },
+      // The hotels category's required policies (publish readiness).
+      policyValues: [
+        { code: 'cancellation_policy', value: 'FLEXIBLE' },
+        { code: 'check_in_time', value: '14:00' },
+        { code: 'check_out_time', value: '11:00' },
+      ],
+    });
   await request(app)
     .post(`/api/v1/listings/${id}/media`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)
@@ -125,6 +137,10 @@ beforeAll(async () => {
     "SELECT id FROM languages WHERE code = 'en'",
   );
   languageId = language.id;
+  const [[hotels]] = await pool.query(
+    "SELECT id FROM listing_categories WHERE slug = 'hotels'",
+  );
+  hotelsCategoryId = hotels.id;
 
   listingId = await createListing(
     `Room Detail Test Listing ${Date.now()}-${Math.floor(Math.random() * 100000)}`,

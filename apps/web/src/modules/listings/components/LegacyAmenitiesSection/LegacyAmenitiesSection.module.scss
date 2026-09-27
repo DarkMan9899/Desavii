@@ -1,0 +1,32 @@
+// LegacyAmenitiesSection (Step L6.1) — tokens only, consumed from @desavii/ui.
+// A dashed warning-toned frame keeps "no longer offered" amenities visibly
+// separate from the category's selectable ones.
+
+@use 'tokens' as tokens;
+
+.section {
+  margin: tokens.$space-4 0 0;
+  padding: tokens.$space-3 tokens.$space-4 tokens.$space-4;
+  border: 1px dashed tokens.$color-warning;
+  border-radius: tokens.$radius-md;
+  background-color: tokens.$color-gray-100;
+  min-width: 0;
+}
+
+.heading {
+  padding: 0 tokens.$space-1;
+  font-weight: 600;
+  color: tokens.$color-warning-strong;
+}
+
+.hint {
+  margin: 0 0 tokens.$space-3;
+  font-size: 0.875rem;
+  color: tokens.$color-gray-600;
+}
+
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: tokens.$space-2;
+}

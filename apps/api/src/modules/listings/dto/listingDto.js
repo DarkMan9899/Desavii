@@ -307,6 +307,7 @@ function toMetadataOptionResponse(option) {
 export function toListingMetadataResponse({
   attributes,
   amenityGroups,
+  amenityCatalog = [],
   pricingModels,
   policies,
 }) {
@@ -325,6 +326,9 @@ export function toListingMetadataResponse({
       code: group.code,
       amenities: group.amenities.map(toMetadataOptionResponse),
     })),
+    // Step L6.1: labels only (see `#getAmenityCatalog`) — what the Partner
+    // UI can SELECT is always `amenity_groups`.
+    amenity_catalog: amenityCatalog.map(toMetadataOptionResponse),
     pricing_models: pricingModels.map((model) => ({
       code: model.code,
     })),

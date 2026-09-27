@@ -101,6 +101,7 @@ const DOMAIN_ISSUE_KEYS = {
   UNKNOWN_ATTRIBUTE_CODE: 'notAvailableForCategory',
   UNKNOWN_POLICY_CODE: 'notAvailableForCategory',
   UNKNOWN_PRICING_MODEL: 'notAvailableForCategory',
+  UNKNOWN_AMENITY: 'notAvailableForCategory',
   DUPLICATE_OPTION_CODE: 'duplicateOption',
   BELOW_MINIMUM: 'tooSmall',
   ABOVE_MAXIMUM: 'tooLarge',

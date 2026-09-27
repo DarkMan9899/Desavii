@@ -202,6 +202,10 @@ describe('getIssueMessage', () => {
       "This isn't available for this listing's category.",
     ],
     [
+      { issue: 'UNKNOWN_AMENITY' },
+      "This isn't available for this listing's category.",
+    ],
+    [
       { issue: 'DUPLICATE_OPTION_CODE' },
       'Each option can be selected only once.',
     ],

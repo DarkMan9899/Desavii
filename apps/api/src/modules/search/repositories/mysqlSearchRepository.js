@@ -431,9 +431,19 @@ export function buildSearchListingsQuery(
   if (amenityIds && amenityIds.length > 0) {
     // One EXISTS per id (not a single IN), so multiple ids require the
     // listing to have ALL of them, not ANY — amenityIds is AND semantics.
+    // Step L6.1: a stored link only counts when the amenity applies to
+    // the listing's own category — a legacy out-of-category link (kept
+    // for compatibility, hidden on the listing page) must never make a
+    // listing match an amenity filter, with or without a category filter.
     amenityIds.forEach((amenityId) => {
       innerConditions.push(
-        'EXISTS (SELECT 1 FROM listing_amenity_listing lal WHERE lal.listing_id = l.id AND lal.amenity_id = ?)',
+        `EXISTS (
+          SELECT 1 FROM listing_amenity_listing lal
+          JOIN listing_category_listing lal_lcl ON lal_lcl.listing_id = lal.listing_id
+          JOIN amenity_category_applicability lal_aca
+            ON lal_aca.category_id = lal_lcl.category_id AND lal_aca.amenity_id = lal.amenity_id
+          WHERE lal.listing_id = l.id AND lal.amenity_id = ?
+        )`,
       );
       innerParams.push(amenityId);
     });

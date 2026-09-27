@@ -204,14 +204,39 @@ export class MySqlListingMetadataRepository {
    * @returns {Promise<{attributes: object[], amenityGroups: object[], pricingModels: object[], policies: object[]}>}
    */
   async getMetadataForCategory(categoryId, locale) {
-    const [attributes, amenityGroups, pricingModels, policies] =
+    const [attributes, amenityGroups, amenityCatalog, pricingModels, policies] =
       await Promise.all([
         this.#getAttributes(categoryId),
         this.#getAmenityGroups(categoryId, locale),
+        this.#getAmenityCatalog(locale),
         this.#getPricingModels(categoryId),
         this.#getPolicies(categoryId),
       ]);
-    return { attributes, amenityGroups, pricingModels, policies };
+    return {
+      attributes,
+      amenityGroups,
+      amenityCatalog,
+      pricingModels,
+      policies,
+    };
+  }
+
+  /**
+   * Step L6.1: every amenity's localized name, regardless of category —
+   * never a selectable list (that is `amenityGroups`), only the labels the
+   * Partner UI needs to show a listing's or room's previously-saved
+   * amenity that its category no longer offers.
+   */
+  async #getAmenityCatalog({ localeId, defaultLocaleId }) {
+    const [rows] = await this.#pool.query(
+      `SELECT la.id, COALESCE(lat.name, lat2.name, la.name) AS name
+       FROM listing_amenities la
+       LEFT JOIN listing_amenity_translations lat ON lat.listing_amenity_id = la.id AND lat.language_id = ?
+       LEFT JOIN listing_amenity_translations lat2 ON lat2.listing_amenity_id = la.id AND lat2.language_id = ?
+       ORDER BY name ASC`,
+      [localeId, defaultLocaleId],
+    );
+    return rows.map((row) => ({ value: row.id, code: row.name }));
   }
 
   // --- Write-side code resolution (ListingService validates/resolves the
@@ -301,6 +326,24 @@ export class MySqlListingMetadataRepository {
       [categoryId, code],
     );
     return rows[0]?.id ?? null;
+  }
+
+  /**
+   * Step L6.1: the ONE applicability lookup every amenity write shares
+   * (listing amenities and room/unit amenities) — the same
+   * `amenity_category_applicability` rows `#getAmenityGroups` serves to
+   * the Partner UI. Returns which of `amenityIds` the category offers.
+   * @returns {Promise<Set<number>>}
+   */
+  async getApplicableAmenityIds(amenityIds, categoryId) {
+    if (amenityIds.length === 0) return new Set();
+    const [rows] = await this.#pool.query(
+      `SELECT aca.amenity_id
+       FROM amenity_category_applicability aca
+       WHERE aca.category_id = ? AND aca.amenity_id IN (?)`,
+      [categoryId, amenityIds],
+    );
+    return new Set(rows.map((row) => row.amenity_id));
   }
 }
 
