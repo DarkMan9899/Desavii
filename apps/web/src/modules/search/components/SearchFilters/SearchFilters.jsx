@@ -31,6 +31,7 @@ import {
   SORT_OPTION_META,
 } from '../../../../constants/sortOptions.js';
 import { shouldShowGuestsFilter } from '../../utils/categoryFilterCapabilities.js';
+import { getBusinessToday } from '../../../../utils/businessDate.js';
 import styles from './SearchFilters.module.scss';
 
 const KEYWORD_DEBOUNCE_MS = 400;
@@ -100,7 +101,8 @@ export default function SearchFilters({
     value: String(count),
     label: t('search.filters.guestsCount', { count }),
   }));
-  const today = new Date().toISOString().slice(0, 10);
+  // Step L6.2E: Armenia's business date, never the UTC date.
+  const today = getBusinessToday();
   const dateRangeValue = {
     start: filters.dateFrom ?? null,
     end: filters.dateTo ?? null,

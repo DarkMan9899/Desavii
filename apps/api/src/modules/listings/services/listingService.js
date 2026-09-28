@@ -178,6 +178,33 @@ const LISTING_MODERATION_STATUSES = [
   'FLAGGED',
 ];
 
+/**
+ * Step L6.2E — `minimumStayNights <= maximumStayNights` on the values a
+ * partial booking-rules update actually leaves stored: an incoming value
+ * (a number, or `null` = cleared) wins, an omitted one keeps the stored
+ * value. The request-level Zod refine only ever sees the request itself, so
+ * `stored min 2` + `PATCH max 1` would otherwise persist an impossible pair.
+ * The issue lands on whichever side the request changed.
+ */
+function assertEffectiveStayRange(storedRules, incomingRules) {
+  if (!incomingRules) return;
+  const effective = (key) =>
+    incomingRules[key] !== undefined
+      ? incomingRules[key]
+      : (storedRules?.[key] ?? null);
+  const minimum = effective('minimumStayNights');
+  const maximum = effective('maximumStayNights');
+  if (minimum === null || maximum === null || minimum <= maximum) return;
+  const field =
+    incomingRules.minimumStayNights === undefined
+      ? 'bookingRules.maximumStayNights'
+      : 'bookingRules.minimumStayNights';
+  throw new ValidationError(
+    'The minimum stay cannot exceed the maximum stay.',
+    [{ field, issue: 'MIN_STAY_EXCEEDS_MAX' }],
+  );
+}
+
 export class ListingService {
   #listingRepository;
 
@@ -1515,6 +1542,9 @@ export class ListingService {
         {},
         connection,
       );
+      // Step L6.2E: before anything is written, so a rejection changes
+      // nothing (same transaction, same locked row).
+      assertEffectiveStayRange(listing.bookingRules, fields.bookingRules);
 
       let nextSlug;
       if (fields.slug !== undefined) {

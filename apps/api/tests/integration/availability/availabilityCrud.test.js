@@ -22,6 +22,7 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { addIsoDays } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
 let pool;
@@ -437,6 +438,8 @@ describe('PATCH /availability/units/:id — lowering capacity cannot corrupt exi
       .set('Authorization', `Bearer ${vendor.accessToken}`)
       .send({ capacity: 5 });
 
+    // Each hold below is a one-night stay occupying exactly this date
+    // (Step L6.2E: same-day lodging is zero nights, never a stay).
     const consumedDate = '2027-05-01';
     const untouchedDate = '2027-06-01';
 
@@ -450,7 +453,7 @@ describe('PATCH /availability/units/:id — lowering capacity cannot corrupt exi
           {
             bookableUnitId: capacityUnitId,
             dateFrom: consumedDate,
-            dateTo: consumedDate,
+            dateTo: addIsoDays(consumedDate, 1),
             quantity: 4,
           },
         ],
@@ -489,7 +492,7 @@ describe('PATCH /availability/units/:id — lowering capacity cannot corrupt exi
           {
             bookableUnitId: capacityUnitId,
             dateFrom: consumedDate,
-            dateTo: consumedDate,
+            dateTo: addIsoDays(consumedDate, 1),
             quantity: 1,
           },
         ],
@@ -506,7 +509,7 @@ describe('PATCH /availability/units/:id — lowering capacity cannot corrupt exi
           {
             bookableUnitId: capacityUnitId,
             dateFrom: consumedDate,
-            dateTo: consumedDate,
+            dateTo: addIsoDays(consumedDate, 1),
             quantity: 1,
           },
         ],
@@ -524,7 +527,7 @@ describe('PATCH /availability/units/:id — lowering capacity cannot corrupt exi
           {
             bookableUnitId: capacityUnitId,
             dateFrom: untouchedDate,
-            dateTo: untouchedDate,
+            dateTo: addIsoDays(untouchedDate, 1),
             quantity: 3,
           },
         ],

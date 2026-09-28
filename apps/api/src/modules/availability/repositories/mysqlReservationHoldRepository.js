@@ -20,7 +20,10 @@
 
 import { getMysqlPool } from '../../../infrastructure/database/mysqlPool.js';
 import { mapMysqlError } from '../../../infrastructure/database/errorMapping.js';
-import { toDateString } from '../../../infrastructure/database/dateFormat.js';
+import {
+  toDateString,
+  toUtcInstant,
+} from '../../../infrastructure/database/dateFormat.js';
 
 /** `TIME` columns round-trip through mysql2 as `HH:MM:SS` strings already — trimmed to `HH:MM`, same convention as every other bookable-time repository in this codebase. */
 function toTimeString(value) {
@@ -42,7 +45,8 @@ function toDomain(row) {
     // unit itself instead of the hold (Tour departures, see Sprint A).
     startTime: toTimeString(row.start_time),
     endTime: toTimeString(row.end_time),
-    expiresAt: row.expires_at,
+    // Step L6.2E: `expires_at` is written as UTC (`readHoldClock`).
+    expiresAt: toUtcInstant(row.expires_at),
     createdAt: row.created_at,
   };
 }
@@ -55,10 +59,39 @@ export class MySqlReservationHoldRepository {
   }
 
   /**
+   * Step L6.2E — the reservation clock, read from the DB in ONE statement so
+   * `now` and the hold expiry derive from the same `UTC_TIMESTAMP(3)`
+   * instant. Every hold check compares `expires_at` against
+   * `UTC_TIMESTAMP(3)`, so the expiry must be UTC too: it is computed and
+   * formatted DB-side and inserted back verbatim as a string — never a JS
+   * `Date`, which `mysql2` would serialize in the host's LOCAL time (on a
+   * UTC+4 host that made a 15-minute hold live 4h15m).
+   *
+   * @param {number} holdDurationMinutes
+   * @returns {Promise<{now: Date, expiresAt: Date, expiresAtUtc: string}>}
+   *   `now`/`expiresAt` as real instants; `expiresAtUtc` as the exact
+   *   `YYYY-MM-DD HH:MM:SS.mmm` UTC value to store.
+   */
+  async readHoldClock(holdDurationMinutes, connection = this.#pool) {
+    const [[row]] = await connection.query(
+      `SELECT LEFT(DATE_FORMAT(UTC_TIMESTAMP(3), '%Y-%m-%d %H:%i:%s.%f'), 23) AS now_utc,
+              LEFT(DATE_FORMAT(DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? MINUTE), '%Y-%m-%d %H:%i:%s.%f'), 23) AS expires_utc`,
+      [holdDurationMinutes],
+    );
+    const toInstant = (utc) => new Date(`${utc.replace(' ', 'T')}Z`);
+    return {
+      now: toInstant(row.now_utc),
+      expiresAt: toInstant(row.expires_utc),
+      expiresAtUtc: row.expires_utc,
+    };
+  }
+
+  /**
    * Inserts `count` identical rows (one per unit of capacity) in the
    * given range, one `INSERT` at a time within the caller's transaction —
    * safer than relying on multi-row `INSERT`'s auto-increment-continuity
-   * guarantee to recover each row's id.
+   * guarantee to recover each row's id. `expiresAtUtc` is
+   * `readHoldClock`'s DB-formatted UTC string, stored verbatim.
    *
    * @returns {Promise<number[]>} the created rows' ids, in insertion order
    */
@@ -70,7 +103,7 @@ export class MySqlReservationHoldRepository {
       dateTo,
       startTime,
       endTime,
-      expiresAt,
+      expiresAtUtc,
       count,
     },
     connection = this.#pool,
@@ -90,7 +123,7 @@ export class MySqlReservationHoldRepository {
             dateTo,
             startTime ?? null,
             endTime ?? null,
-            expiresAt,
+            expiresAtUtc,
           ],
         );
         ids.push(result.insertId);

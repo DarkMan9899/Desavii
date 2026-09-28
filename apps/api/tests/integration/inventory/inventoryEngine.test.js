@@ -18,12 +18,17 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
 let vendor;
 let customer;
 let partnerId;
 let languageId;
+// Step L6.2E: customer-hold dates are offsets from TODAY's Asia/Yerevan
+// date on the DB clock, never calendar literals that age into the past.
+let today;
+const day = (offset) => addIsoDays(today, offset);
 
 async function login(email, password) {
   const res = await request(app)
@@ -78,6 +83,7 @@ beforeAll(async () => {
     "SELECT id FROM languages WHERE code = 'en'",
   );
   languageId = language.id;
+  today = (await businessNow(pool)).date;
 }, 60_000);
 
 afterAll(async () => {
@@ -266,6 +272,9 @@ describe('Inventory audit ledger explains every capacity change', () => {
   test('a hold, a manual block, and an external reservation each leave one ledger row per date', async () => {
     const listingId = await createListing(`Ledger Test ${Date.now()}`);
     const unitId = await registerUnit(listingId, 10);
+    // Step L6.2E: a future date read from the DB clock; the customer hold is
+    // a one-night stay occupying exactly this date.
+    const ledgerDate = day(30);
 
     await request(app)
       .post('/api/v1/booking-holds')
@@ -274,8 +283,8 @@ describe('Inventory audit ledger explains every capacity change', () => {
         items: [
           {
             bookableUnitId: unitId,
-            dateFrom: '2026-10-01',
-            dateTo: '2026-10-01',
+            dateFrom: ledgerDate,
+            dateTo: addIsoDays(ledgerDate, 1),
             quantity: 1,
           },
         ],
@@ -285,8 +294,8 @@ describe('Inventory audit ledger explains every capacity change', () => {
       .set('Authorization', `Bearer ${vendor.accessToken}`)
       .send({
         unitId,
-        dateFrom: '2026-10-01',
-        dateTo: '2026-10-01',
+        dateFrom: ledgerDate,
+        dateTo: ledgerDate,
         quantity: 2,
         reasonCode: 'WEATHER',
       });
@@ -295,8 +304,8 @@ describe('Inventory audit ledger explains every capacity change', () => {
       .set('Authorization', `Bearer ${vendor.accessToken}`)
       .send({
         unitId,
-        dateFrom: '2026-10-01',
-        dateTo: '2026-10-01',
+        dateFrom: ledgerDate,
+        dateTo: ledgerDate,
         quantity: 1,
         sourceCode: 'WALK_IN',
       });
@@ -304,7 +313,7 @@ describe('Inventory audit ledger explains every capacity change', () => {
     const ledgerRes = await request(app)
       .get(`/api/v1/availability/units/${unitId}/ledger`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .query({ from: '2026-10-01', to: '2026-10-01' });
+      .query({ from: ledgerDate, to: ledgerDate });
 
     expect(ledgerRes.status).toBe(200);
     const sourceTypes = ledgerRes.body.data.map((entry) => entry.source_type);
@@ -319,7 +328,7 @@ describe('Inventory audit ledger explains every capacity change', () => {
     const breakdown = await request(app)
       .get(`/api/v1/availability/units/${unitId}/breakdown`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .query({ from: '2026-10-01', to: '2026-10-01' });
+      .query({ from: ledgerDate, to: ledgerDate });
     expect(breakdown.body.data[0]).toMatchObject({
       total: 10,
       available: 6,
@@ -362,15 +371,25 @@ describe('Concurrency safety — NO double-booking across mixed sources', () => 
       `Mixed Source Concurrency Test ${Date.now()}`,
     );
     const unitId = await registerUnit(listingId, 1);
-    const dateFrom = '2026-11-20';
-    const dateTo = '2026-11-20';
+    // Step L6.2E: both sides take the same single night — the customer as
+    // a one-night stay (lodging is never same-day), the Partner block as
+    // that one date.
+    const dateFrom = day(60);
+    const dateTo = dateFrom;
 
     const [holdRes, blockRes] = await Promise.all([
       request(app)
         .post('/api/v1/booking-holds')
         .set('Authorization', `Bearer ${customer.accessToken}`)
         .send({
-          items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
+          items: [
+            {
+              bookableUnitId: unitId,
+              dateFrom,
+              dateTo: addIsoDays(dateFrom, 1),
+              quantity: 1,
+            },
+          ],
         }),
       request(app)
         .post('/api/v1/availability/blocks')

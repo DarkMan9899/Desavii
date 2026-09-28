@@ -448,6 +448,52 @@ describe('AvailabilityStep (PartnerListingWizard)', () => {
 
   // Step L6.2B — the unit heading, stay-rule wording and advance-notice
   // hint follow each category family; hidden stay values are never lost.
+  // Step L6.2E — a stored rule can be cleared: blanking it sends an
+  // explicit null (clear), while a field that was never set stays omitted,
+  // and a blank never becomes 0.
+  describe('clearing stored rules (Step L6.2E)', () => {
+    test('blanking a stored rule sends null; never-set rules stay omitted', async () => {
+      const user = userEvent.setup();
+      renderStep({
+        listingId: 7,
+        onNext: vi.fn(),
+        initialValues: { minimumStayNights: 2, advanceBookingMinHours: 24 },
+      });
+
+      await user.clear(
+        screen.getByLabelText('Նվազագույն մնալու տևողություն (գիշեր)'),
+      );
+      await user.clear(
+        screen.getByLabelText('Ամրագրման նվազագույն ժամկետ (ժամ)'),
+      );
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      await waitFor(() => expect(updateListingMutateAsync).toHaveBeenCalled());
+      expect(updateListingMutateAsync).toHaveBeenCalledWith({
+        id: 7,
+        payload: {
+          bookingRules: {
+            minimumStayNights: null,
+            maximumStayNights: undefined,
+            advanceBookingMinHours: null,
+            advanceBookingMaxDays: undefined,
+          },
+        },
+      });
+    });
+
+    test('an untouched form with no stored rules sends nothing at all', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+      renderStep({ listingId: 7, onNext });
+
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      expect(updateListingMutateAsync).not.toHaveBeenCalled();
+      expect(onNext).toHaveBeenCalled();
+    });
+  });
+
   describe('category families (Step L6.2B)', () => {
     const NIGHTS_MIN = 'Նվազագույն մնալու տևողություն (գիշեր)';
     const RENTAL_MIN = 'Նվազագույն վարձակալում (օր)';

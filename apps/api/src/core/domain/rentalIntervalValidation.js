@@ -47,9 +47,9 @@ export function validateRentalInterval({
   startTime,
   endTime,
 }) {
-  // No time supplied — nothing for this function to validate; the caller
-  // falls back to date-only semantics (identical to every other category).
-  if (!startTime && !endTime) return { valid: true };
+  // Step L6.2E: a rental always has both a pickup and a return time — a
+  // date-only vehicle hold no longer exists (the public widget already
+  // required both; a direct API client now must too).
   if (!startTime || !endTime) {
     return { valid: false, reason: 'INCOMPLETE_RENTAL_INTERVAL' };
   }

@@ -98,6 +98,7 @@ async function createPendingBooking({
   bookableUnitType,
   dateFrom,
   dateTo,
+  times,
 }) {
   const listingId = await createListing(
     `${bookableUnitType} Lifecycle Test ${Date.now()}-${Math.random()}`,
@@ -111,7 +112,9 @@ async function createPendingBooking({
     .post('/api/v1/booking-holds')
     .set('Authorization', `Bearer ${customer.accessToken}`)
     .send({
-      items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
+      items: [
+        { bookableUnitId: unitId, dateFrom, dateTo, quantity: 1, ...times },
+      ],
     });
   expect(holdRes.status).toBe(201);
   const holdIds = holdRes.body.data.items[0].hold_ids;
@@ -177,6 +180,8 @@ describe.each([
     bookableUnitType: 'VEHICLE',
     dateFrom: '2027-06-10',
     dateTo: '2027-06-13',
+    // Step L6.2E: a rental always carries its pickup/return times.
+    times: { startTime: '10:00', endTime: '18:00' },
   },
   {
     label: 'Restaurant table (single-day, time-based service proxy)',
@@ -184,16 +189,19 @@ describe.each([
     bookableUnitType: 'RESTAURANT_TABLE',
     dateFrom: '2027-06-20',
     dateTo: '2027-06-20',
+    // Step L6.2E: a restaurant reservation always has its time.
+    times: { startTime: '19:30' },
   },
 ])(
   'full booking lifecycle for $label — no hotel-only logic',
-  ({ listingType, bookableUnitType, dateFrom, dateTo }) => {
+  ({ listingType, bookableUnitType, dateFrom, dateTo, times }) => {
     test('confirm transitions the booking and keeps capacity consumed', async () => {
       const { bookingId } = await createPendingBooking({
         listingType,
         bookableUnitType,
         dateFrom,
         dateTo,
+        times,
       });
 
       const res = await request(app)
@@ -209,13 +217,16 @@ describe.each([
         bookableUnitType,
         dateFrom,
         dateTo,
+        times,
       });
 
       const blockedHold = await request(app)
         .post('/api/v1/booking-holds')
         .set('Authorization', `Bearer ${vendor.accessToken}`)
         .send({
-          items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
+          items: [
+            { bookableUnitId: unitId, dateFrom, dateTo, quantity: 1, ...times },
+          ],
         });
       expect(blockedHold.status).toBe(409);
       expect(blockedHold.body.error.code).toBe('AVAILABILITY_CONFLICT');
@@ -231,7 +242,9 @@ describe.each([
         .post('/api/v1/booking-holds')
         .set('Authorization', `Bearer ${vendor.accessToken}`)
         .send({
-          items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
+          items: [
+            { bookableUnitId: unitId, dateFrom, dateTo, quantity: 1, ...times },
+          ],
         });
       expect(freedHold.status).toBe(201);
     });

@@ -617,7 +617,13 @@
       "PUBLICATION_PERIOD_REQUIRED": "Choose how long this listing should stay published.",
       "INVALID_PUBLICATION_PERIOD": "Choose one of the available publication periods.",
       "oneVehiclePerListing": "This listing already has its vehicle. A car rental listing describes one vehicle model — edit the existing vehicle instead.",
-      "notApplicableForUnit": "This doesn't apply to this kind of unit."
+      "notApplicableForUnit": "This doesn't apply to this kind of unit.",
+      "zeroNightStay": "Choose a check-out date after your check-in date.",
+      "bookingInPast": "This date or time has already passed. Please choose a later one.",
+      "rentalTimesRequired": "Choose both a pickup time and a return time.",
+      "returnNotAfterPickup": "The return time must be after the pickup time.",
+      "reservationTimeRequired": "Choose a reservation time.",
+      "minExceedsMax": "The minimum can't be greater than the maximum."
     },
     "codes": {
       "PARTNER_NOT_VERIFIED": "Your company must be verified before it can create listings.",

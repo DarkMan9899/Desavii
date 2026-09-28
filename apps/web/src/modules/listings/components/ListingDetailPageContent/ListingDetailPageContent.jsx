@@ -56,7 +56,7 @@ import getLocalizedTranslation from '../../utils/getLocalizedTranslation.js';
 import getLocalizedItems from '../../utils/getLocalizedItems.js';
 import { resolveAmenityFeatureGroups } from '../../utils/resolveAmenityFeatureGroups.js';
 import { resolveInitialReservationState } from '../../utils/reservationSearchContext.js';
-import { toISODate } from '../../utils/reservationEstimate.js';
+import { getBusinessToday } from '../../../../utils/businessDate.js';
 import ListingHero from './ListingHero/ListingHero.jsx';
 import ListingSectionNav from './ListingSectionNav/ListingSectionNav.jsx';
 import ListingAboutSection from './ListingAboutSection/ListingAboutSection.jsx';
@@ -214,7 +214,7 @@ export default function ListingDetailPageContent() {
   // than duplicated, since the widget now takes this as a controlled prop.
   const [dateRange, setDateRange] = useState(
     () =>
-      resolveInitialReservationState(searchParams, toISODate(new Date()))
+      resolveInitialReservationState(searchParams, getBusinessToday())
         .dateRange,
   );
 

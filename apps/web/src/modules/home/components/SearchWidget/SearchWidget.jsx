@@ -35,6 +35,7 @@ import { Inline } from '@desavii/ui/components/layout';
 import { useCategoriesQuery } from '../../../search/index.js';
 import { shouldShowGuestsFilter } from '../../../search/utils/categoryFilterCapabilities.js';
 import DestinationAutocomplete from '../DestinationAutocomplete/DestinationAutocomplete.jsx';
+import { getBusinessToday } from '../../../../utils/businessDate.js';
 import styles from './SearchWidget.module.scss';
 
 const GUEST_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -72,7 +73,8 @@ export default function SearchWidget({ className = undefined }) {
     value: String(count),
     label: t('home.search.guestsCount', { count }),
   }));
-  const today = new Date().toISOString().slice(0, 10);
+  // Step L6.2E: Armenia's business date, never the UTC date.
+  const today = getBusinessToday();
 
   function handleSubmit(event) {
     event.preventDefault();

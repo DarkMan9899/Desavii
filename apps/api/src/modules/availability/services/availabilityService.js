@@ -72,7 +72,14 @@ import {
   roleHasCapability,
   PARTNER_CAPABILITIES,
 } from '../../../core/domain/partnerCapabilities.js';
-import { resolveConsumedRange } from '../../../core/domain/accommodationDateSemantics.js';
+import {
+  resolveConsumedRange,
+  isAccommodationUnitType,
+} from '../../../core/domain/accommodationDateSemantics.js';
+import {
+  resolveBookingStart,
+  isBookingStartInPast,
+} from '../../../core/domain/bookingTimebase.js';
 import { resolvePriceForDate } from '../../../core/domain/accommodationPriceResolution.js';
 import { Money } from '../../../core/domain/money.js';
 import {
@@ -1663,7 +1670,10 @@ export class AvailabilityService {
    * capacity engine itself (see the approved Sprint B scope boundary:
    * that is the larger multi-source-calendar work, explicitly deferred).
    *
-   * @returns {Promise<{holdIds: number[], unitId: number, dateFrom: string, dateTo: string, startTime: string|null, endTime: string|null, quantity: number, expiresAt: Date}>}
+   * Step L6.2E: `now`/`expiresAtUtc` come from `readReservationClock`
+   * (one DB-sourced instant per reservation request).
+   *
+   * @returns {Promise<{holdIds: number[], unitId: number, dateFrom: string, dateTo: string, startTime: string|null, endTime: string|null, quantity: number}>}
    */
   async reserveCapacity(
     {
@@ -1673,7 +1683,8 @@ export class AvailabilityService {
       startTime,
       endTime,
       quantity,
-      expiresAt,
+      expiresAtUtc,
+      now,
       userId,
     },
     connection,
@@ -1701,6 +1712,21 @@ export class AvailabilityService {
     const resolvedStartTime =
       isVehicle || isRestaurant ? (startTime ?? null) : null;
     const resolvedEndTime = isVehicle ? (endTime ?? null) : null;
+
+    // Step L6.2E — the base customer-booking contract, checked before any
+    // capacity is touched (a failure reserves nothing). Customer holds only:
+    // Partner inventory paths (blocks, external reservations, CSV, connector
+    // sync) never come through here.
+    if (
+      isAccommodationUnitType(unit.bookableUnitTypeCode) &&
+      dateFrom === dateTo
+    ) {
+      // A lodging stay is `dateTo > dateFrom` nights; same-day is zero
+      // nights, never a stay.
+      throw new ValidationError('A stay needs at least one night.', [
+        { field: 'items', issue: 'ZERO_NIGHT_STAY' },
+      ]);
+    }
     if (isVehicle) {
       const interval = validateRentalInterval({
         dateFrom,
@@ -1710,10 +1736,27 @@ export class AvailabilityService {
       });
       if (!interval.valid) {
         throw new ValidationError(
-          'The requested return time must be after the pickup time.',
+          'A rental needs a pickup time and a later return time.',
           [{ field: 'items', issue: interval.reason }],
         );
       }
+    }
+    if (isRestaurant && !resolvedStartTime) {
+      throw new ValidationError('A reservation needs a reservation time.', [
+        { field: 'items', issue: 'RESERVATION_TIME_REQUIRED' },
+      ]);
+    }
+    const bookingStart = resolveBookingStart({
+      unitTypeCode: unit.bookableUnitTypeCode,
+      dateFrom,
+      usesRequestedTime: isVehicle || isRestaurant,
+      requestedStartTime: resolvedStartTime,
+      unitTimeSlotStart: unit.timeSlotStart,
+    });
+    if (isBookingStartInPast(bookingStart, now)) {
+      throw new ValidationError('This booking would start in the past.', [
+        { field: 'items', issue: 'BOOKING_IN_PAST' },
+      ]);
     }
 
     const consumedRange = resolveConsumedRange(
@@ -1795,7 +1838,7 @@ export class AvailabilityService {
         dateTo,
         startTime: resolvedStartTime,
         endTime: resolvedEndTime,
-        expiresAt,
+        expiresAtUtc,
         count: quantity,
       },
       connection,
@@ -1812,8 +1855,20 @@ export class AvailabilityService {
       startTime: resolvedStartTime,
       endTime: resolvedEndTime,
       quantity,
-      expiresAt,
     };
+  }
+
+  /**
+   * Step L6.2E — the one DB-sourced clock for a reservation request: the
+   * current UTC instant and the new holds' UTC expiry, read together (see
+   * `MySqlReservationHoldRepository#readHoldClock`). Call once, first, inside
+   * the reservation transaction, and pass both into every `reserveCapacity`.
+   */
+  async readReservationClock(holdDurationMinutes, connection) {
+    return this.#reservationHoldRepository.readHoldClock(
+      holdDurationMinutes,
+      connection,
+    );
   }
 
   /**

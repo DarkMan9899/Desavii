@@ -1167,6 +1167,25 @@ within **one** database transaction (§4.3's Mixed Booking guarantee) — a
 conflict on any single item fails the entire hold request; no partial
 hold is ever created.
 
+**Base customer-hold contract (Step L6.2E, implemented):** checked before
+any capacity is reserved; each rejection is `422 VALIDATION_FAILED` with
+`details[{ field: 'items', issue }]` and reserves nothing.
+
+| `issue` | When |
+|---|---|
+| `ZERO_NIGHT_STAY` | a `HOTEL_ROOM`/`PROPERTY_UNIT` hold with `dateFrom === dateTo` — a stay is `dateTo > dateFrom` nights |
+| `INCOMPLETE_RENTAL_INTERVAL` | a `VEHICLE` hold without both `startTime` (pickup) and `endTime` (return) |
+| `RETURN_NOT_AFTER_PICKUP` | a `VEHICLE` return not after its pickup |
+| `RESERVATION_TIME_REQUIRED` | a `RESTAURANT_TABLE` hold without `startTime` |
+| `BOOKING_IN_PAST` | the booking starts before now, in Asia/Yerevan business time on the DB clock — a timed start (pickup, reservation time, a departure's `time_slot_start`) against the current time, a date-only start (lodging, untimed departures) only once its date is before today's Asia/Yerevan date |
+
+Untimed tour/attraction departures stay date-only. `expires_at` is DB UTC
+(`UTC_TIMESTAMP(3)`) plus the configured hold TTL, independent of the API
+host's timezone. Partner inventory writes (manual blocks, external
+reservations, CSV import, connector sync) are not customer holds and are
+not subject to this contract. Partner booking rules (min/max stay, advance
+window) are stored but not yet enforced here.
+
 **Request (POST /booking-holds/{id}/confirm):** `payment_method_id` (or
 `payment_token` for a not-yet-saved method), `coupon_code?`,
 `wallet_amount?` (Section 8.3).

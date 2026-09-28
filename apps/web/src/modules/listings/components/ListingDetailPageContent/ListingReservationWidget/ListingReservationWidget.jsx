@@ -82,9 +82,9 @@ import { useListingDayStatusQuery } from '../../../queries/useListingDayStatusQu
 import { useCreateBookingHoldMutation } from '../../../../bookings/mutations/useCreateBookingHoldMutation.js';
 import {
   addDays,
-  toISODate,
   computeEstimatedTotal,
 } from '../../../utils/reservationEstimate.js';
+import { getBusinessToday } from '../../../../../utils/businessDate.js';
 import {
   resolveBookingCtaLabel,
   resolvePricingModelLabel,
@@ -92,9 +92,24 @@ import {
 import { formatBedConfiguration } from '../../../utils/bedConfigurationDisplay.js';
 import { resolveUnitPriceBasis } from '../../../utils/resolveBookableUnitProfile.js';
 import { resolveInitialReservationState } from '../../../utils/reservationSearchContext.js';
+import { isAccommodationUnitType } from '../../../utils/accommodationDateSemantics.js';
+import {
+  parseApiError,
+  getIssueMessage,
+} from '../../../../../utils/apiErrorFeedback.js';
 import styles from './ListingReservationWidget.module.scss';
 
 const CALENDAR_WINDOW_DAYS = 180;
+
+// Step L6.2E — base hold-contract rejections the server can return; each
+// has its own translated message instead of the generic hold error.
+const BOOKING_CONTRACT_ISSUES = new Set([
+  'ZERO_NIGHT_STAY',
+  'BOOKING_IN_PAST',
+  'INCOMPLETE_RENTAL_INTERVAL',
+  'RETURN_NOT_AFTER_PICKUP',
+  'RESERVATION_TIME_REQUIRED',
+]);
 
 export default function ListingReservationWidget({
   listingId,
@@ -113,7 +128,8 @@ export default function ListingReservationWidget({
   const { showToast } = useToast();
   const [searchParams] = useSearchParams();
 
-  const today = toISODate(new Date());
+  // Step L6.2E: Armenia's business date, never the UTC date.
+  const today = getBusinessToday();
 
   // P2.2D: a customer arriving here from the search page (which carries
   // dateFrom/dateTo/guests forward as query params) starts with THOSE
@@ -284,8 +300,19 @@ export default function ListingReservationWidget({
   // client-computed one for this category. Mirrors `unitsForDate` above:
   // one query, shared cache key with the plain unit list when the range
   // isn't valid yet (both params simply come back `undefined`).
+  // Step L6.2E: a lodging stay is check-out AFTER check-in — a same-day
+  // range is zero nights (the server rejects it as ZERO_NIGHT_STAY), for a
+  // hotel room or a property unit alike.
+  const isZeroNightStay =
+    (isAccommodationListing ||
+      isAccommodationUnitType(selectedUnit?.bookable_unit_type)) &&
+    Boolean(dateRange.start) &&
+    dateRange.start === dateRange.end;
   const hasValidStayRange = Boolean(
-    isAccommodationListing && dateRange.start && dateRange.end,
+    isAccommodationListing &&
+    dateRange.start &&
+    dateRange.end &&
+    !isZeroNightStay,
   );
   const { data: unitsForStay } = useListingBookableUnitsQuery(listingId, {
     checkIn: hasValidStayRange ? dateRange.start : undefined,
@@ -476,6 +503,7 @@ export default function ListingReservationWidget({
     Boolean(dateRange.end) &&
     rentalInterval.valid &&
     !isStaySoldOut &&
+    !isZeroNightStay &&
     (!isRestaurantListing || Boolean(reservationTime));
 
   function handleSelectUnit(value) {
@@ -651,14 +679,15 @@ export default function ListingReservationWidget({
       // wall.
       const isConflict =
         err?.code === 'AVAILABILITY_CONFLICT' || err?.code === 'BLACKOUT_DATE';
-      showToast(
-        t(
-          isConflict
-            ? 'pages.listingDetail.reservation.availabilityConflict'
-            : 'pages.listingDetail.reservation.holdError',
-        ),
-        { variant: 'danger' },
+      const contractIssue = parseApiError(err)?.issues.find((issue) =>
+        BOOKING_CONTRACT_ISSUES.has(issue.issue),
       );
+      let message = t('pages.listingDetail.reservation.holdError');
+      if (contractIssue) message = getIssueMessage(t, contractIssue);
+      else if (isConflict) {
+        message = t('pages.listingDetail.reservation.availabilityConflict');
+      }
+      showToast(message, { variant: 'danger' });
       if (isConflict) {
         setDateRange({ start: null, end: null });
         refetchCalendar();
@@ -993,6 +1022,12 @@ export default function ListingReservationWidget({
             locale={locale}
             suffix={t('pages.listingDetail.reservation.estimatedTotal')}
           />
+        )}
+
+        {isZeroNightStay && (
+          <p role="status" className={styles.staySoldOut}>
+            {t('apiErrors.issues.zeroNightStay')}
+          </p>
         )}
 
         <Button

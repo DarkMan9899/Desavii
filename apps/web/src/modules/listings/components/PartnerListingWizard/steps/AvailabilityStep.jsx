@@ -159,7 +159,9 @@ export default function AvailabilityStep({
         return;
       }
       if (value === undefined) {
-        parsed[key] = undefined;
+        // Step L6.2E: blanking a rule that was stored clears it (explicit
+        // `null`); a field that was never set stays omitted. Never 0.
+        parsed[key] = initialValues[key] != null ? null : undefined;
         return;
       }
       if (

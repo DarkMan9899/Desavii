@@ -21,10 +21,12 @@ describe('isVehicleUnitType', () => {
 });
 
 describe('validateRentalInterval', () => {
-  test('valid when neither time is supplied — date-only fallback, same as every other category', () => {
+  // Step L6.2E: the former date-only fallback is gone — both times are
+  // required for every rental.
+  test('invalid when neither time is supplied — a rental needs its pickup and return times', () => {
     expect(
       validateRentalInterval({ dateFrom: '2027-09-10', dateTo: '2027-09-12' }),
-    ).toEqual({ valid: true });
+    ).toEqual({ valid: false, reason: 'INCOMPLETE_RENTAL_INTERVAL' });
   });
 
   test('valid: a genuine multi-day rental regardless of the hour on each end', () => {

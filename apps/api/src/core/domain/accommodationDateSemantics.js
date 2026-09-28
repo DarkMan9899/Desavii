@@ -52,8 +52,11 @@ function previousDay(dateStr) {
  * @param {string} dateTo - 'YYYY-MM-DD', the request's checkout/end date
  * @returns {{dateFrom: string, dateTo: string}} the range actually
  *   consumed/priced — unchanged for non-accommodation types, or for a
- *   same-day accommodation request (`dateFrom === dateTo`, a genuine
- *   single-day hold, not zero nights).
+ *   same-day accommodation range (`dateFrom === dateTo`), which then covers
+ *   that one day. Step L6.2E: a CUSTOMER lodging hold can never be same-day
+ *   (`ZERO_NIGHT_STAY`, `AvailabilityService#reserveCapacity`), so this
+ *   branch only serves Partner inventory writes — a manual block or an
+ *   external reservation for a single night.
  */
 export function resolveConsumedRange(bookableUnitTypeCode, dateFrom, dateTo) {
   if (isAccommodationUnitType(bookableUnitTypeCode) && dateFrom !== dateTo) {

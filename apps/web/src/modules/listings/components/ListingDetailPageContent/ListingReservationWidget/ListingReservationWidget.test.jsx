@@ -79,6 +79,14 @@ vi.mock('@desavii/ui/components/form-controls', async () => {
         >
           pick dates
         </button>
+        {/* Step L6.2E: a check-in === check-out range, for the zero-night
+            lodging contract. */}
+        <button
+          type="button"
+          onClick={() => onChange({ start: '2027-08-01', end: '2027-08-01' })}
+        >
+          pick same day
+        </button>
         <div data-testid="disabled-dates">{disabledDates.join(',')}</div>
       </>
     );
@@ -686,6 +694,81 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       ),
     ).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  describe('base booking contract (Step L6.2E)', () => {
+    test('a same-day range on a property unit is zero nights — the request is blocked with a hint', async () => {
+      const mutateAsync = vi.fn();
+      useCreateBookingHoldMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      });
+      useListingBookableUnitsQuery.mockReturnValue({
+        data: SINGLE_UNIT,
+        isPending: false,
+        isError: false,
+      });
+      const user = userEvent.setup();
+      renderWidget();
+
+      await user.click(screen.getByRole('button', { name: 'pick same day' }));
+
+      expect(
+        screen.getByText('Ընտրեք մուտքի ամսաթվից ուշ ելքի ամսաթիվ։'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
+      ).toBeDisabled();
+
+      await user.click(screen.getByRole('button', { name: 'pick dates' }));
+      expect(
+        screen.queryByText('Ընտրեք մուտքի ամսաթվից ուշ ելքի ամսաթիվ։'),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
+      ).toBeEnabled();
+    });
+
+    test.each([
+      [
+        'BOOKING_IN_PAST',
+        'Այս ամսաթիվը կամ ժամն արդեն անցել է։ Խնդրում ենք ընտրել ավելի ուշ։',
+      ],
+      ['ZERO_NIGHT_STAY', 'Ընտրեք մուտքի ամսաթվից ուշ ելքի ամսաթիվ։'],
+    ])(
+      'a server %s rejection shows its own message, not the generic hold error',
+      async (issue, message) => {
+        const rejection = Object.assign(new Error('Validation failed'), {
+          code: 'VALIDATION_FAILED',
+          status: 422,
+          details: [{ field: 'items', issue }],
+        });
+        useCreateBookingHoldMutation.mockReturnValue({
+          mutateAsync: vi.fn().mockRejectedValue(rejection),
+          isPending: false,
+        });
+        useListingBookableUnitsQuery.mockReturnValue({
+          data: SINGLE_UNIT,
+          isPending: false,
+          isError: false,
+        });
+        const user = userEvent.setup();
+        renderWidget();
+
+        await user.click(screen.getByRole('button', { name: 'pick dates' }));
+        await user.click(
+          screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
+        );
+
+        expect(await screen.findByText(message)).toBeInTheDocument();
+        expect(
+          screen.queryByText(
+            'Չհաջողվեց պահել այս ամսաթվերը։ Խնդրում ենք կրկին փորձել։',
+          ),
+        ).not.toBeInTheDocument();
+        expect(mockNavigate).not.toHaveBeenCalled();
+      },
+    );
   });
 
   test('a stale-availability conflict (AVAILABILITY_CONFLICT) shows a specific message and refreshes the calendar', async () => {

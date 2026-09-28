@@ -355,7 +355,8 @@ describe('Sprint D-1 (P0-4) — external reservation update-in-place on a re-syn
 
     // Occupy the target date via a real hold, so the update's new
     // interval has nowhere to go — capacity is 1 and it's already spoken
-    // for.
+    // for. A one-night stay occupying exactly that date (Step L6.2E: a
+    // same-day lodging hold is zero nights, never a stay).
     const holdRes = await request(app)
       .post('/api/v1/booking-holds')
       .set('Authorization', `Bearer ${customer.accessToken}`)
@@ -364,7 +365,7 @@ describe('Sprint D-1 (P0-4) — external reservation update-in-place on a re-syn
           {
             bookableUnitId: unitId,
             dateFrom: toIsoDate(conflictFrom),
-            dateTo: toIsoDate(conflictFrom),
+            dateTo: toIsoDate(addDays(conflictFrom, 1)),
             quantity: 1,
           },
         ],

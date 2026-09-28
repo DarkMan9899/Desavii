@@ -221,6 +221,28 @@ describe('getIssueMessage', () => {
       { issue: 'ROOM_DETAILS_NOT_APPLICABLE' },
       "This doesn't apply to this kind of unit.",
     ],
+    // Step L6.2E — base customer-hold contract and rule-state issues.
+    [
+      { issue: 'ZERO_NIGHT_STAY' },
+      'Choose a check-out date after your check-in date.',
+    ],
+    [
+      { issue: 'BOOKING_IN_PAST' },
+      'This date or time has already passed. Please choose a later one.',
+    ],
+    [
+      { issue: 'INCOMPLETE_RENTAL_INTERVAL' },
+      'Choose both a pickup time and a return time.',
+    ],
+    [
+      { issue: 'RETURN_NOT_AFTER_PICKUP' },
+      'The return time must be after the pickup time.',
+    ],
+    [{ issue: 'RESERVATION_TIME_REQUIRED' }, 'Choose a reservation time.'],
+    [
+      { issue: 'MIN_STAY_EXCEEDS_MAX' },
+      "The minimum can't be greater than the maximum.",
+    ],
     [
       { issue: 'DUPLICATE_OPTION_CODE' },
       'Each option can be selected only once.',

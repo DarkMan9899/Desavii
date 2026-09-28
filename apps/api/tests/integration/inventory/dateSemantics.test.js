@@ -26,12 +26,17 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
 let vendor;
 let customer;
 let partnerId;
 let languageId;
+// Step L6.2E: dates are offsets from TODAY's Asia/Yerevan date on the DB
+// clock — customer holds may never start in the past.
+let today;
+const day = (offset) => addIsoDays(today, offset);
 
 async function login(email, password) {
   const res = await request(app)
@@ -92,6 +97,7 @@ beforeAll(async () => {
     "SELECT id FROM languages WHERE code = 'en'",
   );
   languageId = language.id;
+  today = (await businessNow(pool)).date;
 }, 60_000);
 
 afterAll(async () => {
@@ -111,8 +117,8 @@ describe('Accommodation date semantics — HOTEL_ROOM/PROPERTY_UNIT are checkout
         items: [
           {
             bookableUnitId: unitId,
-            dateFrom: '2026-10-10',
-            dateTo: '2026-10-13',
+            dateFrom: day(30),
+            dateTo: day(33),
             quantity: 1,
           },
         ],
@@ -120,9 +126,9 @@ describe('Accommodation date semantics — HOTEL_ROOM/PROPERTY_UNIT are checkout
     expect(holdRes.status).toBe(201);
 
     const [checkIn, night2, checkoutDay] = await Promise.all([
-      breakdownFor(unitId, '2026-10-10'),
-      breakdownFor(unitId, '2026-10-12'),
-      breakdownFor(unitId, '2026-10-13'),
+      breakdownFor(unitId, day(30)),
+      breakdownFor(unitId, day(32)),
+      breakdownFor(unitId, day(33)),
     ]);
     expect(checkIn).toMatchObject({ total: 3, available: 2, held: 1 });
     expect(night2).toMatchObject({ total: 3, available: 2, held: 1 });
@@ -142,17 +148,17 @@ describe('Accommodation date semantics — HOTEL_ROOM/PROPERTY_UNIT are checkout
       .set('Authorization', `Bearer ${vendor.accessToken}`)
       .send({
         unitId,
-        dateFrom: '2026-11-05',
-        dateTo: '2026-11-08',
+        dateFrom: day(56),
+        dateTo: day(59),
         quantity: 2,
         reasonCode: 'OWNER_USE',
       });
     expect(blockRes.status).toBe(201);
 
     const [firstNight, lastNight, checkoutDay] = await Promise.all([
-      breakdownFor(unitId, '2026-11-05'),
-      breakdownFor(unitId, '2026-11-07'),
-      breakdownFor(unitId, '2026-11-08'),
+      breakdownFor(unitId, day(56)),
+      breakdownFor(unitId, day(58)),
+      breakdownFor(unitId, day(59)),
     ]);
     expect(firstNight.manual).toBe(2);
     expect(lastNight.manual).toBe(2);
@@ -170,8 +176,8 @@ describe('Accommodation date semantics — HOTEL_ROOM/PROPERTY_UNIT are checkout
         items: [
           {
             bookableUnitId: unitId,
-            dateFrom: '2026-12-01',
-            dateTo: '2026-12-04',
+            dateFrom: day(82),
+            dateTo: day(85),
             quantity: 1,
           },
         ],
@@ -185,9 +191,9 @@ describe('Accommodation date semantics — HOTEL_ROOM/PROPERTY_UNIT are checkout
     expect(releaseRes.status).toBe(200);
 
     const [night1, night2, checkoutDay] = await Promise.all([
-      breakdownFor(unitId, '2026-12-01'),
-      breakdownFor(unitId, '2026-12-03'),
-      breakdownFor(unitId, '2026-12-04'),
+      breakdownFor(unitId, day(82)),
+      breakdownFor(unitId, day(84)),
+      breakdownFor(unitId, day(85)),
     ]);
     // Fully restored to the unit's total capacity on every occupied night,
     // and the never-touched checkout day was already fully available.
@@ -196,7 +202,11 @@ describe('Accommodation date semantics — HOTEL_ROOM/PROPERTY_UNIT are checkout
     expect(checkoutDay.available).toBe(1);
   });
 
-  test('a same-day accommodation hold (dateFrom === dateTo) is a genuine 1-day hold, not zero nights', async () => {
+  // Step L6.2E — the locked lodging contract: a stay is `dateTo > dateFrom`
+  // nights, so check-in === check-out is zero nights and never a stay (the
+  // public stay-availability endpoint already said so; the hold path used
+  // to accept it as a one-day hold). Intentional contract change.
+  test('a same-day accommodation hold (dateFrom === dateTo) is zero nights — rejected as ZERO_NIGHT_STAY, reserving nothing', async () => {
     const listingId = await createListing(`Same Day Test ${Date.now()}`);
     const unitId = await registerUnit(listingId, 'HOTEL_ROOM', 1);
 
@@ -207,16 +217,43 @@ describe('Accommodation date semantics — HOTEL_ROOM/PROPERTY_UNIT are checkout
         items: [
           {
             bookableUnitId: unitId,
-            dateFrom: '2027-01-15',
-            dateTo: '2027-01-15',
+            dateFrom: day(127),
+            dateTo: day(127),
             quantity: 1,
           },
         ],
       });
-    expect(holdRes.status).toBe(201);
+    expect(holdRes.status).toBe(422);
+    expect(holdRes.body.error.details).toEqual([
+      { field: 'items', issue: 'ZERO_NIGHT_STAY' },
+    ]);
 
-    const day = await breakdownFor(unitId, '2027-01-15');
-    expect(day).toMatchObject({ total: 1, available: 0, held: 1 });
+    const sameDay = await breakdownFor(unitId, day(127));
+    expect(sameDay).toMatchObject({ total: 1, available: 1, held: 0 });
+  });
+
+  test('a same-day Partner block on a lodging unit still takes exactly that one night', async () => {
+    const listingId = await createListing(`Same Day Block ${Date.now()}`);
+    const unitId = await registerUnit(listingId, 'HOTEL_ROOM', 2);
+
+    const blockRes = await request(app)
+      .post('/api/v1/availability/blocks')
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({
+        unitId,
+        dateFrom: day(130),
+        dateTo: day(130),
+        quantity: 1,
+        reasonCode: 'OWNER_USE',
+      });
+    expect(blockRes.status).toBe(201);
+
+    const [blockedNight, nextNight] = await Promise.all([
+      breakdownFor(unitId, day(130)),
+      breakdownFor(unitId, day(131)),
+    ]);
+    expect(blockedNight.manual).toBe(1);
+    expect(nextNight.manual).toBe(0);
   });
 });
 
@@ -235,8 +272,12 @@ describe('Non-accommodation date semantics — unchanged, inclusive-both-ends', 
         items: [
           {
             bookableUnitId: unitId,
-            dateFrom: '2026-10-10',
-            dateTo: '2026-10-13',
+            dateFrom: day(30),
+            dateTo: day(33),
+            // Step L6.2E: a rental always carries its pickup/return times;
+            // the calendar days it occupies are unchanged by them.
+            startTime: '10:00',
+            endTime: '10:00',
             quantity: 1,
           },
         ],
@@ -244,9 +285,9 @@ describe('Non-accommodation date semantics — unchanged, inclusive-both-ends', 
     expect(holdRes.status).toBe(201);
 
     const [pickupDay, middleDay, returnDay] = await Promise.all([
-      breakdownFor(unitId, '2026-10-10'),
-      breakdownFor(unitId, '2026-10-12'),
-      breakdownFor(unitId, '2026-10-13'),
+      breakdownFor(unitId, day(30)),
+      breakdownFor(unitId, day(32)),
+      breakdownFor(unitId, day(33)),
     ]);
     // Unlike lodging, the last requested day (the return day) is
     // genuinely occupied — the rental isn't returned until then.
@@ -267,16 +308,16 @@ describe('Non-accommodation date semantics — unchanged, inclusive-both-ends', 
       .set('Authorization', `Bearer ${vendor.accessToken}`)
       .send({
         unitId,
-        dateFrom: '2026-11-05',
-        dateTo: '2026-11-08',
+        dateFrom: day(56),
+        dateTo: day(59),
         quantity: 4,
         reasonCode: 'OPERATIONAL',
       });
     expect(blockRes.status).toBe(201);
 
     const [firstDay, lastDay] = await Promise.all([
-      breakdownFor(unitId, '2026-11-05'),
-      breakdownFor(unitId, '2026-11-08'),
+      breakdownFor(unitId, day(56)),
+      breakdownFor(unitId, day(59)),
     ]);
     expect(firstDay.manual).toBe(4);
     expect(lastDay.manual).toBe(4);

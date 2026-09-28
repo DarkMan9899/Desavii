@@ -40,6 +40,15 @@ const ATTRIBUTE_VALUE_TABLES = {
 };
 const ENUM_ATTRIBUTE_DATA_TYPES = ['ENUM', 'MULTI_ENUM'];
 
+// Step L6.2E — `listing_booking_rules` field -> column allow-list for the
+// partial `upsertBookingRules` write.
+const BOOKING_RULE_COLUMNS = [
+  ['minimumStayNights', 'minimum_stay_nights'],
+  ['maximumStayNights', 'maximum_stay_nights'],
+  ['advanceBookingMinHours', 'advance_booking_min_hours'],
+  ['advanceBookingMaxDays', 'advance_booking_max_days'],
+];
+
 const LISTING_SELECT_COLUMNS = `
   l.id, l.partner_id, l.listing_type_id, lt.code AS listing_type_code, l.slug,
   l.status_id, ls.code AS status_code, l.moderation_status_id, ms.code AS moderation_status_code,
@@ -410,34 +419,27 @@ export class MySqlListingRepository extends ListingRepositoryPort {
     }
   }
 
-  /** COALESCE-based partial update — same rationale as `upsertLocation` above (an omitted field must not erase a previously-set one). */
-  async upsertBookingRules(
-    listingId,
-    {
-      minimumStayNights = null,
-      maximumStayNights = null,
-      advanceBookingMinHours = null,
-      advanceBookingMaxDays = null,
-    } = {},
-    connection = this.#pool,
-  ) {
+  /**
+   * Partial update. Step L6.2E: only the rules actually supplied are
+   * written — an omitted (`undefined`) rule keeps its stored value, an
+   * explicit `null` clears it, a number replaces it. (The former
+   * `COALESCE(VALUES(x), x)` made a stored rule impossible to clear.) The
+   * column list is built from the fixed `BOOKING_RULE_COLUMNS` allow-list,
+   * never from caller input; every value stays a bound parameter.
+   */
+  async upsertBookingRules(listingId, rules = {}, connection = this.#pool) {
+    const supplied = BOOKING_RULE_COLUMNS.filter(
+      ([key]) => rules[key] !== undefined,
+    );
+    if (supplied.length === 0) return;
+    const columns = supplied.map(([, column]) => column);
     try {
       await connection.query(
-        `INSERT INTO listing_booking_rules
-           (listing_id, minimum_stay_nights, maximum_stay_nights, advance_booking_min_hours, advance_booking_max_days)
-         VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO listing_booking_rules (listing_id, ${columns.join(', ')})
+         VALUES (?, ${columns.map(() => '?').join(', ')})
          ON DUPLICATE KEY UPDATE
-           minimum_stay_nights = COALESCE(VALUES(minimum_stay_nights), minimum_stay_nights),
-           maximum_stay_nights = COALESCE(VALUES(maximum_stay_nights), maximum_stay_nights),
-           advance_booking_min_hours = COALESCE(VALUES(advance_booking_min_hours), advance_booking_min_hours),
-           advance_booking_max_days = COALESCE(VALUES(advance_booking_max_days), advance_booking_max_days)`,
-        [
-          listingId,
-          minimumStayNights,
-          maximumStayNights,
-          advanceBookingMinHours,
-          advanceBookingMaxDays,
-        ],
+           ${columns.map((column) => `${column} = VALUES(${column})`).join(', ')}`,
+        [listingId, ...supplied.map(([key]) => rules[key])],
       );
     } catch (err) {
       throw mapMysqlError(err);

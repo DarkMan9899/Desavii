@@ -19,12 +19,18 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
 let vendor;
 let customer;
 let partnerId;
 let languageId;
+// Step L6.2E: customer holds may never start in the past, so every date
+// here is an offset from TODAY's Asia/Yerevan date, read from the DB clock
+// (never a hard-coded calendar date that silently ages into the past).
+let today;
+const day = (offset) => addIsoDays(today, offset);
 
 async function login(email, password) {
   const res = await request(app)
@@ -79,6 +85,7 @@ beforeAll(async () => {
     "SELECT id FROM languages WHERE code = 'en'",
   );
   languageId = language.id;
+  today = (await businessNow(pool)).date;
 }, 60_000);
 
 afterAll(async () => {
@@ -98,8 +105,8 @@ describe('POST /booking-holds — grants capacity under lock', () => {
         items: [
           {
             bookableUnitId: unitId,
-            dateFrom: '2026-09-10',
-            dateTo: '2026-09-12',
+            dateFrom: day(30),
+            dateTo: day(32),
             quantity: 1,
           },
         ],
@@ -123,8 +130,8 @@ describe('POST /booking-holds — grants capacity under lock', () => {
         items: [
           {
             bookableUnitId: unitId,
-            dateFrom: '2026-09-20',
-            dateTo: '2026-09-21',
+            dateFrom: day(40),
+            dateTo: day(41),
             quantity: 2,
           },
         ],
@@ -137,8 +144,8 @@ describe('POST /booking-holds — grants capacity under lock', () => {
   test('a second hold against already-fully-held capacity is rejected', async () => {
     const listingId = await createListing(`Hold Sequential Test ${Date.now()}`);
     const unitId = await registerUnit(listingId, 1);
-    const dateFrom = '2026-10-01';
-    const dateTo = '2026-10-02';
+    const dateFrom = day(51);
+    const dateTo = day(52);
 
     const first = await request(app)
       .post('/api/v1/booking-holds')
@@ -163,8 +170,8 @@ describe('POST /booking-holds — grants capacity under lock', () => {
       `Hold Concurrency Test ${Date.now()}`,
     );
     const unitId = await registerUnit(listingId, 3);
-    const dateFrom = '2026-10-15';
-    const dateTo = '2026-10-16';
+    const dateFrom = day(65);
+    const dateTo = day(66);
 
     const attempts = Array.from({ length: 5 }, () =>
       request(app)
@@ -192,7 +199,7 @@ describe('POST /booking-holds — grants capacity under lock', () => {
     await request(app)
       .post('/api/v1/availability/blackouts')
       .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .send({ listingId, dateFrom: '2026-11-01', dateTo: '2026-11-05' });
+      .send({ listingId, dateFrom: day(82), dateTo: day(86) });
 
     const res = await request(app)
       .post('/api/v1/booking-holds')
@@ -201,8 +208,8 @@ describe('POST /booking-holds — grants capacity under lock', () => {
         items: [
           {
             bookableUnitId: unitId,
-            dateFrom: '2026-11-02',
-            dateTo: '2026-11-03',
+            dateFrom: day(83),
+            dateTo: day(84),
             quantity: 1,
           },
         ],
@@ -226,8 +233,8 @@ describe('POST /booking-holds — grants capacity under lock', () => {
       `Hold Stale Checkout Test ${Date.now()}`,
     );
     const unitId = await registerUnit(listingId, 1);
-    const dateFrom = '2026-12-01';
-    const dateTo = '2026-12-03';
+    const dateFrom = day(112);
+    const dateTo = day(114);
 
     // The receptionist's phone/walk-in reservation, recorded before the
     // customer's stale-page checkout click reaches the server.
@@ -270,8 +277,8 @@ describe('POST /booking-holds — grants capacity under lock', () => {
         items: [
           {
             bookableUnitId: 9_999_999,
-            dateFrom: '2026-11-10',
-            dateTo: '2026-11-11',
+            dateFrom: day(91),
+            dateTo: day(92),
             quantity: 1,
           },
         ],
@@ -286,8 +293,8 @@ describe('POST /booking-holds — grants capacity under lock', () => {
         items: [
           {
             bookableUnitId: 1,
-            dateFrom: '2026-11-10',
-            dateTo: '2026-11-11',
+            dateFrom: day(91),
+            dateTo: day(92),
             quantity: 1,
           },
         ],
@@ -307,8 +314,8 @@ describe('GET /booking-holds — self-service listing', () => {
         items: [
           {
             bookableUnitId: unitId,
-            dateFrom: '2026-12-01',
-            dateTo: '2026-12-02',
+            dateFrom: day(112),
+            dateTo: day(113),
             quantity: 1,
           },
         ],
@@ -333,8 +340,8 @@ describe('DELETE /booking-holds — release restores capacity', () => {
   test('releasing a hold lets a subsequent hold reach full capacity again', async () => {
     const listingId = await createListing(`Hold Release Test ${Date.now()}`);
     const unitId = await registerUnit(listingId, 1);
-    const dateFrom = '2026-12-10';
-    const dateTo = '2026-12-11';
+    const dateFrom = day(121);
+    const dateTo = day(122);
 
     const createRes = await request(app)
       .post('/api/v1/booking-holds')
@@ -380,8 +387,8 @@ describe('DELETE /booking-holds — release restores capacity', () => {
         items: [
           {
             bookableUnitId: unitId,
-            dateFrom: '2026-12-20',
-            dateTo: '2026-12-21',
+            dateFrom: day(131),
+            dateTo: day(132),
             quantity: 1,
           },
         ],

@@ -44,11 +44,13 @@ export class BookingHoldsService {
   async createHolds(principal, { items }) {
     if (!principal) throw new AuthenticationError();
 
-    const expiresAt = new Date(
-      Date.now() + config.booking.holdDurationMinutes * 60_000,
-    );
-
     const outcome = await withTransaction(async (connection) => {
+      // Step L6.2E: DB UTC is the only time source for a hold — its expiry
+      // and the past-start check both come from this one read.
+      const clock = await this.#availabilityService.readReservationClock(
+        config.booking.holdDurationMinutes,
+        connection,
+      );
       const results = [];
       for (const item of items) {
         // eslint-disable-next-line no-await-in-loop -- each item's hold must be granted within the same all-or-nothing transaction.
@@ -63,14 +65,15 @@ export class BookingHoldsService {
             startTime: item.startTime,
             endTime: item.endTime,
             quantity: item.quantity,
-            expiresAt,
+            expiresAtUtc: clock.expiresAtUtc,
+            now: clock.now,
             userId: principal.userId,
           },
           connection,
         );
         results.push(result);
       }
-      return { items: results, expiresAt };
+      return { items: results, expiresAt: clock.expiresAt };
     });
 
     // Step A2 (Engagement Analytics): published after the transaction

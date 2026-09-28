@@ -99,38 +99,37 @@ const pricingSchema = z.object({
 // range error. `bookingRulesRefinements` below adds the
 // `minimumStayNights <= maximumStayNights` cross-field rule brief §7
 // requires — a `.refine()` on the object, not on either field alone,
-// since it depends on both.
+// since it depends on both. Step L6.2E: each field is also `nullable` —
+// omitted leaves the stored rule unchanged, an explicit `null` clears it —
+// and `ListingService` re-checks min <= max against the STORED values a
+// partial update keeps (this refine only sees the request itself).
+// Step L6.2E: a blank string is never a number — `z.coerce` alone would read
+// '' as 0, a real ("no lead time") value for the advance fields.
+const bookingRuleNumber = (schema) =>
+  z.preprocess(
+    (value) => (value === '' ? Number.NaN : value),
+    schema.nullable().optional(),
+  );
+
 const bookingRulesSchema = z
   .object({
-    minimumStayNights: z.coerce
-      .number()
-      .int()
-      .positive()
-      .max(SMALLINT_UNSIGNED_MAX)
-      .optional(),
-    maximumStayNights: z.coerce
-      .number()
-      .int()
-      .positive()
-      .max(SMALLINT_UNSIGNED_MAX)
-      .optional(),
-    advanceBookingMinHours: z.coerce
-      .number()
-      .int()
-      .min(0)
-      .max(INT_UNSIGNED_MAX)
-      .optional(),
-    advanceBookingMaxDays: z.coerce
-      .number()
-      .int()
-      .min(0)
-      .max(INT_UNSIGNED_MAX)
-      .optional(),
+    minimumStayNights: bookingRuleNumber(
+      z.coerce.number().int().positive().max(SMALLINT_UNSIGNED_MAX),
+    ),
+    maximumStayNights: bookingRuleNumber(
+      z.coerce.number().int().positive().max(SMALLINT_UNSIGNED_MAX),
+    ),
+    advanceBookingMinHours: bookingRuleNumber(
+      z.coerce.number().int().min(0).max(INT_UNSIGNED_MAX),
+    ),
+    advanceBookingMaxDays: bookingRuleNumber(
+      z.coerce.number().int().min(0).max(INT_UNSIGNED_MAX),
+    ),
   })
   .refine(
     (data) =>
-      data.minimumStayNights === undefined ||
-      data.maximumStayNights === undefined ||
+      data.minimumStayNights == null ||
+      data.maximumStayNights == null ||
       data.minimumStayNights <= data.maximumStayNights,
     {
       message: 'minimumStayNights cannot exceed maximumStayNights.',

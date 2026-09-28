@@ -29,4 +29,27 @@ export function toDateString(value) {
   return value;
 }
 
+/**
+ * Step L6.2E — a `DATETIME` column that is WRITTEN as UTC wall-clock (e.g.
+ * `DATE_ADD(UTC_TIMESTAMP(3), ...)`) -> its real instant. `mysql2` (no
+ * explicit `timezone` pool option) parses a `DATETIME` as LOCAL time, so the
+ * resulting `Date` is off by the host's UTC offset; reading its LOCAL getters
+ * back as UTC fields reverses that exactly, on any host timezone — the same
+ * technique `toDateString` above uses for `DATE` columns.
+ */
+export function toUtcInstant(value) {
+  if (!(value instanceof Date)) return value ?? null;
+  return new Date(
+    Date.UTC(
+      value.getFullYear(),
+      value.getMonth(),
+      value.getDate(),
+      value.getHours(),
+      value.getMinutes(),
+      value.getSeconds(),
+      value.getMilliseconds(),
+    ),
+  );
+}
+
 export default toDateString;

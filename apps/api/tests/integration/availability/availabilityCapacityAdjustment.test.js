@@ -37,6 +37,7 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { addIsoDays } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
 let pool;
@@ -119,13 +120,21 @@ async function getEntry(unitId, date) {
   return res.body.data.find((entry) => entry.bookable_unit_id === unitId);
 }
 
+// Consumes exactly `date` on the HOTEL_ROOM unit: a one-night stay checking
+// out the next day (Step L6.2E — a same-day lodging hold is zero nights,
+// no longer accepted).
 async function holdCapacity(unitId, date, quantity) {
   const res = await request(app)
     .post('/api/v1/booking-holds')
     .set('Authorization', `Bearer ${customer.accessToken}`)
     .send({
       items: [
-        { bookableUnitId: unitId, dateFrom: date, dateTo: date, quantity },
+        {
+          bookableUnitId: unitId,
+          dateFrom: date,
+          dateTo: addIsoDays(date, 1),
+          quantity,
+        },
       ],
     });
   expect(res.status).toBe(201);
