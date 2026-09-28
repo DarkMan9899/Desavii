@@ -276,6 +276,116 @@ describe('getIssueMessage', () => {
     },
   );
 
+  // Step L6.2F — Partner booking-rule rejections: nights vs rental days,
+  // plural forms, and a 0-day horizon worded as "today only".
+  describe('booking-rule issues', () => {
+    test.each([
+      [
+        { issue: 'MINIMUM_STAY_NOT_MET', minimum: 2, unit: 'nights' },
+        'The minimum stay is 2 nights.',
+      ],
+      [
+        { issue: 'MINIMUM_STAY_NOT_MET', minimum: 1, unit: 'nights' },
+        'The minimum stay is 1 night.',
+      ],
+      [
+        { issue: 'MAXIMUM_STAY_EXCEEDED', maximum: 14, unit: 'nights' },
+        'The maximum stay is 14 nights.',
+      ],
+      [
+        { issue: 'MINIMUM_STAY_NOT_MET', minimum: 3, unit: 'days' },
+        'The minimum rental is 3 days.',
+      ],
+      [
+        { issue: 'MAXIMUM_STAY_EXCEEDED', maximum: 7, unit: 'days' },
+        'The maximum rental is 7 days.',
+      ],
+      [
+        { issue: 'BOOKING_TOO_SOON', minimumHours: 24 },
+        'This booking must be made at least 24 hours in advance.',
+      ],
+      [
+        { issue: 'BOOKING_TOO_FAR_AHEAD', maximumDays: 30 },
+        'Bookings are accepted up to 30 days ahead.',
+      ],
+      [
+        { issue: 'BOOKING_TOO_FAR_AHEAD', maximumDays: 0 },
+        'This listing only accepts bookings for today.',
+      ],
+    ])('%p -> %p', (issue, expected) => {
+      expect(getIssueMessage(t, issue)).toBe(expected);
+    });
+
+    test('Armenian and Russian wording (Russian plural forms)', () => {
+      const hy = i18n.getFixedT('hy');
+      const ru = i18n.getFixedT('ru');
+      expect(
+        getIssueMessage(hy, {
+          issue: 'MINIMUM_STAY_NOT_MET',
+          minimum: 2,
+          unit: 'nights',
+        }),
+      ).toBe('Նվազագույն մնալու տևողությունը 2 գիշեր է։');
+      expect(
+        getIssueMessage(hy, {
+          issue: 'MAXIMUM_STAY_EXCEEDED',
+          maximum: 7,
+          unit: 'days',
+        }),
+      ).toBe('Առավելագույն վարձակալումը 7 օր է։');
+      expect(
+        getIssueMessage(ru, {
+          issue: 'MINIMUM_STAY_NOT_MET',
+          minimum: 2,
+          unit: 'nights',
+        }),
+      ).toBe('Минимальный срок проживания — 2 ночи.');
+      expect(
+        getIssueMessage(ru, {
+          issue: 'MAXIMUM_STAY_EXCEEDED',
+          maximum: 5,
+          unit: 'days',
+        }),
+      ).toBe('Максимальный срок аренды — 5 дней.');
+      expect(
+        getIssueMessage(ru, { issue: 'BOOKING_TOO_SOON', minimumHours: 1 }),
+      ).toBe('Бронирование нужно сделать не менее чем за 1 час.');
+      expect(
+        getIssueMessage(ru, { issue: 'BOOKING_TOO_FAR_AHEAD', maximumDays: 0 }),
+      ).toBe('Это объявление принимает бронирования только на сегодня.');
+    });
+
+    test('parseApiError keeps the booking-rule metadata', () => {
+      const parsed = parseApiError(
+        new ApiError({
+          code: 'VALIDATION_FAILED',
+          status: 422,
+          message: 'rules',
+          details: [
+            {
+              field: 'items',
+              issue: 'MAXIMUM_STAY_EXCEEDED',
+              maximum: 3,
+              unit: 'days',
+            },
+            { field: 'items', issue: 'BOOKING_TOO_SOON', minimumHours: 6 },
+            { field: 'items', issue: 'BOOKING_TOO_FAR_AHEAD', maximumDays: 0 },
+          ],
+        }),
+      );
+      expect(parsed.issues).toEqual([
+        {
+          path: 'items',
+          issue: 'MAXIMUM_STAY_EXCEEDED',
+          maximum: 3,
+          unit: 'days',
+        },
+        { path: 'items', issue: 'BOOKING_TOO_SOON', minimumHours: 6 },
+        { path: 'items', issue: 'BOOKING_TOO_FAR_AHEAD', maximumDays: 0 },
+      ]);
+    });
+  });
+
   test('a message is translated in Armenian and Russian', () => {
     const issue = { issue: 'too_big', type: 'string', maximum: 255 };
     expect(getIssueMessage(i18n.getFixedT('hy'), issue)).toBe(

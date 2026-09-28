@@ -635,6 +635,8 @@ export default function ListingDetailPageContent() {
             onSelectUnit={setSelectedUnitId}
             dateRange={dateRange}
             onChangeDateRange={setDateRange}
+            listingType={listing.listing_type}
+            bookingRules={listing.booking_rules}
           />
         </aside>
       </div>
@@ -649,6 +651,8 @@ export default function ListingDetailPageContent() {
         onSelectUnit={setSelectedUnitId}
         dateRange={dateRange}
         onChangeDateRange={setDateRange}
+        listingType={listing.listing_type}
+        bookingRules={listing.booking_rules}
       />
     </Stack>
   );

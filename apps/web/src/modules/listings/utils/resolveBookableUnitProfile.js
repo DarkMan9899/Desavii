@@ -26,6 +26,7 @@ import {
   getBookableUnitTypeForListingType,
   isSingleUnitListingType,
 } from '../../availability/index.js';
+import { STAY_RULE_UNIT_BY_LISTING_TYPE } from './bookingRuleWindow.js';
 
 const TERMS_BY_CATEGORY_SLUG = {
   hotels: 'hotel',
@@ -47,12 +48,6 @@ const DEFAULT_TERMS_BY_LISTING_TYPE = {
   TOUR: 'tour',
   CAR_RENTAL: 'carRental',
   ATTRACTION: 'attraction',
-};
-
-const STAY_RULES_BY_LISTING_TYPE = {
-  HOTEL: 'nights',
-  PROPERTY: 'nights',
-  CAR_RENTAL: 'days',
 };
 
 const ADVANCE_CONTEXT_BY_LISTING_TYPE = {
@@ -99,7 +94,7 @@ export function resolveBookableUnitProfile({
       TERMS_BY_CATEGORY_SLUG[categorySlug] ??
       DEFAULT_TERMS_BY_LISTING_TYPE[listingType],
     priceBasis: resolveUnitPriceBasis(pricingModel, unitType),
-    stayRules: STAY_RULES_BY_LISTING_TYPE[listingType] ?? null,
+    stayRules: STAY_RULE_UNIT_BY_LISTING_TYPE[listingType] ?? null,
     advanceContext: ADVANCE_CONTEXT_BY_LISTING_TYPE[listingType],
     singleUnit: isSingleUnitListingType(listingType),
   };

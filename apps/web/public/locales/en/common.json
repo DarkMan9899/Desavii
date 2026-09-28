@@ -623,7 +623,20 @@
       "rentalTimesRequired": "Choose both a pickup time and a return time.",
       "returnNotAfterPickup": "The return time must be after the pickup time.",
       "reservationTimeRequired": "Choose a reservation time.",
-      "minExceedsMax": "The minimum can't be greater than the maximum."
+      "minExceedsMax": "The minimum can't be greater than the maximum.",
+      "minimumStayNotMet_one": "The minimum stay is {{count}} night.",
+      "minimumStayNotMet_other": "The minimum stay is {{count}} nights.",
+      "maximumStayExceeded_one": "The maximum stay is {{count}} night.",
+      "maximumStayExceeded_other": "The maximum stay is {{count}} nights.",
+      "minimumRentalDaysNotMet_one": "The minimum rental is {{count}} day.",
+      "minimumRentalDaysNotMet_other": "The minimum rental is {{count}} days.",
+      "maximumRentalDaysExceeded_one": "The maximum rental is {{count}} day.",
+      "maximumRentalDaysExceeded_other": "The maximum rental is {{count}} days.",
+      "bookingTooSoon_one": "This booking must be made at least {{count}} hour in advance.",
+      "bookingTooSoon_other": "This booking must be made at least {{count}} hours in advance.",
+      "bookingTooFarAhead_one": "Bookings are accepted up to {{count}} day ahead.",
+      "bookingTooFarAhead_other": "Bookings are accepted up to {{count}} days ahead.",
+      "bookingTodayOnly": "This listing only accepts bookings for today."
     },
     "codes": {
       "PARTNER_NOT_VERIFIED": "Your company must be verified before it can create listings.",

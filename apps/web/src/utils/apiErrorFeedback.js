@@ -39,7 +39,18 @@ const KIND_BY_STATUS = {
 };
 
 const REQUEST_PARTS = new Set(['body', 'query', 'params']);
-const CONTEXT_KEYS = ['minimum', 'maximum', 'type', 'received', 'validation'];
+const CONTEXT_KEYS = [
+  'minimum',
+  'maximum',
+  'type',
+  'received',
+  'validation',
+  // Step L6.2F: booking-rule metadata (nights vs rental days, lead hours,
+  // horizon days).
+  'unit',
+  'minimumHours',
+  'maximumDays',
+];
 
 /** `body.translations.0.title` -> `translations.0.title`; '' when absent. */
 export function normalizeFieldPath(field) {
@@ -134,8 +145,21 @@ const BOUND_KEYS = {
   too_small: { string: 'tooShort', array: 'tooFewItems', other: 'tooSmall' },
 };
 
+// Step L6.2F — booking-rule issues whose wording depends on their metadata
+// (nights vs rental days; a 0-day horizon means "today only").
+const BOOKING_RULE_KEYS = {
+  MINIMUM_STAY_NOT_MET: ({ unit }) =>
+    unit === 'days' ? 'minimumRentalDaysNotMet' : 'minimumStayNotMet',
+  MAXIMUM_STAY_EXCEEDED: ({ unit }) =>
+    unit === 'days' ? 'maximumRentalDaysExceeded' : 'maximumStayExceeded',
+  BOOKING_TOO_SOON: () => 'bookingTooSoon',
+  BOOKING_TOO_FAR_AHEAD: ({ maximumDays }) =>
+    maximumDays === 0 ? 'bookingTodayOnly' : 'bookingTooFarAhead',
+};
+
 function messageKeyFor(issue) {
   const { issue: code, type, minimum, maximum } = issue;
+  if (BOOKING_RULE_KEYS[code]) return BOOKING_RULE_KEYS[code](issue);
   if (code === 'too_small' && type === 'string' && minimum === 1) {
     return 'required';
   }
@@ -166,9 +190,19 @@ function messageKeyFor(issue) {
 
 /** A translated, Partner-facing message for one parsed issue. */
 export function getIssueMessage(t, issue) {
+  // `count` drives plural forms for the booking-rule messages (the first
+  // numeric bound the issue carries); messages without plural variants
+  // ignore it.
+  const count = [
+    issue.minimum,
+    issue.maximum,
+    issue.minimumHours,
+    issue.maximumDays,
+  ].find((value) => typeof value === 'number');
   return t(`apiErrors.issues.${messageKeyFor(issue)}`, {
     minimum: issue.minimum,
     maximum: issue.maximum,
+    count,
   });
 }
 

@@ -13,6 +13,7 @@ import { useListingBookableUnitsQuery } from '../../../queries/useListingBookabl
 import { useListingCalendarQuery } from '../../../queries/useListingCalendarQuery.js';
 import { useListingDayStatusQuery } from '../../../queries/useListingDayStatusQuery.js';
 import { useCreateBookingHoldMutation } from '../../../../bookings/mutations/useCreateBookingHoldMutation.js';
+import { getBusinessToday } from '../../../../../utils/businessDate.js';
 
 vi.mock('../../../../../contexts/AuthContext.jsx', () => ({
   useAuth: vi.fn(),
@@ -66,7 +67,12 @@ vi.mock('@desavii/ui/components/form-controls', async () => {
   // emits plain YYYY-MM-DD strings" case) — this mock now branches on
   // `mode` to match, but keeps the exact same button label/click shape
   // every existing (range-mode) test in this file already relies on.
-  function MockDatePicker({ mode = 'range', onChange, disabledDates = [] }) {
+  function MockDatePicker({
+    mode = 'range',
+    onChange,
+    disabledDates = [],
+    maxDate = undefined,
+  }) {
     return (
       <>
         <button
@@ -88,6 +94,7 @@ vi.mock('@desavii/ui/components/form-controls', async () => {
           pick same day
         </button>
         <div data-testid="disabled-dates">{disabledDates.join(',')}</div>
+        <div data-testid="max-date">{maxDate ?? ''}</div>
       </>
     );
   }
@@ -95,6 +102,7 @@ vi.mock('@desavii/ui/components/form-controls', async () => {
     mode: PropTypes.string,
     onChange: PropTypes.func.isRequired,
     disabledDates: PropTypes.arrayOf(PropTypes.string),
+    maxDate: PropTypes.string,
   };
   return {
     ...actual,
@@ -769,6 +777,106 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
         expect(mockNavigate).not.toHaveBeenCalled();
       },
     );
+  });
+
+  // Step L6.2F — the listing's public booking rules, applied client-side
+  // with the server's own semantics and translated messages (UX only).
+  describe('booking rules (Step L6.2F)', () => {
+    beforeEach(() => {
+      useCreateBookingHoldMutation.mockReturnValue({
+        mutateAsync: vi.fn(),
+        isPending: false,
+      });
+    });
+
+    test('a stay shorter than the minimum nights is explained and cannot be requested', async () => {
+      useListingBookableUnitsQuery.mockReturnValue({
+        data: SINGLE_UNIT,
+        isPending: false,
+        isError: false,
+      });
+      const user = userEvent.setup();
+      renderWidget({
+        listingType: 'PROPERTY',
+        bookingRules: { minimum_stay_nights: 2 },
+      });
+
+      await user.click(screen.getByRole('button', { name: 'pick dates' }));
+
+      expect(
+        screen.getByText('Նվազագույն մնալու տևողությունը 2 գիշեր է։'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
+      ).toBeDisabled();
+    });
+
+    test('a stay within the rules is requestable', async () => {
+      useListingBookableUnitsQuery.mockReturnValue({
+        data: SINGLE_UNIT,
+        isPending: false,
+        isError: false,
+      });
+      const user = userEvent.setup();
+      renderWidget({
+        listingType: 'PROPERTY',
+        bookingRules: { minimum_stay_nights: 1, maximum_stay_nights: 3 },
+      });
+
+      await user.click(screen.getByRole('button', { name: 'pick dates' }));
+
+      expect(screen.queryByText(/մնալու տևողությունը/)).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
+      ).toBeEnabled();
+    });
+
+    test('a car rental counts inclusive rental days, worded as days', async () => {
+      useListingBookableUnitsQuery.mockReturnValue({
+        data: [{ id: 1, bookable_unit_type: 'VEHICLE', capacity: 1 }],
+        isPending: false,
+        isError: false,
+      });
+      const user = userEvent.setup();
+      renderWidget({
+        listingType: 'CAR_RENTAL',
+        bookingRules: { maximum_stay_nights: 1 },
+      });
+
+      // Aug 1 -> Aug 2 is two rental days.
+      await user.click(screen.getByRole('button', { name: 'pick dates' }));
+
+      expect(
+        screen.getByText('Առավելագույն վարձակալումը 1 օր է։'),
+      ).toBeInTheDocument();
+    });
+
+    test('the picker stops at today + the advance-maximum days (Asia/Yerevan); 0 means today only', () => {
+      useListingBookableUnitsQuery.mockReturnValue({
+        data: SINGLE_UNIT,
+        isPending: false,
+        isError: false,
+      });
+      renderWidget({
+        listingType: 'PROPERTY',
+        bookingRules: { advance_booking_max_days: 0 },
+      });
+
+      expect(screen.getByTestId('max-date')).toHaveTextContent(
+        getBusinessToday(),
+      );
+    });
+
+    test('without an advance-maximum rule the picker has no Partner horizon', () => {
+      useListingBookableUnitsQuery.mockReturnValue({
+        data: SINGLE_UNIT,
+        isPending: false,
+        isError: false,
+      });
+      renderWidget({ listingType: 'PROPERTY', bookingRules: null });
+
+      expect(screen.getByTestId('max-date')).toBeEmptyDOMElement();
+    });
   });
 
   test('a stale-availability conflict (AVAILABILITY_CONFLICT) shows a specific message and refreshes the calendar', async () => {

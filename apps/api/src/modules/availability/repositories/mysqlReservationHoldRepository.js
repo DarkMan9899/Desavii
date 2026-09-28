@@ -87,6 +87,18 @@ export class MySqlReservationHoldRepository {
   }
 
   /**
+   * Step L6.2F — the current DB UTC instant alone (the same
+   * `UTC_TIMESTAMP(3)` source as `readHoldClock`), for checks that need
+   * "now" without creating a hold (booking conversion's past-start check).
+   */
+  async readUtcNow(connection = this.#pool) {
+    const [[row]] = await connection.query(
+      `SELECT LEFT(DATE_FORMAT(UTC_TIMESTAMP(3), '%Y-%m-%d %H:%i:%s.%f'), 23) AS now_utc`,
+    );
+    return new Date(`${row.now_utc.replace(' ', 'T')}Z`);
+  }
+
+  /**
    * Inserts `count` identical rows (one per unit of capacity) in the
    * given range, one `INSERT` at a time within the caller's transaction —
    * safer than relying on multi-row `INSERT`'s auto-increment-continuity

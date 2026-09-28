@@ -80,6 +80,7 @@ import {
   resolveBookingStart,
   isBookingStartInPast,
 } from '../../../core/domain/bookingTimebase.js';
+import { evaluateBookingRules } from '../../../core/domain/bookingRuleEvaluation.js';
 import { resolvePriceForDate } from '../../../core/domain/accommodationPriceResolution.js';
 import { Money } from '../../../core/domain/money.js';
 import {
@@ -1758,6 +1759,23 @@ export class AvailabilityService {
         { field: 'items', issue: 'BOOKING_IN_PAST' },
       ]);
     }
+    // Step L6.2F — the listing's own booking rules (min/max stay or rental
+    // days, advance window), same DB clock, still before any capacity is
+    // touched. `assertBookable`'s listing already carries `bookingRules`.
+    const ruleViolations = evaluateBookingRules({
+      listingTypeCode: listing.listingTypeCode,
+      dateFrom,
+      dateTo,
+      start: bookingStart,
+      rules: listing.bookingRules,
+      now,
+    });
+    if (ruleViolations.length > 0) {
+      throw new ValidationError(
+        "This booking doesn't meet the listing's booking rules.",
+        ruleViolations.map((violation) => ({ field: 'items', ...violation })),
+      );
+    }
 
     const consumedRange = resolveConsumedRange(
       unit.bookableUnitTypeCode,
@@ -1869,6 +1887,11 @@ export class AvailabilityService {
       holdDurationMinutes,
       connection,
     );
+  }
+
+  /** Step L6.2F — the current DB UTC instant (same source as `readReservationClock`). */
+  async readCurrentInstant(connection) {
+    return this.#reservationHoldRepository.readUtcNow(connection);
   }
 
   /**

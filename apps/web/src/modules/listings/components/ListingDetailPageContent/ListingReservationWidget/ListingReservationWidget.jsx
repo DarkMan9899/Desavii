@@ -94,6 +94,10 @@ import { resolveUnitPriceBasis } from '../../../utils/resolveBookableUnitProfile
 import { resolveInitialReservationState } from '../../../utils/reservationSearchContext.js';
 import { isAccommodationUnitType } from '../../../utils/accommodationDateSemantics.js';
 import {
+  evaluateStayRules,
+  latestBookableDate,
+} from '../../../utils/bookingRuleWindow.js';
+import {
   parseApiError,
   getIssueMessage,
 } from '../../../../../utils/apiErrorFeedback.js';
@@ -120,6 +124,10 @@ export default function ListingReservationWidget({
   onSelectUnit = undefined,
   dateRange: controlledDateRange = undefined,
   onChangeDateRange = undefined,
+  // Step L6.2F: the listing's own type and public booking rules — UX only,
+  // the server enforces them authoritatively.
+  listingType = null,
+  bookingRules = null,
 }) {
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
@@ -308,6 +316,24 @@ export default function ListingReservationWidget({
       isAccommodationUnitType(selectedUnit?.bookable_unit_type)) &&
     Boolean(dateRange.start) &&
     dateRange.start === dateRange.end;
+  // Step L6.2F — the Partner's minimum/maximum stay (nights) or rental
+  // (days), same semantics as the server; blocks submit with the same
+  // translated message the server would return. A zero-night range is
+  // already explained above.
+  const stayRuleIssue = isZeroNightStay
+    ? null
+    : evaluateStayRules({
+        listingType,
+        dateFrom: dateRange.start,
+        dateTo: dateRange.end,
+        bookingRules,
+      });
+  // The advance-maximum horizon: the last selectable start date
+  // (Asia/Yerevan calendar days; 0 = today only).
+  const maxBookableDate = latestBookableDate(
+    today,
+    bookingRules?.advance_booking_max_days,
+  );
   const hasValidStayRange = Boolean(
     isAccommodationListing &&
     dateRange.start &&
@@ -504,6 +530,7 @@ export default function ListingReservationWidget({
     rentalInterval.valid &&
     !isStaySoldOut &&
     !isZeroNightStay &&
+    !stayRuleIssue &&
     (!isRestaurantListing || Boolean(reservationTime));
 
   function handleSelectUnit(value) {
@@ -821,6 +848,7 @@ export default function ListingReservationWidget({
       value={dateRange}
       onChange={isAccommodationListing ? handleChangeDateRange : setDateRange}
       minDate={today}
+      maxDate={maxBookableDate}
       disabledDates={disabledDates}
       locale={i18n.language}
       previousMonthLabel={t('partner.listingWizard.datePicker.previousMonth')}
@@ -849,6 +877,7 @@ export default function ListingReservationWidget({
               value={dateRange.start}
               onChange={(date) => handleSelectDate(date)}
               minDate={today}
+              maxDate={maxBookableDate}
               locale={i18n.language}
               previousMonthLabel={t(
                 'partner.listingWizard.datePicker.previousMonth',
@@ -901,6 +930,7 @@ export default function ListingReservationWidget({
                   value={dateRange.start}
                   onChange={(date) => handleSelectDate(date)}
                   minDate={today}
+                  maxDate={maxBookableDate}
                   locale={i18n.language}
                   previousMonthLabel={t(
                     'partner.listingWizard.datePicker.previousMonth',
@@ -1029,6 +1059,11 @@ export default function ListingReservationWidget({
             {t('apiErrors.issues.zeroNightStay')}
           </p>
         )}
+        {stayRuleIssue && (
+          <p role="status" className={styles.staySoldOut}>
+            {getIssueMessage(t, stayRuleIssue)}
+          </p>
+        )}
 
         <Button
           variant="primary"
@@ -1063,4 +1098,11 @@ ListingReservationWidget.propTypes = {
     end: PropTypes.string,
   }),
   onChangeDateRange: PropTypes.func,
+  listingType: PropTypes.string,
+  bookingRules: PropTypes.shape({
+    minimum_stay_nights: PropTypes.number,
+    maximum_stay_nights: PropTypes.number,
+    advance_booking_min_hours: PropTypes.number,
+    advance_booking_max_days: PropTypes.number,
+  }),
 };

@@ -1183,8 +1183,32 @@ Untimed tour/attraction departures stay date-only. `expires_at` is DB UTC
 (`UTC_TIMESTAMP(3)`) plus the configured hold TTL, independent of the API
 host's timezone. Partner inventory writes (manual blocks, external
 reservations, CSV import, connector sync) are not customer holds and are
-not subject to this contract. Partner booking rules (min/max stay, advance
-window) are stored but not yet enforced here.
+not subject to this contract.
+
+**Partner booking rules (Step L6.2F, implemented):** every customer hold is
+also checked against the listing's own `bookingRules` (`listing_booking_rules`),
+on the same DB clock and before any capacity is reserved
+(`core/domain/bookingRuleEvaluation.js`). Each violation is a `422
+VALIDATION_FAILED` detail on `items`; a request with several items is
+rejected whole — nothing is held for any of them.
+
+| Rule | Applies to | Meaning | `issue` (metadata) |
+|---|---|---|---|
+| `minimumStayNights` / `maximumStayNights` | HOTEL, PROPERTY | lodging nights = `dateTo − dateFrom` (checkout excluded) | `MINIMUM_STAY_NOT_MET` (`minimum`, `unit: "nights"`) / `MAXIMUM_STAY_EXCEEDED` (`maximum`, `unit: "nights"`) |
+| same fields | CAR_RENTAL | inclusive rental days = `dateTo − dateFrom + 1`; pickup/return times never change the count | same issues with `unit: "days"` |
+| same fields | RESTAURANT, TOUR, ATTRACTION | ignored, even when a legacy value is stored | — |
+| `advanceBookingMinHours` | every type | the start must be at least N hours after now; the exact boundary is accepted; `0` = no lead time | `BOOKING_TOO_SOON` (`minimumHours`) |
+| `advanceBookingMaxDays` | every type | a calendar-day horizon: the start date must be on or before today (Asia/Yerevan) + N; `0` = today only | `BOOKING_TOO_FAR_AHEAD` (`maximumDays`) |
+
+`null` means no restriction. The start is the pickup time (VEHICLE), the
+reservation time (RESTAURANT_TABLE), the unit's `time_slot_start` (a timed
+TOUR_DEPARTURE), otherwise 00:00 Asia/Yerevan on `dateFrom` (lodging,
+untimed departures/sessions — the free-text `check_in_time` policy is never
+parsed). Partner inventory writes bypass the rules. **An active hold keeps
+the rules it was granted under:** `POST /bookings` never re-checks the
+Partner's rules (a rule edit during the hold's lifetime can't fail its
+checkout); it only refuses a booking whose start has already passed
+(`BOOKING_IN_PAST`), rolling back so the hold stays active.
 
 **Request (POST /booking-holds/{id}/confirm):** `payment_method_id` (or
 `payment_token` for a not-yet-saved method), `coupon_code?`,

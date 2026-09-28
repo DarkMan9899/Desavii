@@ -52,6 +52,10 @@ import {
   isRestaurantUnitType,
 } from '../../../core/domain/rentalIntervalValidation.js';
 import { isValidBookingStatusTransition } from '../../../core/domain/bookingStatusTransitions.js';
+import {
+  resolveBookingStart,
+  isBookingStartInPast,
+} from '../../../core/domain/bookingTimebase.js';
 import { generateBookingReference } from '../../../core/domain/bookingReference.js';
 import {
   CANCELLATION_REFUND_ACTIONS,
@@ -235,7 +239,7 @@ export class BookingService {
    * the estimate a customer sees can never silently diverge from what
    * this method actually charges.
    */
-  async #resolveItem(item, userId, connection, principal) {
+  async #resolveItem(item, userId, connection, principal, now) {
     const holds = await this.#availabilityService.consumeHold(
       { holdIds: item.holdIds, userId },
       connection,
@@ -263,6 +267,24 @@ export class BookingService {
     // just for a single reservation time rather than a pickup/return
     // interval — see `AvailabilityService#reserveCapacity`'s own comment.
     const isRestaurant = isRestaurantUnitType(unit.bookableUnitTypeCode);
+
+    // Step L6.2F — defense in depth, NOT a Partner-rule re-check: an active
+    // hold keeps the booking rules it was granted under, but a booking can
+    // never start in the past (e.g. a same-day reservation whose time passed
+    // while the hold was still alive). Throwing here rolls the transaction
+    // back, so the hold consumed above stays active.
+    const bookingStart = resolveBookingStart({
+      unitTypeCode: unit.bookableUnitTypeCode,
+      dateFrom: firstHold.dateFrom,
+      usesRequestedTime: isVehicle || isRestaurant,
+      requestedStartTime: firstHold.startTime,
+      unitTimeSlotStart: unit.timeSlotStart,
+    });
+    if (isBookingStartInPast(bookingStart, now)) {
+      throw new ValidationError('This booking would start in the past.', [
+        { field: 'items', issue: 'BOOKING_IN_PAST' },
+      ]);
+    }
 
     const quantity = holds.length;
 
@@ -490,6 +512,9 @@ export class BookingService {
     if (!principal) throw new AuthenticationError();
 
     const booking = await withTransaction(async (connection) => {
+      // Step L6.2F: one DB-sourced "now" for this conversion.
+      const now =
+        await this.#availabilityService.readCurrentInstant(connection);
       const resolvedItems = [];
       for (const item of items) {
         // eslint-disable-next-line no-await-in-loop -- each item's holds are consumed sequentially within one transaction.
@@ -498,6 +523,7 @@ export class BookingService {
           principal.userId,
           connection,
           principal,
+          now,
         );
         resolvedItems.push(resolved);
       }
