@@ -205,6 +205,172 @@ describe('one vehicle per Car Rental listing', () => {
   });
 });
 
+/**
+ * Step L6.2C — the one-vehicle check and the insert run under the listing
+ * row's `FOR UPDATE` lock. Deterministic barrier, no sleeps: the test holds
+ * that same row lock on its own connection, starts both requests, waits
+ * until BOTH are blocked on exactly this listing's lock query (the
+ * PROCESSLIST rows of this DB user — both are then genuinely in flight past
+ * every pre-lock read, and neither can finish while the test holds the
+ * row), then releases it and lets them race.
+ */
+describe('one vehicle per Car Rental listing — concurrent registrations (Step L6.2C)', () => {
+  const LOCK_WAIT_TIMEOUT_MS = 15_000;
+
+  async function countActiveUnits(listingId) {
+    const [[{ total }]] = await pool.query(
+      'SELECT COUNT(*) AS total FROM bookable_units WHERE listing_id = ? AND deleted_at IS NULL',
+      [listingId],
+    );
+    return total;
+  }
+
+  async function waitForListingLockWaiters(listingId, expected) {
+    const deadline = Date.now() + LOCK_WAIT_TIMEOUT_MS;
+    for (;;) {
+      // eslint-disable-next-line no-await-in-loop -- polling a DB condition, one probe at a time
+      const [[{ waiting }]] = await pool.query(
+        `SELECT COUNT(*) AS waiting FROM information_schema.PROCESSLIST
+         WHERE INFO LIKE ?`,
+        [`%l.id = ${Number(listingId)} FOR UPDATE%`],
+      );
+      if (waiting >= expected) return;
+      if (Date.now() > deadline) {
+        throw new Error(
+          `Only ${waiting} of ${expected} registrations reached the listing lock.`,
+        );
+      }
+    }
+  }
+
+  // Sends both registrations while the listing row is held, then releases
+  // it once both wait on it; resolves both responses.
+  async function raceRegistrations(listingId, bodies) {
+    const holder = await pool.getConnection();
+    try {
+      await holder.beginTransaction();
+      await holder.query('SELECT id FROM listings WHERE id = ? FOR UPDATE', [
+        listingId,
+      ]);
+      const inFlight = bodies.map((body) =>
+        registerUnit(body).then((res) => res),
+      );
+      await waitForListingLockWaiters(listingId, bodies.length);
+      await holder.commit();
+      return await Promise.all(inFlight);
+    } catch (err) {
+      await holder.rollback();
+      throw err;
+    } finally {
+      holder.release();
+    }
+  }
+
+  test('two different concurrent vehicles: exactly one is created, the other gets the one-vehicle rule, no partial write', async () => {
+    const listingId = await createListing('CAR_RENTAL');
+    const responses = await raceRegistrations(listingId, [
+      {
+        listingId,
+        bookableUnitType: 'VEHICLE',
+        unitLabel: 'Toyota RAV4',
+        capacity: 3,
+      },
+      {
+        listingId,
+        bookableUnitType: 'VEHICLE',
+        unitLabel: 'Kia Sportage',
+        capacity: 2,
+      },
+    ]);
+
+    const created = responses.filter((res) => res.status === 201);
+    const rejected = responses.filter((res) => res.status === 422);
+    expect(created).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(detailsOf(rejected[0])).toEqual([
+      { field: 'bookableUnitType', issue: 'ONE_VEHICLE_PER_LISTING' },
+    ]);
+    expect(await countUnits(listingId)).toBe(1);
+
+    // The surviving vehicle is exactly the accepted request's, unchanged.
+    const [[stored]] = await pool.query(
+      'SELECT id, unit_label, capacity FROM bookable_units WHERE listing_id = ?',
+      [listingId],
+    );
+    expect(stored).toEqual({
+      id: created[0].body.data.id,
+      unit_label: created[0].body.data.unit_label,
+      capacity: created[0].body.data.capacity,
+    });
+  });
+
+  test('two identical concurrent registrations resolve to one vehicle', async () => {
+    const listingId = await createListing('CAR_RENTAL');
+    const body = {
+      listingId,
+      bookableUnitType: 'VEHICLE',
+      unitLabel: 'Hyundai Tucson',
+      capacity: 3,
+    };
+    const [first, second] = await raceRegistrations(listingId, [body, body]);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(second.body.data.id).toBe(first.body.data.id);
+    expect(await countUnits(listingId)).toBe(1);
+  });
+
+  test('a retired vehicle no longer counts: its replacement can be registered', async () => {
+    const listingId = await createListing('CAR_RENTAL');
+    const original = await registerUnit({
+      listingId,
+      bookableUnitType: 'VEHICLE',
+      unitLabel: 'Old model',
+    });
+    const retired = await request(app)
+      .delete(`/api/v1/availability/units/${original.body.data.id}`)
+      .set('Authorization', `Bearer ${vendor}`);
+    expect(retired.status).toBeLessThan(300);
+
+    const replacement = await registerUnit({
+      listingId,
+      bookableUnitType: 'VEHICLE',
+      unitLabel: 'New model',
+      capacity: 2,
+    });
+    expect(replacement.status).toBe(201);
+    expect(await countActiveUnits(listingId)).toBe(1);
+
+    const another = await registerUnit({
+      listingId,
+      bookableUnitType: 'VEHICLE',
+      unitLabel: 'Third model',
+    });
+    expect(another.status).toBe(422);
+    expect(await countActiveUnits(listingId)).toBe(1);
+  });
+
+  test('other listing types keep registering several units concurrently', async () => {
+    const listingId = await createListing('HOTEL');
+    const [standard, deluxe] = await Promise.all([
+      registerUnit({
+        listingId,
+        bookableUnitType: 'HOTEL_ROOM',
+        unitLabel: 'Standard Room',
+      }).then((res) => res),
+      registerUnit({
+        listingId,
+        bookableUnitType: 'HOTEL_ROOM',
+        unitLabel: 'Deluxe Room',
+      }).then((res) => res),
+    ]);
+
+    expect(standard.status).toBe(201);
+    expect(deluxe.status).toBe(201);
+    expect(await countActiveUnits(listingId)).toBe(2);
+  });
+});
+
 describe('type-specific unit fields', () => {
   const FIELD_VALUES = {
     maxGuests: 2,

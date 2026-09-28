@@ -1374,23 +1374,23 @@ export default async function seedDemoListingRichContent(
         en: {
           title: 'Ararat Valley Fleet',
           summary:
-            "A small, well-maintained SUV rental fleet for self-drive trips across Armenia's highways and mountain roads.",
+            "A small fleet of identical Toyota RAV4 SUVs for self-drive trips across Armenia's highways and mountain roads.",
           description:
-            "Ararat Valley Fleet offers a small selection of well-maintained SUVs, each suited to Armenia's mix of highways and unpaved mountain roads. Every vehicle comes with a full tank, comprehensive insurance, and a spare tire, so you can head out to Dilijan, Lake Sevan, or further afield with confidence. Pick-up and drop-off are arranged directly with the fleet manager, and each vehicle is tracked individually, so availability reflects exactly which cars are free on your travel dates.",
+            "Ararat Valley Fleet rents out three identical, well-maintained Toyota RAV4 SUVs, suited to Armenia's mix of highways and unpaved mountain roads. Every car comes with a full tank, comprehensive insurance, and a spare tire, so you can head out to Dilijan, Lake Sevan, or further afield with confidence. Pick-up and drop-off are arranged directly with the fleet manager, and availability shows how many of the three cars are still free on your travel dates.",
         },
         hy: {
           title: 'Արարատյան Հովտի Ավտոպարկ',
           summary:
-            'Փոքր, լավ պահպանված ամենագնացների վարձակալման պարկ Հայաստանի մայրուղիներով և լեռնային ճանապարհներով ինքնուրույն ճամփորդությունների համար։',
+            'Միանման Toyota RAV4 ամենագնացների փոքր պարկ՝ Հայաստանի մայրուղիներով և լեռնային ճանապարհներով ինքնուրույն ճամփորդությունների համար։',
           description:
-            'Արարատյան Հովտի Ավտոպարկը առաջարկում է լավ պահպանված ամենագնացների փոքր ընտրություն, որոնցից յուրաքանչյուրը հարմարեցված է Հայաստանի մայրուղիների և չասֆալտապատված լեռնային ճանապարհների համադրությանը։ Յուրաքանչյուր մեքենա գալիս է լիքը բաքով, համապարփակ ապահովագրությամբ և պահեստային անվադողով, որպեսզի կարողանաք վստահորեն մեկնել Դիլիջան, Սևանա լիճ կամ ավելի հեռու։',
+            'Արարատյան Հովտի Ավտոպարկը վարձով է տալիս երեք միանման, լավ պահպանված Toyota RAV4 ամենագնացներ, որոնք հարմարեցված են Հայաստանի մայրուղիների և չասֆալտապատված լեռնային ճանապարհների համադրությանը։ Յուրաքանչյուր մեքենա գալիս է լիքը բաքով, համապարփակ ապահովագրությամբ և պահեստային անվադողով, որպեսզի կարողանաք վստահորեն մեկնել Դիլիջան, Սևանա լիճ կամ ավելի հեռու։',
         },
         ru: {
           title: 'Автопарк Араратской долины',
           summary:
-            'Небольшой парк ухоженных внедорожников для самостоятельных поездок по шоссе и горным дорогам Армении.',
+            'Небольшой парк одинаковых внедорожников Toyota RAV4 для самостоятельных поездок по шоссе и горным дорогам Армении.',
           description:
-            'Автопарк Араратской долины предлагает небольшой выбор ухоженных внедорожников, каждый из которых подходит для сочетания шоссе и грунтовых горных дорог Армении. Каждый автомобиль поставляется с полным баком, полной страховкой и запасным колесом, чтобы вы могли уверенно отправиться в Дилижан, на озеро Севан или ещё дальше.',
+            'Автопарк Араратской долины сдаёт в аренду три одинаковых ухоженных внедорожника Toyota RAV4, подходящих для шоссе и грунтовых горных дорог Армении. Каждый автомобиль поставляется с полным баком, полной страховкой и запасным колесом, чтобы вы могли уверенно отправиться в Дилижан, на озеро Севан или ещё дальше.',
         },
       },
       attributeValues: [

@@ -37,6 +37,13 @@ const LEDGER_SOURCE_TYPES = Object.freeze({
   ADJUSTMENT: 'ADJUSTMENT',
 });
 
+/**
+ * Step L6.2C — the "Ararat Valley Fleet" demo: three identical cars of one
+ * model, stored as one VEHICLE unit with this capacity. Exported so the
+ * seed's own integration test asserts the same number.
+ */
+export const DEMO_FLEET_CAPACITY = 3;
+
 // Sprint J: exported so `seedDemoSprintJCatalog.js` can reuse the exact
 // same date/bookable-unit/calendar/listing primitives this module already
 // established (CLAUDE.md "never duplicate functionality").
@@ -1272,7 +1279,10 @@ export default async function seedDemoInventoryScenarios(connection) {
     });
   }
 
-  // === 6. Car Rental — "Ararat Valley Fleet" (3 vehicles) =================
+  // === 6. Car Rental — "Ararat Valley Fleet" (one model, fleet of 3) =====
+  // Step L6.2C: a Car Rental listing is ONE vehicle model with ONE VEHICLE
+  // unit whose capacity is the fleet size (the model the API enforces —
+  // `core/domain/listingTypeBookableUnitTypes.js`), never one unit per car.
   const carRentalListingId = await insertListing(connection, {
     ...commonListingFields,
     listingTypeId: listingTypeIds.get('CAR_RENTAL'),
@@ -1281,59 +1291,41 @@ export default async function seedDemoInventoryScenarios(connection) {
     slug: 'demo-vendor-ararat-valley-fleet',
     title: 'Ararat Valley Fleet',
     summary:
-      'A small rental fleet of three SUVs, each tracked as its own bookable unit.',
+      'A small rental fleet of three identical Toyota RAV4 SUVs, booked as one model.',
     description:
-      "Three well-maintained SUVs available for self-drive rental across Armenia's highways and mountain roads. Each vehicle is its own bookable unit with its own plate/date-range availability, so a manager can block or release one vehicle without affecting the others.",
+      "Three identical, well-maintained Toyota RAV4 SUVs available for self-drive rental across Armenia's highways and mountain roads. The fleet is one bookable vehicle model with room for three rentals at once, so a manager can block, or record an outside booking for, one or more cars on a date while the rest stay available.",
     pricingModelId: pricingModelIds.get('PER_DAY'),
     amount: 13500,
     imagePaths: ['/assets/images/demo/car-rentals/car-rentals-1.svg'],
   });
-  const vehicleAId = await insertBookableUnit(connection, {
+  const fleetUnitId = await insertBookableUnit(connection, {
     listingId: carRentalListingId,
     bookableUnitTypeId: unitTypeIds.get('VEHICLE'),
-    capacity: 1,
-    unitLabel: 'Toyota RAV4 (01 AA 123)',
+    capacity: DEMO_FLEET_CAPACITY,
+    unitLabel: 'Toyota RAV4',
     ownerUserId,
   });
-  const vehicleBId = await insertBookableUnit(connection, {
-    listingId: carRentalListingId,
-    bookableUnitTypeId: unitTypeIds.get('VEHICLE'),
-    capacity: 1,
-    unitLabel: 'Hyundai Tucson (02 BB 456)',
-    ownerUserId,
+  await seedCalendarWindow(connection, {
+    unitId: fleetUnitId,
+    capacity: DEMO_FLEET_CAPACITY,
+    from: addDays(now, -2),
+    days: 40,
+    availableStatusId,
   });
-  const vehicleCId = await insertBookableUnit(connection, {
-    listingId: carRentalListingId,
-    bookableUnitTypeId: unitTypeIds.get('VEHICLE'),
-    capacity: 1,
-    unitLabel: 'Nissan X-Trail (03 CC 789)',
-    ownerUserId,
-  });
-  // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order
-  for (const unitId of [vehicleAId, vehicleBId, vehicleCId]) {
-    // eslint-disable-next-line no-await-in-loop -- sequential by design
-    await seedCalendarWindow(connection, {
-      unitId,
-      capacity: 1,
-      from: addDays(now, -2),
-      days: 40,
-      availableStatusId,
-    });
-  }
   const [vehicleReservationResult] = await connection.query(
     `INSERT INTO external_reservations
       (bookable_unit_id, date_from, date_to, quantity, source_code, guest_name, notes, created_by)
      VALUES (?, ?, ?, 1, 'BOOKING_COM', 'OTA reservation', ?, ?)`,
     [
-      vehicleBId,
+      fleetUnitId,
       toSqlDate(addDays(now, 3)),
       toSqlDate(addDays(now, 8)),
-      'Externally booked via Booking.com — flow F baseline (this vehicle is unavailable for these dates; try blocking Nissan X-Trail live to prove the same conflict-prevention path).',
+      'Externally booked via Booking.com — flow F baseline (one of the three cars is out for these dates; two stay rentable).',
       ownerUserId,
     ],
   );
   await decrementCalendar(connection, {
-    unitId: vehicleBId,
+    unitId: fleetUnitId,
     from: addDays(now, 3),
     to: addDays(now, 8),
     amount: 1,
@@ -1363,9 +1355,7 @@ export default async function seedDemoInventoryScenarios(connection) {
       morningWorkshopId,
       eveningWorkshopId,
       guideUnitId,
-      vehicleAId,
-      vehicleBId,
-      vehicleCId,
+      fleetUnitId,
     },
     connections: {
       healthyConnectionId,

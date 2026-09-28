@@ -152,9 +152,11 @@ test.describe
     page,
   }) => {
     await login(page, VENDOR, /\/en\/partner$/);
+    // A multi-room-type hotel, so the scan also covers the resource picker
+    // (a single-unit listing like the Car Rental fleet has none).
     await openPartnerCalendarSelection(page, {
-      listingLabel: 'Ararat Valley Fleet',
-      unitLabel: 'Toyota RAV4 (01 AA 123)',
+      listingLabel: 'Boutique Yerevan Hotel',
+      unitLabel: 'Standard Room',
     });
     const violations = await seriousOrCriticalViolations(page);
     expect(violations, JSON.stringify(violations, null, 2)).toEqual([]);
@@ -164,9 +166,9 @@ test.describe
     page,
   }) => {
     await login(page, VENDOR, /\/en\/partner$/);
+    // Step L6.2C: the fleet is its listing's only unit — no resource picker.
     await openPartnerCalendarSelection(page, {
       listingLabel: 'Ararat Valley Fleet',
-      unitLabel: 'Toyota RAV4 (01 AA 123)',
     });
     await page.getByRole('tab', { name: 'Block dates', exact: true }).click();
     await expect(
@@ -182,7 +184,6 @@ test.describe
     await login(page, VENDOR, /\/en\/partner$/);
     await openPartnerCalendarSelection(page, {
       listingLabel: 'Ararat Valley Fleet',
-      unitLabel: 'Hyundai Tucson (02 BB 456)',
     });
     await page
       .getByRole('tab', { name: 'External reservation', exact: true })
@@ -228,7 +229,6 @@ test.describe
     await login(page, VENDOR, /\/en\/partner$/);
     await openPartnerCalendarSelection(page, {
       listingLabel: 'Ararat Valley Fleet',
-      unitLabel: 'Nissan X-Trail (03 CC 789)',
     });
     await page
       .getByRole('button', { name: 'Import from CSV', exact: true })

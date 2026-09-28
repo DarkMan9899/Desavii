@@ -30,52 +30,16 @@ export class BookableUnitService {
 
   /**
    * Idempotent find-or-create keyed on `(listingId, bookableUnitTypeCode,
-   * sourceTable, sourceId)`.
+   * sourceTable, sourceId)`. Step L6.2C: `connection` runs the lookup and
+   * insert on the caller's transaction (default: the pool, auto-commit).
    */
-  async registerUnit({
-    listingId,
-    bookableUnitTypeCode,
-    capacity = DEFAULT_CAPACITY,
-    sourceTable = DEFAULT_SOURCE_TABLE,
-    sourceId,
-    timeSlotStart,
-    timeSlotEnd,
-    unitLabel,
-    maxGuests,
-    bedConfiguration,
-    basePriceAmount,
-    basePriceCurrencyId,
-    roomSizeSqm,
-    bathroomType,
-    viewType,
-    smokingPolicy,
-    createdBy,
-  }) {
-    const resolvedSourceId = sourceId ?? listingId;
-
-    const bookableUnitTypeId =
-      await this.#bookableUnitRepository.findTypeIdByCode(bookableUnitTypeCode);
-    if (!bookableUnitTypeId) {
-      throw new ValidationError('Unknown bookable unit type.', [
-        { field: 'bookableUnitType', issue: 'UNKNOWN_BOOKABLE_UNIT_TYPE' },
-      ]);
-    }
-
-    const existing = await this.#bookableUnitRepository.findMatching({
+  async registerUnit(
+    {
       listingId,
-      bookableUnitTypeId,
-      sourceTable,
-      sourceId: resolvedSourceId,
-      unitLabel,
-    });
-    if (existing) return existing;
-
-    return this.#bookableUnitRepository.create({
-      listingId,
-      bookableUnitTypeId,
-      sourceTable,
-      sourceId: resolvedSourceId,
-      capacity,
+      bookableUnitTypeCode,
+      capacity = DEFAULT_CAPACITY,
+      sourceTable = DEFAULT_SOURCE_TABLE,
+      sourceId,
       timeSlotStart,
       timeSlotEnd,
       unitLabel,
@@ -88,15 +52,64 @@ export class BookableUnitService {
       viewType,
       smokingPolicy,
       createdBy,
-    });
+    },
+    connection = undefined,
+  ) {
+    const resolvedSourceId = sourceId ?? listingId;
+
+    const bookableUnitTypeId =
+      await this.#bookableUnitRepository.findTypeIdByCode(
+        bookableUnitTypeCode,
+        connection,
+      );
+    if (!bookableUnitTypeId) {
+      throw new ValidationError('Unknown bookable unit type.', [
+        { field: 'bookableUnitType', issue: 'UNKNOWN_BOOKABLE_UNIT_TYPE' },
+      ]);
+    }
+
+    const existing = await this.#bookableUnitRepository.findMatching(
+      {
+        listingId,
+        bookableUnitTypeId,
+        sourceTable,
+        sourceId: resolvedSourceId,
+        unitLabel,
+      },
+      connection,
+    );
+    if (existing) return existing;
+
+    return this.#bookableUnitRepository.create(
+      {
+        listingId,
+        bookableUnitTypeId,
+        sourceTable,
+        sourceId: resolvedSourceId,
+        capacity,
+        timeSlotStart,
+        timeSlotEnd,
+        unitLabel,
+        maxGuests,
+        bedConfiguration,
+        basePriceAmount,
+        basePriceCurrencyId,
+        roomSizeSqm,
+        bathroomType,
+        viewType,
+        smokingPolicy,
+        createdBy,
+      },
+      connection,
+    );
   }
 
   async findById(id) {
     return this.#bookableUnitRepository.findById(id);
   }
 
-  async listUnitsForListing(listingId) {
-    return this.#bookableUnitRepository.listForListing(listingId);
+  async listUnitsForListing(listingId, connection = undefined) {
+    return this.#bookableUnitRepository.listForListing(listingId, connection);
   }
 
   async retireUnit(id, deletedBy) {

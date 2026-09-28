@@ -189,22 +189,35 @@ test.beforeEach(async () => {
 });
 
 /**
- * `packages/ui`'s `Select` is a custom listbox (`role="button"` trigger +
- * a `role="listbox"`/`role="option"` popup), never a native `<select>` —
- * `selectOption()` doesn't apply here at all, and there's no `<option>`
- * DOM to inspect. The reservation widget's unit options are always built
- * from a generic `{{typeLabel}} #{{index}}` template (never the real
- * per-vehicle plate label the Partner Calendar shows), so "Vehicle #1"/
- * "Vehicle #3" are the only strings that can ever match on this
- * customer-facing select — the descriptive name in the pattern is kept
- * only as documentation of which real vehicle that position corresponds
- * to (per the seed's insertion order).
+ * Step L6.2C — a Car Rental listing is one vehicle model with ONE VEHICLE
+ * unit whose capacity is the fleet size (the model the API enforces), so
+ * the demo fleet's cars are inventory on that single unit, never separate
+ * units: flows A/B/F take cars out of it by quantity. Read from the real
+ * public units endpoint (like flow E) rather than assumed, and asserted to
+ * be the canonical shape.
  */
-async function selectUnitByText(page, pattern) {
-  const trigger = page.getByLabel('Unit');
-  if (!(await trigger.isVisible().catch(() => false))) return;
-  await trigger.click();
-  await page.getByRole('option', { name: pattern }).click();
+async function resolveFleetUnit(fleetListingId) {
+  await flushRateLimits();
+  const ctx = await playwrightRequest.newContext({ baseURL: API_BASE });
+  const res = await ctx.get(`availability/${fleetListingId}/units`);
+  const units = (await res.json()).data;
+  await ctx.dispose();
+  expect(units).toHaveLength(1);
+  expect(units[0].bookable_unit_type).toBe('VEHICLE');
+  expect(units[0].capacity).toBeGreaterThan(1);
+  return units[0];
+}
+
+/** The public per-day remaining count for one date of a listing. */
+async function remainingOn(listingId, iso) {
+  await flushRateLimits();
+  const ctx = await playwrightRequest.newContext({ baseURL: API_BASE });
+  const res = await ctx.get(
+    `availability/${listingId}/availability-summary?from=${iso}&to=${iso}`,
+  );
+  const [day] = (await res.json()).data;
+  await ctx.dispose();
+  return day;
 }
 
 async function login(page, { email, password }, expectedUrlPattern) {
@@ -262,23 +275,29 @@ test.describe
   .serial('Phase 17 — Inventory flows A/B: manual block + unblock', () => {
   test.describe.configure({ retries: 1 });
   let fleetListingId;
+  let fleetUnit;
   const iso = futureISOWithinCalendarWindow(90);
 
   test.beforeAll(async () => {
     fleetListingId = await resolveListingId(SLUGS.fleet);
+    fleetUnit = await resolveFleetUnit(fleetListingId);
   });
 
-  test('A — partner blocks a vehicle date and the customer sees it unavailable', async ({
+  test('A — partner blocks the whole fleet on a date and the customer sees it unavailable', async ({
     page,
   }) => {
     await login(page, VENDOR, /\/en\/partner$/);
+    // The fleet is the listing's only unit — the calendar opens on it
+    // directly, with no resource picker.
     await openPartnerCalendarDay(page, {
       listingLabel: 'Ararat Valley Fleet',
-      unitLabel: 'Toyota RAV4 (01 AA 123)',
       iso,
     });
 
     await page.getByRole('tab', { name: 'Block dates', exact: true }).click();
+    // Every car of the fleet: capacity exhaustion is what makes the date
+    // unavailable (one car blocked would leave the rest rentable).
+    await page.getByLabel('Quantity').fill(String(fleetUnit.capacity));
     await page.getByRole('button', { name: 'Block', exact: true }).click();
     await expect(page.getByText('Dates blocked.')).toBeVisible({
       timeout: 10_000,
@@ -305,7 +324,6 @@ test.describe
     const cPage = await customerPage.newPage();
     await login(cPage, CUSTOMER, /\/en\/account$/);
     await gotoListingDetail(cPage, fleetListingId);
-    await selectUnitByText(cPage, /Toyota RAV4|Vehicle #1/);
     await cPage.getByLabel('Dates').click();
     await clickNextMonthUntil(cPage, iso, monthsFromToday(iso));
     const dayCell = cPage.getByRole('gridcell', {
@@ -316,13 +334,12 @@ test.describe
     await customerPage.close();
   });
 
-  test('B — partner unblocks the vehicle and the date becomes available again', async ({
+  test('B — partner unblocks the fleet and the date becomes available again', async ({
     page,
   }) => {
     await login(page, VENDOR, /\/en\/partner$/);
     await openPartnerCalendarDay(page, {
       listingLabel: 'Ararat Valley Fleet',
-      unitLabel: 'Toyota RAV4 (01 AA 123)',
       iso,
     });
 
@@ -352,7 +369,6 @@ test.describe
     const cPage = await customerPage.newPage();
     await login(cPage, CUSTOMER, /\/en\/account$/);
     await gotoListingDetail(cPage, fleetListingId);
-    await selectUnitByText(cPage, /Toyota RAV4|Vehicle #1/);
     await cPage.getByLabel('Dates').click();
     await clickNextMonthUntil(cPage, iso, monthsFromToday(iso));
     const dayCell = cPage.getByRole('gridcell', {
@@ -361,6 +377,10 @@ test.describe
     });
     await dayCell.click();
     await dayCell.click(); // same-day range: start === end
+    // A vehicle rental needs its pickup and return times (Sprint B's
+    // required rental interval) before it can be requested.
+    await cPage.getByLabel('Pickup time').fill('10:00');
+    await cPage.getByLabel('Return time').fill('18:00');
     await cPage.getByRole('button', { name: BOOK_CTA_PATTERN }).click();
     await expect(cPage).toHaveURL(/\/booking\/checkout$/, { timeout: 10_000 });
     await customerPage.close();
@@ -641,27 +661,42 @@ test.describe('Phase 17 — Inventory flow E: tour seat capacity', () => {
 });
 
 test.describe('Phase 17 — Inventory flow F: car-rental conflict', () => {
-  test('an externally booked vehicle cannot be double-booked by a customer', async ({
+  test('externally booked cars are taken out of the fleet, and the last one cannot be double-booked by a customer', async ({
     page,
   }) => {
     const iso = futureISOWithinCalendarWindow(110);
     const fleetListingId = await resolveListingId(SLUGS.fleet);
+    const fleetUnit = await resolveFleetUnit(fleetListingId);
+
+    async function recordExternalReservation(quantity) {
+      await openPartnerCalendarDay(page, {
+        listingLabel: 'Ararat Valley Fleet',
+        iso,
+      });
+      await page
+        .getByRole('tab', { name: 'External reservation', exact: true })
+        .click();
+      await page.getByLabel('Quantity').fill(String(quantity));
+      await page
+        .getByRole('button', { name: 'Record reservation', exact: true })
+        .click();
+      await expect(
+        page.getByText('External reservation recorded.'),
+      ).toBeVisible({ timeout: 10_000 });
+    }
 
     await login(page, VENDOR, /\/en\/partner$/);
-    await openPartnerCalendarDay(page, {
-      listingLabel: 'Ararat Valley Fleet',
-      unitLabel: 'Nissan X-Trail (03 CC 789)',
-      iso,
-    });
-    await page
-      .getByRole('tab', { name: 'External reservation', exact: true })
-      .click();
-    await page
-      .getByRole('button', { name: 'Record reservation', exact: true })
-      .click();
-    await expect(page.getByText('External reservation recorded.')).toBeVisible({
-      timeout: 10_000,
-    });
+    // All but one car booked elsewhere: the fleet still has exactly one left.
+    await recordExternalReservation(fleetUnit.capacity - 1);
+    const partial = await remainingOn(fleetListingId, iso);
+    expect(partial.availability_status).not.toBe('SOLD_OUT');
+    expect(partial.remaining_count).toBe(1);
+
+    // The last car booked elsewhere too: the fleet is exhausted.
+    await recordExternalReservation(1);
+    expect((await remainingOn(fleetListingId, iso)).availability_status).toBe(
+      'SOLD_OUT',
+    );
 
     // Same architectural reason as flow A: `useListingDayStatusQuery`
     // (the Phase 18 fix) treats an external reservation exactly like a
@@ -670,7 +705,6 @@ test.describe('Phase 17 — Inventory flow F: car-rental conflict', () => {
     // customer ever reaches a submit attempt.
     await login(page, CUSTOMER, /\/en\/account$/);
     await gotoListingDetail(page, fleetListingId);
-    await selectUnitByText(page, /Nissan X-Trail|Vehicle #3/);
     await page.getByLabel('Dates').click();
     await clickNextMonthUntil(page, iso, monthsFromToday(iso));
     const dayCell = page.getByRole('gridcell', {
@@ -681,8 +715,8 @@ test.describe('Phase 17 — Inventory flow F: car-rental conflict', () => {
 
     // Root cause of this flow's flakiness (confirmed by live reproduction
     // with network inspection, not a UI/timing race): the external
-    // reservation created above is real, persistent state with capacity
-    // 1 (a single-VIN vehicle) — nothing ever released it. `iso` is
+    // reservations created above are real, persistent state that exhausts
+    // the fleet on that date — nothing ever released them. `iso` is
     // salted by `RUN_SALT_DAYS_NARROW = Date.now() % 20`, only 20
     // possible values, so repeated same-window runs (e.g. iterating on
     // this file locally) land on an already-exhausted date and get a
@@ -696,22 +730,33 @@ test.describe('Phase 17 — Inventory flow F: car-rental conflict', () => {
     await login(page, VENDOR, /\/en\/partner$/);
     await openPartnerCalendarDay(page, {
       listingLabel: 'Ararat Valley Fleet',
-      unitLabel: 'Nissan X-Trail (03 CC 789)',
       iso,
     });
     await page.getByRole('tab', { name: /^External reservations/ }).click();
     const externalRow = page.getByRole('row').filter({ hasText: iso });
     // eslint-disable-next-line no-await-in-loop -- sequential by necessity: each iteration waits for the previous cancel's toast/refetch before re-checking the row count
-    while (await externalRow.count()) {
+    // Two reservations were recorded above (the partial one and the last
+    // car); each cancel is confirmed in its dialog and waited out before
+    // the next, so a row is never cancelled twice.
+    // eslint-disable-next-line no-await-in-loop -- same reason as above
+    for (let remaining = await externalRow.count(); remaining > 0;) {
       // eslint-disable-next-line no-await-in-loop -- same reason as above
       await externalRow
         .first()
         .getByRole('button', { name: 'Cancel', exact: true })
         .click();
       // eslint-disable-next-line no-await-in-loop -- same reason as above
-      await expect(page.getByText('Reservation cancelled.')).toBeVisible({
-        timeout: 10_000,
-      });
+      await page
+        .getByRole('dialog', { name: 'Cancel this external reservation?' })
+        .getByRole('button', { name: 'Cancel', exact: true })
+        .click();
+      // eslint-disable-next-line no-await-in-loop -- same reason as above
+      await expect(
+        page.getByText('Reservation cancelled.').first(),
+      ).toBeVisible({ timeout: 10_000 });
+      remaining -= 1;
+      // eslint-disable-next-line no-await-in-loop -- same reason as above
+      await expect(externalRow).toHaveCount(remaining, { timeout: 10_000 });
     }
   });
 });

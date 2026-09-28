@@ -859,6 +859,24 @@ export class ListingService {
   }
 
   /**
+   * Step L6.2C — row-locks the base `listings` row (`lockById`) for another
+   * module's write that must serialize per listing, e.g. the one-vehicle
+   * rule in `AvailabilityService#registerUnit`. Principal-free: the caller
+   * has already authorized the listing. Only meaningful inside the caller's
+   * `withTransaction`, and must be that transaction's first read so its
+   * later reads see every sibling write committed before the lock was
+   * granted.
+   */
+  async lockListingRow(listingId, connection) {
+    const listing = await this.#listingRepository.lockById(
+      listingId,
+      connection,
+    );
+    if (!listing) throw new NotFoundError('Listing not found.');
+    return listing;
+  }
+
+  /**
    * Step A5 (Partner Analytics Read API) — an internal, principal-free
    * ownership lookup. Deliberately NOT `getListing`: that method's own
    * non-public fallback (`#isOwnerOrHasPermission` against the global

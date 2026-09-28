@@ -1232,7 +1232,7 @@ VALIDATION_FAILED` raised before any write:
 | `details[].field` | `details[].issue` | When |
 |---|---|---|
 | `bookableUnitType` | `UNIT_TYPE_NOT_ALLOWED` | the unit type doesn't match the listing type |
-| `bookableUnitType` | `ONE_VEHICLE_PER_LISTING` | a second, different unit on a Car Rental listing (an identical re-registration still returns the existing unit) |
+| `bookableUnitType` | `ONE_VEHICLE_PER_LISTING` | a second, different active unit on a Car Rental listing (an identical re-registration still returns the existing unit; a retired unit doesn't count, so it can be replaced). Registration is serialized on the listing row, so concurrent requests can never create a second vehicle |
 | the field sent | `NOT_APPLICABLE_FOR_UNIT_TYPE` | a type-specific field the unit type doesn't use |
 | `bookableUnitType` | `ROOM_DETAILS_NOT_APPLICABLE` | adding a description, amenities or a photo to a non-`HOTEL_ROOM` unit (clearing or removing stays allowed) |
 

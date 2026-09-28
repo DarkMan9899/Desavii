@@ -419,44 +419,58 @@ export class AvailabilityService {
       );
     }
     assertUnitFieldsApplicable(input.bookableUnitType, input);
-    // A Car Rental listing is one vehicle model: its single VEHICLE unit
-    // is that model's fleet (capacity), so a second unit is rejected. An
-    // identical re-registration still resolves to the existing unit via
-    // `BookableUnitService#registerUnit`'s idempotent find-or-create.
-    if (isSingleUnitListingType(listing.listingTypeCode)) {
-      const existingUnits = await this.#bookableUnitService.listUnitsForListing(
-        listing.id,
-      );
-      const isSameUnit = (unit) =>
-        unit.bookableUnitTypeCode === input.bookableUnitType &&
-        (unit.unitLabel ?? null) === (input.unitLabel ?? null);
-      if (existingUnits.some((unit) => !isSameUnit(unit))) {
-        throw new ValidationError(
-          'This listing already has its vehicle — edit it instead.',
-          [{ field: 'bookableUnitType', issue: 'ONE_VEHICLE_PER_LISTING' }],
-        );
-      }
-    }
 
     const basePriceCurrencyId = await this.#resolveCurrencyId(
       input.basePriceCurrency,
     );
-    const unit = await this.#bookableUnitService.registerUnit({
-      listingId: listing.id,
-      bookableUnitTypeCode: input.bookableUnitType,
-      capacity: input.capacity,
-      timeSlotStart: input.timeSlotStart,
-      timeSlotEnd: input.timeSlotEnd,
-      unitLabel: input.unitLabel,
-      maxGuests: input.maxGuests,
-      bedConfiguration: input.bedConfiguration,
-      basePriceAmount: input.basePriceAmount,
-      basePriceCurrencyId,
-      roomSizeSqm: input.roomSizeSqm,
-      bathroomType: input.bathroomType,
-      viewType: input.viewType,
-      smokingPolicy: input.smokingPolicy,
-      createdBy: principal.userId,
+    const unit = await withTransaction(async (connection) => {
+      // A Car Rental listing is one vehicle model: its single VEHICLE unit
+      // is that model's fleet (capacity), so a second unit is rejected.
+      // Step L6.2C: the check and the insert run under the listing row's
+      // lock, so concurrent registrations for the same listing serialize
+      // and the later one sees the earlier one's committed unit. An
+      // identical re-registration still resolves to the existing unit via
+      // `BookableUnitService#registerUnit`'s idempotent find-or-create.
+      // Retired (soft-deleted) units aren't active, so a replacement is
+      // allowed once the previous vehicle is retired.
+      if (isSingleUnitListingType(listing.listingTypeCode)) {
+        await this.#listingService.lockListingRow(listing.id, connection);
+        const existingUnits =
+          await this.#bookableUnitService.listUnitsForListing(
+            listing.id,
+            connection,
+          );
+        const isSameUnit = (existing) =>
+          existing.bookableUnitTypeCode === input.bookableUnitType &&
+          (existing.unitLabel ?? null) === (input.unitLabel ?? null);
+        if (existingUnits.some((existing) => !isSameUnit(existing))) {
+          throw new ValidationError(
+            'This listing already has its vehicle — edit it instead.',
+            [{ field: 'bookableUnitType', issue: 'ONE_VEHICLE_PER_LISTING' }],
+          );
+        }
+      }
+
+      return this.#bookableUnitService.registerUnit(
+        {
+          listingId: listing.id,
+          bookableUnitTypeCode: input.bookableUnitType,
+          capacity: input.capacity,
+          timeSlotStart: input.timeSlotStart,
+          timeSlotEnd: input.timeSlotEnd,
+          unitLabel: input.unitLabel,
+          maxGuests: input.maxGuests,
+          bedConfiguration: input.bedConfiguration,
+          basePriceAmount: input.basePriceAmount,
+          basePriceCurrencyId,
+          roomSizeSqm: input.roomSizeSqm,
+          bathroomType: input.bathroomType,
+          viewType: input.viewType,
+          smokingPolicy: input.smokingPolicy,
+          createdBy: principal.userId,
+        },
+        connection,
+      );
     });
     await this.#auditLogger.record({
       actorId: principal.userId,
