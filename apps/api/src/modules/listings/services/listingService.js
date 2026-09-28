@@ -868,7 +868,8 @@ export class ListingService {
    * `bookableUnitId`/`listingId`). Never takes a `principal` — booking
    * eligibility applies uniformly, with no owner/admin exception: nobody
    * can create a NEW booking against an expired listing, including its
-   * own partner.
+   * own partner. Step L6.2H1 adds the one pricing-model rule: a legacy
+   * model its category no longer offers is not bookable either.
    */
   async assertBookable(listingId) {
     const listing = await this.#listingRepository.findById(listingId);
@@ -880,6 +881,21 @@ export class ListingService {
       throw new ConflictError(
         'This listing is no longer accepting new bookings.',
         'LISTING_NOT_BOOKABLE',
+      );
+    }
+    // Step L6.2H1: a legacy pricing model its category no longer offers
+    // (PER_HOUR) cannot be charged correctly — booking would silently bill
+    // it per date x quantity. Refused here, the shared gate for hold
+    // creation (before any capacity is touched) and booking conversion.
+    if (listing.pricing?.isModelSupported === false) {
+      throw new ValidationError(
+        "This listing's pricing basis can't be booked right now.",
+        [
+          {
+            field: 'pricingModel',
+            issue: 'UNSUPPORTED_PRICING_MODEL_FOR_BOOKING',
+          },
+        ],
       );
     }
     return listing;
@@ -1806,6 +1822,15 @@ export class ListingService {
       });
     }
 
+    // Step L6.2H1: never (re)publish a listing customers could not book —
+    // a legacy pricing model must be replaced with a supported one first.
+    if (listing.pricing?.isModelSupported === false) {
+      details.push({
+        field: 'pricing.modelCode',
+        issue: 'UNSUPPORTED_PRICING_MODEL',
+      });
+    }
+
     if (details.length > 0) {
       throw new ValidationError('Listing is not ready to publish.', details);
     }
@@ -2311,6 +2336,13 @@ export class ListingService {
 
     if (!(await this.#hasBookableUnit(listing.id))) {
       required.push('bookableUnits');
+    }
+
+    // Step L6.2H1: mirrors `#checkPublishReadiness` — a stored pricing model
+    // must be one the category still offers.
+    if (listing.pricing) {
+      totalRequiredChecks += 1;
+      if (!listing.pricing.isModelSupported) required.push('pricingModel');
     }
 
     if (listing.highlights.length === 0) recommended.push('highlights');

@@ -90,6 +90,8 @@ async function upsertCategoryPolicy(
 
 // --- Data --------------------------------------------------------------
 
+// PER_HOUR stays a lookup row only because legacy `listing_pricing` rows
+// may still reference it — no category offers it (see below).
 const PRICING_MODELS = [
   { code: 'PER_NIGHT', name: 'Per night' },
   { code: 'PER_PERSON', name: 'Per person' },
@@ -97,19 +99,20 @@ const PRICING_MODELS = [
   { code: 'PER_HOUR', name: 'Per hour' },
 ];
 
+// Step L6.2H1: only models the booking engine can actually charge. PER_HOUR
+// is not offered anywhere — booking has no booked-hour count or hourly
+// inventory, so it would silently charge per date (migration 0051 removed
+// the Tours/Entertainment Venues pairings from existing databases).
 const CATEGORY_PRICING_MODELS = {
   hotels: ['PER_NIGHT'],
   apartments: ['PER_NIGHT'],
   villas: ['PER_NIGHT'],
   'guest-houses': ['PER_NIGHT'],
   restaurants: ['PER_PERSON'],
-  tours: ['PER_PERSON', 'PER_HOUR'],
+  tours: ['PER_PERSON'],
   'car-rentals': ['PER_DAY'],
   attractions: ['PER_PERSON'],
-  // Sprint I: PER_PERSON for admission-style pricing (escape room per
-  // player), PER_HOUR for time-block rentals (a bowling lane, a VR pod)
-  // — both pricing models already exist.
-  'entertainment-venues': ['PER_PERSON', 'PER_HOUR'],
+  'entertainment-venues': ['PER_PERSON'],
 };
 
 const POLICY_DEFINITIONS = [

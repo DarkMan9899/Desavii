@@ -187,9 +187,8 @@ describe('Entertainment Venues taxonomy', () => {
       .map((a) => a.code);
     expect(amenityNames).toEqual(expect.arrayContaining(['Air Conditioning']));
     const pricingModelCodes = res.body.data.pricing_models.map((p) => p.code);
-    expect(pricingModelCodes).toEqual(
-      expect.arrayContaining(['PER_PERSON', 'PER_HOUR']),
-    );
+    // Step L6.2H1: PER_HOUR is no longer offered (not bookable).
+    expect(pricingModelCodes).toEqual(['PER_PERSON']);
   });
 });
 

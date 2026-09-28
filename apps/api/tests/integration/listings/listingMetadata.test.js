@@ -125,8 +125,8 @@ describe('GET /listings/metadata', () => {
       'max_group_size',
       'meeting_point_type',
     ]);
-    expect(res.body.data.pricing_models.map((m) => m.code).sort()).toEqual([
-      'PER_HOUR',
+    // Step L6.2H1: PER_HOUR is no longer offered (not bookable).
+    expect(res.body.data.pricing_models.map((m) => m.code)).toEqual([
       'PER_PERSON',
     ]);
     expect(res.body.data.policies.map((p) => p.code)).toEqual([

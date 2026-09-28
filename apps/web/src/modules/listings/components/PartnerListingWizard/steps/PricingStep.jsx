@@ -14,7 +14,11 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
+import {
+  Alert,
+  Spinner,
+  ErrorState,
+} from '@desavii/ui/components/feedback-overlays';
 import { Input, Select } from '@desavii/ui/components/form-controls';
 import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import useApiFieldErrors from '../../../../../hooks/useApiFieldErrors.js';
@@ -64,6 +68,9 @@ export default function PricingStep({
   // validation error, shown immediately next to the field rather than
   // only surfacing after a backend round-trip.
   const [amountError, setAmountError] = useState(undefined);
+  // Step L6.2H1 — shown when Continue is pressed while a legacy model is
+  // still the stored one (the Partner hasn't picked a supported one yet).
+  const [modelError, setModelError] = useState(undefined);
   const { fieldError, clearFieldError } = useApiFieldErrors(
     updateListingMutation.error,
   );
@@ -83,6 +90,17 @@ export default function PricingStep({
   }
 
   const { pricing_models: pricingModels } = metadata;
+
+  // Step L6.2H1 — a stored model the category no longer offers (legacy
+  // PER_HOUR). It's never silently swapped for a supported one: the select
+  // starts empty and Continue is refused until the Partner knowingly picks
+  // a model, because customers can't book the listing until then.
+  // A category offering no models at all has nothing to switch to, so it
+  // never blocks the step.
+  const isLegacyModel =
+    modelCode !== null &&
+    pricingModels.length > 0 &&
+    !pricingModels.some((model) => model.code === modelCode);
 
   // Step L4 (brief §8, §12-13, §17-18) — mirrors the backend's own
   // `decimalMoneyAmountSchema` exactly (nonnegative, DECIMAL(12,2)
@@ -132,22 +150,30 @@ export default function PricingStep({
   // own — "40 per night" does); once a model is chosen, reuse its own
   // already-translated label to say so directly, rather than a second,
   // separately-maintained copy of the same four basis strings.
-  const amountHelperText = modelCode
-    ? t('partner.listingWizard.pricing.amountHintWithBasis', {
-        basis: t(
-          `partner.listingWizard.pricingModels.${modelCode}`,
-          modelCode,
-        ).toLowerCase(),
-      })
-    : t('partner.listingWizard.pricing.amountHint');
+  const amountHelperText =
+    modelCode && !isLegacyModel
+      ? t('partner.listingWizard.pricing.amountHintWithBasis', {
+          basis: t(
+            `partner.listingWizard.pricingModels.${modelCode}`,
+            modelCode,
+          ).toLowerCase(),
+        })
+      : t('partner.listingWizard.pricing.amountHint');
 
   async function handleContinue() {
     const { value: parsedAmount, error: amountValidationError } =
       validateAmount(amount);
     setAmountError(amountValidationError);
     if (amountValidationError) return;
+    if (isLegacyModel) {
+      setModelError(t('partner.listingWizard.pricing.legacyModelRequired'));
+      return;
+    }
 
+    // A category offering no models has no pricing fields here, so there is
+    // nothing the Partner chose to save.
     if (
+      pricingModels.length > 0 &&
       Boolean(modelCode) &&
       parsedAmount !== undefined &&
       Boolean(currencyCode)
@@ -182,6 +208,19 @@ export default function PricingStep({
           pricingModels.length > 0 ? Object.values(PRICING_API_PATHS) : []
         }
       />
+      {isLegacyModel && (
+        <Alert
+          variant="warning"
+          title={t('partner.listingWizard.pricing.legacyModelTitle', {
+            model: t(
+              `partner.listingWizard.pricingModels.${modelCode}`,
+              modelCode,
+            ),
+          })}
+        >
+          {t('partner.listingWizard.pricing.legacyModelBody')}
+        </Alert>
+      )}
       {pricingModels.length > 0 && (
         <>
           <Select
@@ -194,10 +233,11 @@ export default function PricingStep({
                 model.code,
               ),
             }))}
-            value={modelCode}
-            error={fieldError(PRICING_API_PATHS.modelCode)}
+            value={isLegacyModel ? null : modelCode}
+            error={modelError ?? fieldError(PRICING_API_PATHS.modelCode)}
             onChange={(nextModelCode) => {
               setModelCode(nextModelCode);
+              setModelError(undefined);
               clearFieldError(PRICING_API_PATHS.modelCode);
             }}
           />

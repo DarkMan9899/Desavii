@@ -1210,6 +1210,11 @@ Partner's rules (a rule edit during the hold's lifetime can't fail its
 checkout); it only refuses a booking whose start has already passed
 (`BOOKING_IN_PAST`), rolling back so the hold stays active.
 
+**Unsupported pricing model (Step L6.2H1):** a listing whose stored pricing
+model its category no longer offers (legacy `PER_HOUR`) is refused at hold
+creation and at booking conversion — `422` `pricingModel` /
+`UNSUPPORTED_PRICING_MODEL_FOR_BOOKING`, nothing reserved (§51.1).
+
 **Request (POST /booking-holds/{id}/confirm):** `payment_method_id` (or
 `payment_token` for a not-yet-saved method), `coupon_code?`,
 `wallet_amount?` (Section 8.3).
@@ -1323,6 +1328,38 @@ runs internally to snapshot a price (§7.7) — exposing it as its own
 endpoint lets the frontend show a live price breakdown *before* the
 customer commits to creating a hold, without side effects and without
 consuming inventory.
+
+### 51.1 Pricing models — current implementation (Step L6.2H1)
+
+A listing's pricing model (`listing_pricing.pricing_model_id`) must be one
+its category offers (`category_pricing_models`); `PATCH /listings/{id}` with
+any other `pricing.modelCode` is a `422` `pricing.modelCode` /
+`UNKNOWN_PRICING_MODEL`. Booking charges every model the same way — the
+per-date resolved price summed over the consumed dates, times the quantity —
+so only models that formula actually bills are offered:
+
+| Category | Customer-bookable model | Charge |
+|---|---|---|
+| Hotels, Apartments, Villas, Guest Houses | `PER_NIGHT` | nightly prices over the nights (checkout excluded) × rooms/units |
+| Car Rentals | `PER_DAY` | daily prices over the inclusive rental days × vehicles |
+| Tours, Attractions, Entertainment Venues | `PER_PERSON` | the departure/session date's price × quantity |
+| Restaurants | `PER_PERSON` | displayed as metadata; restaurant charge semantics are still pending (Step L6.2H2) and not fixed yet |
+
+**`PER_HOUR` is not supported for customer booking.** There is no booked-hour
+count and no hourly inventory (capacity is consumed per calendar day), so no
+category offers it (migration `0051`). An existing legacy `PER_HOUR` listing
+is never rewritten: it stays readable, its `pricing.is_model_supported` is
+`false`, and until its Partner knowingly saves a supported model:
+
+| Action | Result |
+|---|---|
+| `POST /booking-holds` / `POST /bookings` | `422` `pricingModel` / `UNSUPPORTED_PRICING_MODEL_FOR_BOOKING`, raised before any capacity, ledger or hold write; a multi-item request is rejected whole |
+| Publish / republish | `422` `pricing.modelCode` / `UNSUPPORTED_PRICING_MODEL`; the completeness check lists `pricingModel` as required |
+| Public listing page | shows booking as unavailable instead of an hourly price |
+
+Listing detail exposes `pricing.is_model_supported`; search, favorites and
+company-profile cards expose `pricing_model`, so cards label their price by
+the listing's own model rather than its category.
 
 ## 52. Coupons
 

@@ -677,6 +677,50 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     },
   );
 
+  // Step L6.2H1: a legacy pricing model the server refuses to book shows a
+  // translated explanation instead of a price or any booking control.
+  test.each([
+    [
+      'hy',
+      'Այս հայտարարության առցանց ամրագրումը հիմա հասանելի չէ․ տանտերը թարմացնում է գնագոյացումը։',
+    ],
+    [
+      'en',
+      "Online booking isn't available for this listing right now — the host is updating its pricing.",
+    ],
+    [
+      'ru',
+      'Онлайн-бронирование этого объявления сейчас недоступно — владелец обновляет цены.',
+    ],
+  ])(
+    'Step L6.2H1: a legacy unsupported pricing model shows booking as unavailable (%s)',
+    async (lng, message) => {
+      useListingBookableUnitsQuery.mockReturnValue({
+        data: MULTI_UNIT_LABELED,
+        isPending: false,
+        isError: false,
+      });
+      await i18n.changeLanguage(lng);
+      try {
+        renderWidget({
+          pricing: {
+            amount: '85000.00',
+            currency: 'AMD',
+            pricing_model: 'PER_HOUR',
+            is_model_supported: false,
+          },
+        });
+
+        expect(screen.getByText(message)).toBeInTheDocument();
+        expect(screen.queryByTestId('select-trigger')).not.toBeInTheDocument();
+        expect(screen.queryByText(/85000/)).not.toBeInTheDocument();
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      } finally {
+        await i18n.changeLanguage('hy');
+      }
+    },
+  );
+
   test('shows an error toast and does not navigate when the hold request fails', async () => {
     const mutateAsync = vi.fn().mockRejectedValue(new Error('conflict'));
     useCreateBookingHoldMutation.mockReturnValue({

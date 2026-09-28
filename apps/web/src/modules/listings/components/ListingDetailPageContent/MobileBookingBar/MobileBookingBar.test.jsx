@@ -122,6 +122,26 @@ describe('MobileBookingBar', () => {
     expect(screen.getByText(NO_UNITS_AVAILABLE)).toBeInTheDocument();
   });
 
+  // Step L6.2H1: a legacy pricing model the server refuses to book.
+  test('a legacy unsupported pricing model shows booking as unavailable, with no price or CTA', () => {
+    renderBar({
+      listingId: 7,
+      pricing: {
+        ...PRICING,
+        pricing_model: 'PER_HOUR',
+        is_model_supported: false,
+      },
+      bookingCtaKey: 'pages.listingDetail.reservation.requestToBook',
+    });
+    expect(
+      screen.getByText(
+        'Այս հայտարարության առցանց ամրագրումը հիմա հասանելի չէ․ տանտերը թարմացնում է գնագոյացումը։',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/120/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
   test('tapping the CTA opens the drawer with the reservation widget for this listing', async () => {
     const user = userEvent.setup();
     renderBar({

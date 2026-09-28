@@ -112,6 +112,10 @@ const DOMAIN_ISSUE_KEYS = {
   UNKNOWN_ATTRIBUTE_CODE: 'notAvailableForCategory',
   UNKNOWN_POLICY_CODE: 'notAvailableForCategory',
   UNKNOWN_PRICING_MODEL: 'notAvailableForCategory',
+  // Step L6.2H1: a legacy pricing model (PER_HOUR) its category no longer
+  // offers — on publish, and on a customer hold/booking.
+  UNSUPPORTED_PRICING_MODEL: 'UNSUPPORTED_PRICING_MODEL',
+  UNSUPPORTED_PRICING_MODEL_FOR_BOOKING: 'unsupportedPricingModelForBooking',
   UNKNOWN_AMENITY: 'notAvailableForCategory',
   UNIT_TYPE_NOT_ALLOWED: 'notAvailableForCategory',
   ONE_VEHICLE_PER_LISTING: 'oneVehiclePerListing',

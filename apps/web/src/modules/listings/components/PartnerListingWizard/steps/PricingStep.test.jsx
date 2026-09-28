@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import i18n from 'i18next';
 import PricingStep from './PricingStep.jsx';
 import { useListingMetadataQuery } from '../../../queries/useListingMetadataQuery.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
@@ -245,5 +246,161 @@ describe('PricingStep (PartnerListingWizard)', () => {
         },
       });
     });
+  });
+});
+
+// Step L6.2H1: a stored pricing model the category no longer offers (legacy
+// PER_HOUR) is flagged, never silently replaced, and blocks Continue until
+// the Partner knowingly picks a supported one.
+describe('PricingStep — legacy unsupported pricing model (Step L6.2H1)', () => {
+  const LEGACY_VALUES = {
+    modelCode: 'PER_HOUR',
+    amount: 8000,
+    currencyCode: 'AMD',
+  };
+  let mutateAsync;
+
+  beforeEach(() => {
+    mutateAsync = vi.fn().mockResolvedValue({ data: {} });
+    useUpdateListingMutation.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+      error: null,
+    });
+    useListingMetadataQuery.mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: { pricing_models: [{ code: 'PER_PERSON' }] },
+    });
+  });
+
+  test('the model select offers only supported models and starts empty for a legacy listing', async () => {
+    const user = userEvent.setup();
+    render(
+      <PricingStep
+        listingId={7}
+        categoryId={3}
+        initialValues={LEGACY_VALUES}
+        onNext={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText('«Ժամվա համար» գնագոյացումն այլևս չի աջակցվում'),
+    ).toBeInTheDocument();
+    const [modelTrigger] = screen.getAllByTestId('select-trigger');
+    expect(modelTrigger).not.toHaveTextContent('Ժամվա համար');
+    await user.click(modelTrigger);
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Մեկ անձի համար',
+    ]);
+  });
+
+  test('Continue is refused, with nothing saved, until a supported model is chosen', async () => {
+    const user = userEvent.setup();
+    const onNext = vi.fn();
+    render(
+      <PricingStep
+        listingId={7}
+        categoryId={3}
+        initialValues={LEGACY_VALUES}
+        onNext={onNext}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+    expect(
+      await screen.findByText(
+        'Շարունակելու համար ընտրեք աջակցվող գնագոյացման մոդել։',
+      ),
+    ).toBeInTheDocument();
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(onNext).not.toHaveBeenCalled();
+
+    const [modelTrigger] = screen.getAllByTestId('select-trigger');
+    await user.click(modelTrigger);
+    await user.click(screen.getByRole('option', { name: 'Մեկ անձի համար' }));
+    expect(
+      screen.queryByText('«Ժամվա համար» գնագոյացումն այլևս չի աջակցվում'),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+    expect(mutateAsync).toHaveBeenCalledWith({
+      id: 7,
+      payload: {
+        pricing: { modelCode: 'PER_PERSON', amount: 8000, currencyCode: 'AMD' },
+      },
+    });
+    expect(onNext).toHaveBeenCalled();
+  });
+
+  test.each([
+    [
+      'en',
+      '"Per hour" pricing is no longer supported',
+      /Customers can't book this listing/,
+    ],
+    [
+      'ru',
+      'Модель «За час» больше не поддерживается',
+      /Клиенты не смогут забронировать/,
+    ],
+    [
+      'hy',
+      '«Ժամվա համար» գնագոյացումն այլևս չի աջակցվում',
+      /Հաճախորդները չեն կարող ամրագրել/,
+    ],
+  ])('the legacy notice is translated in %s', async (lng, title, body) => {
+    await i18n.changeLanguage(lng);
+    try {
+      render(
+        <PricingStep
+          listingId={7}
+          categoryId={3}
+          initialValues={LEGACY_VALUES}
+          onNext={vi.fn()}
+        />,
+      );
+      expect(screen.getByText(title)).toBeInTheDocument();
+      expect(screen.getByText(body)).toBeInTheDocument();
+    } finally {
+      await i18n.changeLanguage('hy');
+    }
+  });
+
+  test('a category offering no models never traps the Partner on this step', async () => {
+    const user = userEvent.setup();
+    const onNext = vi.fn();
+    useListingMetadataQuery.mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: { pricing_models: [] },
+    });
+    render(
+      <PricingStep
+        listingId={7}
+        categoryId={3}
+        initialValues={LEGACY_VALUES}
+        onNext={onNext}
+      />,
+    );
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+    expect(onNext).toHaveBeenCalled();
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  test('a supported stored model shows no legacy notice', () => {
+    render(
+      <PricingStep
+        listingId={7}
+        categoryId={3}
+        initialValues={{ ...LEGACY_VALUES, modelCode: 'PER_PERSON' }}
+        onNext={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });

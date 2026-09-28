@@ -179,7 +179,15 @@ const CARD_METADATA_SELECT = `
          JOIN attribute_definitions ad_dur ON ad_dur.id = lav_dur.attribute_definition_id
          WHERE lav_dur.listing_id = l.id AND ad_dur.code = 'duration_minutes'
          LIMIT 1
-      ) AS duration_minutes_value`;
+      ) AS duration_minutes_value,
+      -- Step L6.2H1: the listing's own pricing model, so a card labels its
+      -- price by the basis booking uses rather than by category. NULL when
+      -- no listing-level pricing row exists (listing_pricing is 1:1).
+      (SELECT pm_card.code
+         FROM listing_pricing lp_card
+         JOIN pricing_models pm_card ON pm_card.id = lp_card.pricing_model_id
+         WHERE lp_card.listing_id = l.id
+      ) AS pricing_model_code`;
 
 function toSearchResultDomain(row) {
   return {
@@ -243,6 +251,7 @@ function toSearchResultDomain(row) {
       row.duration_minutes_value !== null
         ? Number(row.duration_minutes_value)
         : null,
+    pricingModelCode: row.pricing_model_code ?? null,
   };
 }
 

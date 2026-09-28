@@ -51,6 +51,8 @@ export function toSearchResultResponse(result) {
     transmission: result.transmissionCode ?? null,
     bedrooms: result.bedroomsValue ?? null,
     duration_minutes: result.durationMinutesValue ?? null,
+    // Step L6.2H1: the price basis cards label `price_amount` with.
+    pricing_model: result.pricingModelCode ?? null,
     // Step A3.1 (Engagement Analytics): `promotion_id` — the opaque
     // advertisement id `promotion_impression`/`promotion_clicked` need —
     // is present ONLY when `result` genuinely came from

@@ -221,6 +221,15 @@ describe('getIssueMessage', () => {
       { issue: 'ROOM_DETAILS_NOT_APPLICABLE' },
       "This doesn't apply to this kind of unit.",
     ],
+    // Step L6.2H1 — a legacy pricing model (PER_HOUR) on publish and booking.
+    [
+      { issue: 'UNSUPPORTED_PRICING_MODEL' },
+      'This pricing model is no longer supported. Choose a new one in the Pricing step, then publish again.',
+    ],
+    [
+      { issue: 'UNSUPPORTED_PRICING_MODEL_FOR_BOOKING' },
+      "This listing can't be booked online right now — its host is updating how it's priced.",
+    ],
     // Step L6.2E — base customer-hold contract and rule-state issues.
     [
       { issue: 'ZERO_NIGHT_STAY' },

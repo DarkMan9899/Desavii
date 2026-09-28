@@ -88,6 +88,7 @@ import { getBusinessToday } from '../../../../../utils/businessDate.js';
 import {
   resolveBookingCtaLabel,
   resolvePricingModelLabel,
+  isPricingModelBookable,
 } from '../../../utils/reservationLabels.js';
 import { formatBedConfiguration } from '../../../utils/bedConfigurationDisplay.js';
 import { resolveUnitPriceBasis } from '../../../utils/resolveBookableUnitProfile.js';
@@ -723,6 +724,14 @@ export default function ListingReservationWidget({
     }
   }
 
+  if (!isPricingModelBookable(pricing)) {
+    return (
+      <Section spacing="none" className={styles.widget}>
+        <p>{t('pages.listingDetail.reservation.pricingUnavailable')}</p>
+      </Section>
+    );
+  }
+
   if (isUnitsPending) {
     return (
       <Section spacing="none">
@@ -1085,6 +1094,7 @@ ListingReservationWidget.propTypes = {
     amount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     currency: PropTypes.string,
     pricing_model: PropTypes.string,
+    is_model_supported: PropTypes.bool,
   }),
   bookingCtaKey: PropTypes.string,
   location: PropTypes.shape({

@@ -25,6 +25,10 @@ import { up } from '../../../src/infrastructure/database/migrate.js';
 import { seedAll } from '../../../src/infrastructure/database/seeds/index.js';
 import seedDemoSprintJCatalog from '../../../src/infrastructure/database/seeds/demo/seedDemoSprintJCatalog.js';
 import {
+  listSeededPricing,
+  findPriceBasisClaims,
+} from '../helpers/seedPricingModels.js';
+import {
   getMysqlPool,
   closeMysqlPool,
 } from '../../../src/infrastructure/database/mysqlPool.js';
@@ -277,5 +281,43 @@ describe('Sprint J marketplace coverage — 9 public categories x >=3 qualifying
         MINIMUM_QUALIFYING_LISTINGS_PER_CATEGORY,
       );
     }
+  });
+});
+
+// Step L6.2H1 — the Sprint J catalog (which holds every seeded Entertainment
+// Venue) is priced only with models its categories offer: no PER_HOUR, and
+// venue copy states a per-player price, never per hour/session/lane.
+describe('Sprint J pricing models (Step L6.2H1)', () => {
+  const SPRINTJ_SCOPE = 'l.slug LIKE ?';
+  const SPRINTJ_PARAMS = ['sprintj-%'];
+
+  test('no Sprint J listing is PER_HOUR; all three Entertainment Venues are PER_PERSON', async () => {
+    const rows = await listSeededPricing(pool, SPRINTJ_SCOPE, SPRINTJ_PARAMS);
+    const venues = rows.filter(
+      (row) => row.category === 'entertainment-venues',
+    );
+
+    expect(rows.filter((row) => row.model === 'PER_HOUR')).toEqual([]);
+    expect(venues.map((row) => row.model)).toEqual([
+      'PER_PERSON',
+      'PER_PERSON',
+      'PER_PERSON',
+    ]);
+  });
+
+  test("every Sprint J listing's model is one its category offers", async () => {
+    const rows = await listSeededPricing(pool, SPRINTJ_SCOPE, SPRINTJ_PARAMS);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.filter((row) => !row.offered)).toEqual([]);
+  });
+
+  test('Tour and Entertainment Venue copy never claims an hourly, per-session or per-lane price', async () => {
+    const { checked, claims } = await findPriceBasisClaims(
+      pool,
+      SPRINTJ_SCOPE,
+      SPRINTJ_PARAMS,
+    );
+    expect(checked).toBeGreaterThan(0);
+    expect(claims).toEqual([]);
   });
 });

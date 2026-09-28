@@ -37,6 +37,7 @@ import { Drawer } from '@desavii/ui/components/feedback-overlays';
 import {
   resolveBookingCtaLabel,
   resolvePricingModelLabel,
+  isPricingModelBookable,
 } from '../../../utils/reservationLabels.js';
 import ListingReservationWidget from '../ListingReservationWidget/ListingReservationWidget.jsx';
 import Money from '../../../../../components/Money/Money.jsx';
@@ -60,27 +61,38 @@ export default function MobileBookingBar({
 
   const ctaLabel = resolveBookingCtaLabel(t, bookingCtaKey);
   const pricingModelLabel = resolvePricingModelLabel(t, pricing);
+  // Step L6.2H1: a legacy pricing model the server refuses to book shows
+  // why instead of a price, and offers no booking drawer.
+  const isBookable = isPricingModelBookable(pricing);
 
   return (
     <>
       <div className={styles.bar}>
         <div className={styles.priceArea}>
-          {pricing ? (
+          {!isBookable && (
+            <span className={styles.noPricing}>
+              {t('pages.listingDetail.reservation.pricingUnavailable')}
+            </span>
+          )}
+          {isBookable && pricing && (
             <Money
               amountAmd={pricing.amount}
               locale={locale}
               suffix={pricingModelLabel}
               size="md"
             />
-          ) : (
+          )}
+          {isBookable && !pricing && (
             <span className={styles.noPricing}>
               {t('pages.listingDetail.reservation.noUnitsAvailable')}
             </span>
           )}
         </div>
-        <Button variant="primary" onClick={() => setIsOpen(true)}>
-          {ctaLabel}
-        </Button>
+        {isBookable && (
+          <Button variant="primary" onClick={() => setIsOpen(true)}>
+            {ctaLabel}
+          </Button>
+        )}
       </div>
 
       <Drawer
@@ -113,6 +125,7 @@ MobileBookingBar.propTypes = {
     amount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     currency: PropTypes.string,
     pricing_model: PropTypes.string,
+    is_model_supported: PropTypes.bool,
   }),
   bookingCtaKey: PropTypes.string.isRequired,
   location: PropTypes.shape({

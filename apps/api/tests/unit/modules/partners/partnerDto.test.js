@@ -176,6 +176,8 @@ describe('toPartnerListingResponse', () => {
         'price_amount',
         'price_currency_code',
         'price_tier',
+        // Step L6.2H1: the price basis the card labels its price with.
+        'pricing_model',
         'rating_average',
         'review_count',
         'slug',

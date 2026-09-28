@@ -64,6 +64,8 @@ export function toPartnerListingResponse(item) {
     transmission: item.transmissionCode ?? null,
     bedrooms: item.bedroomsValue ?? null,
     duration_minutes: item.durationMinutesValue ?? null,
+    // Step L6.2H1: the price basis cards label `price_amount` with.
+    pricing_model: item.pricingModelCode ?? null,
   };
 }
 

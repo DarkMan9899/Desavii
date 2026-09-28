@@ -161,7 +161,8 @@ const CATEGORIES = [
     listingTypeCode: 'TOUR',
     bookableUnitTypeCode: 'TOUR_DEPARTURE',
     bookingTypeCode: 'TOUR_BOOKING',
-    pricingModelCode: (index) => (index % 2 === 0 ? 'PER_PERSON' : 'PER_HOUR'),
+    // Step L6.2H1: PER_PERSON only — PER_HOUR is not a bookable model.
+    pricingModelCode: () => 'PER_PERSON',
     basePrice: 8000,
     priceStep: 800,
     stayNights: 1,
@@ -497,7 +498,7 @@ export default async function seedDemoMarketplace(connection) {
   const pricingModelIdsByCode = await getIdsByCode(
     connection,
     'pricing_models',
-    ['PER_NIGHT', 'PER_PERSON', 'PER_DAY', 'PER_HOUR'],
+    ['PER_NIGHT', 'PER_PERSON', 'PER_DAY'],
   );
   // Step L6.1: each demo listing's amenities come from its own category's
   // applicability set (`amenity_category_applicability`, seeded by

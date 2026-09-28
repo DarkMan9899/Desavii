@@ -20,6 +20,7 @@
 
 import { Star, BedDouble, Clock, Settings2, Utensils } from 'lucide-react';
 import { resolveCardConfig } from './categoryCardConfig.js';
+import { resolvePricingModelBasis } from './pricingModelBasis.js';
 
 /**
  * One real "headline" metadata fact per category — see
@@ -115,8 +116,15 @@ export function buildCategoryCardMeta(result, t) {
         ]
       : []),
   ];
-  const priceSuffix = cardConfig.priceUnitKey
-    ? t(`search.card.priceUnit.${cardConfig.priceUnitKey}`)
+  // Step L6.2H1: the listing's own pricing model decides the price basis
+  // (the same one its detail page shows); the category default only covers
+  // a row with no listing-level pricing model. A model with no basis
+  // (legacy PER_HOUR) shows the price without one.
+  const priceUnitKey = result.pricing_model
+    ? resolvePricingModelBasis(result.pricing_model)
+    : cardConfig.priceUnitKey;
+  const priceSuffix = priceUnitKey
+    ? t(`search.card.priceUnit.${priceUnitKey}`)
     : null;
 
   return { categoryVisualKey, cardConfig, metaChips, priceSuffix };

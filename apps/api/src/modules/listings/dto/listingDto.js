@@ -65,6 +65,10 @@ function toPricingResponse(pricing) {
     pricing_model: pricing.pricingModelCode,
     amount: pricing.amount,
     currency: pricing.currencyCode,
+    // Step L6.2H1: `false` for a legacy model its category no longer
+    // offers (PER_HOUR) — the listing stays readable, but customer booking
+    // is refused until the Partner re-prices it.
+    is_model_supported: pricing.isModelSupported,
   };
 }
 

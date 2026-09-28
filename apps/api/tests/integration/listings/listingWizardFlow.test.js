@@ -205,6 +205,7 @@ describe('Partner Listing Wizard — full write flow', () => {
       pricing_model: 'PER_NIGHT',
       amount: 150.5,
       currency: 'AMD',
+      is_model_supported: true,
     });
 
     // Unknown pricing model is rejected.

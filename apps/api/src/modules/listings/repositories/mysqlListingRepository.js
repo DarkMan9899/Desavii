@@ -534,9 +534,23 @@ export class MySqlListingRepository extends ListingRepositoryPort {
     return rows.map((row) => ({ code: row.code, value: row.value }));
   }
 
+  /**
+   * Step L6.2H1: `isModelSupported` — whether the listing's category still
+   * offers its stored pricing model (`category_pricing_models`, the same
+   * applicability source every pricing write is validated against). `false`
+   * only for a legacy row whose model has since been withdrawn (PER_HOUR):
+   * still readable, but not bookable or publishable until re-priced.
+   */
   async getPricing(listingId, connection = this.#pool) {
     const [rows] = await connection.query(
-      `SELECT pm.code AS pricing_model_code, p.amount, c.code AS currency_code
+      `SELECT pm.code AS pricing_model_code, p.amount, c.code AS currency_code,
+         EXISTS (
+           SELECT 1 FROM listing_category_listing lcl
+           JOIN category_pricing_models cpm
+             ON cpm.category_id = lcl.category_id
+            AND cpm.pricing_model_id = p.pricing_model_id
+           WHERE lcl.listing_id = p.listing_id
+         ) AS is_model_supported
        FROM listing_pricing p
        JOIN pricing_models pm ON pm.id = p.pricing_model_id
        JOIN currencies c ON c.id = p.currency_id
@@ -548,6 +562,7 @@ export class MySqlListingRepository extends ListingRepositoryPort {
       pricingModelCode: rows[0].pricing_model_code,
       amount: Number(rows[0].amount),
       currencyCode: rows[0].currency_code,
+      isModelSupported: Boolean(rows[0].is_model_supported),
     };
   }
 

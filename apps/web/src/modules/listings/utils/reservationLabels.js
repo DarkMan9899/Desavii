@@ -18,3 +18,14 @@ export function resolvePricingModelLabel(t, pricing) {
     defaultValue: pricing.pricing_model,
   });
 }
+
+/**
+ * Step L6.2H1 — `false` only when the listing's stored pricing model is
+ * one its category no longer offers (legacy PER_HOUR): the server refuses
+ * every hold/booking for it, so no price or booking control is offered.
+ * A listing with no pricing row, or one from before the flag existed, is
+ * not treated as unbookable here.
+ */
+export function isPricingModelBookable(pricing) {
+  return pricing?.is_model_supported !== false;
+}

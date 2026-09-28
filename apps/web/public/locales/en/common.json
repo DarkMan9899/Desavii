@@ -636,7 +636,9 @@
       "bookingTooSoon_other": "This booking must be made at least {{count}} hours in advance.",
       "bookingTooFarAhead_one": "Bookings are accepted up to {{count}} day ahead.",
       "bookingTooFarAhead_other": "Bookings are accepted up to {{count}} days ahead.",
-      "bookingTodayOnly": "This listing only accepts bookings for today."
+      "bookingTodayOnly": "This listing only accepts bookings for today.",
+      "UNSUPPORTED_PRICING_MODEL": "This pricing model is no longer supported. Choose a new one in the Pricing step, then publish again.",
+      "unsupportedPricingModelForBooking": "This listing can't be booked online right now — its host is updating how it's priced."
     },
     "codes": {
       "PARTNER_NOT_VERIFIED": "Your company must be verified before it can create listings.",
@@ -1621,7 +1623,8 @@
           "media.moreImages": "At least 5 photos",
           "faqs": "A frequently asked question",
           "pricing": "A price",
-          "translations.description": "A fuller description (200+ characters)"
+          "translations.description": "A fuller description (200+ characters)",
+          "pricingModel": "A supported pricing model"
         }
       },
       "translationCompleteness": {
@@ -1799,7 +1802,10 @@
         "amountNegative": "Amount cannot be negative.",
         "amountTooLarge": "Amount is too large.",
         "amountPrecision": "Amount can have at most 2 decimal places.",
-        "currency": "Currency"
+        "currency": "Currency",
+        "legacyModelTitle": "\"{{model}}\" pricing is no longer supported",
+        "legacyModelBody": "Customers can't book this listing until you choose a new pricing model and save it. Check that your price still fits the model you choose.",
+        "legacyModelRequired": "Choose a supported pricing model to continue."
       },
       "pricingModels": {
         "PER_NIGHT": "Per night",
@@ -3717,7 +3723,8 @@
         "holdError": "We couldn't hold these dates. Please try again.",
         "availabilityConflict": "These dates are no longer available. Please choose different dates.",
         "staySoldOut": "This room is sold out for the selected dates.",
-        "nightsCount": "{{count}}-night stay"
+        "nightsCount": "{{count}}-night stay",
+        "pricingUnavailable": "Online booking isn't available for this listing right now — the host is updating its pricing."
       },
       "rooms": {
         "heading": "Rooms",

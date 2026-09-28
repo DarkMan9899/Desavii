@@ -11,8 +11,8 @@
  *   Venues both use TOUR_DEPARTURE).
  * - `priceBasis`: what the unit base price is per, from the listing's own
  *   pricing model. `neutral` wherever the label would promise more than
- *   booking actually charges today: PER_HOUR (charged per day) and a
- *   restaurant's PER_PERSON (charged per reservation).
+ *   booking actually charges today: a legacy PER_HOUR (not bookable since
+ *   Step L6.2H1) and a restaurant's PER_PERSON (charged per reservation).
  * - `stayRules`: whether minimum/maximum stay applies, as `nights`
  *   (lodging) or `days` (car rental), or not at all.
  * - `advanceContext`: what the advance-notice rule is "before".
@@ -27,6 +27,7 @@ import {
   isSingleUnitListingType,
 } from '../../availability/index.js';
 import { STAY_RULE_UNIT_BY_LISTING_TYPE } from './bookingRuleWindow.js';
+import { resolvePricingModelBasis } from '../../../utils/pricingModelBasis.js';
 
 const TERMS_BY_CATEGORY_SLUG = {
   hotels: 'hotel',
@@ -64,12 +65,10 @@ const ADVANCE_CONTEXT_BY_LISTING_TYPE = {
  * Also used by the public reservation widget's unit options.
  */
 export function resolveUnitPriceBasis(pricingModel, unitType) {
-  if (pricingModel === 'PER_NIGHT') return 'perNight';
-  if (pricingModel === 'PER_DAY') return 'perDay';
-  if (pricingModel === 'PER_PERSON' && unitType !== 'RESTAURANT_TABLE') {
-    return 'perPerson';
+  if (pricingModel === 'PER_PERSON' && unitType === 'RESTAURANT_TABLE') {
+    return 'neutral';
   }
-  return 'neutral';
+  return resolvePricingModelBasis(pricingModel) ?? 'neutral';
 }
 
 export const bookableUnitProfileShape = PropTypes.shape({

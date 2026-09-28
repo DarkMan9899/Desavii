@@ -1765,6 +1765,8 @@ const LISTINGS = [
   },
 
   // === ENTERTAINMENT VENUES (Yerevan After Hours) =========================
+  // Step L6.2H1: every venue is PER_PERSON (PER_HOUR is not bookable), so
+  // each description states a per-player price, never per room/lane/hour.
   {
     partner: 'entertainment',
     listingType: 'ATTRACTION',
@@ -1780,21 +1782,21 @@ const LISTINGS = [
         summary:
           'Three themed escape rooms in central Yerevan, built for groups of 2–6 players.',
         description:
-          'Labyrinth runs three separate escape rooms — a detective mystery, a heist scenario, and a horror-themed room — each with its own 60-minute session and a live game master watching through the room’s camera feed to give hints if a group gets stuck. Rooms are booked per session rather than per seat, so a group of two pays the same room price as a group of six. The horror room is not recommended for children under 12.',
+          'Labyrinth runs three separate escape rooms — a detective mystery, a heist scenario, and a horror-themed room — each with its own 60-minute session and a live game master watching through the room’s camera feed to give hints if a group gets stuck. The price is per player, so a group books one place for each person taking part. The horror room is not recommended for children under 12.',
       },
       hy: {
         title: 'Լաբիրինթոս Խուսափման Սենյակներ',
         summary:
           'Երեք թեմատիկ խուսափման սենյակներ Երևանի կենտրոնում՝ նախատեսված 2-6 խաղացող ունեցող խմբերի համար։',
         description:
-          'Լաբիրինթոսն ունի երեք առանձին խուսափման սենյակ՝ դետեկտիվ առեղծված, կողոպուտի սցենար և սարսափ-թեմատիկ սենյակ, յուրաքանչյուրն ունի իր 60-րոպեանոց սեսիան և կենդանի խաղավար, ով սենյակի տեսախցիկով հետևում է և հուշումներ է տալիս, եթե խումբը խրվում է։ Սենյակները ամրագրվում են ըստ սեսիայի, ոչ թե տեղի, ուստի երկուսից բաղկացած խումբը վճարում է նույն գինը, ինչ վեցից բաղկացած խումբը։ Սարսափ սենյակը խորհուրդ չի տրվում 12 տարեկանից փոքր երեխաների համար։',
+          'Լաբիրինթոսն ունի երեք առանձին խուսափման սենյակ՝ դետեկտիվ առեղծված, կողոպուտի սցենար և սարսափ-թեմատիկ սենյակ, յուրաքանչյուրն ունի իր 60-րոպեանոց սեսիան և կենդանի խաղավար, ով սենյակի տեսախցիկով հետևում է և հուշումներ է տալիս, եթե խումբը խրվում է։ Գինը նշված է մեկ խաղացողի համար, ուստի խումբը ամրագրում է մեկ տեղ յուրաքանչյուր մասնակցի համար։ Սարսափ սենյակը խորհուրդ չի տրվում 12 տարեկանից փոքր երեխաների համար։',
       },
       ru: {
         title: 'Квест-румы Labyrinth',
         summary:
           'Три тематических квест-рума в центре Еревана для групп от 2 до 6 игроков.',
         description:
-          'Labyrinth предлагает три отдельных квест-рума — детективную тайну, сценарий ограбления и комнату в жанре хоррор — каждый с собственной 60-минутной сессией и живым game-мастером, который следит за группой через камеру и даёт подсказки, если игроки застряли. Комнаты бронируются за сессию, а не за место, поэтому группа из двух человек платит столько же, сколько группа из шести. Комната ужасов не рекомендуется детям младше 12 лет.',
+          'Labyrinth предлагает три отдельных квест-рума — детективную тайну, сценарий ограбления и комнату в жанре хоррор — каждый с собственной 60-минутной сессией и живым game-мастером, который следит за группой через камеру и даёт подсказки, если игроки застряли. Цена указана за одного игрока, поэтому группа бронирует по одному месту на каждого участника. Комната ужасов не рекомендуется детям младше 12 лет.',
       },
     },
     amenities: ['Air Conditioning', 'Parking'],
@@ -1809,35 +1811,35 @@ const LISTINGS = [
     categorySlug: 'entertainment-venues',
     citySlug: 'yerevan',
     slug: 'sprintj-pixeldrift-vr-arena',
-    pricingModel: 'PER_HOUR',
+    pricingModel: 'PER_PERSON',
     amount: 8000,
     images: ['entertainment-venues-3.svg', 'entertainment-venues-4.svg'],
     translations: {
       en: {
         title: 'PixelDrift VR Arena',
         summary:
-          'A free-roam virtual reality arena with wireless headsets, booked by the hour per play area.',
+          'A free-roam virtual reality arena with wireless headsets, priced per player.',
         description:
-          'PixelDrift runs a free-roam VR setup rather than seated-headset booths, meaning players walk around a tracked physical space while the headset renders a matching virtual environment — mostly booked for cooperative shooter and puzzle-adventure titles. One booking covers the full play area for up to 4 players for the hour, not per individual headset. Staff run a mandatory 10-minute safety and controls briefing before every session.',
+          'PixelDrift runs a free-roam VR setup rather than seated-headset booths, meaning players walk around a tracked physical space while the headset renders a matching virtual environment — mostly booked for cooperative shooter and puzzle-adventure titles. A session takes up to 4 players, and the price is per player: book one place for each person playing. Staff run a mandatory 10-minute safety and controls briefing before every session.',
       },
       hy: {
         title: 'ՓիքսելԴրիֆթ VR Ասպարեզ',
         summary:
-          'Ազատ տեղաշարժով վիրտուալ իրականության ասպարեզ անլար սաղավարտներով՝ ամրագրվում է ժամով՝ ըստ խաղային տարածքի։',
+          'Ազատ տեղաշարժով վիրտուալ իրականության ասպարեզ անլար սաղավարտներով՝ գինը նշված է մեկ խաղացողի համար։',
         description:
-          'ՓիքսելԴրիֆթը գործարկում է ազատ տեղաշարժով VR համակարգ՝ նստած-սաղավարտով խցիկների փոխարեն, ինչը նշանակում է, որ խաղացողները քայլում են հետագծվող ֆիզիկական տարածքով, մինչդեռ սաղավարտը ցուցադրում է համապատասխան վիրտուալ միջավայրը, հիմնականում ամրագրվում է համագործակցային հրաձգային և գլուխկոտրուկ-արկածային խաղերի համար։ Մեկ ամրագրումը ծածկում է ամբողջ խաղային տարածքը մինչև 4 խաղացողի համար մեկ ժամով, ոչ թե յուրաքանչյուր սաղավարտի համար առանձին։ Անձնակազմը յուրաքանչյուր սեսիայից առաջ անցկացնում է պարտադիր 10-րոպեանոց անվտանգության և կառավարման հրահանգում։',
+          'ՓիքսելԴրիֆթը գործարկում է ազատ տեղաշարժով VR համակարգ՝ նստած-սաղավարտով խցիկների փոխարեն, ինչը նշանակում է, որ խաղացողները քայլում են հետագծվող ֆիզիկական տարածքով, մինչդեռ սաղավարտը ցուցադրում է համապատասխան վիրտուալ միջավայրը, հիմնականում ամրագրվում է համագործակցային հրաձգային և գլուխկոտրուկ-արկածային խաղերի համար։ Մեկ սեսիային կարող են մասնակցել մինչև 4 խաղացող, իսկ գինը նշված է մեկ խաղացողի համար՝ ամրագրեք մեկ տեղ յուրաքանչյուր խաղացողի համար։ Անձնակազմը յուրաքանչյուր սեսիայից առաջ անցկացնում է պարտադիր 10-րոպեանոց անվտանգության և կառավարման հրահանգում։',
       },
       ru: {
         title: 'VR-арена PixelDrift',
         summary:
-          'VR-арена со свободным перемещением и беспроводными шлемами, бронируется по часам за игровую зону.',
+          'VR-арена со свободным перемещением и беспроводными шлемами, цена указана за одного игрока.',
         description:
-          'PixelDrift использует систему VR со свободным перемещением, а не кабинки с сидячим шлемом: игроки перемещаются по отслеживаемому физическому пространству, пока шлем отображает соответствующую виртуальную среду — чаще всего бронируют для кооперативных шутеров и квестов-приключений. Одно бронирование покрывает всю игровую зону на час для до 4 игроков, а не за отдельный шлем. Перед каждой сессией персонал проводит обязательный 10-минутный инструктаж по безопасности и управлению.',
+          'PixelDrift использует систему VR со свободным перемещением, а не кабинки с сидячим шлемом: игроки перемещаются по отслеживаемому физическому пространству, пока шлем отображает соответствующую виртуальную среду — чаще всего бронируют для кооперативных шутеров и квестов-приключений. В одной сессии могут играть до 4 человек, а цена указана за одного игрока — бронируйте по одному месту на каждого участника. Перед каждой сессией персонал проводит обязательный 10-минутный инструктаж по безопасности и управлению.',
       },
     },
     amenities: ['Air Conditioning', 'Parking'],
     policies: [{ code: 'children_allowed', value: 'true' }],
-    units: [{ type: 'TOUR_DEPARTURE', label: 'VR Play Area', capacity: 4 }],
+    units: [{ type: 'TOUR_DEPARTURE', label: 'VR Session', capacity: 4 }],
   },
   {
     partner: 'entertainment',
@@ -1845,7 +1847,7 @@ const LISTINGS = [
     categorySlug: 'entertainment-venues',
     citySlug: 'gyumri',
     slug: 'sprintj-ararat-lanes-bowling-arcade',
-    pricingModel: 'PER_HOUR',
+    pricingModel: 'PER_PERSON',
     amount: 10000,
     images: ['entertainment-venues-5.svg', 'entertainment-venues-6.svg'],
     translations: {
@@ -1854,26 +1856,26 @@ const LISTINGS = [
         summary:
           'A family bowling alley in Gyumri with six lanes and an attached arcade room.',
         description:
-          'Ararat Lanes has six bowling lanes with bumpers available for younger children, plus an arcade room with racing games and a small prize counter that stays open past the alley’s own closing time. Lanes are booked by the hour rather than per game, which works out cheaper for a group of four or more staying through several games. Bowling shoes are included in the lane price; outside food is not permitted in the lane area.',
+          'Ararat Lanes has six bowling lanes with bumpers available for younger children, plus an arcade room with racing games and a small prize counter that stays open past the alley’s own closing time. The price is per player and covers a bowling session, so a group books one place for each person bowling. Bowling shoes are included in the price; outside food is not permitted in the lane area.',
       },
       hy: {
         title: 'Արարատ Լեյնս Բոուլինգ և Խաղասրահ',
         summary:
           'Ընտանեկան բոուլինգ-ակումբ Գյումրիում՝ վեց ուղիներով և կից խաղասրահով։',
         description:
-          'Արարատ Լեյնսն ունի վեց բոուլինգ ուղի՝ փոքր երեխաների համար հասանելի բամպերներով, ինչպես նաև խաղասրահ՝ մրցարշավային խաղերով և փոքրիկ մրցանակների վաճառակետով, որը բաց է մնում ակումբի փակման ժամից հետո։ Ուղիները ամրագրվում են ժամով, ոչ թե ըստ խաղի, ինչը ավելի էժան է դառնում չորս և ավել հոգանոց խմբի համար, ով մնում է մի քանի խաղի ընթացքում։ Բոուլինգի կոշիկները ներառված են ուղու գնի մեջ. արտաքին սնունդը թույլատրված չէ ուղու տարածքում։',
+          'Արարատ Լեյնսն ունի վեց բոուլինգ ուղի՝ փոքր երեխաների համար հասանելի բամպերներով, ինչպես նաև խաղասրահ՝ մրցարշավային խաղերով և փոքրիկ մրցանակների վաճառակետով, որը բաց է մնում ակումբի փակման ժամից հետո։ Գինը նշված է մեկ խաղացողի համար և ներառում է բոուլինգի սեսիան, ուստի խումբը ամրագրում է մեկ տեղ յուրաքանչյուր խաղացողի համար։ Բոուլինգի կոշիկները ներառված են գնի մեջ. արտաքին սնունդը թույլատրված չէ ուղու տարածքում։',
       },
       ru: {
         title: 'Боулинг и аркада Ararat Lanes',
         summary:
           'Семейный боулинг-клуб в Гюмри с шестью дорожками и залом игровых автоматов.',
         description:
-          'В Ararat Lanes шесть боулинг-дорожек с бортиками для маленьких детей, а также зал игровых автоматов с гоночными играми и небольшой стойкой призов, которая работает позже времени закрытия самого боулинга. Дорожки бронируются по часам, а не за игру, что выгоднее для компании из четырёх и более человек, играющих несколько партий подряд. Обувь для боулинга включена в стоимость дорожки; свою еду проносить в зону дорожек нельзя.',
+          'В Ararat Lanes шесть боулинг-дорожек с бортиками для маленьких детей, а также зал игровых автоматов с гоночными играми и небольшой стойкой призов, которая работает позже времени закрытия самого боулинга. Цена указана за одного игрока и включает сессию боулинга, поэтому компания бронирует по одному месту на каждого игрока. Обувь для боулинга включена в стоимость; свою еду проносить в зону дорожек нельзя.',
       },
     },
     amenities: ['Family Friendly', 'Parking', 'Air Conditioning'],
     policies: [{ code: 'children_allowed', value: 'true' }],
-    units: [{ type: 'TOUR_DEPARTURE', label: 'Lane Booking', capacity: 6 }],
+    units: [{ type: 'TOUR_DEPARTURE', label: 'Bowling Session', capacity: 6 }],
   },
 ];
 
@@ -2291,7 +2293,6 @@ export default async function seedDemoSprintJCatalog(connection) {
   const pricingModelIds = await getIdsByCode(connection, 'pricing_models', [
     'PER_NIGHT',
     'PER_PERSON',
-    'PER_HOUR',
     'PER_DAY',
   ]);
 
