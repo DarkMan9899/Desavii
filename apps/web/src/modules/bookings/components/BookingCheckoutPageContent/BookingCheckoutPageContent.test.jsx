@@ -375,5 +375,37 @@ describe('BookingCheckoutPageContent (apps/web/src/modules/bookings)', () => {
       expect(screen.queryByText('Ստացում')).not.toBeInTheDocument();
       expect(screen.queryByText('Վերադարձ')).not.toBeInTheDocument();
     });
+
+    test('names the unit a vehicle, never a room type', () => {
+      renderPage({ ...RENTAL_HOLD_STATE, bookableUnitType: 'VEHICLE' });
+      expect(screen.getByText('Ավտոմեքենա')).toBeInTheDocument();
+      expect(screen.queryByText(/Սենյակ/)).not.toBeInTheDocument();
+    });
+  });
+
+  // Step L6.2B — the unit row speaks the booked unit's own domain noun, and
+  // only a lodging stay has a Nights row.
+  describe('unit wording and nights (Step L6.2B)', () => {
+    test('a hotel stay shows its room type and its nights', () => {
+      renderPage({
+        ...HOLD_STATE,
+        unitLabel: 'Standard Room',
+        bookableUnitType: 'HOTEL_ROOM',
+      });
+      expect(screen.getByText('Սենյակի տեսակ')).toBeInTheDocument();
+      expect(screen.getByText('Գիշերներ')).toBeInTheDocument();
+    });
+
+    test.each([
+      ['TOUR_DEPARTURE', 'Mount Aragats hike', 'Մեկնում / սեանս'],
+      ['RESTAURANT_TABLE', 'Main hall', 'Սեղան'],
+    ])(
+      'a date-range %s booking never shows a Nights row',
+      (bookableUnitType, unitLabel, noun) => {
+        renderPage({ ...HOLD_STATE, unitLabel, bookableUnitType });
+        expect(screen.getByText(noun)).toBeInTheDocument();
+        expect(screen.queryByText('Գիշերներ')).not.toBeInTheDocument();
+      },
+    );
   });
 });

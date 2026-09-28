@@ -59,6 +59,7 @@ import { BookingStatusBadge } from '../../../bookings/index.js';
 import { formatTimeRange } from '../../../../utils/formatTimeRange.js';
 import { BookingPaymentSection } from '../../../payments/index.js';
 import { computeNights } from '../../../bookings/utils/computeNights.js';
+import { resolveUnitNounKey } from '../../../bookings/utils/resolveUnitNounKey.js';
 
 const DATE_RANGE_LABEL_BY_BOOKING_TYPE = {
   HOTEL_ROOM_BOOKING: 'checkInOut',
@@ -369,7 +370,13 @@ export default function AdminBookingDetailContent() {
                   <div key={item.id}>
                     {item.unit_label && (
                       <p>
-                        {t('bookings.detail.roomType')}: {item.unit_label}
+                        {t(
+                          resolveUnitNounKey(
+                            item.bookable_unit_type,
+                            'bookings.detail.roomType',
+                          ),
+                        )}
+                        : {item.unit_label}
                       </p>
                     )}
                     <p>

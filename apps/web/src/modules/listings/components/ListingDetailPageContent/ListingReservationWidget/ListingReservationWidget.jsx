@@ -90,6 +90,7 @@ import {
   resolvePricingModelLabel,
 } from '../../../utils/reservationLabels.js';
 import { formatBedConfiguration } from '../../../utils/bedConfigurationDisplay.js';
+import { resolveUnitPriceBasis } from '../../../utils/resolveBookableUnitProfile.js';
 import { resolveInitialReservationState } from '../../../utils/reservationSearchContext.js';
 import styles from './ListingReservationWidget.module.scss';
 
@@ -602,6 +603,10 @@ export default function ListingReservationWidget({
           holdBatch: data,
           estimatedTotal,
           unitLabel: resolveUnitDisplayLabel(selectedUnit),
+          // Step L6.2B: lets checkout name the unit in its own domain
+          // noun (Room type / Table / Departure / Vehicle) and show a
+          // Nights row only for lodging.
+          bookableUnitType: selectedUnit?.bookable_unit_type ?? null,
           guestCount,
           // Pass 6: lets checkout's generic order-summary row labels
           // (shared across every vertical) swap in Restaurant-appropriate
@@ -708,7 +713,7 @@ export default function ListingReservationWidget({
   //
   // P2.2E: price and available quantity per option, so a customer can
   // compare units before picking one rather than only after. Both reuse
-  // `BookableUnitsManager.jsx`'s own `basePriceSummary`/`capacitySummary`
+  // `BookableUnitsManager.jsx`'s own `unitPriceSummary`/`capacitySummary`
   // keys verbatim (same field, same audience-neutral wording already
   // shown to partners) — never fabricated: price is shown only when this
   // SPECIFIC unit has its own `base_price_amount` (never the listing-
@@ -722,7 +727,7 @@ export default function ListingReservationWidget({
         : '';
     const priceSuffix =
       unit.base_price_amount !== undefined && unit.base_price_amount !== null
-        ? ` — ${t('partner.listingWizard.availability.basePriceSummary', { amount: unit.base_price_amount, currency: unit.base_price_currency })}`
+        ? ` — ${t(`partner.listingWizard.unitPriceSummary.${resolveUnitPriceBasis(pricing?.pricing_model, unit.bookable_unit_type)}`, { amount: unit.base_price_amount, currency: unit.base_price_currency })}`
         : '';
     const quantitySuffix =
       unit.capacity !== undefined && unit.capacity !== null

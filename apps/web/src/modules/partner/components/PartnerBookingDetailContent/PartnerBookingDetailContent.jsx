@@ -47,6 +47,7 @@ import {
 import { useCreateConversationMutation } from '../../../messaging/index.js';
 import { BookingPaymentSection } from '../../../payments/index.js';
 import { computeNights } from '../../../bookings/utils/computeNights.js';
+import { resolveUnitNounKey } from '../../../bookings/utils/resolveUnitNounKey.js';
 import { formatTimeRange } from '../../../../utils/formatTimeRange.js';
 
 const CANCELLABLE_STATUSES = ['CONFIRMED'];
@@ -293,9 +294,12 @@ export default function PartnerBookingDetailContent({
                     {item.unit_label && (
                       <p>
                         {t(
-                          booking.booking_type === 'RESTAURANT_RESERVATION'
-                            ? 'bookings.detail.tableLabel'
-                            : 'bookings.detail.roomType',
+                          resolveUnitNounKey(
+                            item.bookable_unit_type,
+                            booking.booking_type === 'RESTAURANT_RESERVATION'
+                              ? 'bookings.detail.tableLabel'
+                              : 'bookings.detail.roomType',
+                          ),
                         )}
                         : {item.unit_label}
                       </p>

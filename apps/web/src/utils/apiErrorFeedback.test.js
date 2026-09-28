@@ -206,6 +206,22 @@ describe('getIssueMessage', () => {
       "This isn't available for this listing's category.",
     ],
     [
+      { issue: 'UNIT_TYPE_NOT_ALLOWED' },
+      "This isn't available for this listing's category.",
+    ],
+    [
+      { issue: 'ONE_VEHICLE_PER_LISTING' },
+      'This listing already has its vehicle. A car rental listing describes one vehicle model — edit the existing vehicle instead.',
+    ],
+    [
+      { issue: 'NOT_APPLICABLE_FOR_UNIT_TYPE' },
+      "This doesn't apply to this kind of unit.",
+    ],
+    [
+      { issue: 'ROOM_DETAILS_NOT_APPLICABLE' },
+      "This doesn't apply to this kind of unit.",
+    ],
+    [
       { issue: 'DUPLICATE_OPTION_CODE' },
       'Each option can be selected only once.',
     ],

@@ -40,13 +40,14 @@ async function login(email, password) {
   return { accessToken: res.body.data.access_token };
 }
 
-async function createListing(title) {
+// Step L6.2B: each unit type is registered on its own listing type.
+async function createListing(title, listingType = 'HOTEL') {
   const res = await request(app)
     .post('/api/v1/listings')
     .set('Authorization', `Bearer ${vendor.accessToken}`)
     .send({
       partnerId,
-      listingType: 'HOTEL',
+      listingType,
       translations: [{ languageId, title }],
     });
   return res.body.data.id;
@@ -130,7 +131,10 @@ describe('Accommodation date semantics — HOTEL_ROOM/PROPERTY_UNIT are checkout
   });
 
   test('a manual block spanning check-in to checkout also excludes the checkout day', async () => {
-    const listingId = await createListing(`Nights Block Test ${Date.now()}`);
+    const listingId = await createListing(
+      `Nights Block Test ${Date.now()}`,
+      'PROPERTY',
+    );
     const unitId = await registerUnit(listingId, 'PROPERTY_UNIT', 2);
 
     const blockRes = await request(app)
@@ -220,6 +224,7 @@ describe('Non-accommodation date semantics — unchanged, inclusive-both-ends', 
   test('a VEHICLE hold spanning the same 3-day range occupies all 3 calendar days, including the return day', async () => {
     const listingId = await createListing(
       `Vehicle Duration Test ${Date.now()}`,
+      'CAR_RENTAL',
     );
     const unitId = await registerUnit(listingId, 'VEHICLE', 2);
 
@@ -251,7 +256,10 @@ describe('Non-accommodation date semantics — unchanged, inclusive-both-ends', 
   });
 
   test('a manual block on a TOUR_DEPARTURE unit spanning a date range is unaffected — still inclusive', async () => {
-    const listingId = await createListing(`Tour Duration Test ${Date.now()}`);
+    const listingId = await createListing(
+      `Tour Duration Test ${Date.now()}`,
+      'TOUR',
+    );
     const unitId = await registerUnit(listingId, 'TOUR_DEPARTURE', 4);
 
     const blockRes = await request(app)

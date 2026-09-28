@@ -1883,9 +1883,14 @@ describe('Listing expiry reminder — Step B6', () => {
   });
 
   describe('Category-agnostic across listing types (brief §31)', () => {
-    test.each(['HOTEL', 'RESTAURANT', 'TOUR'])(
+    // Step L6.2B: each listing type registers its own unit type.
+    test.each([
+      ['HOTEL', 'HOTEL_ROOM'],
+      ['RESTAURANT', 'RESTAURANT_TABLE'],
+      ['TOUR', 'TOUR_DEPARTURE'],
+    ])(
       'a %s listing goes through the exact same reminder path as any other type',
-      async (listingType) => {
+      async (listingType, bookableUnitType) => {
         const created = await request(app)
           .post('/api/v1/listings')
           .set('Authorization', `Bearer ${vendor.accessToken}`)
@@ -1919,7 +1924,7 @@ describe('Listing expiry reminder — Step B6', () => {
         await request(app)
           .post('/api/v1/availability/units')
           .set('Authorization', `Bearer ${vendor.accessToken}`)
-          .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
+          .send({ listingId, bookableUnitType });
         const publishRes = await request(app)
           .post(`/api/v1/listings/${listingId}/publish`)
           .set('Authorization', `Bearer ${admin.accessToken}`)

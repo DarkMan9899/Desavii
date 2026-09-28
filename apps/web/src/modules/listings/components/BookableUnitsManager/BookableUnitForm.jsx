@@ -1,26 +1,23 @@
 /**
  * BookableUnitForm — the shared field set for both registering a new
- * bookable unit and editing an existing one (P2.2A). `bookableUnitType`
- * is only shown when creating (`showTypeSelector`) — changing a unit's
- * type post-creation has real booking-history implications, out of
- * scope here (see `bookableUnitService.updateUnit`'s own comment).
+ * bookable unit (`isCreating`) and editing an existing one (P2.2A).
  *
- * `capacity` (inventory quantity — "how many rooms of this type exist")
- * and `maxGuests` (occupancy — "how many guests fit in one room") are
- * deliberately two separate fields, never conflated — the exact
- * distinction the P2.2A audit found `bookable_units.capacity` was
- * missing a counterpart for.
+ * Step L6.2B: the unit type is never a Partner choice — a new unit always
+ * gets the one type its listing type allows (`profile.unitType`, enforced
+ * by the backend too); an existing unit keeps its own stored type (types
+ * are immutable after creation). Which type-specific fields render follows
+ * that type (`unitTypeUsesField`, mirroring the backend's field rules), and
+ * every label speaks the category's own language (`profile.terms`: "Room
+ * type", "Departure", "Vehicle", "Session", …).
  *
- * Sprint 5 (Calendar P0): start/end time — real, optional `TIME` columns
- * (`bookable_units.time_slot_start/end`) already read by the Calendar's
- * Week/Day views to render a genuine hour-axis timeline for a tour/
- * activity departure. `registerUnitSchema` (backend) accepts them at
- * creation; `updateUnitSchema` deliberately does not (a departure's time
- * isn't editable post-creation, mirroring `bookableUnitType`'s own
- * create-only rule) — so, like the type selector, these fields only show
- * when `showTypeSelector` is true. Leaving both blank keeps a unit
- * date-only (a hotel room, a vehicle, a full-day guide) — this is an
- * opt-in field, never a forced one.
+ * `capacity` (inventory — rooms of this type, seats per departure,
+ * vehicles in the fleet, …) and `maxGuests` (lodging occupancy per unit)
+ * are deliberately two separate fields, never conflated.
+ *
+ * Start/end time (`bookable_units.time_slot_start/end`, read by the
+ * Calendar's Week/Day timeline) only exists for a scheduled departure/
+ * session and only at creation — `updateUnitSchema` doesn't accept it.
+ * Leaving both blank keeps the departure/session date-only.
  */
 
 import { useState } from 'react';
@@ -30,29 +27,22 @@ import { Input, Select } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import {
-  BOOKABLE_UNIT_TYPES,
   BED_TYPES,
   BATHROOM_TYPES,
   VIEW_TYPES,
   SMOKING_POLICIES,
   INT_UNSIGNED_MAX,
+  unitTypeUsesField,
+  supportsRoomDetails,
 } from '../../../availability/index.js';
 import { CURRENCY_CODES } from '../../constants/currencies.js';
+import { bookableUnitProfileShape } from '../../utils/resolveBookableUnitProfile.js';
 import RoomDescriptionEditor from './RoomDescriptionEditor.jsx';
 import RoomAmenitiesEditor from './RoomAmenitiesEditor.jsx';
 import RoomMediaGallery from './RoomMediaGallery.jsx';
 import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import apiErrorPropType from '../../../../components/ApiErrorAlert/apiErrorPropType.js';
 import useApiFieldErrors from '../../../../hooks/useApiFieldErrors.js';
-
-// Sprint C-1 §17 — room-specific fields (size/bathroom/view/smoking,
-// description/amenities/photos) are gated to this one unit type. Generic
-// on the schema (any unit type could in principle carry room_size_sqm/
-// bathroom_type/etc., same as maxGuests/bedConfiguration already are) but
-// only ever shown here for a HOTEL_ROOM — a Tour departure or a Car
-// Rental vehicle never sees a bathroom/view/smoking field or a photo
-// gallery upload.
-const HOTEL_ROOM_TYPE = 'HOTEL_ROOM';
 
 // Mirrors `availabilityValidators.js`'s `registerUnitSchema`/
 // `updateUnitSchema` exactly. `capacity` is capped at its `INT UNSIGNED`
@@ -68,11 +58,15 @@ const BED_ROWS_MAX = 12; // availabilityValidators.js: bedConfigurationSchema ar
 const BASE_PRICE_MAX = 9999999999.99; // bookable_units.base_price_amount DECIMAL(12,2)
 const ROOM_SIZE_SQM_MAX = 1000; // availabilityValidators.js: roomSizeSqm.max(1000)
 const UNIT_LABEL_MAX_LENGTH = 120; // availabilityValidators.js: unitLabel.max(120), VARCHAR(120)
+const LODGING_FALLBACK_TERMS = 'apartment';
 
 // Fields that render their own server error inline (bed rows are added
 // per index at render time).
+// `bookableUnitType` is deliberately absent: the type has no field of its
+// own (it's implied by the listing), so a rejection about it — wrong type
+// for this listing, a second vehicle, room details on a non-room unit —
+// must reach the summary alert instead of an input that doesn't exist.
 const INLINE_API_PATHS = [
-  'bookableUnitType',
   'unitLabel',
   'timeSlotStart',
   'timeSlotEnd',
@@ -186,15 +180,16 @@ function emptyBedRow() {
 }
 
 export default function BookableUnitForm({
+  profile,
   initialValues = {},
-  showTypeSelector = false,
+  isCreating = false,
   isSubmitting = false,
   submitLabel,
   onSubmit,
   onCancel = undefined,
   // Sprint C-1: only present when editing an already-created unit — the
   // description/amenities/photo sub-editors need a real unit id, so they
-  // never render while `showTypeSelector` (creating) is true.
+  // never render while creating.
   unitId = null,
   listingId = null,
   categoryId = null,
@@ -206,9 +201,23 @@ export default function BookableUnitForm({
   serverError = null,
 }) {
   const { t } = useTranslation();
-  const [bookableUnitType, setBookableUnitType] = useState(
-    initialValues.bookableUnitType ?? BOOKABLE_UNIT_TYPES[0],
-  );
+  // A new unit gets its listing type's one unit type; an existing unit
+  // keeps its own stored (immutable) type.
+  const bookableUnitType = isCreating
+    ? profile.unitType
+    : (initialValues.bookableUnitType ?? profile.unitType);
+  // Only lodging term sets name guests; a legacy lodging unit on another
+  // listing type borrows the generic "per unit" wording.
+  const terms = (key) =>
+    t(`partner.listingWizard.unitTerms.${profile.terms}.${key}`, {
+      defaultValue: t(
+        `partner.listingWizard.unitTerms.${LODGING_FALLBACK_TERMS}.${key}`,
+      ),
+    });
+  const usesMaxGuests = unitTypeUsesField(bookableUnitType, 'maxGuests');
+  const usesBeds = unitTypeUsesField(bookableUnitType, 'bedConfiguration');
+  const usesTimeSlot =
+    isCreating && unitTypeUsesField(bookableUnitType, 'timeSlotStart');
   const [unitLabel, setUnitLabel] = useState(initialValues.unitLabel ?? '');
   const [timeSlotStart, setTimeSlotStart] = useState(
     initialValues.timeSlotStart ?? '',
@@ -258,7 +267,8 @@ export default function BookableUnitForm({
     initialValues.smokingPolicy ?? null,
   );
 
-  const isHotelRoom = bookableUnitType === HOTEL_ROOM_TYPE;
+  const usesRoomFields = unitTypeUsesField(bookableUnitType, 'roomSizeSqm');
+  const hasRoomDetails = supportsRoomDetails(bookableUnitType);
 
   function addBedRow() {
     setBedRows((rows) =>
@@ -297,25 +307,31 @@ export default function BookableUnitForm({
   // value into something else. Blocks the write entirely (no partial
   // submission) when any field is invalid.
   function handleSubmit() {
+    const notUsed = { value: undefined, error: undefined };
     const capacityResult = validateCapacity(capacity, t);
-    const maxGuestsResult = validateMaxGuests(maxGuests, t);
+    // Step L6.2B: a field this unit type doesn't use is neither rendered,
+    // validated nor sent (the backend rejects it) — a hidden value must
+    // never block saving.
+    const maxGuestsResult = usesMaxGuests
+      ? validateMaxGuests(maxGuests, t)
+      : notUsed;
     const basePriceResult = validatePositiveTwoDecimal(
       basePriceAmount,
       BASE_PRICE_MAX,
       BASE_PRICE_MESSAGES,
       t,
     );
-    // Only a HOTEL_ROOM ever renders/sends roomSizeSqm — a hidden value
-    // must never block saving any other unit type.
-    const roomSizeResult = isHotelRoom
+    const roomSizeResult = usesRoomFields
       ? validatePositiveTwoDecimal(
           roomSizeSqm,
           ROOM_SIZE_SQM_MAX,
           ROOM_SIZE_MESSAGES,
           t,
         )
-      : { value: undefined, error: undefined };
-    const bedRowResults = bedRows.map((row) => validateBedCount(row.count, t));
+      : notUsed;
+    const bedRowResults = usesBeds
+      ? bedRows.map((row) => validateBedCount(row.count, t))
+      : [];
 
     const nextFieldErrors = {
       capacity: capacityResult.error,
@@ -334,8 +350,8 @@ export default function BookableUnitForm({
     if (hasErrors) return;
 
     onSubmit({
-      ...(showTypeSelector ? { bookableUnitType } : {}),
-      ...(showTypeSelector
+      ...(isCreating ? { bookableUnitType } : {}),
+      ...(usesTimeSlot
         ? {
             timeSlotStart: timeSlotStart === '' ? undefined : timeSlotStart,
             timeSlotEnd: timeSlotEnd === '' ? undefined : timeSlotEnd,
@@ -345,7 +361,7 @@ export default function BookableUnitForm({
       capacity: capacityResult.value,
       maxGuests: maxGuestsResult.value,
       bedConfiguration:
-        bedRows.length > 0
+        usesBeds && bedRows.length > 0
           ? bedRows.map((row, i) => ({
               type: row.type,
               count: bedRowResults[i].value,
@@ -353,7 +369,7 @@ export default function BookableUnitForm({
           : undefined,
       basePriceAmount: basePriceResult.value,
       basePriceCurrency: basePriceAmount === '' ? undefined : basePriceCurrency,
-      ...(isHotelRoom
+      ...(usesRoomFields
         ? {
             roomSizeSqm: roomSizeResult.value,
             bathroomType: bathroomType ?? undefined,
@@ -375,30 +391,12 @@ export default function BookableUnitForm({
 
   return (
     <Stack gap="4">
-      {showTypeSelector && (
-        <Select
-          label={t('partner.listingWizard.availability.unitType')}
-          placeholder={t('partner.listingWizard.selectPlaceholder')}
-          options={BOOKABLE_UNIT_TYPES.map((code) => ({
-            value: code,
-            label: t(`partner.listingWizard.bookableUnitTypes.${code}`, code),
-          }))}
-          value={bookableUnitType}
-          error={fieldError('bookableUnitType')}
-          onChange={(value) => {
-            setBookableUnitType(value);
-            clearFieldError('bookableUnitType');
-          }}
-        />
-      )}
-      {isHotelRoom && (
+      {usesRoomFields && (
         <p>{t('partner.listingWizard.availability.roomBasicsHeading')}</p>
       )}
       <Input
         label={t('partner.listingWizard.availability.unitLabel')}
-        placeholder={t(
-          'partner.listingWizard.availability.unitLabelPlaceholder',
-        )}
+        placeholder={terms('labelPlaceholder')}
         value={unitLabel}
         maxLength={UNIT_LABEL_MAX_LENGTH}
         error={fieldError('unitLabel')}
@@ -407,7 +405,7 @@ export default function BookableUnitForm({
           clearFieldError('unitLabel');
         }}
       />
-      {showTypeSelector && (
+      {usesTimeSlot && (
         <Inline gap="4" wrap align="flex-end">
           <Input
             type="time"
@@ -436,7 +434,7 @@ export default function BookableUnitForm({
           />
         </Inline>
       )}
-      {showTypeSelector && timeSlotIncomplete && (
+      {usesTimeSlot && timeSlotIncomplete && (
         <p>{t('partner.listingWizard.availability.timeSlotIncomplete')}</p>
       )}
       <Inline gap="4" wrap>
@@ -445,8 +443,8 @@ export default function BookableUnitForm({
           min={1}
           max={INT_UNSIGNED_MAX}
           step={1}
-          label={t('partner.listingWizard.availability.capacity')}
-          helperText={t('partner.listingWizard.availability.capacityHint')}
+          label={terms('capacity')}
+          helperText={terms('capacityHint')}
           value={capacity}
           error={fieldErrors.capacity ?? fieldError('capacity')}
           onChange={(event) => {
@@ -455,22 +453,27 @@ export default function BookableUnitForm({
             setFieldErrors((current) => ({ ...current, capacity: undefined }));
           }}
         />
-        <Input
-          type="number"
-          min={1}
-          max={MAX_GUESTS_MAX}
-          step={1}
-          label={t('partner.listingWizard.availability.maxGuests')}
-          helperText={t('partner.listingWizard.availability.maxGuestsHint')}
-          value={maxGuests}
-          error={fieldErrors.maxGuests ?? fieldError('maxGuests')}
-          onChange={(event) => {
-            setMaxGuests(event.target.value);
-            clearFieldError('maxGuests');
-            setFieldErrors((current) => ({ ...current, maxGuests: undefined }));
-          }}
-        />
-        {isHotelRoom && (
+        {usesMaxGuests && (
+          <Input
+            type="number"
+            min={1}
+            max={MAX_GUESTS_MAX}
+            step={1}
+            label={terms('maxGuests')}
+            helperText={terms('maxGuestsHint')}
+            value={maxGuests}
+            error={fieldErrors.maxGuests ?? fieldError('maxGuests')}
+            onChange={(event) => {
+              setMaxGuests(event.target.value);
+              clearFieldError('maxGuests');
+              setFieldErrors((current) => ({
+                ...current,
+                maxGuests: undefined,
+              }));
+            }}
+          />
+        )}
+        {usesRoomFields && (
           <Input
             type="number"
             label={t('partner.listingWizard.availability.roomSizeSqm')}
@@ -492,59 +495,61 @@ export default function BookableUnitForm({
         )}
       </Inline>
 
-      {isHotelRoom && (
+      {usesRoomFields && (
         <p>{t('partner.listingWizard.availability.roomSleepingHeading')}</p>
       )}
-      <Stack gap="2">
-        <p>{t('partner.listingWizard.availability.bedConfiguration')}</p>
-        {bedRows.map((row, index) => (
-          // eslint-disable-next-line react/no-array-index-key -- rows have no stable identity of their own until saved
-          <Inline key={index} gap="2" align="flex-end">
-            <Select
-              label={t('partner.listingWizard.availability.bedType')}
-              options={BED_TYPES.map((code) => ({
-                value: code,
-                label: t(`partner.listingWizard.bedTypes.${code}`, code),
-              }))}
-              value={row.type}
-              error={fieldError(`bedConfiguration.${index}.type`)}
-              onChange={(value) => updateBedRow(index, { type: value })}
-            />
-            <Input
-              type="number"
-              min={1}
-              max={BED_COUNT_MAX}
-              step={1}
-              label={t('partner.listingWizard.availability.bedCount')}
-              value={row.count}
-              error={
-                bedRowErrors[index] ??
-                fieldError(`bedConfiguration.${index}.count`)
-              }
-              onChange={(event) =>
-                updateBedRow(index, { count: event.target.value })
-              }
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => removeBedRow(index)}
-            >
-              {t('partner.listingWizard.availability.removeBed')}
-            </Button>
-          </Inline>
-        ))}
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={bedRows.length >= BED_ROWS_MAX}
-          onClick={() => addBedRow()}
-        >
-          {t('partner.listingWizard.availability.addBed')}
-        </Button>
-      </Stack>
+      {usesBeds && (
+        <Stack gap="2">
+          <p>{t('partner.listingWizard.availability.bedConfiguration')}</p>
+          {bedRows.map((row, index) => (
+            // eslint-disable-next-line react/no-array-index-key -- rows have no stable identity of their own until saved
+            <Inline key={index} gap="2" align="flex-end">
+              <Select
+                label={t('partner.listingWizard.availability.bedType')}
+                options={BED_TYPES.map((code) => ({
+                  value: code,
+                  label: t(`partner.listingWizard.bedTypes.${code}`, code),
+                }))}
+                value={row.type}
+                error={fieldError(`bedConfiguration.${index}.type`)}
+                onChange={(value) => updateBedRow(index, { type: value })}
+              />
+              <Input
+                type="number"
+                min={1}
+                max={BED_COUNT_MAX}
+                step={1}
+                label={t('partner.listingWizard.availability.bedCount')}
+                value={row.count}
+                error={
+                  bedRowErrors[index] ??
+                  fieldError(`bedConfiguration.${index}.count`)
+                }
+                onChange={(event) =>
+                  updateBedRow(index, { count: event.target.value })
+                }
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => removeBedRow(index)}
+              >
+                {t('partner.listingWizard.availability.removeBed')}
+              </Button>
+            </Inline>
+          ))}
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={bedRows.length >= BED_ROWS_MAX}
+            onClick={() => addBedRow()}
+          >
+            {t('partner.listingWizard.availability.addBed')}
+          </Button>
+        </Stack>
+      )}
 
-      {isHotelRoom && (
+      {usesRoomFields && (
         <Stack gap="3">
           <p>{t('partner.listingWizard.availability.roomFeaturesHeading')}</p>
           <Inline gap="4" wrap>
@@ -594,7 +599,7 @@ export default function BookableUnitForm({
         </Stack>
       )}
 
-      {isHotelRoom && (
+      {usesRoomFields && (
         <p>{t('partner.listingWizard.availability.roomPricingHeading')}</p>
       )}
       <Inline gap="4" wrap>
@@ -602,7 +607,10 @@ export default function BookableUnitForm({
           type="number"
           min={0.01}
           step={0.01}
-          label={t('partner.listingWizard.availability.basePriceAmount')}
+          // Step L6.2B: the basis follows the listing's own pricing model,
+          // and stays neutral wherever a basis would promise more than
+          // booking charges today (see `resolveBookableUnitProfile`).
+          label={t(`partner.listingWizard.unitPrice.${profile.priceBasis}`)}
           value={basePriceAmount}
           error={fieldErrors.basePriceAmount ?? fieldError('basePriceAmount')}
           onChange={(event) => {
@@ -633,14 +641,14 @@ export default function BookableUnitForm({
       {/* Sprint C-1: description/amenities/photos need a real, already-
           created unit — never shown while registering a brand-new room
           (`unitId` is only ever passed when editing). */}
-      {isHotelRoom && unitId && (
+      {hasRoomDetails && unitId && (
         <RoomDescriptionEditor
           unitId={unitId}
           listingId={listingId}
           translations={translations}
         />
       )}
-      {isHotelRoom && unitId && (
+      {hasRoomDetails && unitId && (
         <RoomAmenitiesEditor
           unitId={unitId}
           listingId={listingId}
@@ -648,7 +656,7 @@ export default function BookableUnitForm({
           amenityIds={amenityIds}
         />
       )}
-      {isHotelRoom && unitId && (
+      {hasRoomDetails && unitId && (
         <RoomMediaGallery unitId={unitId} listingId={listingId} media={media} />
       )}
 
@@ -703,7 +711,8 @@ BookableUnitForm.propTypes = {
     viewType: PropTypes.string,
     smokingPolicy: PropTypes.string,
   }),
-  showTypeSelector: PropTypes.bool,
+  profile: bookableUnitProfileShape.isRequired,
+  isCreating: PropTypes.bool,
   isSubmitting: PropTypes.bool,
   submitLabel: PropTypes.string.isRequired,
   onSubmit: PropTypes.func.isRequired,

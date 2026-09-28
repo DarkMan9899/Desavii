@@ -86,7 +86,7 @@ beforeAll(async () => {
   );
   languageId = language.id;
   const [categories] = await pool.query(
-    "SELECT id, slug FROM listing_categories WHERE slug IN ('hotels', 'restaurants')",
+    "SELECT id, slug FROM listing_categories WHERE slug IN ('hotels', 'restaurants', 'tours')",
   );
   categories.forEach((row) => {
     categoryIdBySlug[row.slug] = row.id;
@@ -378,10 +378,13 @@ describe('mass assignment', () => {
 
 describe('availability text and time inputs', () => {
   let listingId;
+  let tourListingId;
   let unitId;
 
   beforeAll(async () => {
     listingId = await createListing('hotels');
+    // Step L6.2B: a time slot belongs to a Tour departure.
+    tourListingId = await createListing('tours');
     const unitRes = await request(app)
       .post('/api/v1/availability/units')
       .set(auth)
@@ -423,7 +426,7 @@ describe('availability text and time inputs', () => {
         .post('/api/v1/availability/units')
         .set(auth)
         .send({
-          listingId,
+          listingId: tourListingId,
           bookableUnitType: 'TOUR_DEPARTURE',
           unitLabel: unique('slot'),
           timeSlotStart,
@@ -439,7 +442,7 @@ describe('availability text and time inputs', () => {
       .post('/api/v1/availability/units')
       .set(auth)
       .send({
-        listingId,
+        listingId: tourListingId,
         bookableUnitType: 'TOUR_DEPARTURE',
         unitLabel: unique('slot'),
         timeSlotStart: '09:30',

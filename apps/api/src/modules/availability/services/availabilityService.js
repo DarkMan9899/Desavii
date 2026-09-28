@@ -90,6 +90,41 @@ import {
   classifyMimeType,
 } from '../../media/validators/mediaConstraints.js';
 import { validateAndProcessImage } from '../../media/validators/imageContentValidator.js';
+import {
+  isBookableUnitTypeAllowed,
+  isSingleUnitListingType,
+} from '../../../core/domain/listingTypeBookableUnitTypes.js';
+import {
+  findInapplicableUnitFields,
+  supportsRoomDetails,
+} from '../../../core/domain/bookableUnitFieldApplicability.js';
+
+// Step L6.2B — a unit-type-specific field supplied for a unit type that
+// doesn't use it is rejected field by field (never silently stored as
+// hidden, unreachable state).
+function assertUnitFieldsApplicable(unitTypeCode, input) {
+  const inapplicable = findInapplicableUnitFields(unitTypeCode, input);
+  if (inapplicable.length > 0) {
+    throw new ValidationError(
+      'One or more fields do not apply to this kind of unit.',
+      inapplicable.map((field) => ({
+        field,
+        issue: 'NOT_APPLICABLE_FOR_UNIT_TYPE',
+      })),
+    );
+  }
+}
+
+// Step L6.2B — room description/amenities/photos only exist for a
+// HOTEL_ROOM (see `bookableUnitFieldApplicability.js`). Reads and removals
+// stay open so a legacy unit is never stuck with unmanageable data.
+function assertRoomDetailsSupported(unit) {
+  if (!supportsRoomDetails(unit.bookableUnitTypeCode)) {
+    throw new ValidationError('Room details apply only to hotel rooms.', [
+      { field: 'bookableUnitType', issue: 'ROOM_DETAILS_NOT_APPLICABLE' },
+    ]);
+  }
+}
 
 const MANAGE_PERMISSION = 'listing.update';
 const ADMIN_PERMISSION = 'listing.moderate';
@@ -368,6 +403,41 @@ export class AvailabilityService {
       principal,
       input.listingId,
     );
+
+    // Step L6.2B — the listing type decides the one unit type a Partner
+    // may register (`listingTypeBookableUnitTypes.js`); the backend, not
+    // the UI, is the authority. Validated before any write.
+    if (
+      !isBookableUnitTypeAllowed(
+        listing.listingTypeCode,
+        input.bookableUnitType,
+      )
+    ) {
+      throw new ValidationError(
+        'This kind of unit is not available for this listing type.',
+        [{ field: 'bookableUnitType', issue: 'UNIT_TYPE_NOT_ALLOWED' }],
+      );
+    }
+    assertUnitFieldsApplicable(input.bookableUnitType, input);
+    // A Car Rental listing is one vehicle model: its single VEHICLE unit
+    // is that model's fleet (capacity), so a second unit is rejected. An
+    // identical re-registration still resolves to the existing unit via
+    // `BookableUnitService#registerUnit`'s idempotent find-or-create.
+    if (isSingleUnitListingType(listing.listingTypeCode)) {
+      const existingUnits = await this.#bookableUnitService.listUnitsForListing(
+        listing.id,
+      );
+      const isSameUnit = (unit) =>
+        unit.bookableUnitTypeCode === input.bookableUnitType &&
+        (unit.unitLabel ?? null) === (input.unitLabel ?? null);
+      if (existingUnits.some((unit) => !isSameUnit(unit))) {
+        throw new ValidationError(
+          'This listing already has its vehicle — edit it instead.',
+          [{ field: 'bookableUnitType', issue: 'ONE_VEHICLE_PER_LISTING' }],
+        );
+      }
+    }
+
     const basePriceCurrencyId = await this.#resolveCurrencyId(
       input.basePriceCurrency,
     );
@@ -409,6 +479,9 @@ export class AvailabilityService {
     const unit = await this.#bookableUnitService.findById(id);
     if (!unit) throw new NotFoundError('Bookable unit not found.');
     await this.#loadListingForManagement(principal, unit.listingId);
+    // Step L6.2B — judged by the unit's own (immutable) stored type, so a
+    // legacy unit stays editable for every field its type uses.
+    assertUnitFieldsApplicable(unit.bookableUnitTypeCode, fields);
 
     const basePriceCurrencyId = await this.#resolveCurrencyId(
       fields.basePriceCurrency,
@@ -514,6 +587,8 @@ export class AvailabilityService {
     const unit = await this.#bookableUnitService.findById(id);
     if (!unit) throw new NotFoundError('Bookable unit not found.');
     await this.#loadListingForManagement(principal, unit.listingId);
+    // Clearing a description stays possible for any unit (legacy cleanup).
+    if (description?.trim()) assertRoomDetailsSupported(unit);
 
     const { localeId } = await resolveLocaleIds(languageCode);
     const translations = await this.#bookableUnitService.setDescription(
@@ -538,6 +613,9 @@ export class AvailabilityService {
       principal,
       unit.listingId,
     );
+    // Step L6.2B: clearing every amenity stays possible for any unit
+    // (legacy cleanup); setting any is room-only.
+    if (amenityIds.length > 0) assertRoomDetailsSupported(unit);
     // Step L6.1: a room may only gain amenities its parent listing's
     // category offers (the set `RoomAmenitiesEditor` lists); the room's
     // already-stored amenities are the legacy baseline that may
@@ -597,6 +675,9 @@ export class AvailabilityService {
     const unit = await this.#bookableUnitService.findById(id);
     if (!unit) throw new NotFoundError('Bookable unit not found.');
     await this.#loadListingForManagement(principal, unit.listingId);
+    // Step L6.2B: room photos are room-only; removal stays open for any
+    // unit (`removeUnitMedia`) so legacy photos can always be cleaned up.
+    assertRoomDetailsSupported(unit);
 
     if (!isAllowedMimeType(mimeType)) {
       throw new ValidationError('Unsupported media type.');

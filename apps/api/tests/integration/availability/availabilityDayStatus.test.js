@@ -61,15 +61,23 @@ async function createListing(title) {
   return res.body.data.id;
 }
 
+// Step L6.2B: a HOTEL listing only accepts HOTEL_ROOM units; a distinct
+// `unitLabel` is what makes a second, separate room type.
 async function registerUnit(
   targetListingId,
   capacity,
   bookableUnitType = 'HOTEL_ROOM',
+  unitLabel = undefined,
 ) {
   const res = await request(app)
     .post('/api/v1/availability/units')
     .set('Authorization', `Bearer ${vendor.accessToken}`)
-    .send({ listingId: targetListingId, bookableUnitType, capacity });
+    .send({
+      listingId: targetListingId,
+      bookableUnitType,
+      capacity,
+      unitLabel,
+    });
   return res.body.data.id;
 }
 
@@ -136,8 +144,8 @@ beforeAll(async () => {
   multiUnitListingId = await createListing(
     `Day Status Multi Unit ${Date.now()}`,
   );
-  await registerUnit(multiUnitListingId, 20, 'HOTEL_ROOM');
-  await registerUnit(multiUnitListingId, 20, 'RESTAURANT_TABLE');
+  await registerUnit(multiUnitListingId, 20, 'HOTEL_ROOM', 'Standard Room');
+  await registerUnit(multiUnitListingId, 20, 'HOTEL_ROOM', 'Family Room');
   await publishListing(multiUnitListingId);
 
   draftListingId = await createListing(`Day Status Draft ${Date.now()}`);

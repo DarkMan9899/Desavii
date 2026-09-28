@@ -46,13 +46,18 @@ const ONE_PX_PNG = Buffer.from(
  * listing 404s for any non-owner, so every listing created here is
  * published immediately; this file has no case that needs a draft.
  */
-async function createListing(title) {
+// Step L6.2B: the pre-publish unit is the listing type's own unit type.
+async function createListing(
+  title,
+  listingType = 'HOTEL',
+  bookableUnitType = 'HOTEL_ROOM',
+) {
   const res = await request(app)
     .post('/api/v1/listings')
     .set('Authorization', `Bearer ${vendor.accessToken}`)
     .send({
       partnerId,
-      listingType: 'HOTEL',
+      listingType,
       translations: [{ languageId, title }],
     });
   const listingId = res.body.data.id;
@@ -73,7 +78,7 @@ async function createListing(title) {
   await request(app)
     .post('/api/v1/availability/units')
     .set('Authorization', `Bearer ${vendor.accessToken}`)
-    .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
+    .send({ listingId, bookableUnitType });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
     .set('Authorization', `Bearer ${admin.accessToken}`)
@@ -1301,6 +1306,8 @@ describe('Sprint A (Time-Aware Booking Foundation) — booking_items.start_time/
   test('a booking against a time-slot unit snapshots its start_time/end_time onto the booking item, visible to customer/partner/admin alike', async () => {
     const listingId = await createListing(
       `Sprint A Time Slot Test ${Date.now()}`,
+      'TOUR',
+      'TOUR_DEPARTURE',
     );
     const unitId = await registerTimeSlotUnit(listingId, {
       timeSlotStart: '09:00',

@@ -32,6 +32,7 @@ import { useToast } from '../../../../contexts/ToastContext.jsx';
 import { useListingWizardState } from './useListingWizardState.js';
 import { useListingQuery } from '../../queries/useListingQuery.js';
 import { useListingMetadataQuery } from '../../queries/useListingMetadataQuery.js';
+import { useBookableUnitProfile } from '../../hooks/useBookableUnitProfile.js';
 import { fromAttributeValuesResponse } from '../../utils/attributeValueMapping.js';
 import { fromPolicyValuesResponse } from '../../utils/policyValueMapping.js';
 import { LISTING_CREATION_STEP_ID } from './wizardSteps.js';
@@ -58,6 +59,7 @@ export default function PartnerListingWizard({ partnerships }) {
   const listing = listingQuery.data;
   const categoryId = listing?.category_ids?.[0] ?? wizard.categoryId;
   const metadataQuery = useListingMetadataQuery(categoryId, locale);
+  const unitProfile = useBookableUnitProfile(listing);
   // Step L6: Details/Policies seed their form state from `initialValues`
   // once, on mount. After a hard refresh the listing resolves before the
   // category metadata, so they would mount with `{}` and keep it — blank
@@ -247,10 +249,11 @@ export default function PartnerListingWizard({ partnerships }) {
           />
         )}
 
-        {wizard.currentStepId === 'availability' && listing && (
+        {wizard.currentStepId === 'availability' && unitProfile && (
           <AvailabilityStep
             listingId={wizard.listingId}
             categoryId={categoryId}
+            unitProfile={unitProfile}
             initialValues={
               listing.booking_rules
                 ? {

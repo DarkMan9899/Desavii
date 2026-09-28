@@ -47,6 +47,7 @@ import { AskAiButton } from '../../../ai/index.js';
 import { BookingPaymentSection } from '../../../payments/index.js';
 import { useListingQuery } from '../../../listings/queries/useListingQuery.js';
 import getLocalizedTranslation from '../../../listings/utils/getLocalizedTranslation.js';
+import { resolveUnitNounKey } from '../../utils/resolveUnitNounKey.js';
 import { resolveBookingDisplayAmount } from '../../../../utils/resolveBookingDisplayAmount.js';
 import { computeNights } from '../../utils/computeNights.js';
 import StatusStepper from '../StatusStepper/StatusStepper.jsx';
@@ -254,9 +255,12 @@ export default function BookingDetailPageContent() {
                         <Hash aria-hidden="true" focusable="false" />
                         <span>
                           {t(
-                            booking.booking_type === 'RESTAURANT_RESERVATION'
-                              ? 'bookings.detail.tableLabel'
-                              : 'bookings.detail.roomType',
+                            resolveUnitNounKey(
+                              item.bookable_unit_type,
+                              booking.booking_type === 'RESTAURANT_RESERVATION'
+                                ? 'bookings.detail.tableLabel'
+                                : 'bookings.detail.roomType',
+                            ),
                           )}
                           : {item.unit_label}
                         </span>

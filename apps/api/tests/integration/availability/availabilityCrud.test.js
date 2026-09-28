@@ -84,11 +84,17 @@ async function publishListing(id) {
     .send({ publicationPeriodDays: 90 });
 }
 
-async function registerUnit(targetListingId, bookableUnitType = 'HOTEL_ROOM') {
+// Step L6.2B: this HOTEL listing only accepts HOTEL_ROOM units; a distinct
+// `unitLabel` is what makes a second, separate room type.
+async function registerUnit(
+  targetListingId,
+  bookableUnitType = 'HOTEL_ROOM',
+  unitLabel = undefined,
+) {
   const res = await request(app)
     .post('/api/v1/availability/units')
     .set('Authorization', `Bearer ${vendor.accessToken}`)
-    .send({ listingId: targetListingId, bookableUnitType });
+    .send({ listingId: targetListingId, bookableUnitType, unitLabel });
   return res.body.data.id;
 }
 
@@ -139,17 +145,22 @@ describe('POST /availability/units — inventory-agnostic unit registration', ()
     const res = await request(app)
       .post('/api/v1/availability/units')
       .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .send({ listingId, bookableUnitType: 'RESTAURANT_TABLE', capacity: 4 });
+      .send({
+        listingId,
+        bookableUnitType: 'HOTEL_ROOM',
+        unitLabel: `Owner Room ${Date.now()}`,
+        capacity: 4,
+      });
 
     expect(res.status).toBe(201);
-    expect(res.body.data.bookable_unit_type).toBe('RESTAURANT_TABLE');
+    expect(res.body.data.bookable_unit_type).toBe('HOTEL_ROOM');
     expect(res.body.data.capacity).toBe(4);
     expect(res.body.data.listing_id).toBe(listingId);
   });
 
   test('registering the same (listing, type) twice returns the same unit (idempotent find-or-create)', async () => {
-    const firstId = await registerUnit(listingId, 'VEHICLE');
-    const secondId = await registerUnit(listingId, 'VEHICLE');
+    const firstId = await registerUnit(listingId, 'HOTEL_ROOM');
+    const secondId = await registerUnit(listingId, 'HOTEL_ROOM');
     expect(secondId).toBe(firstId);
   });
 
@@ -181,7 +192,11 @@ describe('POST /availability/units — inventory-agnostic unit registration', ()
     const res = await request(app)
       .post('/api/v1/availability/units')
       .set('Authorization', `Bearer ${admin.accessToken}`)
-      .send({ listingId, bookableUnitType: 'TOUR_DEPARTURE' });
+      .send({
+        listingId,
+        bookableUnitType: 'HOTEL_ROOM',
+        unitLabel: `Admin Room ${Date.now()}`,
+      });
     expect(res.status).toBe(201);
   });
 
@@ -232,8 +247,8 @@ describe('POST /availability/units — P2.2A occupancy/bed/base-price fields', (
       .set('Authorization', `Bearer ${vendor.accessToken}`)
       .send({
         listingId,
-        bookableUnitType: 'RESTAURANT_TABLE',
-        unitLabel: `Legacy-shaped table ${Date.now()}`,
+        bookableUnitType: 'HOTEL_ROOM',
+        unitLabel: `Legacy-shaped room ${Date.now()}`,
       });
 
     expect(res.status).toBe(201);
@@ -538,7 +553,11 @@ describe('GET /availability/units — management list', () => {
 
 describe('DELETE /availability/units/:id — retire a unit', () => {
   test('the owner can retire their own unit', async () => {
-    const idToRetire = await registerUnit(listingId, 'RESTAURANT_TABLE');
+    const idToRetire = await registerUnit(
+      listingId,
+      'HOTEL_ROOM',
+      `Retire Me ${Date.now()}`,
+    );
     const res = await request(app)
       .delete(`/api/v1/availability/units/${idToRetire}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`);
@@ -546,7 +565,11 @@ describe('DELETE /availability/units/:id — retire a unit', () => {
   });
 
   test('a non-owner cannot retire it (403)', async () => {
-    const idToRetire = await registerUnit(listingId, 'VEHICLE');
+    const idToRetire = await registerUnit(
+      listingId,
+      'HOTEL_ROOM',
+      `Not Yours ${Date.now()}`,
+    );
     const res = await request(app)
       .delete(`/api/v1/availability/units/${idToRetire}`)
       .set('Authorization', `Bearer ${customer.accessToken}`);

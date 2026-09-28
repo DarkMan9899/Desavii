@@ -18,6 +18,7 @@ import { Section } from '@desavii/ui/components/layout';
 import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import { useListingQuery } from '../../queries/useListingQuery.js';
+import { useBookableUnitProfile } from '../../hooks/useBookableUnitProfile.js';
 import BookableUnitsManager from '../BookableUnitsManager/BookableUnitsManager.jsx';
 import getLocalizedTranslation from '../../utils/getLocalizedTranslation.js';
 
@@ -25,11 +26,12 @@ export default function PartnerListingRoomsPageContent({ listingId }) {
   const { t } = useTranslation();
   const { locale } = useParams();
   const listingQuery = useListingQuery(listingId);
+  const unitProfile = useBookableUnitProfile(listingQuery.data);
 
   if (listingQuery.isPending) {
     return <Spinner label={t('partner.listingRooms.loading')} />;
   }
-  if (listingQuery.isError) {
+  if (listingQuery.isError || !unitProfile) {
     return (
       <ErrorState
         title={t('partner.listingRooms.errorTitle')}
@@ -48,7 +50,12 @@ export default function PartnerListingRoomsPageContent({ listingId }) {
   return (
     <Section>
       <PageHeader
-        title={t('partner.listingRooms.heading', { title: listingTitle })}
+        title={t('partner.listingRooms.heading', {
+          units: t(
+            `partner.listingWizard.unitTerms.${unitProfile.terms}.heading`,
+          ),
+          title: listingTitle,
+        })}
         breadcrumbs={[
           { label: t('partner.nav.dashboard'), href: `/${locale}/partner` },
           {
@@ -64,6 +71,7 @@ export default function PartnerListingRoomsPageContent({ listingId }) {
       <BookableUnitsManager
         listingId={listingId}
         categoryId={listing.category_ids?.[0] ?? null}
+        profile={unitProfile}
       />
     </Section>
   );

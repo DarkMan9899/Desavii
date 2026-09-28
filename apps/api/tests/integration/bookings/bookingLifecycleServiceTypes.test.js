@@ -180,7 +180,7 @@ describe.each([
   },
   {
     label: 'Restaurant table (single-day, time-based service proxy)',
-    listingType: 'HOTEL',
+    listingType: 'RESTAURANT',
     bookableUnitType: 'RESTAURANT_TABLE',
     dateFrom: '2027-06-20',
     dateTo: '2027-06-20',

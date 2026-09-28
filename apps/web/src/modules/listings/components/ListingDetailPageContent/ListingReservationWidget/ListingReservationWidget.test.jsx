@@ -190,7 +190,12 @@ function RouteScopedWidget(props) {
     <CurrencyProvider locale={locale}>
       <ListingReservationWidget
         listingId={10}
-        pricing={{ amount: '85000.00', currency: 'AMD' }}
+        // Step L6.2B: a hotel priced per night, like every real one.
+        pricing={{
+          amount: '85000.00',
+          currency: 'AMD',
+          pricing_model: 'PER_NIGHT',
+        }}
         // eslint-disable-next-line react/jsx-props-no-spreading
         {...props}
       />
@@ -426,7 +431,13 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     // test is about which price wins (listing vs. selected unit), not
     // currency display.
     renderWidget(
-      { pricing: { amount: '85000.00', currency: 'AMD' } },
+      {
+        pricing: {
+          amount: '85000.00',
+          currency: 'AMD',
+          pricing_model: 'PER_NIGHT',
+        },
+      },
       '/hy/listings/10',
     );
 
@@ -613,10 +624,42 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
         state: expect.objectContaining({
           unitLabel: 'Standard Room',
           guestCount: 3,
+          // Step L6.2B: checkout names the unit by its own type.
+          bookableUnitType: 'HOTEL_ROOM',
         }),
       }),
     );
   });
+
+  test.each([
+    ['PER_HOUR', '50000.00 AMD'],
+    ['PER_DAY', '50000.00 AMD / օր'],
+  ])(
+    'Step L6.2B: a %s listing never labels a unit price "per night"',
+    async (pricingModel, priceText) => {
+      useListingBookableUnitsQuery.mockReturnValue({
+        data: MULTI_UNIT_LABELED,
+        isPending: false,
+        isError: false,
+      });
+      const user = userEvent.setup();
+      renderWidget({
+        pricing: {
+          amount: '85000.00',
+          currency: 'AMD',
+          pricing_model: pricingModel,
+        },
+      });
+
+      await user.click(screen.getByTestId('select-trigger'));
+
+      expect(
+        screen.getByRole('option', {
+          name: `Standard Room — Ընդունում է 2 հյուր — ${priceText} — 2 հասանելի`,
+        }),
+      ).toBeInTheDocument();
+    },
+  );
 
   test('shows an error toast and does not navigate when the hold request fails', async () => {
     const mutateAsync = vi.fn().mockRejectedValue(new Error('conflict'));

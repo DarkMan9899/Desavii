@@ -121,7 +121,8 @@ async function registerUnit(
   return res.body.data.id;
 }
 
-async function publishListing(listingId) {
+// Step L6.2B: the auto-created unit is the listing type's own unit type.
+async function publishListing(listingId, bookableUnitType = 'HOTEL_ROOM') {
   await request(app)
     .patch(`/api/v1/listings/${listingId}`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)
@@ -145,7 +146,7 @@ async function publishListing(listingId) {
   await request(app)
     .post('/api/v1/availability/units')
     .set('Authorization', `Bearer ${vendor.accessToken}`)
-    .send({ listingId, bookableUnitType: 'HOTEL_ROOM' });
+    .send({ listingId, bookableUnitType });
   await request(app)
     .post(`/api/v1/listings/${listingId}/publish`)
     .set('Authorization', `Bearer ${admin.accessToken}`)
@@ -277,8 +278,8 @@ beforeAll(async () => {
 
   await Promise.all([
     publishListing(boutiqueId),
-    publishListing(cozyId),
-    publishListing(gyumriId),
+    publishListing(cozyId, 'PROPERTY_UNIT'),
+    publishListing(gyumriId, 'PROPERTY_UNIT'),
   ]);
 
   listingBoutique = boutiqueId;

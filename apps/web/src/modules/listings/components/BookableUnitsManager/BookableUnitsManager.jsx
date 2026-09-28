@@ -2,16 +2,18 @@
  * BookableUnitsManager (P2.2A) — replaces `AvailabilityStep`'s old
  * "register form disappears after the first unit" behavior. Lists every
  * bookable unit already on the listing, lets the partner edit any of
- * them, and always offers an "add another room type" action — the fix
- * for the audited blocker that made a real multi-room-type hotel
- * impossible to build through the UI.
+ * them, and offers an "add" action — the fix for the audited blocker that
+ * made a real multi-room-type hotel impossible to build through the UI.
  *
  * Used both inline in the Partner Listing Wizard's `AvailabilityStep`
  * AND standalone on the post-publish `PartnerListingRoomsPageContent` —
  * the same component, so a partner never has to re-enter the wizard just
- * to manage rooms after publishing. For a single-unit property
- * (apartment/villa/house) this renders exactly the same way, just with
- * one row instead of several — no separate "simple mode."
+ * to manage rooms after publishing.
+ *
+ * Step L6.2B: every label speaks the listing's own unit language
+ * (`profile.terms`), and a Car Rental listing — one vehicle model, one
+ * unit (its fleet size is the unit's capacity) — stops offering "add" once
+ * its vehicle exists; the backend rejects a second one regardless.
  */
 
 import { useState } from 'react';
@@ -25,6 +27,7 @@ import {
   useRegisterBookableUnitMutation,
   useUpdateBookableUnitMutation,
 } from '../../../availability/index.js';
+import { bookableUnitProfileShape } from '../../utils/resolveBookableUnitProfile.js';
 import BookableUnitForm from './BookableUnitForm.jsx';
 
 function formatBedConfiguration(t, bedConfiguration) {
@@ -39,7 +42,7 @@ function formatBedConfiguration(t, bedConfiguration) {
     .join(', ');
 }
 
-function UnitSummaryRow({ unit, onEdit }) {
+function UnitSummaryRow({ unit, profile, onEdit }) {
   const { t } = useTranslation();
   const bedSummary = formatBedConfiguration(t, unit.bed_configuration);
 
@@ -49,9 +52,7 @@ function UnitSummaryRow({ unit, onEdit }) {
         <Inline justify="space-between">
           <strong>
             {unit.unit_label ??
-              t(
-                `partner.listingWizard.bookableUnitTypes.${unit.bookable_unit_type}`,
-              )}
+              t(`partner.listingWizard.unitTerms.${profile.terms}.noun`)}
           </strong>
           <Button variant="ghost" size="sm" onClick={onEdit}>
             {t('partner.listingWizard.availability.editUnit')}
@@ -72,7 +73,7 @@ function UnitSummaryRow({ unit, onEdit }) {
         {bedSummary && <span>{bedSummary}</span>}
         {unit.base_price_amount != null && (
           <span>
-            {t('partner.listingWizard.availability.basePriceSummary', {
+            {t(`partner.listingWizard.unitPriceSummary.${profile.priceBasis}`, {
               amount: unit.base_price_amount,
               currency: unit.base_price_currency,
             })}
@@ -99,10 +100,15 @@ UnitSummaryRow.propTypes = {
     base_price_amount: PropTypes.string,
     base_price_currency: PropTypes.string,
   }).isRequired,
+  profile: bookableUnitProfileShape.isRequired,
   onEdit: PropTypes.func.isRequired,
 };
 
-export default function BookableUnitsManager({ listingId, categoryId = null }) {
+export default function BookableUnitsManager({
+  listingId,
+  categoryId = null,
+  profile,
+}) {
   const { t } = useTranslation();
   const unitsQuery = useBookableUnitsQuery(listingId);
   const registerMutation = useRegisterBookableUnitMutation();
@@ -125,6 +131,7 @@ export default function BookableUnitsManager({ listingId, categoryId = null }) {
   }
 
   const units = unitsQuery.data ?? [];
+  const canAdd = !(profile.singleUnit && units.length > 0);
 
   function handleAdd(values) {
     registerMutation.mutate(
@@ -164,6 +171,8 @@ export default function BookableUnitsManager({ listingId, categoryId = null }) {
     setIsAdding(false);
   }
 
+  const addLabel = t(`partner.listingWizard.unitTerms.${profile.terms}.add`);
+
   return (
     <Stack gap="4">
       {units.length > 0 && (
@@ -172,6 +181,7 @@ export default function BookableUnitsManager({ listingId, categoryId = null }) {
             unit.id === editingUnitId ? (
               <Card key={unit.id} padding="md">
                 <BookableUnitForm
+                  profile={profile}
                   initialValues={{
                     bookableUnitType: unit.bookable_unit_type,
                     unitLabel: unit.unit_label ?? undefined,
@@ -185,7 +195,6 @@ export default function BookableUnitsManager({ listingId, categoryId = null }) {
                     viewType: unit.view_type ?? undefined,
                     smokingPolicy: unit.smoking_policy ?? undefined,
                   }}
-                  showTypeSelector={false}
                   isSubmitting={updateMutation.isPending}
                   submitLabel={t('partner.listingWizard.availability.saveUnit')}
                   onSubmit={(values) => handleUpdate(values)}
@@ -203,6 +212,7 @@ export default function BookableUnitsManager({ listingId, categoryId = null }) {
               <UnitSummaryRow
                 key={unit.id}
                 unit={unit}
+                profile={profile}
                 onEdit={() => startEditing(unit.id)}
               />
             ),
@@ -210,22 +220,22 @@ export default function BookableUnitsManager({ listingId, categoryId = null }) {
         </Stack>
       )}
 
-      {isAdding ? (
+      {isAdding && (
         <Card padding="md">
           <BookableUnitForm
-            showTypeSelector
+            profile={profile}
+            isCreating
             isSubmitting={registerMutation.isPending}
-            submitLabel={t('partner.listingWizard.availability.registerUnit')}
+            submitLabel={addLabel}
             onSubmit={(values) => handleAdd(values)}
             onCancel={() => cancelAdding()}
             serverError={registerMutation.error}
           />
         </Card>
-      ) : (
+      )}
+      {!isAdding && canAdd && (
         <Button variant="secondary" onClick={() => startAdding()}>
-          {units.length > 0
-            ? t('partner.listingWizard.availability.addAnotherUnit')
-            : t('partner.listingWizard.availability.registerUnit')}
+          {addLabel}
         </Button>
       )}
     </Stack>
@@ -239,4 +249,5 @@ BookableUnitsManager.propTypes = {
   // (e.g. a listing type with no room-amenity picker to show) has one
   // resolved.
   categoryId: PropTypes.number,
+  profile: bookableUnitProfileShape.isRequired,
 };

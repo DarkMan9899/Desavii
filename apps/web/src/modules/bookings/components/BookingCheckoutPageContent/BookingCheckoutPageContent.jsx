@@ -61,6 +61,8 @@ import useNoIndex from '../../../../seo/useNoIndex.js';
 import { formatTimeRange } from '../../../../utils/formatTimeRange.js';
 import { useListingQuery } from '../../../listings/queries/useListingQuery.js';
 import getLocalizedTranslation from '../../../listings/utils/getLocalizedTranslation.js';
+import { isAccommodationUnitType } from '../../../listings/utils/accommodationDateSemantics.js';
+import { resolveUnitNounKey } from '../../utils/resolveUnitNounKey.js';
 import { useCreateBookingMutation } from '../../mutations/useCreateBookingMutation.js';
 import { useReleaseBookingHoldMutation } from '../../mutations/useReleaseBookingHoldMutation.js';
 import styles from './BookingCheckoutPageContent.module.scss';
@@ -115,6 +117,9 @@ export default function BookingCheckoutPageContent() {
   // appropriate wording, so the final confirmation step never re-shows
   // the hotel language the reservation widget itself already avoids.
   const isRestaurantReservation = Boolean(holdState?.isRestaurantReservation);
+  // Step L6.2B: same hand-off category — names the unit in its own domain
+  // noun, and only a lodging unit has nights.
+  const bookableUnitType = holdState?.bookableUnitType;
   // Sprint A (Time-Aware Booking Foundation): rides along the same way
   // `unitLabel` already does — display-only here; the customer/partner/
   // admin's own later view of this booking always reads the real,
@@ -132,7 +137,9 @@ export default function BookingCheckoutPageContent() {
   );
   const rentalLocationLabel = holdState?.rentalLocationLabel;
   const nights =
-    holdItem?.date_from && holdItem?.date_to
+    isAccommodationUnitType(bookableUnitType) &&
+    holdItem?.date_from &&
+    holdItem?.date_to
       ? Math.round(
           (new Date(holdItem.date_to) - new Date(holdItem.date_from)) /
             86_400_000,
@@ -416,9 +423,12 @@ export default function BookingCheckoutPageContent() {
                   <div className={styles.summaryRow}>
                     <dt>
                       {t(
-                        isRestaurantReservation
-                          ? 'bookings.checkout.summary.tableLabel'
-                          : 'bookings.checkout.summary.roomType',
+                        resolveUnitNounKey(
+                          bookableUnitType,
+                          isRestaurantReservation
+                            ? 'bookings.checkout.summary.tableLabel'
+                            : 'bookings.checkout.summary.roomType',
+                        ),
                       )}
                     </dt>
                     <dd>{unitLabel}</dd>
@@ -467,13 +477,10 @@ export default function BookingCheckoutPageContent() {
                         <dd>{timeRange}</dd>
                       </div>
                     )}
-                    {/* Sprint A: a time-slot booking is never a nightly
-                        stay by construction (no bookable unit is ever
-                        both time-slot AND accommodation) — showing
-                        "Nights: 0" for a same-day departure would be
-                        exactly the meaningless empty-time-UI this phase
-                        is meant to eliminate. */}
-                    {nights !== null && !timeRange && (
+                    {/* Step L6.2B: nights exist only for a lodging unit
+                        (`nights` is null otherwise) — never "Nights: 0"
+                        for a departure, a table or a visit. */}
+                    {nights !== null && (
                       <div className={styles.summaryRow}>
                         <dt>{t('bookings.checkout.summary.nights')}</dt>
                         <dd>{nights}</dd>

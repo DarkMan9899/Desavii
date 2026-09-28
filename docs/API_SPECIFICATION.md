@@ -1204,6 +1204,38 @@ authoritative check happens inside `POST /booking-holds` itself
 (Section 5.5 of the Booking Engine doc), so a client must never assume a
 green calendar day guarantees a subsequent hold will succeed.
 
+### 49.1 Bookable units — listing type → unit model
+
+`POST /availability/units` registers a unit; `PATCH /availability/units/{id}`
+edits one; `PATCH …/{id}/description`, `PATCH …/{id}/amenities` and
+`POST …/{id}/media` manage room details. The listing type decides the one
+unit type it may register (`core/domain/listingTypeBookableUnitTypes.js`):
+
+| Listing type | Unit type | Notes |
+|---|---|---|
+| `HOTEL` | `HOTEL_ROOM` | one unit per room type |
+| `PROPERTY` | `PROPERTY_UNIT` | |
+| `RESTAURANT` | `RESTAURANT_TABLE` | |
+| `TOUR` | `TOUR_DEPARTURE` | |
+| `ATTRACTION` | `TOUR_DEPARTURE` | attractions and entertainment venues |
+| `CAR_RENTAL` | `VEHICLE` | exactly one unit; its capacity is the fleet size |
+
+Type-specific fields follow the unit type
+(`core/domain/bookableUnitFieldApplicability.js`): `maxGuests` and
+`bedConfiguration` apply to `HOTEL_ROOM` and `PROPERTY_UNIT`;
+`timeSlotStart`/`timeSlotEnd` to `TOUR_DEPARTURE`; `roomSizeSqm`,
+`bathroomType`, `viewType`, `smokingPolicy` and room description, amenities
+and photos to `HOTEL_ROOM` only. A unit's type never changes, so an existing
+unit is judged by its own stored type. Every rejection is a `422
+VALIDATION_FAILED` raised before any write:
+
+| `details[].field` | `details[].issue` | When |
+|---|---|---|
+| `bookableUnitType` | `UNIT_TYPE_NOT_ALLOWED` | the unit type doesn't match the listing type |
+| `bookableUnitType` | `ONE_VEHICLE_PER_LISTING` | a second, different unit on a Car Rental listing (an identical re-registration still returns the existing unit) |
+| the field sent | `NOT_APPLICABLE_FOR_UNIT_TYPE` | a type-specific field the unit type doesn't use |
+| `bookableUnitType` | `ROOM_DETAILS_NOT_APPLICABLE` | adding a description, amenities or a photo to a non-`HOTEL_ROOM` unit (clearing or removing stays allowed) |
+
 ## 50. Calendar
 
 Base path: `/api/v1/calendar`. Maps to `blackout_dates`, plus the iCal/Google

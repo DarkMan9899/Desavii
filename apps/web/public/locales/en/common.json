@@ -361,6 +361,13 @@
         "estimateSuffix": "(estimate)",
         "unavailable": "Calculated at booking"
       }
+    },
+    "unitLabels": {
+      "HOTEL_ROOM": "Room type",
+      "PROPERTY_UNIT": "Unit",
+      "RESTAURANT_TABLE": "Table",
+      "TOUR_DEPARTURE": "Departure / session",
+      "VEHICLE": "Vehicle"
     }
   },
   "payments": {
@@ -608,7 +615,9 @@
       "REQUIRED_POLICY_MISSING": "A required policy is missing.",
       "AT_LEAST_ONE_BOOKABLE_UNIT_REQUIRED": "Register at least one bookable unit before publishing.",
       "PUBLICATION_PERIOD_REQUIRED": "Choose how long this listing should stay published.",
-      "INVALID_PUBLICATION_PERIOD": "Choose one of the available publication periods."
+      "INVALID_PUBLICATION_PERIOD": "Choose one of the available publication periods.",
+      "oneVehiclePerListing": "This listing already has its vehicle. A car rental listing describes one vehicle model — edit the existing vehicle instead.",
+      "notApplicableForUnit": "This doesn't apply to this kind of unit."
     },
     "codes": {
       "PARTNER_NOT_VERIFIED": "Your company must be verified before it can create listings.",
@@ -1780,9 +1789,6 @@
         "PER_HOUR": "Per hour"
       },
       "availability": {
-        "units": "Bookable units",
-        "unitType": "Unit type",
-        "registerUnit": "Register unit",
         "blackoutDates": "Blackout dates",
         "removeBlackout": "Remove",
         "addBlackoutRange": "Blocked date range",
@@ -1795,25 +1801,19 @@
         "maximumStayNightsHint": "The longest stay you'll accept, in nights. Leave blank for no maximum.",
         "maximumStayNightsInvalid": "Enter a whole number of nights, at least 1.",
         "advanceBookingMinHours": "Minimum advance booking (hours)",
-        "advanceBookingMinHoursHint": "How much notice guests must give before check-in, in hours.",
         "advanceBookingMinHoursInvalid": "Enter a whole number of hours, 0 or more.",
         "advanceBookingMaxDays": "Maximum advance booking (days)",
-        "advanceBookingMaxDaysHint": "How far ahead guests can book, in days.",
+        "advanceBookingMaxDaysHint": "How far ahead a booking can be made, in days.",
         "advanceBookingMaxDaysInvalid": "Enter a whole number of days, 0 or more.",
         "minExceedsMax": "Minimum stay cannot exceed maximum stay.",
-        "unitLabel": "Room/unit name",
-        "unitLabelPlaceholder": "e.g. Standard Room, Deluxe Suite",
-        "timeSlotStart": "Departure start time",
-        "timeSlotEnd": "Departure end time",
-        "timeSlotHint": "Leave blank for a date-only unit (a room, a vehicle, a full-day service). Set both for a scheduled departure (a tour, an activity).",
+        "unitLabel": "Name",
+        "timeSlotStart": "Start time",
+        "timeSlotEnd": "End time",
+        "timeSlotHint": "Optional. Set both times if it always runs at a fixed time; otherwise leave both blank.",
         "timeSlotIncomplete": "Enter both a start and end time, or leave both blank.",
         "timeSlotOutOfOrder": "The end time must be after the start time.",
-        "capacity": "Inventory quantity",
-        "capacityHint": "How many rooms of this type exist",
         "capacityInvalid": "Enter a whole number, at least 1.",
         "capacityTooLarge": "Maximum is 4,294,967,295.",
-        "maxGuests": "Max guests per room",
-        "maxGuestsHint": "How many guests one room accommodates",
         "maxGuestsInvalid": "Enter a whole number between 1 and 100.",
         "bedConfiguration": "Bed configuration",
         "bedType": "Bed type",
@@ -1821,22 +1821,19 @@
         "bedCountInvalid": "Enter a whole number of beds between 1 and 20.",
         "removeBed": "Remove",
         "addBed": "Add bed",
-        "basePriceAmount": "Base price per night",
         "basePriceCurrency": "Currency",
         "basePriceIncomplete": "Enter both an amount and a currency, or leave both blank.",
         "basePriceAmountInvalid": "Enter a valid price.",
         "basePriceAmountNotPositive": "Price must be greater than 0.",
         "basePriceAmountTooLarge": "Price is too large.",
         "basePriceAmountPrecision": "Enter a price with no more than 2 decimal places.",
-        "loading": "Loading rooms…",
-        "errorTitle": "Couldn't load rooms",
+        "loading": "Loading…",
+        "errorTitle": "We couldn't load this section.",
         "editUnit": "Edit",
         "capacitySummary": "{{count}} available",
         "maxGuestsSummary": "Sleeps {{count}}",
         "bedSummaryItem": "{{count}} × {{type}}",
-        "basePriceSummary": "{{amount}} {{currency}} / night",
         "saveUnit": "Save changes",
-        "addAnotherUnit": "Add another room type",
         "roomBasicsHeading": "Room basics",
         "roomSizeSqm": "Room size (m²)",
         "roomSizeSqmHint": "Enter the room's floor area in square meters",
@@ -1855,7 +1852,21 @@
         "roomAmenitiesHeading": "Room amenities",
         "saveRoomAmenities": "Save amenities",
         "roomGalleryHeading": "Room photos",
-        "roomGalleryDropzone": "Room photos"
+        "roomGalleryDropzone": "Room photos",
+        "minimumRentalDays": "Minimum rental (days)",
+        "minimumRentalDaysHint": "The shortest rental you'll accept, in days. Leave blank for no minimum.",
+        "minimumRentalDaysInvalid": "Enter a whole number of days, at least 1.",
+        "maximumRentalDays": "Maximum rental (days)",
+        "maximumRentalDaysHint": "The longest rental you'll accept, in days. Leave blank for no maximum.",
+        "maximumRentalDaysInvalid": "Enter a whole number of days, at least 1.",
+        "minRentalExceedsMax": "Minimum rental cannot exceed maximum rental.",
+        "advanceBookingMinHoursHints": {
+          "checkIn": "How much notice you'd like guests to give before check-in, in hours.",
+          "pickup": "How much notice you'd like customers to give before pickup, in hours.",
+          "departure": "How much notice you'd like guests to give before departure, in hours.",
+          "reservation": "How much notice you'd like guests to give before the reservation time, in hours.",
+          "visit": "How much notice you'd like visitors to give before the session or visit, in hours."
+        }
       },
       "bookableUnitTypes": {
         "HOTEL_ROOM": "Hotel room",
@@ -1986,10 +1997,104 @@
         "NON_SMOKING": "Non-smoking",
         "SMOKING_ALLOWED": "Smoking allowed"
       },
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "unitTerms": {
+        "hotel": {
+          "heading": "Room types",
+          "add": "Add room type",
+          "noun": "Room type",
+          "capacity": "Rooms of this type",
+          "capacityHint": "How many identical rooms of this type you have.",
+          "labelPlaceholder": "e.g. Standard Room, Deluxe Suite",
+          "maxGuests": "Max guests per room",
+          "maxGuestsHint": "How many guests one room sleeps."
+        },
+        "apartment": {
+          "heading": "Units",
+          "add": "Add unit",
+          "noun": "Apartment / unit",
+          "capacity": "Units available",
+          "capacityHint": "How many identical units you offer in this listing.",
+          "labelPlaceholder": "e.g. One-bedroom apartment",
+          "maxGuests": "Max guests per unit",
+          "maxGuestsHint": "How many guests one unit sleeps."
+        },
+        "villa": {
+          "heading": "Units",
+          "add": "Add unit",
+          "noun": "Villa / unit",
+          "capacity": "Units available",
+          "capacityHint": "How many identical villas you offer in this listing.",
+          "labelPlaceholder": "e.g. Private villa",
+          "maxGuests": "Max guests per villa",
+          "maxGuestsHint": "How many guests the villa sleeps."
+        },
+        "guestHouse": {
+          "heading": "Rooms",
+          "add": "Add room",
+          "noun": "Room",
+          "capacity": "Rooms of this type",
+          "capacityHint": "How many identical rooms of this type you have.",
+          "labelPlaceholder": "e.g. Double Room",
+          "maxGuests": "Max guests per room",
+          "maxGuestsHint": "How many guests one room sleeps."
+        },
+        "restaurant": {
+          "heading": "Dining areas",
+          "add": "Add dining area",
+          "noun": "Dining area / seating",
+          "capacity": "Reservations available at one time",
+          "capacityHint": "How many reservations this area can take for the same time.",
+          "labelPlaceholder": "e.g. Main Dining Area"
+        },
+        "tour": {
+          "heading": "Departures",
+          "add": "Add departure",
+          "noun": "Departure",
+          "capacity": "Seats per departure",
+          "capacityHint": "How many people can join one departure.",
+          "labelPlaceholder": "e.g. Morning Departure"
+        },
+        "carRental": {
+          "heading": "Vehicle",
+          "add": "Add vehicle",
+          "noun": "Vehicle",
+          "capacity": "Vehicles available",
+          "capacityHint": "How many vehicles of this model you can rent out at the same time.",
+          "labelPlaceholder": "e.g. Compact Hatchback"
+        },
+        "attraction": {
+          "heading": "Sessions",
+          "add": "Add session",
+          "noun": "Session / admission option",
+          "capacity": "Places per session",
+          "capacityHint": "How many visitors one session can admit.",
+          "labelPlaceholder": "e.g. General Admission, Morning Session"
+        },
+        "entertainment": {
+          "heading": "Sessions",
+          "add": "Add session",
+          "noun": "Session",
+          "capacity": "Places per session",
+          "capacityHint": "How many people one session can admit.",
+          "labelPlaceholder": "e.g. Escape Room Session, VR Play Area"
+        }
+      },
+      "unitPrice": {
+        "perNight": "Base price per night",
+        "perDay": "Base price per day",
+        "perPerson": "Base price per person",
+        "neutral": "Base price"
+      },
+      "unitPriceSummary": {
+        "perNight": "{{amount}} {{currency}} / night",
+        "perDay": "{{amount}} {{currency}} / day",
+        "perPerson": "{{amount}} {{currency}} / person",
+        "neutral": "{{amount}} {{currency}}"
+      }
     },
     "listingRooms": {
-      "heading": "Rooms — {{title}}",
+      "heading": "{{units}} — {{title}}",
       "loading": "Loading listing…",
       "errorTitle": "Couldn't load this listing"
     },

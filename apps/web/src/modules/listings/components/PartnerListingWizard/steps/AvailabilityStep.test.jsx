@@ -12,9 +12,15 @@ import {
   useRemoveBlackoutMutation,
 } from '../../../../availability/index.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
+import { resolveBookableUnitProfile } from '../../../utils/resolveBookableUnitProfile.js';
 
-vi.mock('../../../../availability/index.js', () => ({
-  BOOKABLE_UNIT_TYPES: ['HOTEL_ROOM', 'PROPERTY_UNIT'],
+vi.mock('../../../../availability/index.js', async () => ({
+  ...(await vi.importActual(
+    '../../../../availability/constants/bookableUnitFieldApplicability.js',
+  )),
+  ...(await vi.importActual(
+    '../../../../availability/constants/listingTypeBookableUnitTypes.js',
+  )),
   BED_TYPES: ['SINGLE', 'DOUBLE', 'QUEEN', 'KING', 'TWIN', 'SOFA_BED', 'BUNK'],
   INT_UNSIGNED_MAX: 4294967295,
   BATHROOM_TYPES: ['PRIVATE', 'SHARED', 'ENSUITE'],
@@ -45,6 +51,10 @@ vi.mock('../../../mutations/useUpdateListingMutation.js', () => ({
 
 // `AvailabilityStep` reads the URL's `:locale` segment (to pass a
 // locale-aware `DatePicker`), so every render needs a Router context.
+const profileFor = (listingType, categorySlug, pricingModel) =>
+  resolveBookableUnitProfile({ listingType, categorySlug, pricingModel });
+const HOTEL = profileFor('HOTEL', 'hotels', 'PER_NIGHT');
+
 function renderStep(props) {
   return render(
     <MemoryRouter initialEntries={['/hy/partner/listings/new']}>
@@ -53,7 +63,7 @@ function renderStep(props) {
           path="/:locale/partner/listings/new"
           element={
             // eslint-disable-next-line react/jsx-props-no-spreading -- test harness forwards per-test overrides
-            <AvailabilityStep {...props} />
+            <AvailabilityStep unitProfile={HOTEL} {...props} />
           }
         />
       </Routes>
@@ -114,14 +124,14 @@ describe('AvailabilityStep (PartnerListingWizard)', () => {
     // mutation — the button now opens `BookableUnitForm`).
     await user.click(
       screen.getByRole('button', {
-        name: 'Գրանցել միավոր',
+        name: 'Ավելացնել սենյակի տեսակ',
       }),
     );
     // The form's own submit button shares the same label — `.last()`
     // equivalent via querying all matches and taking the one inside the
     // now-visible form.
     const submitButtons = screen.getAllByRole('button', {
-      name: 'Գրանցել միավոր',
+      name: 'Ավելացնել սենյակի տեսակ',
     });
     await user.click(submitButtons[submitButtons.length - 1]);
 
@@ -158,13 +168,13 @@ describe('AvailabilityStep (PartnerListingWizard)', () => {
 
     // The old bug: this button did not exist once a unit was registered.
     const addAnotherButton = screen.getByRole('button', {
-      name: 'Ավելացնել սենյակի նոր տեսակ',
+      name: 'Ավելացնել սենյակի տեսակ',
     });
     expect(addAnotherButton).toBeInTheDocument();
 
     await user.click(addAnotherButton);
     const submitButtons = screen.getAllByRole('button', {
-      name: 'Գրանցել միավոր',
+      name: 'Ավելացնել սենյակի տեսակ',
     });
     await user.click(submitButtons[submitButtons.length - 1]);
 
@@ -217,11 +227,11 @@ describe('AvailabilityStep (PartnerListingWizard)', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Որքան նախապես պետք է հյուրերը ամրագրեն՝ մուտքից առաջ, ժամերով։',
+        'Որքան նախապես եք ցանկանում, որ հյուրերն ամրագրեն՝ մուտքից առաջ, ժամերով։',
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Որքան առաջ կարող են հյուրերը ամրագրել, օրերով։'),
+      screen.getByText('Որքան առաջ կարելի է ամրագրել, օրերով։'),
     ).toBeInTheDocument();
   });
 
@@ -433,6 +443,138 @@ describe('AvailabilityStep (PartnerListingWizard)', () => {
       const [[call]] = updateListingMutateAsync.mock.calls;
       expect(call.payload.bookingRules.advanceBookingMinHours).toBeUndefined();
       expect(call.payload.bookingRules.advanceBookingMaxDays).toBeUndefined();
+    });
+  });
+
+  // Step L6.2B — the unit heading, stay-rule wording and advance-notice
+  // hint follow each category family; hidden stay values are never lost.
+  describe('category families (Step L6.2B)', () => {
+    const NIGHTS_MIN = 'Նվազագույն մնալու տևողություն (գիշեր)';
+    const RENTAL_MIN = 'Նվազագույն վարձակալում (օր)';
+    const RENTAL_MAX = 'Առավելագույն վարձակալում (օր)';
+    const ADVANCE_MIN = 'Ամրագրման նվազագույն ժամկետ (ժամ)';
+
+    test.each([
+      [
+        'Hotel',
+        HOTEL,
+        'Սենյակների տեսակներ',
+        NIGHTS_MIN,
+        'Որքան նախապես եք ցանկանում, որ հյուրերն ամրագրեն՝ մուտքից առաջ, ժամերով։',
+      ],
+      [
+        'Apartment',
+        profileFor('PROPERTY', 'apartments', 'PER_NIGHT'),
+        'Միավորներ',
+        NIGHTS_MIN,
+        'Որքան նախապես եք ցանկանում, որ հյուրերն ամրագրեն՝ մուտքից առաջ, ժամերով։',
+      ],
+      [
+        'Car rental',
+        profileFor('CAR_RENTAL', 'car-rentals', 'PER_DAY'),
+        'Ավտոմեքենա',
+        RENTAL_MIN,
+        'Որքան նախապես եք ցանկանում, որ հաճախորդներն ամրագրեն՝ ավտոմեքենան վերցնելուց առաջ, ժամերով։',
+      ],
+      [
+        'Restaurant',
+        profileFor('RESTAURANT', 'restaurants', 'PER_PERSON'),
+        'Սրահներ',
+        null,
+        'Որքան նախապես եք ցանկանում, որ հյուրերն ամրագրեն՝ ամրագրման ժամից առաջ, ժամերով։',
+      ],
+      [
+        'Tour',
+        profileFor('TOUR', 'tours', 'PER_PERSON'),
+        'Մեկնումներ',
+        null,
+        'Որքան նախապես եք ցանկանում, որ հյուրերն ամրագրեն՝ մեկնումից առաջ, ժամերով։',
+      ],
+      [
+        'Attraction',
+        profileFor('ATTRACTION', 'attractions', 'PER_HOUR'),
+        'Սեանսներ',
+        null,
+        'Որքան նախապես եք ցանկանում, որ այցելուներն ամրագրեն՝ սեանսից կամ այցից առաջ, ժամերով։',
+      ],
+    ])(
+      '%s: units heading, stay wording and advance hint',
+      (_family, unitProfile, heading, stayLabel, advanceHint) => {
+        renderStep({ listingId: 7, onNext: vi.fn(), unitProfile });
+
+        expect(
+          screen.getByRole('heading', { name: heading }),
+        ).toBeInTheDocument();
+        expect(screen.getByText(advanceHint)).toBeInTheDocument();
+        if (stayLabel) {
+          expect(screen.getByLabelText(stayLabel)).toBeInTheDocument();
+        } else {
+          expect(screen.queryByLabelText(/գիշեր/)).not.toBeInTheDocument();
+          expect(screen.queryByLabelText(RENTAL_MIN)).not.toBeInTheDocument();
+        }
+      },
+    );
+
+    test('a car rental validates its rental days with rental wording, writing the same stored fields', async () => {
+      const user = userEvent.setup();
+      renderStep({
+        listingId: 7,
+        onNext: vi.fn(),
+        unitProfile: profileFor('CAR_RENTAL', 'car-rentals', 'PER_DAY'),
+      });
+
+      await user.type(screen.getByLabelText(RENTAL_MIN), '6');
+      await user.type(screen.getByLabelText(RENTAL_MAX), '5');
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      expect(
+        await screen.findByText(
+          'Նվազագույն վարձակալումը չի կարող գերազանցել առավելագույնը։',
+        ),
+      ).toBeInTheDocument();
+      expect(updateListingMutateAsync).not.toHaveBeenCalled();
+
+      await user.clear(screen.getByLabelText(RENTAL_MAX));
+      await user.type(screen.getByLabelText(RENTAL_MAX), '10');
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      await waitFor(() => expect(updateListingMutateAsync).toHaveBeenCalled());
+      expect(updateListingMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: {
+            bookingRules: expect.objectContaining({
+              minimumStayNights: 6,
+              maximumStayNights: 10,
+            }),
+          },
+        }),
+      );
+    });
+
+    test('a tour hides stay fields but re-sends their stored values unchanged', async () => {
+      const user = userEvent.setup();
+      renderStep({
+        listingId: 7,
+        onNext: vi.fn(),
+        unitProfile: profileFor('TOUR', 'tours', 'PER_PERSON'),
+        initialValues: { minimumStayNights: 2, maximumStayNights: 7 },
+      });
+
+      await user.type(screen.getByLabelText(ADVANCE_MIN), '24');
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      await waitFor(() => expect(updateListingMutateAsync).toHaveBeenCalled());
+      expect(updateListingMutateAsync).toHaveBeenCalledWith({
+        id: 7,
+        payload: {
+          bookingRules: {
+            minimumStayNights: 2,
+            maximumStayNights: 7,
+            advanceBookingMinHours: 24,
+            advanceBookingMaxDays: undefined,
+          },
+        },
+      });
     });
   });
 });

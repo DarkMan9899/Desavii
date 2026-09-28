@@ -181,12 +181,19 @@ describe('POST /booking-holds — Car Rental pickup/return time persistence + va
   });
 
   test('a non-VEHICLE unit silently ignores any client-supplied time — never a way to set a Tour departure time via the hold payload', async () => {
-    const listingId = await createCarRentalListing(
-      `Non-Vehicle Time Ignored Test ${Date.now()}`,
-    );
-    // A TOUR_DEPARTURE unit registered on the same listing purely to
-    // prove the server-side gate is keyed on the UNIT's own type, not
-    // the listing's category.
+    // Step L6.2B: a TOUR_DEPARTURE unit belongs to a TOUR listing — the
+    // hold's time gate is keyed on the unit's own type.
+    const listingRes = await request(app)
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({
+        partnerId,
+        listingType: 'TOUR',
+        translations: [
+          { languageId, title: `Non-Vehicle Time Ignored Test ${Date.now()}` },
+        ],
+      });
+    const listingId = listingRes.body.data.id;
     const res = await request(app)
       .post('/api/v1/availability/units')
       .set('Authorization', `Bearer ${vendor.accessToken}`)
@@ -433,12 +440,18 @@ describe('POST /booking-holds — Car Rental overlap matrix (A-J)', () => {
     expect(second.status).toBe(201);
   });
 
-  test('J. a different vehicle unit on the same listing can be rented for the exact same interval concurrently', async () => {
-    const listingId = await createCarRentalListing(
-      `Rental Overlap J ${Date.now()}`,
+  // Step L6.2B: a Car Rental listing holds exactly one VEHICLE unit, so the
+  // two vehicles live on two listings — the overlap check is still scoped
+  // to the vehicle unit actually taken.
+  test('J. a different vehicle unit can be rented for the exact same interval concurrently', async () => {
+    const listingA = await createCarRentalListing(
+      `Rental Overlap J-A ${Date.now()}`,
     );
-    const unitA = await registerVehicleUnit(listingId, 'Vehicle J-A');
-    const unitB = await registerVehicleUnit(listingId, 'Vehicle J-B');
+    const listingB = await createCarRentalListing(
+      `Rental Overlap J-B ${Date.now()}`,
+    );
+    const unitA = await registerVehicleUnit(listingA, 'Vehicle J-A');
+    const unitB = await registerVehicleUnit(listingB, 'Vehicle J-B');
 
     const first = await createHold(
       unitA,

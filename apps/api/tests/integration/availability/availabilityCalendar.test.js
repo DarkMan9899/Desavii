@@ -56,11 +56,17 @@ async function createListing(title) {
   return res.body.data.id;
 }
 
-async function registerUnit(targetListingId, bookableUnitType = 'HOTEL_ROOM') {
+// Step L6.2B: a HOTEL listing only accepts HOTEL_ROOM units; a distinct
+// `unitLabel` is what makes a second, separate room type.
+async function registerUnit(
+  targetListingId,
+  bookableUnitType = 'HOTEL_ROOM',
+  unitLabel = undefined,
+) {
   const res = await request(app)
     .post('/api/v1/availability/units')
     .set('Authorization', `Bearer ${vendor.accessToken}`)
-    .send({ listingId: targetListingId, bookableUnitType });
+    .send({ listingId: targetListingId, bookableUnitType, unitLabel });
   return res.body.data.id;
 }
 
@@ -172,8 +178,8 @@ beforeAll(async () => {
   multiUnitListingId = await createListing(
     `Multi Unit Availability Test ${Date.now()}-${Math.floor(Math.random() * 100000)}`,
   );
-  await registerUnit(multiUnitListingId, 'HOTEL_ROOM');
-  await registerUnit(multiUnitListingId, 'RESTAURANT_TABLE');
+  await registerUnit(multiUnitListingId, 'HOTEL_ROOM', 'Standard Room');
+  await registerUnit(multiUnitListingId, 'HOTEL_ROOM', 'Family Room');
   await publishListing(multiUnitListingId);
 }, 60_000);
 
@@ -254,8 +260,8 @@ describe('GET /availability/:listingId/units — public bookable units view (Pha
       `/api/v1/availability/${multiUnitListingId}/units`,
     );
     expect(res.status).toBe(200);
-    const types = res.body.data.map((unit) => unit.bookable_unit_type).sort();
-    expect(types).toEqual(['HOTEL_ROOM', 'RESTAURANT_TABLE']);
+    const labels = res.body.data.map((unit) => unit.unit_label).sort();
+    expect(labels).toEqual(['Family Room', 'Standard Room']);
   });
 
   test('a draft listing 404s for a stranger (existence not leaked)', async () => {

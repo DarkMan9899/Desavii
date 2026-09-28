@@ -178,10 +178,25 @@ describe('POST /availability/units — structured room fields', () => {
   });
 
   test('a non-HOTEL_ROOM unit (VEHICLE) remains fully compatible — room fields stay null when never sent', async () => {
+    // Step L6.2B: a VEHICLE unit belongs to its own Car Rental listing.
+    const listingRes = await request(app)
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({
+        partnerId,
+        listingType: 'CAR_RENTAL',
+        translations: [
+          { languageId, title: `Room Detail Vehicle ${Date.now()}` },
+        ],
+      });
     const res = await request(app)
       .post('/api/v1/availability/units')
       .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .send({ listingId, bookableUnitType: 'VEHICLE', capacity: 1 });
+      .send({
+        listingId: listingRes.body.data.id,
+        bookableUnitType: 'VEHICLE',
+        capacity: 1,
+      });
     expect(res.status).toBe(201);
     expect(res.body.data.room_size_sqm).toBeNull();
     expect(res.body.data.bathroom_type).toBeNull();

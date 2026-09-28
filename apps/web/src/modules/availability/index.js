@@ -11,6 +11,15 @@
  */
 export { default as availabilityKeys } from './constants/queryKeys.js';
 export { default as BOOKABLE_UNIT_TYPES } from './constants/bookableUnitTypes.js';
+// Step L6.2B — listing type -> unit type model (mirrors the backend).
+export {
+  getBookableUnitTypeForListingType,
+  isSingleUnitListingType,
+} from './constants/listingTypeBookableUnitTypes.js';
+export {
+  unitTypeUsesField,
+  supportsRoomDetails,
+} from './constants/bookableUnitFieldApplicability.js';
 export { default as BED_TYPES } from './constants/bedTypes.js';
 export { INT_UNSIGNED_MAX } from './constants/numericBounds.js';
 export { INVENTORY_TEXT_MAX_LENGTH } from './constants/inventoryTextLimits.js';

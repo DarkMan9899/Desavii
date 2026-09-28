@@ -11,6 +11,12 @@
  * `updateListing` mutation every other step uses — no separate
  * availability endpoint exists for them.
  *
+ * Step L6.2B: the wording follows the listing's unit model
+ * (`unitProfile`). Minimum/maximum stay renders as nights for lodging, as
+ * rental days for a Car Rental (the same stored fields), and not at all
+ * elsewhere — a hidden stay value is never cleared: it stays in state and
+ * is re-sent unchanged, so switching nothing here never loses data.
+ *
  * Doesn't hard-block Continue on "no bookable unit registered yet" —
  * `ReviewStep` is the one authoritative publish-readiness gate (the
  * real check is server-side); this step only offers the action.
@@ -29,6 +35,7 @@ import {
   useRemoveBlackoutMutation,
 } from '../../../../availability/index.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
+import { bookableUnitProfileShape } from '../../../utils/resolveBookableUnitProfile.js';
 import BookableUnitsManager from '../../BookableUnitsManager/BookableUnitsManager.jsx';
 import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import useApiFieldErrors from '../../../../../hooks/useApiFieldErrors.js';
@@ -63,15 +70,31 @@ function parseBookingRuleField(rawValue) {
 }
 
 const BOOKING_RULE_FIELDS = [
-  { key: 'minimumStayNights', kind: 'positive' },
-  { key: 'maximumStayNights', kind: 'positive' },
-  { key: 'advanceBookingMinHours', kind: 'nonnegative' },
-  { key: 'advanceBookingMaxDays', kind: 'nonnegative' },
+  { key: 'minimumStayNights', kind: 'positive', stay: true },
+  { key: 'maximumStayNights', kind: 'positive', stay: true },
+  { key: 'advanceBookingMinHours', kind: 'nonnegative', stay: false },
+  { key: 'advanceBookingMaxDays', kind: 'nonnegative', stay: false },
 ];
+
+// `partner.listingWizard.availability.*` label keys per stay wording; each
+// label key also has its `…Hint` and `…Invalid` siblings.
+const STAY_RULE_LABEL_KEYS = {
+  nights: {
+    minimumStayNights: 'minimumStayNights',
+    maximumStayNights: 'maximumStayNights',
+    minExceedsMax: 'minExceedsMax',
+  },
+  days: {
+    minimumStayNights: 'minimumRentalDays',
+    maximumStayNights: 'maximumRentalDays',
+    minExceedsMax: 'minRentalExceedsMax',
+  },
+};
 
 export default function AvailabilityStep({
   listingId,
   categoryId = null,
+  unitProfile,
   initialValues = {},
   onBack = undefined,
   onNext,
@@ -102,42 +125,55 @@ export default function AvailabilityStep({
   );
 
   const blackouts = blackoutsQuery.data ?? [];
+  const stayLabelKeys = STAY_RULE_LABEL_KEYS[unitProfile.stayRules] ?? null;
+  const labelKeyFor = (key) => stayLabelKeys?.[key] ?? key;
+  const visibleRuleFields = BOOKING_RULE_FIELDS.filter(
+    ({ stay }) => !stay || stayLabelKeys,
+  );
 
   function setRule(field, value) {
     setRules((current) => ({ ...current, [field]: value }));
   }
 
-  // Step L4 (brief §6-7, §12) — parses and validates every booking-rule
-  // field client-side (whole-number-ness, positive-vs-nonnegative domain,
-  // and the minimumStayNights <= maximumStayNights cross-field rule),
-  // returning both the per-field error messages and the parsed values so
-  // `handleContinue` never has to reparse.
+  // Step L4 (brief §6-7, §12) — parses and validates every VISIBLE
+  // booking-rule field client-side (whole-number-ness,
+  // positive-vs-nonnegative domain, and the min <= max stay cross-field
+  // rule), returning both the per-field error messages and the parsed
+  // values so `handleContinue` never has to reparse. A hidden stay field
+  // can't be edited here, so it's carried through as stored.
   function validateBookingRules() {
     const errors = {};
     const parsed = {};
 
-    BOOKING_RULE_FIELDS.forEach(({ key, kind }) => {
+    BOOKING_RULE_FIELDS.forEach(({ key, kind, stay }) => {
       const { value, malformed } = parseBookingRuleField(rules[key]);
+      if (stay && !stayLabelKeys) {
+        parsed[key] = value;
+        return;
+      }
+      const invalidMessage = t(
+        `partner.listingWizard.availability.${labelKeyFor(key)}Invalid`,
+      );
       if (malformed) {
-        errors[key] = t(`partner.listingWizard.availability.${key}Invalid`);
+        errors[key] = invalidMessage;
         return;
       }
       if (value === undefined) {
         parsed[key] = undefined;
         return;
       }
-      if (kind === 'positive' && value < 1) {
-        errors[key] = t(`partner.listingWizard.availability.${key}Invalid`);
-        return;
-      }
-      if (kind === 'nonnegative' && value < 0) {
-        errors[key] = t(`partner.listingWizard.availability.${key}Invalid`);
+      if (
+        (kind === 'positive' && value < 1) ||
+        (kind === 'nonnegative' && value < 0)
+      ) {
+        errors[key] = invalidMessage;
         return;
       }
       parsed[key] = value;
     });
 
     if (
+      stayLabelKeys &&
       !errors.minimumStayNights &&
       !errors.maximumStayNights &&
       parsed.minimumStayNights !== undefined &&
@@ -145,7 +181,7 @@ export default function AvailabilityStep({
       parsed.minimumStayNights > parsed.maximumStayNights
     ) {
       errors.minimumStayNights = t(
-        'partner.listingWizard.availability.minExceedsMax',
+        `partner.listingWizard.availability.${stayLabelKeys.minExceedsMax}`,
       );
     }
 
@@ -186,13 +222,28 @@ export default function AvailabilityStep({
     onNext();
   }
 
+  function hintFor(key) {
+    if (key === 'advanceBookingMinHours') {
+      return t(
+        `partner.listingWizard.availability.advanceBookingMinHoursHints.${unitProfile.advanceContext}`,
+      );
+    }
+    return t(`partner.listingWizard.availability.${labelKeyFor(key)}Hint`);
+  }
+
   return (
     <div>
       <h2>{t('partner.listingWizard.steps.availability')}</h2>
 
       <section>
-        <h3>{t('partner.listingWizard.availability.units')}</h3>
-        <BookableUnitsManager listingId={listingId} categoryId={categoryId} />
+        <h3>
+          {t(`partner.listingWizard.unitTerms.${unitProfile.terms}.heading`)}
+        </h3>
+        <BookableUnitsManager
+          listingId={listingId}
+          categoryId={categoryId}
+          profile={unitProfile}
+        />
       </section>
 
       <section>
@@ -244,103 +295,30 @@ export default function AvailabilityStep({
         <h3>{t('partner.listingWizard.availability.bookingRules')}</h3>
         <ApiErrorAlert
           error={updateListingMutation.error}
-          inlinePaths={BOOKING_RULE_FIELDS.map(
+          inlinePaths={visibleRuleFields.map(
             ({ key }) => `bookingRules.${key}`,
           )}
         />
         <Stack gap="4">
-          <Input
-            type="number"
-            min={1}
-            step={1}
-            label={t('partner.listingWizard.availability.minimumStayNights')}
-            helperText={t(
-              'partner.listingWizard.availability.minimumStayNightsHint',
-            )}
-            value={rules.minimumStayNights}
-            error={
-              ruleErrors.minimumStayNights ??
-              fieldError('bookingRules.minimumStayNights')
-            }
-            onChange={(event) => {
-              setRule('minimumStayNights', event.target.value);
-              clearFieldError('bookingRules.minimumStayNights');
-              setRuleErrors((current) => ({
-                ...current,
-                minimumStayNights: undefined,
-              }));
-            }}
-          />
-          <Input
-            type="number"
-            min={1}
-            step={1}
-            label={t('partner.listingWizard.availability.maximumStayNights')}
-            helperText={t(
-              'partner.listingWizard.availability.maximumStayNightsHint',
-            )}
-            value={rules.maximumStayNights}
-            error={
-              ruleErrors.maximumStayNights ??
-              fieldError('bookingRules.maximumStayNights')
-            }
-            onChange={(event) => {
-              setRule('maximumStayNights', event.target.value);
-              clearFieldError('bookingRules.maximumStayNights');
-              setRuleErrors((current) => ({
-                ...current,
-                maximumStayNights: undefined,
-              }));
-            }}
-          />
-          <Input
-            type="number"
-            min={0}
-            step={1}
-            label={t(
-              'partner.listingWizard.availability.advanceBookingMinHours',
-            )}
-            helperText={t(
-              'partner.listingWizard.availability.advanceBookingMinHoursHint',
-            )}
-            value={rules.advanceBookingMinHours}
-            error={
-              ruleErrors.advanceBookingMinHours ??
-              fieldError('bookingRules.advanceBookingMinHours')
-            }
-            onChange={(event) => {
-              setRule('advanceBookingMinHours', event.target.value);
-              clearFieldError('bookingRules.advanceBookingMinHours');
-              setRuleErrors((current) => ({
-                ...current,
-                advanceBookingMinHours: undefined,
-              }));
-            }}
-          />
-          <Input
-            type="number"
-            min={0}
-            step={1}
-            label={t(
-              'partner.listingWizard.availability.advanceBookingMaxDays',
-            )}
-            helperText={t(
-              'partner.listingWizard.availability.advanceBookingMaxDaysHint',
-            )}
-            value={rules.advanceBookingMaxDays}
-            error={
-              ruleErrors.advanceBookingMaxDays ??
-              fieldError('bookingRules.advanceBookingMaxDays')
-            }
-            onChange={(event) => {
-              setRule('advanceBookingMaxDays', event.target.value);
-              clearFieldError('bookingRules.advanceBookingMaxDays');
-              setRuleErrors((current) => ({
-                ...current,
-                advanceBookingMaxDays: undefined,
-              }));
-            }}
-          />
+          {visibleRuleFields.map(({ key, kind }) => (
+            <Input
+              key={key}
+              type="number"
+              min={kind === 'positive' ? 1 : 0}
+              step={1}
+              label={t(
+                `partner.listingWizard.availability.${labelKeyFor(key)}`,
+              )}
+              helperText={hintFor(key)}
+              value={rules[key]}
+              error={ruleErrors[key] ?? fieldError(`bookingRules.${key}`)}
+              onChange={(event) => {
+                setRule(key, event.target.value);
+                clearFieldError(`bookingRules.${key}`);
+                setRuleErrors((current) => ({ ...current, [key]: undefined }));
+              }}
+            />
+          ))}
         </Stack>
       </section>
 
@@ -358,6 +336,7 @@ export default function AvailabilityStep({
 AvailabilityStep.propTypes = {
   listingId: PropTypes.number.isRequired,
   categoryId: PropTypes.number,
+  unitProfile: bookableUnitProfileShape.isRequired,
   initialValues: PropTypes.shape({
     minimumStayNights: PropTypes.number,
     maximumStayNights: PropTypes.number,

@@ -34,6 +34,13 @@ beforeAll(async () => {
     await import('../../../../src/modules/availability/services/availabilityService.js'));
 });
 
+// Room photos exist only for a hotel room (Step L6.2B).
+const HOTEL_ROOM_UNIT = {
+  id: 5,
+  listingId: 1,
+  bookableUnitTypeCode: 'HOTEL_ROOM',
+};
+
 function buildService(overrides = {}) {
   const bookableUnitService = {
     findById: jest.fn(),
@@ -88,7 +95,7 @@ describe('AvailabilityService#attachUnitMedia — orphan cleanup (Step L3.1)', (
     withTransactionMock = jest.fn(async (fn) => fn({}));
 
     const { service, bookableUnitService, storageProvider } = buildService();
-    bookableUnitService.findById.mockResolvedValue({ id: 5, listingId: 1 });
+    bookableUnitService.findById.mockResolvedValue(HOTEL_ROOM_UNIT);
     bookableUnitService.lockById.mockResolvedValue({ id: 5 });
     storageProvider.put.mockResolvedValue({
       key: 'bookable-units/5/stored-key.png',
@@ -112,7 +119,7 @@ describe('AvailabilityService#attachUnitMedia — orphan cleanup (Step L3.1)', (
     withTransactionMock = jest.fn(async (fn) => fn({}));
 
     const { service, bookableUnitService, storageProvider } = buildService();
-    bookableUnitService.findById.mockResolvedValue({ id: 5, listingId: 1 });
+    bookableUnitService.findById.mockResolvedValue(HOTEL_ROOM_UNIT);
     bookableUnitService.lockById.mockResolvedValue(null);
     storageProvider.put.mockResolvedValue({
       key: 'bookable-units/5/stored-key.png',
@@ -132,7 +139,7 @@ describe('AvailabilityService#attachUnitMedia — orphan cleanup (Step L3.1)', (
     withTransactionMock = jest.fn(async (fn) => fn({}));
 
     const { service, bookableUnitService, storageProvider } = buildService();
-    bookableUnitService.findById.mockResolvedValue({ id: 5, listingId: 1 });
+    bookableUnitService.findById.mockResolvedValue(HOTEL_ROOM_UNIT);
     bookableUnitService.lockById.mockResolvedValue({ id: 5 });
     storageProvider.put.mockResolvedValue({
       key: 'bookable-units/5/stored-key.png',
@@ -156,7 +163,7 @@ describe('AvailabilityService#attachUnitMedia — orphan cleanup (Step L3.1)', (
     withTransactionMock = jest.fn(async (fn) => fn({}));
 
     const { service, bookableUnitService, storageProvider } = buildService();
-    bookableUnitService.findById.mockResolvedValue({ id: 5, listingId: 1 });
+    bookableUnitService.findById.mockResolvedValue(HOTEL_ROOM_UNIT);
 
     const corrupt = Buffer.from('not an image');
 
