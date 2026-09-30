@@ -88,6 +88,10 @@ export default function BookingPaymentSection({
 
   if (!activePayment) {
     if (readOnly) return null;
+    // Step L6.2H2B: the server decides whether a booking can take payment
+    // at all (never a restaurant reservation or a zero total) — no Pay Now
+    // control then. An existing payment above still renders as history.
+    if (booking.payment_required === false) return null;
     if (!paymentsConfig) return null;
     if (!paymentsConfig.enabled) {
       return (

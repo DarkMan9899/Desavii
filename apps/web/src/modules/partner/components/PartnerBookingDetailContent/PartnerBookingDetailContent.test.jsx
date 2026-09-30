@@ -145,6 +145,30 @@ describe('PartnerBookingDetailContent (apps/web/src/modules/partner)', () => {
     ).not.toBeInTheDocument();
   });
 
+  // Step L6.2H2B: the Partner sees the party size the customer booked for,
+  // and that the reservation is free (no charge to collect online).
+  test('Step L6.2H2B: a restaurant reservation shows its party size and that it is free', () => {
+    useBookingQuery.mockReturnValue({
+      data: {
+        ...BASE_BOOKING,
+        booking_type: 'RESTAURANT_RESERVATION',
+        total_amount: '0.00',
+        items: [
+          { ...BASE_BOOKING.items[0], start_time: '19:00', guest_count: 6 },
+        ],
+      },
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    renderPage();
+    expect(screen.getByText(/Հյուրերի քանակ: 6/)).toBeInTheDocument();
+    expect(
+      screen.getByText('Անվճար ամրագրում՝ վճարումը ռեստորանում'),
+    ).toBeInTheDocument();
+  });
+
   test('shows Cancel, Complete, and No-show for CONFIRMED, hides Confirm/Reject', () => {
     useBookingQuery.mockReturnValue({
       data: {

@@ -124,6 +124,9 @@ function toItemDomain(row) {
     pickupLocation: row.pickup_location_snapshot ?? null,
     returnLocation: row.return_location_snapshot ?? null,
     quantity: row.quantity,
+    // Step L6.2H2B: a restaurant reservation's party size; NULL for every
+    // other item and every booking created before migration 0052 — never 0.
+    guestCount: row.guest_count ?? null,
     unitPriceAmount: row.unit_price_amount,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -455,6 +458,7 @@ export class MySqlBookingRepository {
       pickupLocationSnapshot,
       returnLocationSnapshot,
       quantity,
+      guestCount,
       unitPriceAmount,
     },
     connection = this.#pool,
@@ -462,8 +466,8 @@ export class MySqlBookingRepository {
     const [result] = await connection.query(
       `INSERT INTO booking_items
         (booking_id, bookable_unit_id, unit_label_snapshot, date_from, date_to, start_time, end_time,
-         pickup_location_snapshot, return_location_snapshot, quantity, unit_price_amount)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         pickup_location_snapshot, return_location_snapshot, quantity, guest_count, unit_price_amount)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         bookingId,
         bookableUnitId,
@@ -475,6 +479,7 @@ export class MySqlBookingRepository {
         pickupLocationSnapshot ?? null,
         returnLocationSnapshot ?? null,
         quantity,
+        guestCount ?? null,
         unitPriceAmount,
       ],
     );

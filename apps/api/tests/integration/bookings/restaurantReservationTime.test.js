@@ -175,7 +175,7 @@ describe('POST /bookings — a Restaurant reservation carries its real time onto
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds }],
+        items: [{ holdIds, guestCount: 2 }],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -188,5 +188,8 @@ describe('POST /bookings — a Restaurant reservation carries its real time onto
     // stay the VEHICLE-only concept they always were.
     expect(res.body.data.items[0].pickup_location).toBeNull();
     expect(res.body.data.items[0].return_location).toBeNull();
+    // Step L6.2H2B: the reservation is free even with a date price set.
+    expect(res.body.data.items[0].guest_count).toBe(2);
+    expect(res.body.data.total_amount).toBe('0.00');
   });
 });

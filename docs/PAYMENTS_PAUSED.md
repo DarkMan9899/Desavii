@@ -179,6 +179,14 @@ unset, which would have silently fallen back to envalid's
 `devDefault: true` in local development). No `STRIPE_*` variable is set in
 any environment file on this machine.
 
+**Restaurant reservations never take platform payment (Step L6.2H2B).** A
+restaurant reservation is free (its listing price is average spend per person,
+display only). Every booking carries a server-computed `payment_required`
+flag, and `PaymentService#createPaymentIntent` refuses a booking that does not
+require payment with `409 PAYMENT_NOT_REQUIRED` — before any payment row,
+booking payment-status change or provider call — so this holds even once
+payments are enabled.
+
 **`PAYMENTS_ENABLED` must remain `false` in every environment — local,
 staging, and production — until the activation work in §4 is completed
 and explicitly re-approved.** No further payment-system development,

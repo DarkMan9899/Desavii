@@ -142,6 +142,32 @@ describe('MobileBookingBar', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
+  // Step L6.2H2B: a restaurant's price is average spend per person.
+  test('a restaurant price reads as average spend per person', () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/hy/listings/7']}>
+          <Routes>
+            <Route
+              path="/:locale/listings/:id"
+              element={
+                <CurrencyProvider locale="hy">
+                  <MobileBookingBar
+                    listingId={7}
+                    pricing={{ ...PRICING, pricing_model: 'PER_PERSON' }}
+                    bookingCtaKey="pages.listingDetail.reservation.requestToBook"
+                    listingType="RESTAURANT"
+                  />
+                </CurrencyProvider>
+              }
+            />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText(/Միջին ծախսը մեկ անձի համար/)).toBeInTheDocument();
+  });
+
   test('tapping the CTA opens the drawer with the reservation widget for this listing', async () => {
     const user = userEvent.setup();
     renderBar({

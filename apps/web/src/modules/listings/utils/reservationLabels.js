@@ -12,8 +12,16 @@ export function resolveBookingCtaLabel(t, bookingCtaKey) {
   });
 }
 
-export function resolvePricingModelLabel(t, pricing) {
+/**
+ * Step L6.2H2B: a restaurant's price is average spend per person — display
+ * metadata, never charged (its reservation is free) — so it never reads as a
+ * per-person booking price.
+ */
+export function resolvePricingModelLabel(t, pricing, listingType = null) {
   if (!pricing?.pricing_model) return undefined;
+  if (listingType === 'RESTAURANT') {
+    return t('pages.listingDetail.reservation.averageSpendPerPerson');
+  }
   return t(`partner.listingWizard.pricingModels.${pricing.pricing_model}`, {
     defaultValue: pricing.pricing_model,
   });

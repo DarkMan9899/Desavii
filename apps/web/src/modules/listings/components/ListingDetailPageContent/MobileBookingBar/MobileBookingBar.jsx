@@ -60,7 +60,7 @@ export default function MobileBookingBar({
   const [isOpen, setIsOpen] = useState(false);
 
   const ctaLabel = resolveBookingCtaLabel(t, bookingCtaKey);
-  const pricingModelLabel = resolvePricingModelLabel(t, pricing);
+  const pricingModelLabel = resolvePricingModelLabel(t, pricing, listingType);
   // Step L6.2H1: a legacy pricing model the server refuses to book shows
   // why instead of a price, and offers no booking drawer.
   const isBookable = isPricingModelBookable(pricing);

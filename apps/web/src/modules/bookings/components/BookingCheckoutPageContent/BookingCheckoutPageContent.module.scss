@@ -155,3 +155,11 @@
   padding-block-start: tokens.$space-3;
   border-top: 1px solid tokens.$color-gray-200;
 }
+
+// Step L6.2H2B: a free restaurant reservation, in place of the total row.
+.freeReservation {
+  margin: 0;
+  padding-block-start: tokens.$space-3;
+  border-top: 1px solid tokens.$color-gray-200;
+  color: tokens.$color-success-strong;
+}

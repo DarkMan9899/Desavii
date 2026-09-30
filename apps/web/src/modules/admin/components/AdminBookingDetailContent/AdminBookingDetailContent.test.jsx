@@ -196,6 +196,31 @@ describe('AdminBookingDetailContent (apps/web/src/modules/admin)', () => {
     ).not.toBeInTheDocument();
   });
 
+  // Step L6.2H2B: an admin sees the same party size and free reservation.
+  test('Step L6.2H2B: a restaurant reservation shows its party size and that it is free', () => {
+    useAdminBookingDetailQuery.mockReturnValue({
+      data: {
+        ...BASE_BOOKING,
+        booking_type: 'RESTAURANT_RESERVATION',
+        total_amount: '0.00',
+        items: BASE_BOOKING.items.map((item) => ({
+          ...item,
+          start_time: '19:00',
+          guest_count: 3,
+        })),
+      },
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    renderPage();
+    expect(screen.getByText(/Հյուրերի քանակ: 3/)).toBeInTheDocument();
+    expect(
+      screen.getByText('Անվճար ամրագրում՝ վճարումը ռեստորանում'),
+    ).toBeInTheDocument();
+  });
+
   test('shows Cancel/Complete/No-show for CONFIRMED, hides Confirm/Reject', () => {
     useAdminBookingDetailQuery.mockReturnValue({
       data: { ...BASE_BOOKING, status: 'CONFIRMED' },

@@ -28,7 +28,6 @@ import {
   EmptyState,
 } from '@desavii/ui/components/feedback-overlays';
 import { Button, Card } from '@desavii/ui/components/primitives';
-import { PriceTag } from '@desavii/ui/components/data-display';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import DestinationArt from '../../../../components/DestinationArt/DestinationArt.jsx';
@@ -38,6 +37,8 @@ import { formatTimeRange } from '../../../../utils/formatTimeRange.js';
 import { useBookingQuery } from '../../queries/useBookingQuery.js';
 import { useCancelBookingMutation } from '../../mutations/useCancelBookingMutation.js';
 import BookingStatusBadge from '../BookingStatusBadge/BookingStatusBadge.jsx';
+import BookingTotal from '../BookingTotal/BookingTotal.jsx';
+import { resolvePartySize } from '../../utils/restaurantReservation.js';
 import {
   ReviewForm,
   useReviewForBookingQuery,
@@ -220,7 +221,8 @@ export default function BookingDetailPageContent() {
           <div className={styles.headerBody}>
             <Inline gap="3" align="center" wrap>
               <BookingStatusBadge status={booking.status} />
-              <PriceTag
+              <BookingTotal
+                booking={booking}
                 amount={displayPrice.amount}
                 currencyCode={displayPrice.currencyCode}
                 locale={i18n.language}
@@ -323,6 +325,17 @@ export default function BookingDetailPageContent() {
                           </p>
                         )}
                       </>
+                    )}
+                    {/* Step L6.2H2B: a restaurant reservation's party size —
+                        hidden when not recorded (older bookings). */}
+                    {resolvePartySize(item) !== null && (
+                      <p className={styles.metaLine}>
+                        <Users2 aria-hidden="true" focusable="false" />
+                        <span>
+                          {t('bookings.detail.partySize')}:{' '}
+                          {resolvePartySize(item)}
+                        </span>
+                      </p>
                     )}
                     {nights !== null && (
                       <p className={styles.metaLine}>

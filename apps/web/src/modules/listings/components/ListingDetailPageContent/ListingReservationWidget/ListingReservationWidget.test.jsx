@@ -1740,3 +1740,84 @@ describe('ListingReservationWidget — Sprint C-3 (Date-Range Room Availability)
     expect(screen.queryByText(/sold out/i)).not.toBeInTheDocument();
   });
 });
+
+// Step L6.2H2B — a restaurant's price is average spend per person and its
+// reservation is free: never an estimated total, never a per-area price.
+describe('ListingReservationWidget — restaurant free reservation (Step L6.2H2B)', () => {
+  const RESTAURANT_UNITS = [
+    {
+      id: 1,
+      bookable_unit_type: 'RESTAURANT_TABLE',
+      capacity: 5,
+      unit_label: 'Main hall',
+      base_price_amount: '7000.00',
+      base_price_currency: 'AMD',
+    },
+  ];
+  const RESTAURANT_PRICING = {
+    amount: '6500.00',
+    currency: 'AMD',
+    pricing_model: 'PER_PERSON',
+  };
+
+  beforeEach(async () => {
+    // An earlier describe in this file switches to English and leaves it.
+    await i18n.changeLanguage('hy');
+    mockNavigate.mockReset();
+    useAuth.mockReturnValue({ isAuthenticated: true });
+    useListingCalendarQuery.mockReturnValue({
+      data: CALENDAR_DAYS,
+      refetch: vi.fn(),
+    });
+    useListingDayStatusQuery.mockReturnValue({
+      data: DAY_STATUSES,
+      refetch: vi.fn(),
+    });
+    useCreateBookingHoldMutation.mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    });
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: RESTAURANT_UNITS,
+      isPending: false,
+      isError: false,
+    });
+  });
+
+  test('labels the price as average spend and says the reservation is free, with no estimated total', async () => {
+    const user = userEvent.setup();
+    renderWidget({ pricing: RESTAURANT_PRICING, listingType: 'RESTAURANT' });
+
+    expect(screen.getByText(/Միջին ծախսը մեկ անձի համար/)).toBeInTheDocument();
+    expect(
+      screen.getByText('Անվճար ամրագրում՝ վճարումը ռեստորանում'),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'pick dates' }));
+    expect(
+      screen.queryByText(/մոտավոր ընդհանուր գումար/),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/7000/)).not.toBeInTheDocument();
+  });
+
+  test('the party size is required but has no maximum beyond storage', () => {
+    renderWidget({ pricing: RESTAURANT_PRICING, listingType: 'RESTAURANT' });
+
+    const partySize = screen.getByLabelText('Հյուրերի քանակ');
+    expect(partySize).toHaveAttribute('min', '1');
+    expect(partySize).toHaveAttribute('max', '65535');
+  });
+
+  test.each([
+    ['en', 'Average spend per person'],
+    ['ru', 'Средний чек на человека'],
+  ])('the average-spend label is translated (%s)', async (lng, label) => {
+    await i18n.changeLanguage(lng);
+    try {
+      renderWidget({ pricing: RESTAURANT_PRICING, listingType: 'RESTAURANT' });
+      expect(screen.getByText(new RegExp(label))).toBeInTheDocument();
+    } finally {
+      await i18n.changeLanguage('hy');
+    }
+  });
+});

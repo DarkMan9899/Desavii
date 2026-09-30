@@ -455,6 +455,52 @@ describe('BookingDetailPageContent (apps/web/src/modules/bookings)', () => {
     expect(screen.getByText(/Հյուրեր: 2/)).toBeInTheDocument();
   });
 
+  // Step L6.2H2B: a free restaurant reservation shows its party size and
+  // free-reservation wording — never "0 AMD" — and an older booking with no
+  // recorded party size simply omits the line.
+  test('Step L6.2H2B: a restaurant reservation shows its party size and that it is free', () => {
+    useBookingQuery.mockReturnValue({
+      data: {
+        ...BASE_BOOKING,
+        booking_type: 'RESTAURANT_RESERVATION',
+        total_amount: '0.00',
+        items: [
+          {
+            ...BASE_BOOKING.items[0],
+            date_to: '2026-08-01',
+            start_time: '19:00',
+            unit_price_amount: '0.00',
+            guest_count: 4,
+          },
+        ],
+      },
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    renderPage();
+    expect(screen.getByText(/Հյուրերի քանակ: 4/)).toBeInTheDocument();
+    expect(
+      screen.getByText('Անվճար ամրագրում՝ վճարումը ռեստորանում'),
+    ).toBeInTheDocument();
+  });
+
+  test('Step L6.2H2B: a booking with no recorded party size omits the line', () => {
+    useBookingQuery.mockReturnValue({
+      data: {
+        ...BASE_BOOKING,
+        items: [{ ...BASE_BOOKING.items[0], guest_count: null }],
+      },
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    renderPage();
+    expect(screen.queryByText(/Հյուրերի քանակ/)).not.toBeInTheDocument();
+  });
+
   test('P2.2E: shows the cancellation reason when present, omits it otherwise', () => {
     useBookingQuery.mockReturnValue({
       data: {

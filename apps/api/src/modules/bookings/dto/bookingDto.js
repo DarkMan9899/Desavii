@@ -2,6 +2,8 @@
  * Bookings module response DTOs (BACKEND_ARCHITECTURE.md Ch.9).
  */
 
+import { isBookingPaymentRequired } from '../../../core/domain/bookingPaymentRequirement.js';
+
 function toBookingItemResponse(item) {
   return {
     id: item.id,
@@ -31,6 +33,10 @@ function toBookingItemResponse(item) {
     pickup_location: item.pickupLocation ?? null,
     return_location: item.returnLocation ?? null,
     quantity: item.quantity,
+    // Step L6.2H2B: a restaurant reservation's party size (shared by the
+    // customer, Partner and admin views). `null` when not recorded — every
+    // non-restaurant item and every booking from before it was stored.
+    guest_count: item.guestCount ?? null,
     unit_price_amount: item.unitPriceAmount,
     guests: (item.guests ?? []).map((guest) => ({
       id: guest.id,
@@ -77,6 +83,10 @@ export function toBookingResponse(booking) {
     display_total_amount: booking.displayTotalAmount ?? null,
     payment_method: booking.paymentMethod,
     payment_status: booking.paymentStatusCode,
+    // Step L6.2H2B: server-computed — whether a platform payment may ever be
+    // started for this booking (never for a restaurant reservation or a
+    // zero total). The frontend never decides this itself.
+    payment_required: isBookingPaymentRequired(booking),
     requested_at: booking.requestedAt,
     confirmed_at: booking.confirmedAt,
     rejected_at: booking.rejectedAt,

@@ -235,6 +235,7 @@ export default function PartnerListingWizard({ partnerships }) {
           <PricingStep
             listingId={wizard.listingId}
             categoryId={categoryId}
+            listingType={listing.listing_type}
             initialValues={
               listing.pricing
                 ? {

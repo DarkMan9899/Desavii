@@ -1,0 +1,8 @@
+// BookingTotal — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+.free {
+  color: tokens.$color-success-strong;
+  font-size: tokens.$font-size-small;
+}

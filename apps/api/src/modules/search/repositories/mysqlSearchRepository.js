@@ -523,8 +523,9 @@ export function buildSearchListingsQuery(
   //    NULL-safety (a unit with no `max_guests` set is never vetoed on
   //    occupancy, same as booking-time) — VEHICLE has no `max_guests`
   //    set, so this branch was already a no-op for it before P0-C.
-  //    For every OTHER non-accommodation type (TOUR_DEPARTURE, and
-  //    RESTAURANT_TABLE pending its own vertical), `capacity` keeps its
+  //    RESTAURANT_TABLE (Step L6.2H2B) is in that list too: its capacity
+  //    counts concurrent reservations, so one free slot fits any party.
+  //    For every OTHER non-accommodation type (TOUR_DEPARTURE), `capacity` keeps its
   //    pre-existing meaning of a direct occupancy ceiling (e.g. a Tour
   //    departure's total seats) compared straight against the requested
   //    party size — proven by `searchAvailability.test.js`'s existing

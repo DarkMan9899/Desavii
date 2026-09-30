@@ -67,3 +67,10 @@
   color: tokens.$color-danger;
   font-weight: 600;
 }
+
+// Step L6.2H2B: a free restaurant reservation, in place of an estimated total.
+.freeReservation {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-success-strong;
+}

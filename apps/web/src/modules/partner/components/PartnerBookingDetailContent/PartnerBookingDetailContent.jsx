@@ -31,7 +31,6 @@ import {
   EmptyState,
 } from '@desavii/ui/components/feedback-overlays';
 import { Button, Card } from '@desavii/ui/components/primitives';
-import { PriceTag } from '@desavii/ui/components/data-display';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
 import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
@@ -43,6 +42,8 @@ import {
   useCompleteBookingMutation,
   useMarkNoShowMutation,
   BookingStatusBadge,
+  BookingTotal,
+  resolvePartySize,
 } from '../../../bookings/index.js';
 import { useCreateConversationMutation } from '../../../messaging/index.js';
 import { BookingPaymentSection } from '../../../payments/index.js';
@@ -279,7 +280,8 @@ export default function PartnerBookingDetailContent({
           <Stack gap="4">
             <Inline gap="3" align="center">
               <BookingStatusBadge status={booking.status} audience="partner" />
-              <PriceTag
+              <BookingTotal
+                booking={booking}
                 amount={booking.total_amount}
                 currencyCode={booking.currency}
                 suffix={t('bookings.detail.total')}
@@ -347,6 +349,15 @@ export default function PartnerBookingDetailContent({
                           </p>
                         )}
                       </>
+                    )}
+                    {/* Step L6.2H2B: a restaurant reservation's party size —
+                        never derived from named guest rows; hidden when not
+                        recorded (older bookings, other booking types). */}
+                    {resolvePartySize(item) !== null && (
+                      <p>
+                        {t('bookings.detail.partySize')}:{' '}
+                        {resolvePartySize(item)}
+                      </p>
                     )}
                     {nights !== null && (
                       <p>

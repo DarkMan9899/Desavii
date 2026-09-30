@@ -21,7 +21,10 @@ export {
   supportsRoomDetails,
 } from './constants/bookableUnitFieldApplicability.js';
 export { default as BED_TYPES } from './constants/bedTypes.js';
-export { INT_UNSIGNED_MAX } from './constants/numericBounds.js';
+export {
+  INT_UNSIGNED_MAX,
+  SMALLINT_UNSIGNED_MAX,
+} from './constants/numericBounds.js';
 export { INVENTORY_TEXT_MAX_LENGTH } from './constants/inventoryTextLimits.js';
 export {
   BATHROOM_TYPES,

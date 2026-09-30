@@ -23,6 +23,36 @@ describe('buildCategoryCardMeta — price basis', () => {
     },
   );
 
+  // Step L6.2H2B: a restaurant's price is average spend, not a booking price.
+  test.each([
+    ['hy', 'միջինը / անձ'],
+    ['en', 'avg. / person'],
+    ['ru', 'ср. чек / чел.'],
+  ])('a restaurant price reads as average spend (%s)', async (lng, suffix) => {
+    await i18n.changeLanguage(lng);
+    try {
+      expect(
+        suffixFor({
+          category_slug: 'restaurants',
+          listing_type: 'RESTAURANT',
+          pricing_model: 'PER_PERSON',
+        }),
+      ).toBe(suffix);
+    } finally {
+      await i18n.changeLanguage('hy');
+    }
+  });
+
+  test('a tour priced per person keeps "/ person", never average spend', () => {
+    expect(
+      suffixFor({
+        category_slug: 'tours',
+        listing_type: 'TOUR',
+        pricing_model: 'PER_PERSON',
+      }),
+    ).toBe('/ անձի համար');
+  });
+
   test('a legacy PER_HOUR listing shows its price with no basis, never "/ person"', () => {
     expect(
       suffixFor({ category_slug: 'tours', pricing_model: 'PER_HOUR' }),

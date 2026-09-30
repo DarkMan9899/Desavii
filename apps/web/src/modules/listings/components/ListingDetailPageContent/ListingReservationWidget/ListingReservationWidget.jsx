@@ -102,6 +102,7 @@ import {
   parseApiError,
   getIssueMessage,
 } from '../../../../../utils/apiErrorFeedback.js';
+import { SMALLINT_UNSIGNED_MAX } from '../../../../availability/index.js';
 import styles from './ListingReservationWidget.module.scss';
 
 const CALENDAR_WINDOW_DAYS = 180;
@@ -457,8 +458,11 @@ export default function ListingReservationWidget({
         }
       : null;
   }
+  // Step L6.2H2B: a restaurant reservation is free — never an estimated
+  // total (the listing price is average spend, not a charge).
+  if (isRestaurantListing) estimatedTotal = null;
 
-  const pricingModelLabel = resolvePricingModelLabel(t, pricing);
+  const pricingModelLabel = resolvePricingModelLabel(t, pricing, listingType);
 
   // P2.2B: once a unit is selected, its own real base price (P2.2A rung 2
   // of the same date-override -> unit-base -> listing-fallback precedence
@@ -469,7 +473,11 @@ export default function ListingReservationWidget({
   // price of its own (legacy, or never set) truthfully falls back to the
   // listing price server-side too, so the headline keeps showing exactly
   // that here. Before any unit is selected, behavior is unchanged.
+  //
+  // Step L6.2H2B: a restaurant always shows its listing's average spend — a
+  // dining area's own price is never charged, so it never replaces it.
   const headlinePricing =
+    !isRestaurantListing &&
     selectedUnit?.base_price_amount !== undefined &&
     selectedUnit?.base_price_amount !== null
       ? {
@@ -606,12 +614,19 @@ export default function ListingReservationWidget({
     }
   }
 
+  // Step L6.2H2B: a restaurant party size has no product maximum — only the
+  // storage ceiling the server enforces too — and is a whole number.
+  const guestCountCeiling = isRestaurantListing
+    ? SMALLINT_UNSIGNED_MAX
+    : allowedGuests;
+
   function handleChangeGuestCount(nextGuestCount) {
     const raw = Number(nextGuestCount) || 1;
+    const whole = isRestaurantListing ? Math.trunc(raw) : raw;
     setGuestCount(
-      allowedGuests !== null
-        ? Math.min(allowedGuests, Math.max(1, raw))
-        : Math.max(1, raw),
+      guestCountCeiling !== null
+        ? Math.min(guestCountCeiling, Math.max(1, whole))
+        : Math.max(1, whole),
     );
   }
 
@@ -790,8 +805,11 @@ export default function ListingReservationWidget({
       unit.max_guests !== undefined && unit.max_guests !== null
         ? ` — ${t('partner.listingWizard.availability.maxGuestsSummary', { count: unit.max_guests })}`
         : '';
+    // Step L6.2H2B: no per-option price for a (free) restaurant reservation.
     const priceSuffix =
-      unit.base_price_amount !== undefined && unit.base_price_amount !== null
+      !isRestaurantListing &&
+      unit.base_price_amount !== undefined &&
+      unit.base_price_amount !== null
         ? ` — ${t(`partner.listingWizard.unitPriceSummary.${resolveUnitPriceBasis(pricing?.pricing_model, unit.bookable_unit_type)}`, { amount: unit.base_price_amount, currency: unit.base_price_currency })}`
         : '';
     const quantitySuffix =
@@ -1041,7 +1059,7 @@ export default function ListingReservationWidget({
             )}
             value={guestCount}
             min={1}
-            max={allowedGuests ?? undefined}
+            max={guestCountCeiling ?? undefined}
             helperText={
               allowedGuests !== null
                 ? t('pages.listingDetail.reservation.guestsHint', {
@@ -1061,6 +1079,11 @@ export default function ListingReservationWidget({
             locale={locale}
             suffix={t('pages.listingDetail.reservation.estimatedTotal')}
           />
+        )}
+        {isRestaurantListing && (
+          <p className={styles.freeReservation}>
+            {t('bookings.freeReservation.label')}
+          </p>
         )}
 
         {isZeroNightStay && (

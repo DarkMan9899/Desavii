@@ -120,9 +120,16 @@ export function buildCategoryCardMeta(result, t) {
   // (the same one its detail page shows); the category default only covers
   // a row with no listing-level pricing model. A model with no basis
   // (legacy PER_HOUR) shows the price without one.
-  const priceUnitKey = result.pricing_model
+  //
+  // Step L6.2H2B: a restaurant's price is average spend per person (its
+  // reservation is free), never a per-person booking price.
+  const basisKey = result.pricing_model
     ? resolvePricingModelBasis(result.pricing_model)
     : cardConfig.priceUnitKey;
+  const priceUnitKey =
+    basisKey && result.listing_type === 'RESTAURANT'
+      ? 'averagePerPerson'
+      : basisKey;
   const priceSuffix = priceUnitKey
     ? t(`search.card.priceUnit.${priceUnitKey}`)
     : null;

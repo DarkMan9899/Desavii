@@ -29,6 +29,7 @@ import { isPartnerOwner } from '../../../infrastructure/database/repositories/pa
 import { findCurrencyByCode } from '../../../infrastructure/database/repositories/currencyRepository.js';
 import { withTransaction } from '../../../infrastructure/database/transaction.js';
 import { Money } from '../../../core/domain/money.js';
+import { isBookingPaymentRequired } from '../../../core/domain/bookingPaymentRequirement.js';
 import {
   generatePaymentReference,
   generateRefundReference,
@@ -347,6 +348,15 @@ export class PaymentService {
     const booking = await this.#bookingService.getBooking(principal, bookingId);
     if (booking.customerUserId !== principal.userId) {
       throw new AuthorizationError();
+    }
+    // Step L6.2H2B: a restaurant reservation (or any zero-total booking)
+    // never takes platform payment — refused before any payment row,
+    // booking payment-status change or provider call.
+    if (!isBookingPaymentRequired(booking)) {
+      throw new ConflictError(
+        'This booking does not require an online payment.',
+        'PAYMENT_NOT_REQUIRED',
+      );
     }
     if (!PAYABLE_BOOKING_STATUSES.includes(booking.statusCode)) {
       throw new ConflictError(

@@ -36,6 +36,7 @@ let languageId;
 let hotelsCategoryId;
 let toursCategoryId;
 let carsCategoryId;
+let restaurantsCategoryId;
 let yerevanCityId;
 
 let listingRoomy; // HOTEL_ROOM, capacity 3, no blocks — available
@@ -44,6 +45,8 @@ let listingBlackout; // HOTEL_ROOM, capacity 3, listing-level blackout over the 
 let listingTour; // TOUR_DEPARTURE, capacity 2 — single-day, non-accommodation
 let listingSingleOccupancy; // HOTEL_ROOM, capacity 4, max_guests 1 — P2.2D occupancy fix
 let listingCar; // VEHICLE (CAR_RENTAL), capacity 1 — P2.2D inclusive-final-day fix
+let listingRestaurant; // RESTAURANT_TABLE, 5 concurrent reservations — Step L6.2H2B
+let listingRestaurantFull; // RESTAURANT_TABLE, all 5 reservations blocked on RESTAURANT_DAY
 let blackoutId;
 let soldOutUnitId;
 let carUnitId;
@@ -53,6 +56,7 @@ const STAY_TO = '2026-09-12'; // checkout-exclusive: consumed nights are 09-10, 
 const TOUR_DAY = '2026-09-15';
 const CAR_FROM = '2026-09-20';
 const CAR_TO = '2026-09-22'; // VEHICLE keeps inclusive-both-ends: the rental spans 09-20, 09-21, AND 09-22
+const RESTAURANT_DAY = '2026-09-25';
 
 async function login(email, password) {
   const res = await request(app)
@@ -167,6 +171,10 @@ beforeAll(async () => {
     "SELECT id FROM listing_categories WHERE slug = 'car-rentals'",
   );
   carsCategoryId = carsCategory.id;
+  const [[restaurantsCategory]] = await pool.query(
+    "SELECT id FROM listing_categories WHERE slug = 'restaurants'",
+  );
+  restaurantsCategoryId = restaurantsCategory.id;
   const [[yerevan]] = await pool.query(
     "SELECT id FROM cities WHERE slug = 'yerevan'",
   );
@@ -238,6 +246,38 @@ beforeAll(async () => {
     capacity: 1,
     policyValues: CANCELLATION_ONLY_POLICY_VALUES,
   });
+  listingRestaurant = await createListing({
+    title: 'Availability Dining Room',
+    listingType: 'RESTAURANT',
+    categoryId: restaurantsCategoryId,
+    cityId: yerevanCityId,
+  });
+  listingRestaurantFull = await createListing({
+    title: 'Availability Fully Booked Dining Room',
+    listingType: 'RESTAURANT',
+    categoryId: restaurantsCategoryId,
+    cityId: yerevanCityId,
+  });
+  await publishListing(listingRestaurant, {
+    bookableUnitType: 'RESTAURANT_TABLE',
+    capacity: 5,
+    policyValues: [],
+  });
+  const fullRestaurantUnitId = await publishListing(listingRestaurantFull, {
+    bookableUnitType: 'RESTAURANT_TABLE',
+    capacity: 5,
+    policyValues: [],
+  });
+  await request(app)
+    .post('/api/v1/availability/blocks')
+    .set('Authorization', `Bearer ${vendor.accessToken}`)
+    .send({
+      unitId: fullRestaurantUnitId,
+      dateFrom: RESTAURANT_DAY,
+      dateTo: RESTAURANT_DAY,
+      quantity: 5,
+      reasonCode: 'MAINTENANCE',
+    });
 
   // Fully consume the sold-out hotel's only unit for the search's stay
   // range via a manual block — the same real write path a Partner uses.
@@ -431,6 +471,27 @@ describe('GET /search — availability filtering (Inventory Engine)', () => {
     );
     expect(res.status).toBe(200);
     expect(res.body.data.map((r) => r.id)).not.toContain(listingCar);
+  });
+
+  // Step L6.2H2B: a RESTAURANT_TABLE's capacity counts concurrent
+  // reservations, never diners — one reservation takes one slot whatever
+  // the party size, so a free slot fits a party larger than the capacity.
+  test('a restaurant with 5 reservation slots stays discoverable for a party of 6', async () => {
+    const res = await request(app).get(
+      `/api/v1/search?keyword=Availability&dateFrom=${RESTAURANT_DAY}&dateTo=${RESTAURANT_DAY}&guests=6`,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((r) => r.id)).toContain(listingRestaurant);
+  });
+
+  test('a restaurant with every reservation slot taken is excluded, whatever the party size', async () => {
+    const res = await request(app).get(
+      `/api/v1/search?keyword=Availability&dateFrom=${RESTAURANT_DAY}&dateTo=${RESTAURANT_DAY}&guests=1`,
+    );
+    expect(res.status).toBe(200);
+    const ids = res.body.data.map((r) => r.id);
+    expect(ids).not.toContain(listingRestaurantFull);
+    expect(ids).toContain(listingRestaurant);
   });
 
   test('without dateFrom/dateTo, availability is not filtered at all (every fixture listing appears)', async () => {

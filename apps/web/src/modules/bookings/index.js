@@ -14,6 +14,9 @@ export { default as BookingCheckoutPageContent } from './components/BookingCheck
 // rebuilding any of it.
 export { default as BookingCard } from './components/BookingCard/BookingCard.jsx';
 export { default as BookingStatusBadge } from './components/BookingStatusBadge/BookingStatusBadge.jsx';
+// Step L6.2H2B: a booking's total, or free-reservation wording.
+export { default as BookingTotal } from './components/BookingTotal/BookingTotal.jsx';
+export { resolvePartySize } from './utils/restaurantReservation.js';
 export { useMyBookingsQuery } from './queries/useMyBookingsQuery.js';
 
 // Phase 9 (Partner Dashboard).

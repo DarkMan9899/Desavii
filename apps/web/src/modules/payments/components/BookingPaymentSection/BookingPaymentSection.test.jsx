@@ -188,4 +188,40 @@ describe('BookingPaymentSection (apps/web/src/modules/payments)', () => {
     const { container } = render(<BookingPaymentSection booking={BOOKING} />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  // Step L6.2H2B: the server's `payment_required` decides — a restaurant
+  // reservation never gets a Pay Now control, even with payments enabled
+  // (local or Stripe), while an existing payment still renders as history.
+  test.each(['local', 'stripe'])(
+    'renders no Pay Now control for a booking that does not require payment (%s provider)',
+    (provider) => {
+      usePaymentsForBookingQuery.mockReturnValue({
+        data: [],
+        isPending: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      usePaymentsConfigQuery.mockReturnValue({
+        data: { enabled: true, provider, stripe_publishable_key: 'pk_test' },
+      });
+      const { container } = render(
+        <BookingPaymentSection booking={{ id: 9, payment_required: false }} />,
+      );
+      expect(container).toBeEmptyDOMElement();
+    },
+  );
+
+  test('still renders a historical payment for a booking that no longer requires payment', () => {
+    usePaymentsForBookingQuery.mockReturnValue({
+      data: [{ id: 5, status: 'SUCCEEDED' }],
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    usePaymentQuery.mockReturnValue({ data: { id: 5, status: 'SUCCEEDED' } });
+    render(
+      <BookingPaymentSection booking={{ id: 9, payment_required: false }} />,
+    );
+    expect(screen.getByText('PaymentSummaryCard')).toBeInTheDocument();
+  });
 });

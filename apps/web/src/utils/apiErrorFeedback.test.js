@@ -230,6 +230,12 @@ describe('getIssueMessage', () => {
       { issue: 'UNSUPPORTED_PRICING_MODEL_FOR_BOOKING' },
       "This listing can't be booked online right now — its host is updating how it's priced.",
     ],
+    // Step L6.2H2B — a restaurant reservation's party size and single slot.
+    [{ issue: 'PARTY_SIZE_REQUIRED' }, 'Enter your party size.'],
+    [
+      { issue: 'RESERVATION_QUANTITY_NOT_SUPPORTED' },
+      'A reservation always books one table for your party.',
+    ],
     // Step L6.2E — base customer-hold contract and rule-state issues.
     [
       { issue: 'ZERO_NIGHT_STAY' },

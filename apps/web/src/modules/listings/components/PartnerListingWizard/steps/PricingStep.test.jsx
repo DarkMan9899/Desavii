@@ -404,3 +404,58 @@ describe('PricingStep — legacy unsupported pricing model (Step L6.2H1)', () =>
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });
+
+// Step L6.2H2B: a restaurant's price is average spend per person — shown to
+// customers, never charged — and the Partner step says so.
+describe('PricingStep — restaurant average spend (Step L6.2H2B)', () => {
+  beforeEach(() => {
+    useUpdateListingMutation.mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({ data: {} }),
+      isPending: false,
+      error: null,
+    });
+    useListingMetadataQuery.mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: { pricing_models: [{ code: 'PER_PERSON' }] },
+    });
+  });
+
+  test('the model reads as average spend per person, with a hint that reservations are free', async () => {
+    const user = userEvent.setup();
+    render(
+      <PricingStep
+        listingId={7}
+        categoryId={5}
+        listingType="RESTAURANT"
+        onNext={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Հաճախորդները այն տեսնում են միայն որպես տեղեկություն/),
+    ).toBeInTheDocument();
+    const [modelTrigger] = screen.getAllByTestId('select-trigger');
+    await user.click(modelTrigger);
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Միջին ծախսը մեկ անձի համար',
+    ]);
+  });
+
+  test('a tour priced per person keeps its per-person wording', async () => {
+    const user = userEvent.setup();
+    render(
+      <PricingStep
+        listingId={7}
+        categoryId={6}
+        listingType="TOUR"
+        onNext={vi.fn()}
+      />,
+    );
+    const [modelTrigger] = screen.getAllByTestId('select-trigger');
+    await user.click(modelTrigger);
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Մեկ անձի համար',
+    ]);
+  });
+});

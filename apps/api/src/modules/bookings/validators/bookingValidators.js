@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { BOOKING_STATUSES } from '../../../core/domain/bookingStatusTransitions.js';
 import { BOOKING_REFUND_STATUSES } from '../../../core/domain/bookingRefundStatuses.js';
 import { isoDateSchema } from '../../../validation/isoDate.js';
+import { SMALLINT_UNSIGNED_MAX } from '../../../validation/sqlIntegerBounds.js';
 
 const passthroughQuery = z.object({}).passthrough();
 const passthroughParams = z.object({}).passthrough();
@@ -34,7 +35,17 @@ const bookingItemInputSchema = z.object({
   // validation only — `guestCount` positive integer; whether it's
   // actually within capacity is a Layer 3 (database-dependent) concern,
   // same split this file's own header comment documents.
-  guestCount: z.coerce.number().int().positive().optional(),
+  //
+  // Step L6.2H2B: capped at the `booking_items.guest_count` SMALLINT UNSIGNED
+  // storage ceiling (overflow protection, not a product maximum). Required
+  // for a restaurant reservation — enforced in BookingService#resolveItem
+  // (PARTY_SIZE_REQUIRED), since only the consumed hold knows the unit type.
+  guestCount: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(SMALLINT_UNSIGNED_MAX)
+    .optional(),
 });
 
 const guestContactSnapshotSchema = z.object({

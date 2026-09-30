@@ -38,6 +38,7 @@ import { isManagerAssignedToPartner } from '../../../infrastructure/database/rep
 import { findCurrencyByCode } from '../../../infrastructure/database/repositories/currencyRepository.js';
 import { withTransaction } from '../../../infrastructure/database/transaction.js';
 import { Money } from '../../../core/domain/money.js';
+import { restaurantReservationCharge } from '../../../core/domain/restaurantReservation.js';
 import { convertAmdToDisplayCurrency } from '../../../core/domain/fxConversion.js';
 import {
   BASE_CURRENCY as FX_BASE_CURRENCY,
@@ -312,6 +313,79 @@ export class BookingService {
       }
     }
 
+    // Step L6.2H2B: a restaurant reservation needs its party size — the one
+    // authoritative value, given (and editable) at checkout and validated
+    // here. It never prices the booking nor consumes inventory.
+    if (isRestaurant && item.guestCount === undefined) {
+      throw new ValidationError('A reservation needs a party size.', [
+        { field: 'items', issue: 'PARTY_SIZE_REQUIRED' },
+      ]);
+    }
+
+    // Step L6.2H2B: a restaurant reservation is free — its PER_PERSON
+    // listing price is average-spend metadata, so no calendar override, unit
+    // base price, listing price or menu price is ever resolved or charged.
+    const { unitPrice, listing } = isRestaurant
+      ? { unitPrice: restaurantReservationCharge(), listing: null }
+      : await this.#resolveUnitPrice(unit, firstHold, principal, connection);
+    const currencyCode = unitPrice.currency;
+
+    return {
+      bookableUnitId: firstHold.bookableUnitId,
+      // P2.2E: snapshotted onto `booking_items.unit_label_snapshot` at
+      // creation time (see `createBooking` below) so a later rename of
+      // this unit can never retroactively change what this booking
+      // displays.
+      unitLabel: unit.unitLabel,
+      // Sprint A (Time-Aware Booking Foundation): the unit's own
+      // authoritative `time_slot_start`/`time_slot_end` (display-only
+      // `TIME` columns — see `bookableUnitTypes.js`), snapshotted the same
+      // way `unitLabel` already is, right below. Never derived from
+      // anything the client sent — the client only ever supplies
+      // `bookableUnitId`, so a time-slot booking's exact time is exactly
+      // as tamper-proof as its price already was.
+      //
+      // Sprint B (Car Rental Pickup/Return Interval): a VEHICLE unit has
+      // no `time_slot_start/end` of its own (no partner-authored default
+      // exists to derive it from) — its pickup/return time is a genuine
+      // customer choice, already validated once at hold-creation
+      // (`AvailabilityService#reserveCapacity`) and read back here off
+      // the consumed hold, never re-trusted from fresh client input at
+      // booking-creation time (`item` is never read for this).
+      timeSlotStart:
+        isVehicle || isRestaurant ? firstHold.startTime : unit.timeSlotStart,
+      timeSlotEnd: isVehicle ? firstHold.endTime : unit.timeSlotEnd,
+      // Same-location-return-only model (see `formatListingLocationLabel`)
+      // — both snapshots are the listing's own location today, never
+      // client-supplied, so there is nothing here for a client to tamper.
+      pickupLocationSnapshot: isVehicle
+        ? formatListingLocationLabel(listing.location)
+        : null,
+      returnLocationSnapshot: isVehicle
+        ? formatListingLocationLabel(listing.location)
+        : null,
+      dateFrom: firstHold.dateFrom,
+      dateTo: firstHold.dateTo,
+      quantity,
+      unitPrice,
+      currencyCode,
+      listingId: unit.listingId,
+      bookableUnitTypeCode: unit.bookableUnitTypeCode,
+      guests: item.guests ?? [],
+      // Step L6.2H2B: persisted for restaurant reservations only; every other
+      // unit type keeps its current (unpersisted) guest-count semantics.
+      guestCount: isRestaurant ? item.guestCount : null,
+    };
+  }
+
+  /**
+   * The charge for ONE unit of capacity across a hold's consumed range (see
+   * `#resolveItem`'s doc comment for the full precedence history), plus the
+   * listing it was resolved against.
+   *
+   * @returns {Promise<{unitPrice: Money, listing: object}>}
+   */
+  async #resolveUnitPrice(unit, firstHold, principal, connection) {
     // Prices (and the capacity `reserveCapacity` already consumed for
     // this hold) cover only the actually-occupied range — for lodging
     // (HOTEL_ROOM/PROPERTY_UNIT) that's checkout-exclusive nights, not
@@ -377,49 +451,7 @@ export class BookingService {
       );
     });
 
-    return {
-      bookableUnitId: firstHold.bookableUnitId,
-      // P2.2E: snapshotted onto `booking_items.unit_label_snapshot` at
-      // creation time (see `createBooking` below) so a later rename of
-      // this unit can never retroactively change what this booking
-      // displays.
-      unitLabel: unit.unitLabel,
-      // Sprint A (Time-Aware Booking Foundation): the unit's own
-      // authoritative `time_slot_start`/`time_slot_end` (display-only
-      // `TIME` columns — see `bookableUnitTypes.js`), snapshotted the same
-      // way `unitLabel` already is, right below. Never derived from
-      // anything the client sent — the client only ever supplies
-      // `bookableUnitId`, so a time-slot booking's exact time is exactly
-      // as tamper-proof as its price already was.
-      //
-      // Sprint B (Car Rental Pickup/Return Interval): a VEHICLE unit has
-      // no `time_slot_start/end` of its own (no partner-authored default
-      // exists to derive it from) — its pickup/return time is a genuine
-      // customer choice, already validated once at hold-creation
-      // (`AvailabilityService#reserveCapacity`) and read back here off
-      // the consumed hold, never re-trusted from fresh client input at
-      // booking-creation time (`item` is never read for this).
-      timeSlotStart:
-        isVehicle || isRestaurant ? firstHold.startTime : unit.timeSlotStart,
-      timeSlotEnd: isVehicle ? firstHold.endTime : unit.timeSlotEnd,
-      // Same-location-return-only model (see `formatListingLocationLabel`)
-      // — both snapshots are the listing's own location today, never
-      // client-supplied, so there is nothing here for a client to tamper.
-      pickupLocationSnapshot: isVehicle
-        ? formatListingLocationLabel(listing.location)
-        : null,
-      returnLocationSnapshot: isVehicle
-        ? formatListingLocationLabel(listing.location)
-        : null,
-      dateFrom: firstHold.dateFrom,
-      dateTo: firstHold.dateTo,
-      quantity,
-      unitPrice,
-      currencyCode,
-      listingId: unit.listingId,
-      bookableUnitTypeCode: unit.bookableUnitTypeCode,
-      guests: item.guests ?? [],
-    };
+    return { unitPrice, listing };
   }
 
   /**
@@ -649,6 +681,7 @@ export class BookingService {
             pickupLocationSnapshot: resolved.pickupLocationSnapshot,
             returnLocationSnapshot: resolved.returnLocationSnapshot,
             quantity: resolved.quantity,
+            guestCount: resolved.guestCount,
             unitPriceAmount: resolved.unitPrice.toDecimalString(),
           },
           connection,

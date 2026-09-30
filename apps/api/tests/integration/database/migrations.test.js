@@ -233,6 +233,59 @@ describe('Fresh migration from an empty database (Sprint 5 Quality Gate #4)', ()
     await up(undefined, { databaseName: MIGRATION_CHECK_DATABASE });
   });
 
+  // Step L6.2H2B: same pattern as the 0035 proof above — 0052 adds a
+  // restaurant reservation's party size as a nullable SMALLINT UNSIGNED
+  // (no backfill), and its down.sql removes exactly that one column.
+  test('migration 0052 adds booking_items.guest_count as nullable SMALLINT UNSIGNED, and its down.sql removes only that column', async () => {
+    const connection = await mysql.createConnection({
+      host: config.database.host,
+      port: config.database.port,
+      database: MIGRATION_CHECK_DATABASE,
+      user: config.database.user,
+      password: config.database.password,
+      multipleStatements: true,
+    });
+    const bookingItemColumns = async () => {
+      const [columns] = await connection.query(
+        `SELECT column_name, column_type, is_nullable, column_default
+         FROM information_schema.columns
+         WHERE table_schema = ? AND table_name = 'booking_items'`,
+        [MIGRATION_CHECK_DATABASE],
+      );
+      return new Map(
+        columns.map((row) => [row.column_name ?? row.COLUMN_NAME, row]),
+      );
+    };
+    try {
+      const guestCount = (await bookingItemColumns()).get('guest_count');
+      expect(guestCount).toBeDefined();
+      expect(
+        (guestCount.column_type ?? guestCount.COLUMN_TYPE).toLowerCase(),
+      ).toBe('smallint unsigned');
+      expect(guestCount.is_nullable ?? guestCount.IS_NULLABLE).toBe('YES');
+      expect(guestCount.column_default ?? guestCount.COLUMN_DEFAULT).toBeNull();
+
+      const downSql = readFileSync(
+        path.join(MIGRATIONS_DIR, '0052_booking_item_guest_count.down.sql'),
+        'utf8',
+      );
+      await expect(connection.query(downSql)).resolves.not.toThrow();
+
+      const columnNames = await bookingItemColumns();
+      expect(columnNames.has('guest_count')).toBe(false);
+      expect(columnNames.has('quantity')).toBe(true);
+      expect(columnNames.has('unit_price_amount')).toBe(true);
+      expect(columnNames.has('unit_label_snapshot')).toBe(true);
+
+      await connection.query(
+        `DELETE FROM schema_migrations WHERE version = '0052'`,
+      );
+    } finally {
+      await connection.end();
+    }
+    await up(undefined, { databaseName: MIGRATION_CHECK_DATABASE });
+  });
+
   // Listing Lifetime / Renewal, Step B2: same pattern as the 0034/0035
   // proofs above, now for the current most-recent migration. Also proves
   // the specific real bug this migration's own down.sql was written

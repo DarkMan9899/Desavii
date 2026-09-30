@@ -38,7 +38,6 @@ import {
 } from '@desavii/ui/components/feedback-overlays';
 import { Button, Card } from '@desavii/ui/components/primitives';
 import { Textarea } from '@desavii/ui/components/form-controls';
-import { PriceTag } from '@desavii/ui/components/data-display';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
@@ -55,7 +54,11 @@ import { useAdminCancelBookingMutation } from '../../mutations/useAdminCancelBoo
 import { useAdminCompleteBookingMutation } from '../../mutations/useAdminCompleteBookingMutation.js';
 import { useAdminMarkNoShowMutation } from '../../mutations/useAdminMarkNoShowMutation.js';
 import { useAdminResolveRefundReviewMutation } from '../../mutations/useAdminResolveRefundReviewMutation.js';
-import { BookingStatusBadge } from '../../../bookings/index.js';
+import {
+  BookingStatusBadge,
+  BookingTotal,
+  resolvePartySize,
+} from '../../../bookings/index.js';
 import { formatTimeRange } from '../../../../utils/formatTimeRange.js';
 import { BookingPaymentSection } from '../../../payments/index.js';
 import { computeNights } from '../../../bookings/utils/computeNights.js';
@@ -281,7 +284,8 @@ export default function AdminBookingDetailContent() {
                   identical comment on why the customer-audience default
                   ("Cancelled by you") is wrong here too. */}
               <BookingStatusBadge status={booking.status} audience="partner" />
-              <PriceTag
+              <BookingTotal
+                booking={booking}
                 amount={booking.total_amount}
                 currencyCode={booking.currency}
                 suffix={t('bookings.detail.total')}
@@ -405,6 +409,15 @@ export default function AdminBookingDetailContent() {
                       <p>
                         {t('bookings.detail.returnLocation')}:{' '}
                         {item.return_location}
+                      </p>
+                    )}
+                    {/* Step L6.2H2B: a restaurant reservation's party size —
+                        never derived from named guest rows; hidden when not
+                        recorded (older bookings, other booking types). */}
+                    {resolvePartySize(item) !== null && (
+                      <p>
+                        {t('bookings.detail.partySize')}:{' '}
+                        {resolvePartySize(item)}
                       </p>
                     )}
                     {nights !== null && (

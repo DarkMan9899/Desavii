@@ -1215,6 +1215,11 @@ model its category no longer offers (legacy `PER_HOUR`) is refused at hold
 creation and at booking conversion — `422` `pricingModel` /
 `UNSUPPORTED_PRICING_MODEL_FOR_BOOKING`, nothing reserved (§51.1).
 
+**Restaurant reservation (Step L6.2H2B):** a `RESTAURANT_TABLE` hold is exactly
+one reservation — `quantity` other than 1 is a `422` `items` /
+`RESERVATION_QUANTITY_NOT_SUPPORTED`, raised before any capacity, ledger or
+hold write (§51.2).
+
 **Request (POST /booking-holds/{id}/confirm):** `payment_method_id` (or
 `payment_token` for a not-yet-saved method), `coupon_code?`,
 `wallet_amount?` (Section 8.3).
@@ -1343,7 +1348,7 @@ so only models that formula actually bills are offered:
 | Hotels, Apartments, Villas, Guest Houses | `PER_NIGHT` | nightly prices over the nights (checkout excluded) × rooms/units |
 | Car Rentals | `PER_DAY` | daily prices over the inclusive rental days × vehicles |
 | Tours, Attractions, Entertainment Venues | `PER_PERSON` | the departure/session date's price × quantity |
-| Restaurants | `PER_PERSON` | displayed as metadata; restaurant charge semantics are still pending (Step L6.2H2) and not fixed yet |
+| Restaurants | `PER_PERSON` (optional) | never charged — average spend per person, display metadata only (§51.2) |
 
 **`PER_HOUR` is not supported for customer booking.** There is no booked-hour
 count and no hourly inventory (capacity is consumed per calendar day), so no
@@ -1360,6 +1365,27 @@ is never rewritten: it stays readable, its `pricing.is_model_supported` is
 Listing detail exposes `pricing.is_model_supported`; search, favorites and
 company-profile cards expose `pricing_model`, so cards label their price by
 the listing's own model rather than its category.
+
+### 51.2 Restaurant reservations — free (Step L6.2H2B)
+
+A restaurant's `PER_PERSON` listing price is **average spend per person**:
+display metadata, never charged, and optional — a restaurant with no price at
+all is still publishable and bookable. Menu item prices are separate and never
+affect a booking.
+
+| Aspect | Contract |
+|---|---|
+| Reservation charge | Always 0: no listing price, dining-area base price, calendar override or menu price is resolved. Each item's `unit_price_amount` and the booking's `subtotal_amount`/`total_amount` are exactly `"0.00"` in `AMD` |
+| Inventory | A `RESTAURANT_TABLE` unit's capacity counts concurrent reservations. One booking item is one reservation (hold `quantity` must be 1); the party size never consumes inventory. Search availability needs one free slot, whatever `guests` asks for |
+| Party size | `items[].guestCount` is **required** at `POST /bookings` for a restaurant item (`422` `items` / `PARTY_SIZE_REQUIRED`); a whole number from 1 to 65535 (the SMALLINT UNSIGNED storage ceiling — there is no product maximum). It is given at checkout (never on the hold) and persisted as `booking_items.guest_count`, returned as `items[].guest_count` to the customer, the Partner and admins. `null` for every other item type and every booking created before migration `0052` — never 0 |
+| Payment | Never: the booking's server-computed `payment_required` is `false`, its payment status stays `NOT_REQUIRED_ON_PLATFORM`, and `POST /payments` for it is a `409` `PAYMENT_NOT_REQUIRED` before any payment row, booking payment-status change or provider call — also when `PAYMENTS_ENABLED=true` |
+| Lifecycle | Unchanged: `PENDING_VENDOR` → Partner confirm/reject, then the existing cancellation rules |
+| History | Restaurant bookings created before this step keep their stored totals and any payment records; they never offer a new payment either |
+
+`payment_required` (every booking) is `false` for a restaurant reservation or
+any booking whose total is zero, `true` otherwise. A booking always has one
+booking type (all items share one listing and one unit type), so it applies to
+the whole booking.
 
 ## 52. Coupons
 

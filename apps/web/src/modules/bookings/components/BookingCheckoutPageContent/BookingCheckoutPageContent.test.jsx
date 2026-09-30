@@ -408,4 +408,80 @@ describe('BookingCheckoutPageContent (apps/web/src/modules/bookings)', () => {
       },
     );
   });
+
+  // Step L6.2H2B — a restaurant reservation is free and its party size is
+  // editable here: the booking request carries the one authoritative value.
+  describe('restaurant reservation (Step L6.2H2B)', () => {
+    const RESTAURANT_STATE = {
+      ...HOLD_STATE,
+      isRestaurantReservation: true,
+      bookableUnitType: 'RESTAURANT_TABLE',
+      unitLabel: 'Main hall',
+      guestCount: 4,
+      estimatedTotal: { amount: 6500, currency: 'AMD' },
+    };
+
+    test('shows free-reservation wording instead of a monetary total', () => {
+      renderPage(RESTAURANT_STATE);
+      expect(
+        screen.getByText('Անվճար ամրագրում՝ վճարումը ռեստորանում'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/6,?500/)).not.toBeInTheDocument();
+    });
+
+    test('the party size is prefilled, editable, and the edited value is what gets booked', async () => {
+      const mutateAsync = vi.fn().mockResolvedValue({ data: { id: 42 } });
+      useCreateBookingMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      });
+      const user = userEvent.setup();
+      renderPage(RESTAURANT_STATE);
+
+      const partySize = screen.getByLabelText(/Հյուրերի քանակ/);
+      expect(partySize).toHaveValue(4);
+      await user.clear(partySize);
+      await user.type(partySize, '6');
+      await user.click(
+        screen.getByRole('button', { name: 'Հաստատել ամրագրման հայտը' }),
+      );
+
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+      expect(mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [{ holdIds: [55], guests: [], guestCount: 6 }],
+        }),
+      );
+    });
+
+    test.each([['0'], ['2.5']])(
+      'an invalid party size (%s) blocks submission with a message',
+      async (value) => {
+        const mutateAsync = vi.fn();
+        useCreateBookingMutation.mockReturnValue({
+          mutateAsync,
+          isPending: false,
+        });
+        const user = userEvent.setup();
+        renderPage(RESTAURANT_STATE);
+
+        const partySize = screen.getByLabelText(/Հյուրերի քանակ/);
+        await user.clear(partySize);
+        await user.type(partySize, value);
+        await user.click(
+          screen.getByRole('button', { name: 'Հաստատել ամրագրման հայտը' }),
+        );
+
+        expect(
+          await screen.findByText('Նշեք ամբողջ թիվ՝ առնվազն 1։'),
+        ).toBeInTheDocument();
+        expect(mutateAsync).not.toHaveBeenCalled();
+      },
+    );
+
+    test('a non-restaurant checkout has no party-size field', () => {
+      renderPage({ ...HOLD_STATE, guestCount: 2 });
+      expect(screen.queryByLabelText(/Հյուրերի քանակ/)).not.toBeInTheDocument();
+    });
+  });
 });

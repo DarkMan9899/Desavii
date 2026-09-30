@@ -62,6 +62,7 @@ import { formatTimeRange } from '../../../../utils/formatTimeRange.js';
 import { useListingQuery } from '../../../listings/queries/useListingQuery.js';
 import getLocalizedTranslation from '../../../listings/utils/getLocalizedTranslation.js';
 import { isAccommodationUnitType } from '../../../listings/utils/accommodationDateSemantics.js';
+import { SMALLINT_UNSIGNED_MAX } from '../../../availability/index.js';
 import { resolveUnitNounKey } from '../../utils/resolveUnitNounKey.js';
 import { useCreateBookingMutation } from '../../mutations/useCreateBookingMutation.js';
 import { useReleaseBookingHoldMutation } from '../../mutations/useReleaseBookingHoldMutation.js';
@@ -163,6 +164,7 @@ export default function BookingCheckoutPageContent() {
   const {
     control,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -172,8 +174,14 @@ export default function BookingCheckoutPageContent() {
       email: user?.email ?? '',
       phone: user?.phone ?? '',
       notes: '',
+      // Step L6.2H2B: a restaurant's party size stays editable here — the
+      // booking request is the one authoritative value (it affects neither
+      // price nor inventory, so nothing on the hold depends on it).
+      partySize: guestCount ?? 1,
     },
   });
+  const partySize = watch('partySize');
+  const summaryGuestCount = isRestaurantReservation ? partySize : guestCount;
 
   if (!holdState || !holdItem) {
     // P2.2E: this honest "no active hold" state (see this file's own
@@ -205,7 +213,15 @@ export default function BookingCheckoutPageContent() {
   async function onSubmit(values) {
     try {
       const { data } = await createBookingMutation.mutateAsync({
-        items: [{ holdIds, guests: [], guestCount }],
+        items: [
+          {
+            holdIds,
+            guests: [],
+            guestCount: isRestaurantReservation
+              ? Number(values.partySize)
+              : guestCount,
+          },
+        ],
         guestContactSnapshot: {
           fullName: values.fullName,
           email: values.email,
@@ -360,6 +376,37 @@ export default function BookingCheckoutPageContent() {
                   />
                 )}
               />
+              {isRestaurantReservation && (
+                <Controller
+                  name="partySize"
+                  control={control}
+                  rules={{
+                    required: t('bookings.checkout.partySizeRequired'),
+                    validate: (value) => {
+                      const size = Number(value);
+                      return (
+                        (Number.isInteger(size) &&
+                          size >= 1 &&
+                          size <= SMALLINT_UNSIGNED_MAX) ||
+                        t('bookings.checkout.partySizeInvalid')
+                      );
+                    },
+                  }}
+                  render={({ field }) => (
+                    <Input
+                      type="number"
+                      min={1}
+                      max={SMALLINT_UNSIGNED_MAX}
+                      step={1}
+                      label={t('bookings.checkout.summary.partySize')}
+                      required
+                      error={errors.partySize?.message}
+                      // eslint-disable-next-line react/jsx-props-no-spreading
+                      {...field}
+                    />
+                  )}
+                />
+              )}
               <Controller
                 name="notes"
                 control={control}
@@ -494,7 +541,7 @@ export default function BookingCheckoutPageContent() {
                     <dd>{holdItem.quantity}</dd>
                   </div>
                 )}
-                {guestCount && (
+                {summaryGuestCount && (
                   <div className={styles.summaryRow}>
                     <dt>
                       {t(
@@ -503,22 +550,30 @@ export default function BookingCheckoutPageContent() {
                           : 'bookings.checkout.summary.guests',
                       )}
                     </dt>
-                    <dd>{guestCount}</dd>
+                    <dd>{summaryGuestCount}</dd>
                   </div>
                 )}
               </dl>
-              <div className={styles.summaryTotalRow}>
-                <strong>{t('bookings.checkout.summary.total')}</strong>
-                {estimatedTotal ? (
-                  <Money
-                    amountAmd={estimatedTotal.amount}
-                    suffix={t('bookings.checkout.summary.estimateSuffix')}
-                    locale={locale}
-                  />
-                ) : (
-                  <span>{t('bookings.checkout.summary.unavailable')}</span>
-                )}
-              </div>
+              {/* Step L6.2H2B: a restaurant reservation is free — the
+                  summary says so instead of showing a monetary total. */}
+              {isRestaurantReservation ? (
+                <p className={styles.freeReservation}>
+                  {t('bookings.freeReservation.label')}
+                </p>
+              ) : (
+                <div className={styles.summaryTotalRow}>
+                  <strong>{t('bookings.checkout.summary.total')}</strong>
+                  {estimatedTotal ? (
+                    <Money
+                      amountAmd={estimatedTotal.amount}
+                      suffix={t('bookings.checkout.summary.estimateSuffix')}
+                      locale={locale}
+                    />
+                  ) : (
+                    <span>{t('bookings.checkout.summary.unavailable')}</span>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
         </aside>

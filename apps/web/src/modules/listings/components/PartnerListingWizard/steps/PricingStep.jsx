@@ -45,6 +45,7 @@ const PRICING_API_PATHS = {
 export default function PricingStep({
   listingId,
   categoryId = null,
+  listingType = null,
   initialValues = {},
   onBack = undefined,
   onNext,
@@ -150,15 +151,28 @@ export default function PricingStep({
   // own — "40 per night" does); once a model is chosen, reuse its own
   // already-translated label to say so directly, rather than a second,
   // separately-maintained copy of the same four basis strings.
-  const amountHelperText =
-    modelCode && !isLegacyModel
-      ? t('partner.listingWizard.pricing.amountHintWithBasis', {
-          basis: t(
-            `partner.listingWizard.pricingModels.${modelCode}`,
-            modelCode,
-          ).toLowerCase(),
-        })
-      : t('partner.listingWizard.pricing.amountHint');
+  // Step L6.2H2B: a restaurant's price is average spend per person —
+  // shown to customers, never charged (its reservations are free).
+  const isRestaurant = listingType === 'RESTAURANT';
+  function modelLabel(code) {
+    return isRestaurant && code === 'PER_PERSON'
+      ? t('pages.listingDetail.reservation.averageSpendPerPerson')
+      : t(`partner.listingWizard.pricingModels.${code}`, code);
+  }
+
+  let amountHelperText = t('partner.listingWizard.pricing.amountHint');
+  if (isRestaurant) {
+    amountHelperText = t(
+      'partner.listingWizard.pricing.amountHintAverageSpend',
+    );
+  } else if (modelCode && !isLegacyModel) {
+    amountHelperText = t('partner.listingWizard.pricing.amountHintWithBasis', {
+      basis: t(
+        `partner.listingWizard.pricingModels.${modelCode}`,
+        modelCode,
+      ).toLowerCase(),
+    });
+  }
 
   async function handleContinue() {
     const { value: parsedAmount, error: amountValidationError } =
@@ -228,10 +242,7 @@ export default function PricingStep({
             placeholder={t('partner.listingWizard.selectPlaceholder')}
             options={pricingModels.map((model) => ({
               value: model.code,
-              label: t(
-                `partner.listingWizard.pricingModels.${model.code}`,
-                model.code,
-              ),
+              label: modelLabel(model.code),
             }))}
             value={isLegacyModel ? null : modelCode}
             error={modelError ?? fieldError(PRICING_API_PATHS.modelCode)}
@@ -285,6 +296,7 @@ export default function PricingStep({
 PricingStep.propTypes = {
   listingId: PropTypes.number.isRequired,
   categoryId: PropTypes.number,
+  listingType: PropTypes.string,
   initialValues: PropTypes.shape({
     modelCode: PropTypes.string,
     amount: PropTypes.number,

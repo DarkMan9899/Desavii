@@ -123,7 +123,14 @@ async function createPendingBooking({
     .post('/api/v1/bookings')
     .set('Authorization', `Bearer ${customer.accessToken}`)
     .send({
-      items: [{ holdIds, guests: [] }],
+      items: [
+        {
+          holdIds,
+          guests: [],
+          // Step L6.2H2B: a restaurant reservation requires its party size.
+          ...(bookableUnitType === 'RESTAURANT_TABLE' && { guestCount: 2 }),
+        },
+      ],
       guestContactSnapshot: GUEST_CONTACT,
     });
   expect(bookingRes.status).toBe(201);

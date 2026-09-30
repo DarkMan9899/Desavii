@@ -178,7 +178,8 @@ describe('SearchResultCard (apps/web/src/modules/search)', () => {
   // fields end to end, not just the SQL layer already covered by
   // `mysqlSearchRepository.buildQuery.test.js`/the new backend
   // integration test.
-  test('a Restaurant result shows cuisine and price-tier chips, and a per-person price suffix', () => {
+  // Step L6.2H2B: a restaurant's price is average spend per person.
+  test('a Restaurant result shows cuisine and price-tier chips, and an average-spend price suffix', () => {
     renderCard({
       ...RESULT,
       listing_type: 'RESTAURANT',
@@ -193,7 +194,7 @@ describe('SearchResultCard (apps/web/src/modules/search)', () => {
     expect(screen.getByText('Հայկական')).toBeInTheDocument();
     expect(screen.getByText('Վրացական')).toBeInTheDocument();
     expect(screen.getByText('$$')).toBeInTheDocument();
-    expect(screen.getByText('/ անձի համար')).toBeInTheDocument();
+    expect(screen.getByText('միջինը / անձ')).toBeInTheDocument();
   });
 
   test('a Hotel result shows no cuisine/price-tier chips and a per-night price suffix (never fabricated for other categories)', () => {

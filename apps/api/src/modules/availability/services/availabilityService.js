@@ -81,6 +81,7 @@ import {
   isBookingStartInPast,
 } from '../../../core/domain/bookingTimebase.js';
 import { evaluateBookingRules } from '../../../core/domain/bookingRuleEvaluation.js';
+import { RESTAURANT_RESERVATION_QUANTITY } from '../../../core/domain/restaurantReservation.js';
 import { resolvePriceForDate } from '../../../core/domain/accommodationPriceResolution.js';
 import { Money } from '../../../core/domain/money.js';
 import {
@@ -1746,6 +1747,15 @@ export class AvailabilityService {
       throw new ValidationError('A reservation needs a reservation time.', [
         { field: 'items', issue: 'RESERVATION_TIME_REQUIRED' },
       ]);
+    }
+    // Step L6.2H2B: a restaurant booking item is exactly one reservation —
+    // capacity counts concurrent reservations, never diners, and the party
+    // size is given when booking. Several slots can't be taken at once.
+    if (isRestaurant && quantity !== RESTAURANT_RESERVATION_QUANTITY) {
+      throw new ValidationError(
+        'A reservation always takes exactly one reservation slot.',
+        [{ field: 'items', issue: 'RESERVATION_QUANTITY_NOT_SUPPORTED' }],
+      );
     }
     const bookingStart = resolveBookingStart({
       unitTypeCode: unit.bookableUnitTypeCode,

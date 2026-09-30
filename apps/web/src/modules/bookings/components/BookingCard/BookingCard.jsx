@@ -27,13 +27,13 @@ import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Card } from '@desavii/ui/components/primitives';
-import { PriceTag } from '@desavii/ui/components/data-display';
 import { Spinner } from '@desavii/ui/components/feedback-overlays';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import DestinationArt from '../../../../components/DestinationArt/DestinationArt.jsx';
 import { useListingQuery } from '../../../listings/queries/useListingQuery.js';
 import getLocalizedTranslation from '../../../listings/utils/getLocalizedTranslation.js';
 import BookingStatusBadge from '../BookingStatusBadge/BookingStatusBadge.jsx';
+import BookingTotal from '../BookingTotal/BookingTotal.jsx';
 import { resolveBookingDisplayAmount } from '../../../../utils/resolveBookingDisplayAmount.js';
 import styles from './BookingCard.module.scss';
 
@@ -129,7 +129,8 @@ export default function BookingCard({
         <p className={styles.requested}>
           {t('bookings.list.requestedOn', { date: requestedDate })}
         </p>
-        <PriceTag
+        <BookingTotal
+          booking={booking}
           amount={displayPrice.amount}
           currencyCode={displayPrice.currencyCode}
           locale={i18n.language}

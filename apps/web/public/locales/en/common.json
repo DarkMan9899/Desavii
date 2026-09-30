@@ -317,7 +317,8 @@
       },
       "stepper": {
         "requested": "Requested"
-      }
+      },
+      "partySize": "Party size"
     },
     "checkout": {
       "heading": "Confirm your request",
@@ -360,7 +361,9 @@
         "total": "Estimated total",
         "estimateSuffix": "(estimate)",
         "unavailable": "Calculated at booking"
-      }
+      },
+      "partySizeRequired": "Enter your party size.",
+      "partySizeInvalid": "Enter a whole number of people, at least 1."
     },
     "unitLabels": {
       "HOTEL_ROOM": "Room type",
@@ -368,6 +371,9 @@
       "RESTAURANT_TABLE": "Table",
       "TOUR_DEPARTURE": "Departure / session",
       "VEHICLE": "Vehicle"
+    },
+    "freeReservation": {
+      "label": "Free reservation — pay at the restaurant"
     }
   },
   "payments": {
@@ -548,7 +554,8 @@
       "priceUnit": {
         "perNight": "/ night",
         "perDay": "/ day",
-        "perPerson": "/ person"
+        "perPerson": "/ person",
+        "averagePerPerson": "avg. / person"
       },
       "starRating_one": "{{count}} star",
       "starRating_other": "{{count}} stars",
@@ -638,7 +645,9 @@
       "bookingTooFarAhead_other": "Bookings are accepted up to {{count}} days ahead.",
       "bookingTodayOnly": "This listing only accepts bookings for today.",
       "UNSUPPORTED_PRICING_MODEL": "This pricing model is no longer supported. Choose a new one in the Pricing step, then publish again.",
-      "unsupportedPricingModelForBooking": "This listing can't be booked online right now — its host is updating how it's priced."
+      "unsupportedPricingModelForBooking": "This listing can't be booked online right now — its host is updating how it's priced.",
+      "partySizeRequired": "Enter your party size.",
+      "reservationQuantityNotSupported": "A reservation always books one table for your party."
     },
     "codes": {
       "PARTNER_NOT_VERIFIED": "Your company must be verified before it can create listings.",
@@ -650,7 +659,8 @@
       "OVERLAPPING_RANGE": "These dates overlap a period that is already blocked.",
       "AVAILABILITY_CONFLICT": "The requested quantity isn't available for one or more of these dates.",
       "MENU_HAS_SECTIONS": "Remove every section from this menu before deleting it.",
-      "SECTION_HAS_ITEMS": "Remove every item from this section before deleting it."
+      "SECTION_HAS_ITEMS": "Remove every item from this section before deleting it.",
+      "PAYMENT_NOT_REQUIRED": "This booking doesn't need an online payment."
     }
   },
   "auth": {
@@ -1805,7 +1815,8 @@
         "currency": "Currency",
         "legacyModelTitle": "\"{{model}}\" pricing is no longer supported",
         "legacyModelBody": "Customers can't book this listing until you choose a new pricing model and save it. Check that your price still fits the model you choose.",
-        "legacyModelRequired": "Choose a supported pricing model to continue."
+        "legacyModelRequired": "Choose a supported pricing model to continue.",
+        "amountHintAverageSpend": "What a guest typically spends per person. Customers see it as information only — reservations are free."
       },
       "pricingModels": {
         "PER_NIGHT": "Per night",
@@ -3724,7 +3735,8 @@
         "availabilityConflict": "These dates are no longer available. Please choose different dates.",
         "staySoldOut": "This room is sold out for the selected dates.",
         "nightsCount": "{{count}}-night stay",
-        "pricingUnavailable": "Online booking isn't available for this listing right now — the host is updating its pricing."
+        "pricingUnavailable": "Online booking isn't available for this listing right now — the host is updating its pricing.",
+        "averageSpendPerPerson": "Average spend per person"
       },
       "rooms": {
         "heading": "Rooms",
