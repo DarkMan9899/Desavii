@@ -103,6 +103,10 @@ import {
   getIssueMessage,
 } from '../../../../../utils/apiErrorFeedback.js';
 import { SMALLINT_UNSIGNED_MAX } from '../../../../availability/index.js';
+import {
+  DEPARTURE_BOOKABLE_UNIT_TYPE,
+  resolveDeparturePeopleKey,
+} from '../../../../../utils/departurePeople.js';
 import styles from './ListingReservationWidget.module.scss';
 
 const CALENDAR_WINDOW_DAYS = 180;
@@ -130,6 +134,9 @@ export default function ListingReservationWidget({
   // the server enforces them authoritatively.
   listingType = null,
   bookingRules = null,
+  // Step L6.2H3B: names a departure's people count (Attractions and
+  // Entertainment Venues share one listing type).
+  categorySlug = null,
 }) {
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
@@ -240,6 +247,22 @@ export default function ListingReservationWidget({
       ),
     [units],
   );
+
+  // Step L6.2H3B: a real per-unit TOUR_DEPARTURE (Tours, Attractions,
+  // Entertainment Venues) — its quantity IS the person count (Travelers /
+  // Visitors / Participants): seats consumed and the price multiplier. One
+  // count control replaces the separate Quantity + Guests pair.
+  const isDepartureListing = useMemo(
+    () =>
+      (units ?? []).some(
+        (unit) => unit.bookable_unit_type === DEPARTURE_BOOKABLE_UNIT_TYPE,
+      ),
+    [units],
+  );
+  const departurePeopleKey = resolveDeparturePeopleKey({
+    categorySlug,
+    listingType,
+  });
 
   // Sprint C-3 (Date-Range Room Availability): a real per-unit
   // `bookable_unit_type === 'HOTEL_ROOM'` gates the stay-range
@@ -497,16 +520,45 @@ export default function ListingReservationWidget({
   // looser, so `Math.min` is always safe. The server still re-checks this
   // authoritatively at hold-creation time regardless of what this caps the
   // input to.
-  const quantityMax =
-    hasValidStayRange && selectedUnitStayInfo?.remaining_count_for_stay != null
-      ? Math.max(
-          1,
-          Math.min(
-            selectedUnit?.capacity ?? Infinity,
-            selectedUnitStayInfo.remaining_count_for_stay,
-          ),
-        )
-      : selectedUnit?.capacity;
+  //
+  // Step L6.2H3B: a timed departure's remaining places on the chosen date
+  // (`remaining_count_for_date`, same LOW/SOLD_OUT-only rule) bound its
+  // people count the same way.
+  const departureRemaining = isDepartureListing
+    ? unitsForDateById.get(effectiveUnitId)?.remaining_count_for_date
+    : null;
+  let quantityMax = selectedUnit?.capacity;
+  if (
+    hasValidStayRange &&
+    selectedUnitStayInfo?.remaining_count_for_stay != null
+  ) {
+    quantityMax = Math.max(
+      1,
+      Math.min(
+        selectedUnit?.capacity ?? Infinity,
+        selectedUnitStayInfo.remaining_count_for_stay,
+      ),
+    );
+  } else if (departureRemaining !== null && departureRemaining !== undefined) {
+    quantityMax = Math.max(
+      1,
+      Math.min(selectedUnit?.capacity ?? Infinity, departureRemaining),
+    );
+  }
+
+  // Step L6.2H3B: a search's own `guests` count becomes a departure's
+  // people count (the one that is held, billed and shown) — applied once the
+  // units reveal a departure, then kept within the places available.
+  const [hasPrefilledPeople, setHasPrefilledPeople] = useState(false);
+  useEffect(() => {
+    if (!isDepartureListing || hasPrefilledPeople) return;
+    setHasPrefilledPeople(true);
+    setQuantity(initialReservationState.guestCount);
+  }, [isDepartureListing, hasPrefilledPeople, initialReservationState]);
+  useEffect(() => {
+    if (!isDepartureListing || !quantityMax) return;
+    setQuantity((current) => Math.max(1, Math.min(current, quantityMax)));
+  }, [isDepartureListing, quantityMax]);
 
   // P2.2D: a `guestCount` seeded from the search page's own `guests`
   // param (see `initialReservationState` above) is only bounds-checked
@@ -558,7 +610,9 @@ export default function ListingReservationWidget({
     setSelectedUnitId(Number(value));
     if (!isFirstSelection) {
       setDateRange({ start: null, end: null });
-      setQuantity(1);
+      // Step L6.2H3B: a departure's people count survives a unit switch
+      // (re-clamped to the new unit's places above); rooms/vehicles reset.
+      if (!isDepartureListing) setQuantity(1);
       setGuestCount(1);
       setPickupTime('');
       setReturnTime('');
@@ -678,7 +732,10 @@ export default function ListingReservationWidget({
           // noun (Room type / Table / Departure / Vehicle) and show a
           // Nights row only for lodging.
           bookableUnitType: selectedUnit?.bookable_unit_type ?? null,
-          guestCount,
+          // Step L6.2H3B: a departure's people count is its held quantity —
+          // never a second, separate guest count.
+          guestCount: isDepartureListing ? null : guestCount,
+          departurePeopleKey: isDepartureListing ? departurePeopleKey : null,
           // Pass 6: lets checkout's generic order-summary row labels
           // (shared across every vertical) swap in Restaurant-appropriate
           // wording instead of the hotel-flavored "Room / unit type" /
@@ -1036,20 +1093,30 @@ export default function ListingReservationWidget({
             stepper to a diner would read as exactly the confusing
             hotel-room language the brief calls out. Every other category
             keeps this exactly as before. */}
-        {!isRestaurantListing && selectedUnit && selectedUnit.capacity > 1 && (
-          <Input
-            type="number"
-            label={t('pages.listingDetail.reservation.quantityLabel')}
-            value={quantity}
-            min={1}
-            max={quantityMax}
-            onChange={(event) =>
-              handleChangeQuantity(Number(event.target.value))
-            }
-          />
-        )}
+        {/* Step L6.2H3B: a departure always shows its one people count
+            (Travelers / Visitors / Participants) — fixed at 1 when only one
+            place exists — and never a separate Guests field. */}
+        {!isRestaurantListing &&
+          selectedUnit &&
+          (isDepartureListing || selectedUnit.capacity > 1) && (
+            <Input
+              type="number"
+              label={t(
+                isDepartureListing
+                  ? `bookings.departurePeople.${departurePeopleKey}`
+                  : 'pages.listingDetail.reservation.quantityLabel',
+              )}
+              value={quantity}
+              min={1}
+              max={quantityMax}
+              disabled={isDepartureListing && quantityMax === 1}
+              onChange={(event) =>
+                handleChangeQuantity(Number(event.target.value))
+              }
+            />
+          )}
 
-        {selectedUnit && (
+        {selectedUnit && !isDepartureListing && (
           <Input
             type="number"
             label={t(
@@ -1132,6 +1199,7 @@ ListingReservationWidget.propTypes = {
   }),
   onChangeDateRange: PropTypes.func,
   listingType: PropTypes.string,
+  categorySlug: PropTypes.string,
   bookingRules: PropTypes.shape({
     minimum_stay_nights: PropTypes.number,
     maximum_stay_nights: PropTypes.number,

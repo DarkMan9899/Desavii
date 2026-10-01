@@ -61,6 +61,8 @@ export function toBookingResponse(booking) {
     // the list summary (`toBookingSummaryResponse`) — no per-row N+1.
     partner_owner_user_id: booking.partnerOwnerUserId ?? null,
     listing_id: booking.listingId,
+    // Step L6.2H3B: names a departure's people count in booking views.
+    listing_category_slug: booking.listingCategorySlug ?? null,
     booking_type: booking.bookingTypeCode,
     status: booking.statusCode,
     customer_notes: booking.customerNotes,

@@ -71,6 +71,10 @@ function toBookingDomain(row) {
     completedAt: row.completed_at,
     cancellationReason: row.cancellation_reason,
     refundStatus: row.refund_status,
+    // Step L6.2H3B: only the single-booking read (`findById`) selects it —
+    // it names a departure's people (Travelers/Visitors/Participants), since
+    // Attractions and Entertainment Venues share one listing type.
+    listingCategorySlug: row.listing_category_slug ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     tripDateFrom: row.trip_date_from ? toDateString(row.trip_date_from) : null,
@@ -152,6 +156,17 @@ const BOOKING_SELECT = `
   b.payment_method, ps.code AS payment_status_code,
   b.requested_at, b.confirmed_at, b.rejected_at, b.cancelled_at, b.completed_at,
   b.cancellation_reason, b.refund_status, b.created_at, b.updated_at
+`;
+/**
+ * Step L6.2H3B: the booking's listing category, for the single-booking read
+ * only — deliberately not part of `BOOKING_SELECT`, which the row-locking
+ * `FOR UPDATE` read shares.
+ */
+const BOOKING_CATEGORY_SLUG_SELECT = `
+  (SELECT lc.slug FROM listing_category_listing lcl
+     JOIN listing_categories lc ON lc.id = lcl.category_id
+     WHERE lcl.listing_id = b.listing_id
+     ORDER BY lcl.category_id ASC LIMIT 1) AS listing_category_slug
 `;
 const BOOKING_FROM = `
   FROM bookings b
@@ -266,7 +281,7 @@ export class MySqlBookingRepository {
 
   async findById(id, connection = this.#pool) {
     const [rows] = await connection.query(
-      `SELECT ${BOOKING_SELECT} ${BOOKING_FROM} WHERE b.id = ? AND b.deleted_at IS NULL LIMIT 1`,
+      `SELECT ${BOOKING_SELECT}, ${BOOKING_CATEGORY_SLUG_SELECT} ${BOOKING_FROM} WHERE b.id = ? AND b.deleted_at IS NULL LIMIT 1`,
       [id],
     );
     return toBookingDomain(rows[0]);

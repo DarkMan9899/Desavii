@@ -374,6 +374,12 @@
     },
     "freeReservation": {
       "label": "Free reservation — pay at the restaurant"
+    },
+    "departurePeople": {
+      "travelers": "Travelers",
+      "visitors": "Visitors",
+      "participants": "Participants",
+      "people": "People"
     }
   },
   "payments": {
@@ -647,7 +653,8 @@
       "UNSUPPORTED_PRICING_MODEL": "This pricing model is no longer supported. Choose a new one in the Pricing step, then publish again.",
       "unsupportedPricingModelForBooking": "This listing can't be booked online right now — its host is updating how it's priced.",
       "partySizeRequired": "Enter your party size.",
-      "reservationQuantityNotSupported": "A reservation always books one table for your party."
+      "reservationQuantityNotSupported": "A reservation always books one table for your party.",
+      "travelerCountMismatch": "The number of people doesn't match the places you held. Go back to the listing and choose your places again."
     },
     "codes": {
       "PARTNER_NOT_VERIFIED": "Your company must be verified before it can create listings.",

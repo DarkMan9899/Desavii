@@ -119,6 +119,8 @@ const DOMAIN_ISSUE_KEYS = {
   // Step L6.2H2B: a restaurant reservation's party size and single slot.
   PARTY_SIZE_REQUIRED: 'partySizeRequired',
   RESERVATION_QUANTITY_NOT_SUPPORTED: 'reservationQuantityNotSupported',
+  // Step L6.2H3B: a departure's submitted people count contradicts its hold.
+  TRAVELER_COUNT_MISMATCH: 'travelerCountMismatch',
   UNKNOWN_AMENITY: 'notAvailableForCategory',
   UNIT_TYPE_NOT_ALLOWED: 'notAvailableForCategory',
   ONE_VEHICLE_PER_LISTING: 'oneVehiclePerListing',

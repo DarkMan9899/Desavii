@@ -62,6 +62,10 @@ import {
 import { formatTimeRange } from '../../../../utils/formatTimeRange.js';
 import { BookingPaymentSection } from '../../../payments/index.js';
 import { computeNights } from '../../../bookings/utils/computeNights.js';
+import {
+  resolveDeparturePeopleKey,
+  resolveDeparturePeopleCount,
+} from '../../../../utils/departurePeople.js';
 import { resolveUnitNounKey } from '../../../bookings/utils/resolveUnitNounKey.js';
 
 const DATE_RANGE_LABEL_BY_BOOKING_TYPE = {
@@ -367,6 +371,9 @@ export default function AdminBookingDetailContent() {
             <Stack gap="3">
               {booking.items.map((item) => {
                 const nights = computeNights(item);
+                const peopleKey = resolveDeparturePeopleKey({
+                  categorySlug: booking.listing_category_slug,
+                });
                 const dateRangeLabelKey =
                   DATE_RANGE_LABEL_BY_BOOKING_TYPE[booking.booking_type] ??
                   'dates';
@@ -425,13 +432,25 @@ export default function AdminBookingDetailContent() {
                         {t('bookings.detail.nights')}: {nights}
                       </p>
                     )}
-                    <p>
-                      {t('bookings.detail.quantity')}: {item.quantity}
-                    </p>
-                    {item.guests.length > 0 && (
+                    {/* Step L6.2H3B: a departure's people count is its
+                        quantity (Travelers / Visitors / Participants) —
+                        never named guest rows. */}
+                    {resolveDeparturePeopleCount(item) !== null ? (
                       <p>
-                        {t('bookings.detail.guests')}: {item.guests.length}
+                        {t(`bookings.departurePeople.${peopleKey}`)}:{' '}
+                        {resolveDeparturePeopleCount(item)}
                       </p>
+                    ) : (
+                      <>
+                        <p>
+                          {t('bookings.detail.quantity')}: {item.quantity}
+                        </p>
+                        {item.guests.length > 0 && (
+                          <p>
+                            {t('bookings.detail.guests')}: {item.guests.length}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 );

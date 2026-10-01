@@ -27,6 +27,7 @@ import seedDemoSprintJCatalog from '../../../src/infrastructure/database/seeds/d
 import {
   listSeededPricing,
   findPriceBasisClaims,
+  findDepartureCopyContradictions,
 } from '../helpers/seedPricingModels.js';
 import {
   getMysqlPool,
@@ -319,5 +320,20 @@ describe('Sprint J pricing models (Step L6.2H1)', () => {
     );
     expect(checked).toBeGreaterThan(0);
     expect(claims).toEqual([]);
+  });
+});
+
+// Step L6.2H3B — a Sprint J departure's capacity counts people (per-player
+// places for the entertainment venues): no copy claims lanes, rooms or a
+// private group the inventory doesn't model.
+describe('Sprint J departures — capacity counts people (Step L6.2H3B)', () => {
+  test('no departure copy promises a private group, a whole-day booking or lanes', async () => {
+    const { checked, contradictions } = await findDepartureCopyContradictions(
+      pool,
+      'l.slug LIKE ?',
+      ['sprintj-%'],
+    );
+    expect(checked).toBeGreaterThan(0);
+    expect(contradictions).toEqual([]);
   });
 });

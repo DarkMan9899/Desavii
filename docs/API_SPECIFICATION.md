@@ -1215,6 +1215,12 @@ model its category no longer offers (legacy `PER_HOUR`) is refused at hold
 creation and at booking conversion — `422` `pricingModel` /
 `UNSUPPORTED_PRICING_MODEL_FOR_BOOKING`, nothing reserved (§51.1).
 
+**Departure people count (Step L6.2H3B):** a `TOUR_DEPARTURE` hold's `quantity`
+is the one authoritative number of people (§51.3). `POST /bookings` may omit
+`items[].guestCount` for a departure; if sent it must equal the held quantity,
+or it is a `422` `items` / `TRAVELER_COUNT_MISMATCH` — no booking is created
+and the hold (with the places it holds) stays active.
+
 **Restaurant reservation (Step L6.2H2B):** a `RESTAURANT_TABLE` hold is exactly
 one reservation — `quantity` other than 1 is a `422` `items` /
 `RESERVATION_QUANTITY_NOT_SUPPORTED`, raised before any capacity, ledger or
@@ -1347,7 +1353,7 @@ so only models that formula actually bills are offered:
 |---|---|---|
 | Hotels, Apartments, Villas, Guest Houses | `PER_NIGHT` | nightly prices over the nights (checkout excluded) × rooms/units |
 | Car Rentals | `PER_DAY` | daily prices over the inclusive rental days × vehicles |
-| Tours, Attractions, Entertainment Venues | `PER_PERSON` | the departure/session date's price × quantity |
+| Tours, Attractions, Entertainment Venues | `PER_PERSON` | the departure/session date's price × quantity, where quantity is the number of people (§51.3) |
 | Restaurants | `PER_PERSON` (optional) | never charged — average spend per person, display metadata only (§51.2) |
 
 **`PER_HOUR` is not supported for customer booking.** There is no booked-hour
@@ -1386,6 +1392,34 @@ affect a booking.
 any booking whose total is zero, `true` otherwise. A booking always has one
 booking type (all items share one listing and one unit type), so it applies to
 the whole booking.
+
+### 51.3 Departures — one people count (Step L6.2H3B)
+
+A `TOUR_DEPARTURE` unit's capacity counts **people**: seats per departure
+(Tours), places per session (Attractions, Entertainment Venues). For a
+supported `PER_PERSON` departure one number — the hold's `quantity` — is:
+
+| Category | The people are | Same number is also |
+|---|---|---|
+| Tours | Travelers | places consumed (`quantity_available -= quantity`), `booking_items.quantity`, the price multiplier, and the count shown at checkout and in every booking view |
+| Attractions | Visitors | same |
+| Entertainment Venues | Participants | same |
+
+- There is no second, detached guest count: `items[].guestCount` is optional for
+  a departure and, when sent, must equal the held quantity
+  (`TRAVELER_COUNT_MISMATCH`, §48). It is never stored —
+  `booking_items.guest_count` stays restaurant-only (§51.2).
+- A multi-item booking counts people per item (each departure's own quantity).
+- Public search asks for `guests` places (`quantity_available >= guests`), and
+  the reservation widget pre-fills the same `guests` as the held quantity, so
+  search and booking consume the same number.
+- Booking detail exposes `listing_category_slug` so views can name the people
+  (Attractions and Entertainment Venues share the `ATTRACTION` listing type).
+- **Private-group services** (one price per group, a group-size limit, a
+  whole-day private guide) are **not supported** by the current product model
+  and would need their own pricing model and group-size field.
+- Historical departure bookings are unchanged: their `quantity` already is the
+  people billed and places consumed. No migration.
 
 ## 52. Coupons
 

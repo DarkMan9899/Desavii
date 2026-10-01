@@ -118,6 +118,9 @@ export default function BookingCheckoutPageContent() {
   // appropriate wording, so the final confirmation step never re-shows
   // the hotel language the reservation widget itself already avoids.
   const isRestaurantReservation = Boolean(holdState?.isRestaurantReservation);
+  // Step L6.2H3B: a departure's held quantity is its people count, named by
+  // category (Travelers / Visitors / Participants) — the only count shown.
+  const departurePeopleKey = holdState?.departurePeopleKey ?? null;
   // Step L6.2B: same hand-off category — names the unit in its own domain
   // noun, and only a lodging unit has nights.
   const bookableUnitType = holdState?.bookableUnitType;
@@ -217,9 +220,11 @@ export default function BookingCheckoutPageContent() {
           {
             holdIds,
             guests: [],
+            // Omitted (never null) when there is no guest count to send —
+            // e.g. a departure, whose people count is its held quantity.
             guestCount: isRestaurantReservation
               ? Number(values.partySize)
-              : guestCount,
+              : (guestCount ?? undefined),
           },
         ],
         guestContactSnapshot: {
@@ -535,7 +540,15 @@ export default function BookingCheckoutPageContent() {
                     )}
                   </>
                 )}
-                {holdItem.quantity > 1 && (
+                {departurePeopleKey && (
+                  <div className={styles.summaryRow}>
+                    <dt>
+                      {t(`bookings.departurePeople.${departurePeopleKey}`)}
+                    </dt>
+                    <dd>{holdItem.quantity}</dd>
+                  </div>
+                )}
+                {!departurePeopleKey && holdItem.quantity > 1 && (
                   <div className={styles.summaryRow}>
                     <dt>{t('bookings.checkout.summary.quantity')}</dt>
                     <dd>{holdItem.quantity}</dd>

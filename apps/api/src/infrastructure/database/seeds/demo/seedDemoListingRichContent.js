@@ -1067,25 +1067,25 @@ export default async function seedDemoListingRichContent(
       images: ['attractions-5.svg', 'attractions-6.svg', 'attractions-7.svg'],
       translations: {
         en: {
-          title: 'Certified Yerevan City Guide',
+          title: 'Yerevan Small-Group City Walk',
           summary:
-            'A licensed, multilingual private guide for a full day exploring Yerevan and nearby historic sites.',
+            'A full-day guided walk through Yerevan with a licensed, multilingual guide, in a small group of up to 6 people.',
           description:
-            "Spend a full day with a licensed city guide who speaks English, Russian, and Armenian, and knows Yerevan's history inside out. A typical day covers the city's main landmarks — Republic Square, the Cascade, the Vernissage market, and Matenadaran — with the itinerary shaped around your interests, whether that's architecture, history, food, or a mix of everything. The guide is booked for the whole day rather than by the hour, so there's no need to rush between stops.",
+            "Spend a full day exploring Yerevan with a licensed city guide who speaks English, Russian, and Armenian, and knows the city's history inside out. The walk covers Yerevan's main landmarks — Republic Square, the Cascade, the Vernissage market, and Matenadaran — in a small group of up to 6 people, so there's always time for questions and no need to rush between stops. The price is per person: book one place for each visitor joining the walk.",
         },
         hy: {
-          title: 'Հավաստագրված Երևանյան Ուղեկցորդ',
+          title: 'Երևանյան քայլարշավ փոքր խմբով',
           summary:
-            'Հավաստագրված, բազմալեզու անհատական ուղեկցորդ ամբողջ օրվա ընթացքում Երևանում և մոտակա պատմական վայրերում։',
+            'Ամբողջօրյա քայլարշավ Երևանում հավաստագրված, բազմալեզու ուղեկցորդի հետ՝ մինչև 6 հոգանոց փոքր խմբով։',
           description:
-            'Անցկացրեք ամբողջ օրը հավաստագրված քաղաքային ուղեկցորդի հետ, ով խոսում է անգլերեն, ռուսերեն և հայերեն և գերազանց գիտի Երևանի պատմությունը։ Բնորոշ օրը ներառում է քաղաքի հիմնական տեսարժան վայրերը՝ Հանրապետության հրապարակը, Կասկադը, Վերնիսաժը և Մատենադարանը, իսկ երթուղին ձևավորվում է ըստ ձեր հետաքրքրությունների։',
+            'Անցկացրեք ամբողջ օրը Երևանում հավաստագրված քաղաքային ուղեկցորդի հետ, ով խոսում է անգլերեն, ռուսերեն և հայերեն և գերազանց գիտի քաղաքի պատմությունը։ Քայլարշավը ներառում է քաղաքի հիմնական տեսարժան վայրերը՝ Հանրապետության հրապարակը, Կասկադը, Վերնիսաժը և Մատենադարանը, մինչև 6 հոգանոց փոքր խմբով, որպեսզի միշտ ժամանակ լինի հարցերի համար։ Գինը նշված է մեկ անձի համար՝ ամրագրեք մեկ տեղ յուրաքանչյուր այցելուի համար։',
         },
         ru: {
-          title: 'Сертифицированный гид по Еревану',
+          title: 'Прогулка по Еревану в малой группе',
           summary:
-            'Сертифицированный многоязычный частный гид на целый день по Еревану и близлежащим историческим местам.',
+            'Прогулка по Еревану на целый день с сертифицированным многоязычным гидом в малой группе до 6 человек.',
           description:
-            'Проведите целый день с сертифицированным городским гидом, который говорит на английском, русском и армянском языках и прекрасно знает историю Еревана. Типичный день охватывает главные достопримечательности города — площадь Республики, Каскад, рынок Вернисаж и Матенадаран, а маршрут выстраивается с учётом ваших интересов.',
+            'Проведите целый день в Ереване с сертифицированным городским гидом, который говорит на английском, русском и армянском языках и прекрасно знает историю города. Прогулка охватывает главные достопримечательности — площадь Республики, Каскад, рынок Вернисаж и Матенадаран — в малой группе до 6 человек, поэтому на вопросы всегда есть время. Цена указана за одного человека: бронируйте по одному месту на каждого посетителя.',
         },
       },
       attributeValues: [
@@ -1103,13 +1103,13 @@ export default async function seedDemoListingRichContent(
           },
           {
             iconCode: 'clock',
-            text: 'Full-day availability, not billed by the hour',
+            text: 'A full-day walk at an unhurried pace',
           },
           {
             iconCode: 'location',
             text: 'Covers Republic Square, the Cascade, Vernissage & more',
           },
-          { iconCode: 'users', text: 'Tailored to your interests' },
+          { iconCode: 'users', text: 'Small group of up to 6 people' },
         ],
         hy: [
           {
@@ -1118,13 +1118,13 @@ export default async function seedDemoListingRichContent(
           },
           {
             iconCode: 'clock',
-            text: 'Ամբողջ օրվա հասանելիություն, ոչ ժամավճարով',
+            text: 'Ամբողջօրյա քայլարշավ՝ առանց շտապելու',
           },
           {
             iconCode: 'location',
             text: 'Ընդգրկում է Հանրապետության հրապարակը, Կասկադը, Վերնիսաժը և ավելին',
           },
-          { iconCode: 'users', text: 'Հարմարեցված է ձեր հետաքրքրություններին' },
+          { iconCode: 'users', text: 'Փոքր խումբ՝ մինչև 6 հոգի' },
         ],
         ru: [
           {
@@ -1133,7 +1133,7 @@ export default async function seedDemoListingRichContent(
           },
           {
             iconCode: 'clock',
-            text: 'Доступен на целый день, без почасовой оплаты',
+            text: 'Прогулка на целый день в спокойном темпе',
           },
           {
             iconCode: 'location',
@@ -1141,16 +1141,16 @@ export default async function seedDemoListingRichContent(
           },
           {
             iconCode: 'users',
-            text: 'Программа адаптируется под ваши интересы',
+            text: 'Малая группа до 6 человек',
           },
         ],
       },
       itinerary: {
         en: [
           {
-            title: 'Morning pickup and Republic Square',
+            title: 'Meeting point and Republic Square',
             description:
-              'Meet your guide and begin with the architecture and history of Republic Square.',
+              'Meet your guide and the group on Republic Square and begin with its architecture and history.',
             durationMinutes: 60,
           },
           {
@@ -1178,17 +1178,17 @@ export default async function seedDemoListingRichContent(
             durationMinutes: 75,
           },
           {
-            title: 'Free time and drop-off',
+            title: 'Free time and farewell',
             description:
-              'Wrap up with time for any last requests before being dropped off at your accommodation.',
+              'Wrap up with time for questions and local tips before the walk ends in the city centre.',
             durationMinutes: 45,
           },
         ],
         hy: [
           {
-            title: 'Առավոտյան վերցնում և Հանրապետության հրապարակ',
+            title: 'Հանդիպման վայր և Հանրապետության հրապարակ',
             description:
-              'Հանդիպեք ձեր ուղեկցորդի հետ և սկսեք Հանրապետության հրապարակի ճարտարապետությունից և պատմությունից։',
+              'Հանդիպեք ուղեկցորդի և խմբի հետ Հանրապետության հրապարակում և սկսեք նրա ճարտարապետությունից և պատմությունից։',
             durationMinutes: 60,
           },
           {
@@ -1216,17 +1216,17 @@ export default async function seedDemoListingRichContent(
             durationMinutes: 75,
           },
           {
-            title: 'Ազատ ժամանակ և հասցնում',
+            title: 'Ազատ ժամանակ և հրաժեշտ',
             description:
-              'Ավարտեք վերջին ցանկություններով, նախքան ձեզ ձեր կեցության վայր հասցնելը։',
+              'Ավարտեք հարցերով և տեղական խորհուրդներով, նախքան քայլարշավը կավարտվի քաղաքի կենտրոնում։',
             durationMinutes: 45,
           },
         ],
         ru: [
           {
-            title: 'Утренняя встреча и площадь Республики',
+            title: 'Место встречи и площадь Республики',
             description:
-              'Встретьтесь с гидом и начните с архитектуры и истории площади Республики.',
+              'Встретьтесь с гидом и группой на площади Республики и начните с её архитектуры и истории.',
             durationMinutes: 60,
           },
           {
@@ -1254,9 +1254,9 @@ export default async function seedDemoListingRichContent(
             durationMinutes: 75,
           },
           {
-            title: 'Свободное время и высадка',
+            title: 'Свободное время и прощание',
             description:
-              'Завершите день с учётом последних пожеланий перед высадкой в месте вашего проживания.',
+              'Завершите день вопросами и местными советами — прогулка заканчивается в центре города.',
             durationMinutes: 45,
           },
         ],
@@ -1303,9 +1303,9 @@ export default async function seedDemoListingRichContent(
             answer: 'English, Russian, and Armenian.',
           },
           {
-            question: 'Can the itinerary be customized?',
+            question: 'What does the route cover?',
             answer:
-              "Yes — the day is shaped around your interests, whether that's architecture, history, food, or a general overview of the city.",
+              "Yerevan's main landmarks, with your guide adding history, architecture and food tips along the way.",
           },
           {
             question: 'Are entry tickets to sites included?',
@@ -1313,9 +1313,9 @@ export default async function seedDemoListingRichContent(
               'No, entry tickets to museums and attractions are not included and are paid separately.',
           },
           {
-            question: 'Is this a group tour?',
+            question: 'Is this a group walk?',
             answer:
-              'No, this is a private, one-on-one guide booking for your party only.',
+              'Yes — a small group of up to 6 people. The price is per person, so book one place for each visitor.',
           },
         ],
         hy: [
@@ -1324,9 +1324,9 @@ export default async function seedDemoListingRichContent(
             answer: 'Անգլերեն, ռուսերեն և հայերեն։',
           },
           {
-            question: 'Երթուղին կարո՞ղ է հարմարեցվել:',
+            question: 'Ի՞նչ է ներառում երթուղին:',
             answer:
-              'Այո՝ օրը կազմվում է ձեր հետաքրքրություններին համապատասխան, լինի դա ճարտարապետություն, պատմություն, խոհանոց, թե քաղաքի ընդհանուր ծանոթացում։',
+              'Երևանի հիմնական տեսարժան վայրերը, իսկ ուղեկցորդը ճանապարհին պատմում է պատմության, ճարտարապետության և խոհանոցի մասին։',
           },
           {
             question: 'Այցելության տոմսերը ներառվա՞ծ են:',
@@ -1334,8 +1334,9 @@ export default async function seedDemoListingRichContent(
               'Ոչ, թանգարանների և տեսարժան վայրերի տոմսերը ներառված չեն և վճարվում են առանձին։',
           },
           {
-            question: 'Սա խմբակա՞յին տուր է:',
-            answer: 'Ոչ, սա անհատական ուղեկցում է՝ միայն ձեր խմբի համար։',
+            question: 'Սա խմբակայի՞ն քայլարշավ է:',
+            answer:
+              'Այո՝ մինչև 6 հոգանոց փոքր խումբ։ Գինը նշված է մեկ անձի համար, ուստի ամրագրեք մեկ տեղ յուրաքանչյուր այցելուի համար։',
           },
         ],
         ru: [
@@ -1344,9 +1345,9 @@ export default async function seedDemoListingRichContent(
             answer: 'Английский, русский и армянский.',
           },
           {
-            question: 'Можно ли изменить маршрут?',
+            question: 'Что входит в маршрут?',
             answer:
-              'Да — программа дня строится вокруг ваших интересов, будь то архитектура, история, еда или общее знакомство с городом.',
+              'Главные достопримечательности Еревана, а гид по пути рассказывает об истории, архитектуре и местной кухне.',
           },
           {
             question: 'Включены ли билеты на объекты?',
@@ -1354,9 +1355,9 @@ export default async function seedDemoListingRichContent(
               'Нет, билеты в музеи и на достопримечательности не включены и оплачиваются отдельно.',
           },
           {
-            question: 'Это групповой тур?',
+            question: 'Это групповая прогулка?',
             answer:
-              'Нет, это индивидуальное бронирование гида только для вашей компании.',
+              'Да — малая группа до 6 человек. Цена указана за одного человека, поэтому бронируйте по одному месту на каждого посетителя.',
           },
         ],
       },

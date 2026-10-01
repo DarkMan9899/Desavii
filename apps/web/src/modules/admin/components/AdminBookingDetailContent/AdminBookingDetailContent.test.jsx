@@ -221,6 +221,28 @@ describe('AdminBookingDetailContent (apps/web/src/modules/admin)', () => {
     ).toBeInTheDocument();
   });
 
+  // Step L6.2H3B: an admin sees the booked participants (the quantity).
+  test('Step L6.2H3B: an entertainment departure shows its participants instead of a quantity', () => {
+    useAdminBookingDetailQuery.mockReturnValue({
+      data: {
+        ...BASE_BOOKING,
+        booking_type: 'TOUR_BOOKING',
+        listing_category_slug: 'entertainment-venues',
+        items: BASE_BOOKING.items.map((item) => ({
+          ...item,
+          bookable_unit_type: 'TOUR_DEPARTURE',
+          quantity: 5,
+        })),
+      },
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    renderPage();
+    expect(screen.getByText(/Մասնակիցներ: 5/)).toBeInTheDocument();
+  });
+
   test('shows Cancel/Complete/No-show for CONFIRMED, hides Confirm/Reject', () => {
     useAdminBookingDetailQuery.mockReturnValue({
       data: { ...BASE_BOOKING, status: 'CONFIRMED' },

@@ -1821,3 +1821,142 @@ describe('ListingReservationWidget — restaurant free reservation (Step L6.2H2B
     }
   });
 });
+
+// Step L6.2H3B — a departure (TOUR_DEPARTURE) has ONE people count: its hold
+// quantity, named by category (Travelers / Visitors / Participants). It is
+// pre-filled from the search's `guests`, drives the estimate and the hold,
+// and there is no separate Guests field.
+describe('ListingReservationWidget — departure people count (Step L6.2H3B)', () => {
+  const departureUnits = (capacity) => [
+    {
+      id: 1,
+      bookable_unit_type: 'TOUR_DEPARTURE',
+      capacity,
+      unit_label: 'Shared Group Departure',
+    },
+  ];
+  const PER_PERSON = {
+    amount: '100.00',
+    currency: 'AMD',
+    pricing_model: 'PER_PERSON',
+  };
+
+  beforeEach(async () => {
+    await i18n.changeLanguage('hy');
+    mockNavigate.mockReset();
+    useAuth.mockReturnValue({ isAuthenticated: true });
+    useListingCalendarQuery.mockReturnValue({
+      data: CALENDAR_DAYS,
+      refetch: vi.fn(),
+    });
+    useListingDayStatusQuery.mockReturnValue({
+      data: DAY_STATUSES,
+      refetch: vi.fn(),
+    });
+    useCreateBookingHoldMutation.mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    });
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: departureUnits(12),
+      isPending: false,
+      isError: false,
+    });
+  });
+
+  test.each([
+    ['TOUR', 'tours', 'Ճանապարհորդներ'],
+    ['ATTRACTION', 'attractions', 'Այցելուներ'],
+    ['ATTRACTION', 'entertainment-venues', 'Մասնակիցներ'],
+  ])(
+    '%s / %s shows one "%s" count and no Guests field',
+    (listingType, categorySlug, label) => {
+      renderWidget({ pricing: PER_PERSON, listingType, categorySlug });
+
+      expect(screen.getByLabelText(label)).toHaveValue(1);
+      expect(screen.queryByLabelText('Հյուրեր')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Քանակ')).not.toBeInTheDocument();
+    },
+  );
+
+  test("the search's guests pre-fill the count, which is held, estimated and handed to checkout", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue({
+      data: {
+        items: [{ hold_ids: [1, 2, 3, 4] }],
+        expires_at: '2027-08-01T00:15:00Z',
+      },
+    });
+    useCreateBookingHoldMutation.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    });
+    const user = userEvent.setup();
+    renderWidget(
+      { pricing: PER_PERSON, listingType: 'TOUR', categorySlug: 'tours' },
+      '/en/listings/10?guests=4',
+    );
+
+    expect(screen.getByLabelText('Ճանապարհորդներ')).toHaveValue(4);
+    await user.click(screen.getByRole('button', { name: 'pick dates' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
+    );
+
+    expect(mutateAsync).toHaveBeenCalledWith([
+      {
+        bookableUnitId: 1,
+        dateFrom: '2027-08-01',
+        dateTo: '2027-08-02',
+        quantity: 4,
+      },
+    ]);
+    // Inclusive departure days (100 + 120) × 4 people.
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/en/booking/checkout',
+      expect.objectContaining({
+        state: expect.objectContaining({
+          estimatedTotal: { amount: 880, currency: 'AMD' },
+          guestCount: null,
+          departurePeopleKey: 'travelers',
+        }),
+      }),
+    );
+  });
+
+  test('a single remaining place shows a fixed count of 1', () => {
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: departureUnits(1),
+      isPending: false,
+      isError: false,
+    });
+    renderWidget(
+      {
+        pricing: PER_PERSON,
+        listingType: 'ATTRACTION',
+        categorySlug: 'attractions',
+      },
+      '/en/listings/10?guests=4',
+    );
+
+    const visitors = screen.getByLabelText('Այցելուներ');
+    expect(visitors).toHaveValue(1);
+    expect(visitors).toBeDisabled();
+  });
+
+  test.each([
+    ['en', 'Participants'],
+    ['ru', 'Участники'],
+  ])('the count is named in %s', async (lng, label) => {
+    await i18n.changeLanguage(lng);
+    try {
+      renderWidget({
+        pricing: PER_PERSON,
+        listingType: 'ATTRACTION',
+        categorySlug: 'entertainment-venues',
+      });
+      expect(screen.getByLabelText(label)).toBeInTheDocument();
+    } finally {
+      await i18n.changeLanguage('hy');
+    }
+  });
+});

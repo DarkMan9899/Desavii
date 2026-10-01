@@ -637,6 +637,7 @@ export default function ListingDetailPageContent() {
             onChangeDateRange={setDateRange}
             listingType={listing.listing_type}
             bookingRules={listing.booking_rules}
+            categorySlug={category?.slug ?? null}
           />
         </aside>
       </div>
@@ -653,6 +654,7 @@ export default function ListingDetailPageContent() {
         onChangeDateRange={setDateRange}
         listingType={listing.listing_type}
         bookingRules={listing.booking_rules}
+        categorySlug={category?.slug ?? null}
       />
     </Stack>
   );

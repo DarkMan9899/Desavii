@@ -40,6 +40,10 @@ import BookingStatusBadge from '../BookingStatusBadge/BookingStatusBadge.jsx';
 import BookingTotal from '../BookingTotal/BookingTotal.jsx';
 import { resolvePartySize } from '../../utils/restaurantReservation.js';
 import {
+  resolveDeparturePeopleKey,
+  resolveDeparturePeopleCount,
+} from '../../../../utils/departurePeople.js';
+import {
   ReviewForm,
   useReviewForBookingQuery,
 } from '../../../reviews/index.js';
@@ -250,6 +254,9 @@ export default function BookingDetailPageContent() {
             <ul className={styles.metaGrid}>
               {booking.items.map((item) => {
                 const nights = computeNights(item);
+                const peopleKey = resolveDeparturePeopleKey({
+                  categorySlug: booking.listing_category_slug,
+                });
                 return (
                   <li key={item.id} className={styles.metaItem}>
                     {item.unit_label && (
@@ -345,15 +352,28 @@ export default function BookingDetailPageContent() {
                         </span>
                       </p>
                     )}
-                    {item.guests.length > 0 && (
+                    {/* Step L6.2H3B: a departure's people count is its
+                        quantity (Travelers / Visitors / Participants) —
+                        never named guest rows. */}
+                    {resolveDeparturePeopleCount(item) !== null && (
                       <p className={styles.metaLine}>
                         <Users2 aria-hidden="true" focusable="false" />
                         <span>
-                          {t('bookings.detail.quantity')}: {item.quantity} ·{' '}
-                          {t('bookings.detail.guests')}: {item.guests.length}
+                          {t(`bookings.departurePeople.${peopleKey}`)}:{' '}
+                          {resolveDeparturePeopleCount(item)}
                         </span>
                       </p>
                     )}
+                    {resolveDeparturePeopleCount(item) === null &&
+                      item.guests.length > 0 && (
+                        <p className={styles.metaLine}>
+                          <Users2 aria-hidden="true" focusable="false" />
+                          <span>
+                            {t('bookings.detail.quantity')}: {item.quantity} ·{' '}
+                            {t('bookings.detail.guests')}: {item.guests.length}
+                          </span>
+                        </p>
+                      )}
                   </li>
                 );
               })}

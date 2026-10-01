@@ -14,7 +14,9 @@ import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import { up } from '../../../src/infrastructure/database/migrate.js';
 import { seedAll } from '../../../src/infrastructure/database/seeds/index.js';
 import seedDemoMarketplace from '../../../src/infrastructure/database/seeds/demo/seedDemoMarketplace.js';
-import seedDemoInventoryScenarios from '../../../src/infrastructure/database/seeds/demo/seedDemoInventoryScenarios.js';
+import seedDemoInventoryScenarios, {
+  GUIDE_WALK_PLACES,
+} from '../../../src/infrastructure/database/seeds/demo/seedDemoInventoryScenarios.js';
 import seedDemoListingRichContent from '../../../src/infrastructure/database/seeds/demo/seedDemoListingRichContent.js';
 import {
   getMysqlPool,
@@ -23,6 +25,7 @@ import {
 import {
   listSeededPricing,
   findPriceBasisClaims,
+  findDepartureCopyContradictions,
 } from '../helpers/seedPricingModels.js';
 
 const SEEDED_SCOPE = 'l.id >= ?';
@@ -83,5 +86,39 @@ describe('demo marketplace pricing models (Step L6.2H1)', () => {
     );
     expect(checked).toBeGreaterThan(0);
     expect(claims).toEqual([]);
+  });
+});
+
+// Step L6.2H3B — a departure's capacity counts people (Visitors for the city
+// walk), billed per person: the demo city guide is a shared small-group walk,
+// no longer a "private guide, not seat-based" product of capacity 1.
+describe('demo departures — capacity counts people (Step L6.2H3B)', () => {
+  test('the city walk is PER_PERSON with GUIDE_WALK_PLACES visitor places', async () => {
+    const [rows] = await connection.query(
+      `SELECT pm.code AS model, bu.capacity, bu.unit_label
+       FROM listings l
+       JOIN listing_pricing lp ON lp.listing_id = l.id
+       JOIN pricing_models pm ON pm.id = lp.pricing_model_id
+       JOIN bookable_units bu ON bu.listing_id = l.id AND bu.deleted_at IS NULL
+       WHERE l.slug = 'demo-vendor-certified-yerevan-city-guide'`,
+    );
+    expect(GUIDE_WALK_PLACES).toBe(6);
+    expect(rows).toEqual([
+      {
+        model: 'PER_PERSON',
+        capacity: GUIDE_WALK_PLACES,
+        unit_label: 'Small-Group City Walk',
+      },
+    ]);
+  });
+
+  test('no demo departure copy promises a private group, a whole-day booking or lanes', async () => {
+    const { checked, contradictions } = await findDepartureCopyContradictions(
+      connection,
+      SEEDED_SCOPE,
+      seededParams,
+    );
+    expect(checked).toBeGreaterThan(0);
+    expect(contradictions).toEqual([]);
   });
 });

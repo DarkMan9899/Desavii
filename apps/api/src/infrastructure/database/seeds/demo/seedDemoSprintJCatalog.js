@@ -1854,23 +1854,23 @@ const LISTINGS = [
       en: {
         title: 'Ararat Lanes Bowling & Arcade',
         summary:
-          'A family bowling alley in Gyumri with six lanes and an attached arcade room.',
+          'A family bowling alley in Gyumri with an attached arcade room, priced per player.',
         description:
-          'Ararat Lanes has six bowling lanes with bumpers available for younger children, plus an arcade room with racing games and a small prize counter that stays open past the alley’s own closing time. The price is per player and covers a bowling session, so a group books one place for each person bowling. Bowling shoes are included in the price; outside food is not permitted in the lane area.',
+          'Ararat Lanes is a family bowling alley with bumpers available for younger children, plus an arcade room with racing games and a small prize counter that stays open past the alley’s own closing time. The price is per player and covers a bowling session, so a group books one place for each person bowling. Bowling shoes are included in the price; outside food is not permitted in the lane area.',
       },
       hy: {
         title: 'Արարատ Լեյնս Բոուլինգ և Խաղասրահ',
         summary:
-          'Ընտանեկան բոուլինգ-ակումբ Գյումրիում՝ վեց ուղիներով և կից խաղասրահով։',
+          'Ընտանեկան բոուլինգ-ակումբ Գյումրիում՝ կից խաղասրահով, գինը՝ մեկ խաղացողի համար։',
         description:
-          'Արարատ Լեյնսն ունի վեց բոուլինգ ուղի՝ փոքր երեխաների համար հասանելի բամպերներով, ինչպես նաև խաղասրահ՝ մրցարշավային խաղերով և փոքրիկ մրցանակների վաճառակետով, որը բաց է մնում ակումբի փակման ժամից հետո։ Գինը նշված է մեկ խաղացողի համար և ներառում է բոուլինգի սեսիան, ուստի խումբը ամրագրում է մեկ տեղ յուրաքանչյուր խաղացողի համար։ Բոուլինգի կոշիկները ներառված են գնի մեջ. արտաքին սնունդը թույլատրված չէ ուղու տարածքում։',
+          'Արարատ Լեյնսը ընտանեկան բոուլինգ-ակումբ է՝ փոքր երեխաների համար հասանելի բամպերներով, ինչպես նաև խաղասրահով՝ մրցարշավային խաղերով և փոքրիկ մրցանակների վաճառակետով, որը բաց է մնում ակումբի փակման ժամից հետո։ Գինը նշված է մեկ խաղացողի համար և ներառում է բոուլինգի սեսիան, ուստի խումբը ամրագրում է մեկ տեղ յուրաքանչյուր խաղացողի համար։ Բոուլինգի կոշիկները ներառված են գնի մեջ. արտաքին սնունդը թույլատրված չէ ուղու տարածքում։',
       },
       ru: {
         title: 'Боулинг и аркада Ararat Lanes',
         summary:
-          'Семейный боулинг-клуб в Гюмри с шестью дорожками и залом игровых автоматов.',
+          'Семейный боулинг-клуб в Гюмри с залом игровых автоматов, цена за одного игрока.',
         description:
-          'В Ararat Lanes шесть боулинг-дорожек с бортиками для маленьких детей, а также зал игровых автоматов с гоночными играми и небольшой стойкой призов, которая работает позже времени закрытия самого боулинга. Цена указана за одного игрока и включает сессию боулинга, поэтому компания бронирует по одному месту на каждого игрока. Обувь для боулинга включена в стоимость; свою еду проносить в зону дорожек нельзя.',
+          'Ararat Lanes — семейный боулинг-клуб с бортиками для маленьких детей и залом игровых автоматов с гоночными играми и небольшой стойкой призов, которая работает позже времени закрытия самого боулинга. Цена указана за одного игрока и включает сессию боулинга, поэтому компания бронирует по одному месту на каждого игрока. Обувь для боулинга включена в стоимость; свою еду проносить в зону дорожек нельзя.',
       },
     },
     amenities: ['Family Friendly', 'Parking', 'Air Conditioning'],

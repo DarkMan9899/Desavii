@@ -54,6 +54,7 @@ export default function MobileBookingBar({
   onChangeDateRange = undefined,
   listingType = null,
   bookingRules = null,
+  categorySlug = null,
 }) {
   const { t } = useTranslation();
   const { locale } = useParams();
@@ -113,6 +114,7 @@ export default function MobileBookingBar({
           onChangeDateRange={onChangeDateRange}
           listingType={listingType}
           bookingRules={bookingRules}
+          categorySlug={categorySlug}
         />
       </Drawer>
     </>
@@ -141,6 +143,7 @@ MobileBookingBar.propTypes = {
   onChangeDateRange: PropTypes.func,
   // Step L6.2F: forwarded to the reservation widget (booking-rule UX).
   listingType: PropTypes.string,
+  categorySlug: PropTypes.string,
   bookingRules: PropTypes.shape({
     minimum_stay_nights: PropTypes.number,
     maximum_stay_nights: PropTypes.number,

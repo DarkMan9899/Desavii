@@ -44,6 +44,13 @@ const LEDGER_SOURCE_TYPES = Object.freeze({
  */
 export const DEMO_FLEET_CAPACITY = 3;
 
+/**
+ * Step L6.2H3B — the "Yerevan Small-Group City Walk" demo: one departure of
+ * this many visitor places (people, billed per person). Exported so the
+ * seed's own integration test asserts the same number.
+ */
+export const GUIDE_WALK_PLACES = 6;
+
 // Sprint J: exported so `seedDemoSprintJCatalog.js` can reuse the exact
 // same date/bookable-unit/calendar/listing primitives this module already
 // established (CLAUDE.md "never duplicate functionality").
@@ -1202,17 +1209,24 @@ export default async function seedDemoInventoryScenarios(connection) {
     reason: 'External reservation: PARTNER_WEBSITE',
   });
 
-  // === 5. Guide — "Certified Yerevan City Guide" (time-based schedule) ====
+  // === 5. Guide walk — "Yerevan Small-Group City Walk" ===================
+  // Step L6.2H3B: a departure's capacity counts people (Visitors) — the
+  // same number held, billed per person and shown. This used to be a
+  // "private guide, not seat-based" product with capacity 1, which the
+  // seat model can't express truthfully (4 travelers paid for 1); it is now
+  // a genuine shared small-group walk of up to 6 places. The guide's days
+  // off still block every place for the whole day.
   const guideListingId = await insertListing(connection, {
     ...commonListingFields,
     listingTypeId: listingTypeIds.get('ATTRACTION'),
     categoryId: categoryIdBySlug.get('attractions'),
     citySlug: 'yerevan',
     slug: 'demo-vendor-certified-yerevan-city-guide',
-    title: 'Certified Yerevan City Guide',
-    summary: 'A licensed full-day guide for Yerevan and its surroundings.',
+    title: 'Yerevan Small-Group City Walk',
+    summary:
+      'A full-day guided walk through Yerevan in a small group of up to 6 people.',
     description:
-      'A licensed, English/Russian/Armenian-speaking city guide offering full-day tours of Yerevan and nearby sites. Availability is time-based rather than seat-based — the guide is either free for the day or not — demonstrated here with a real day-by-day available/unavailable schedule.',
+      "A licensed, English/Russian/Armenian-speaking guide leads a small group of up to 6 people through Yerevan's main sights for a full day. The price is per person, so each visitor books their own place.",
     pricingModelId: pricingModelIds.get('PER_PERSON'),
     amount: 25000,
     imagePaths: ['/assets/images/demo/attractions/attractions-2.svg'],
@@ -1220,21 +1234,21 @@ export default async function seedDemoInventoryScenarios(connection) {
   const guideUnitId = await insertBookableUnit(connection, {
     listingId: guideListingId,
     bookableUnitTypeId: unitTypeIds.get('TOUR_DEPARTURE'),
-    capacity: 1,
-    unitLabel: 'Full-Day Guide Service',
+    capacity: GUIDE_WALK_PLACES,
+    unitLabel: 'Small-Group City Walk',
     ownerUserId,
   });
   await seedCalendarWindow(connection, {
     unitId: guideUnitId,
-    capacity: 1,
+    capacity: GUIDE_WALK_PLACES,
     from: addDays(now, -2),
     days: 40,
     availableStatusId,
   });
-  // Two separate unavailable stretches — a 2-day block and a single day —
-  // each gets its own `inventory_blocks` row, a proper ledger entry (via
-  // `decrementCalendar`, capacity 1 -> 0), and then the day-level BLOCKED
-  // status on top (a guide's personal schedule, not a quantity concept).
+  // Two separate unavailable stretches (the guide's days off) — a 2-day
+  // block and a single day — each gets its own `inventory_blocks` row for
+  // every place, a proper ledger entry (via `decrementCalendar`, all places
+  // -> 0), and then the day-level BLOCKED status on top.
   const guideBlockRanges = [
     [addDays(now, 3), addDays(now, 4)],
     [addDays(now, 10), addDays(now, 10)],
@@ -1245,11 +1259,12 @@ export default async function seedDemoInventoryScenarios(connection) {
     const [guideBlockResult] = await connection.query(
       `INSERT INTO inventory_blocks
         (bookable_unit_id, date_from, date_to, quantity, reason_code, notes, created_by)
-       VALUES (?, ?, ?, 1, 'STAFF_UNAVAILABLE', ?, ?)`,
+       VALUES (?, ?, ?, ?, 'STAFF_UNAVAILABLE', ?, ?)`,
       [
         guideUnitId,
         toSqlDate(rangeFrom),
         toSqlDate(rangeTo),
+        GUIDE_WALK_PLACES,
         'Guide unavailable — personal time off.',
         ownerUserId,
       ],
@@ -1259,7 +1274,7 @@ export default async function seedDemoInventoryScenarios(connection) {
       unitId: guideUnitId,
       from: rangeFrom,
       to: rangeTo,
-      amount: 1,
+      amount: GUIDE_WALK_PLACES,
       sourceType: LEDGER_SOURCE_TYPES.MANUAL_BLOCK,
       sourceId: guideBlockResult.insertId,
       actorUserId: ownerUserId,

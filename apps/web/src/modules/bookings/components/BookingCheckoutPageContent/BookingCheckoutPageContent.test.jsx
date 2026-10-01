@@ -484,4 +484,51 @@ describe('BookingCheckoutPageContent (apps/web/src/modules/bookings)', () => {
       expect(screen.queryByLabelText(/Հյուրերի քանակ/)).not.toBeInTheDocument();
     });
   });
+
+  // Step L6.2H3B — a departure shows only its one people count (the held
+  // quantity), named by category, and sends no separate guest count.
+  describe('departure people count (Step L6.2H3B)', () => {
+    const DEPARTURE_STATE = {
+      ...HOLD_STATE,
+      holdBatch: {
+        ...HOLD_STATE.holdBatch,
+        items: [{ ...HOLD_STATE.holdBatch.items[0], quantity: 4 }],
+      },
+      bookableUnitType: 'TOUR_DEPARTURE',
+      unitLabel: 'Shared Group Departure',
+      guestCount: null,
+      departurePeopleKey: 'visitors',
+    };
+
+    test('shows "Visitors 4" and neither a Guests nor a Quantity row', () => {
+      renderPage(DEPARTURE_STATE);
+      expect(screen.getByText('Այցելուներ')).toBeInTheDocument();
+      expect(screen.getByText('4')).toBeInTheDocument();
+      expect(screen.queryByText('Հյուրեր')).not.toBeInTheDocument();
+      expect(screen.queryByText('Քանակ')).not.toBeInTheDocument();
+    });
+
+    test('submits the hold with no separate guest count', async () => {
+      const mutateAsync = vi.fn().mockResolvedValue({ data: { id: 42 } });
+      useCreateBookingMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      });
+      const user = userEvent.setup();
+      renderPage(DEPARTURE_STATE);
+
+      await user.click(
+        screen.getByRole('button', { name: 'Հաստատել ամրագրման հայտը' }),
+      );
+
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+      const [{ items }] = mutateAsync.mock.calls[0];
+      expect(items).toEqual([
+        { holdIds: [55], guests: [], guestCount: undefined },
+      ]);
+      expect(JSON.parse(JSON.stringify(items))).toEqual([
+        { holdIds: [55], guests: [] },
+      ]);
+    });
+  });
 });

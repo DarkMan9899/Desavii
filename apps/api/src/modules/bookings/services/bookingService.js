@@ -39,6 +39,10 @@ import { findCurrencyByCode } from '../../../infrastructure/database/repositorie
 import { withTransaction } from '../../../infrastructure/database/transaction.js';
 import { Money } from '../../../core/domain/money.js';
 import { restaurantReservationCharge } from '../../../core/domain/restaurantReservation.js';
+import {
+  isDepartureUnitType,
+  isDeparturePeopleCountConsistent,
+} from '../../../core/domain/departurePeopleCount.js';
 import { convertAmdToDisplayCurrency } from '../../../core/domain/fxConversion.js';
 import {
   BASE_CURRENCY as FX_BASE_CURRENCY,
@@ -311,6 +315,22 @@ export class BookingService {
           [{ field: 'items', issue: 'GUEST_CAPACITY_EXCEEDED' }],
         );
       }
+    }
+
+    // Step L6.2H3B: a departure's held quantity IS its person count (seats
+    // consumed and billed). A submitted guest count that contradicts it is
+    // refused — the transaction rolls back, so the hold stays active.
+    if (
+      isDepartureUnitType(unit.bookableUnitTypeCode) &&
+      !isDeparturePeopleCountConsistent({
+        guestCount: item.guestCount,
+        quantity,
+      })
+    ) {
+      throw new ValidationError(
+        "The number of people doesn't match the places held for this booking.",
+        [{ field: 'items', issue: 'TRAVELER_COUNT_MISMATCH' }],
+      );
     }
 
     // Step L6.2H2B: a restaurant reservation needs its party size — the one

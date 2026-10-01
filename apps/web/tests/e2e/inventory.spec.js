@@ -42,6 +42,11 @@ const SLUGS = {
   guide: 'demo-vendor-certified-yerevan-city-guide',
 };
 
+// Step L6.2H3B: the guide walk is a shared small group — one departure of
+// this many visitor places (`GUIDE_WALK_PLACES` in
+// seedDemoInventoryScenarios.js). Selling a date out takes every place.
+const GUIDE_WALK_PLACES = 6;
+
 /**
  * This spec is far more request-heavy than any other single spec file:
  * ~12 UI logins (sensitive tier, real ceiling 10/min) across 8 tests,
@@ -400,9 +405,9 @@ test.describe
   test('partner records a phone reservation and the customer sees decreased availability immediately', async ({
     page,
   }) => {
-    // Before: the guide is a single-unit (capacity 1) resource — always
-    // below the LOW_STOCK_THRESHOLD, so the honest bucket here is "LOW"
-    // (with a real remaining count of 1), never "AVAILABLE".
+    // Before: every one of the guide walk's places is free on this date —
+    // above the LOW_STOCK_THRESHOLD, so the honest bucket is "AVAILABLE"
+    // (no exact count exposed).
     const beforeCtx = await playwrightRequest.newContext({
       baseURL: API_BASE,
     });
@@ -410,18 +415,21 @@ test.describe
       `availability/${guideListingId}/availability-summary?from=${iso}&to=${iso}`,
     );
     const beforeBody = await before.json();
-    expect(beforeBody.data[0].availability_status).toBe('LOW');
-    expect(beforeBody.data[0].remaining_count).toBe(1);
+    expect(beforeBody.data[0].availability_status).toBe('AVAILABLE');
     await beforeCtx.dispose();
 
     await login(page, VENDOR, /\/en\/partner$/);
     await openPartnerCalendarDay(page, {
-      listingLabel: 'Certified Yerevan City Guide',
+      listingLabel: 'Yerevan Small-Group City Walk',
       iso,
     });
     await page
       .getByRole('tab', { name: 'External reservation', exact: true })
       .click();
+    // A phone booking for the whole group takes every place.
+    await page
+      .getByLabel('Quantity', { exact: true })
+      .fill(String(GUIDE_WALK_PLACES));
     await page
       .getByRole('button', { name: 'Record reservation', exact: true })
       .click();
@@ -482,7 +490,8 @@ test.describe('Phase 17 — Inventory flow D: stale checkout is rejected', () =>
         unitId: guideUnitId,
         dateFrom: iso,
         dateTo: iso,
-        quantity: 1,
+        // Every place, so the customer's stale single-place hold conflicts.
+        quantity: GUIDE_WALK_PLACES,
         sourceCode: 'WALK_IN',
         guestName: 'Stale-checkout test consumer',
       },
@@ -820,5 +829,53 @@ test.describe('Phase 17 — Inventory flow H: Admin why-unavailable investigatio
         })
         .first(),
     ).toBeVisible({ timeout: 10_000 });
+  });
+});
+
+// Step L6.2H3B — a departure's people count is ONE number from search to
+// checkout: the search's `guests` pre-fill the widget's count (Visitors, for
+// this attraction), which is exactly what is held and shown at checkout.
+test.describe('Step L6.2H3B — departure people count, search to checkout', () => {
+  test("a search's 4 guests become 4 Visitors in the widget and at checkout", async ({
+    page,
+  }) => {
+    const iso = futureISO(165);
+
+    await login(page, CUSTOMER, /\/en\/account$/);
+    // Exactly the link a search result card builds: the listing's slug plus
+    // the search context (`SearchResultCard#buildSearchContextQuery`).
+    await page.goto(`/en/listings/${SLUGS.guide}?guests=4`);
+    await expect(
+      page.getByRole('button', { name: BOOK_CTA_PATTERN }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    const visitors = page.getByRole('complementary').getByLabel('Visitors');
+    await expect(visitors).toHaveValue('4');
+    await expect(
+      page.getByRole('complementary').getByLabel('Guests'),
+    ).toHaveCount(0);
+
+    await page.getByRole('complementary').getByLabel('Dates').click();
+    await clickNextMonthUntil(page, iso, monthsFromToday(iso));
+    const dayCell = page.getByRole('gridcell', {
+      name: accessibleDayName(iso),
+      exact: true,
+    });
+    await dayCell.click();
+    await dayCell.click(); // same-day range: start === end
+    await page
+      .getByRole('complementary')
+      .getByRole('button', { name: BOOK_CTA_PATTERN })
+      .click();
+
+    await expect(page).toHaveURL(/\/en\/booking\/checkout$/, {
+      timeout: 15_000,
+    });
+    const visitorsRow = page.locator('dt', { hasText: 'Visitors' });
+    await expect(visitorsRow).toBeVisible();
+    await expect(
+      visitorsRow.locator('xpath=following-sibling::dd[1]'),
+    ).toHaveText('4');
+    await expect(page.locator('dt', { hasText: 'Guests' })).toHaveCount(0);
   });
 });

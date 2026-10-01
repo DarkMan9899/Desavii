@@ -501,6 +501,33 @@ describe('BookingDetailPageContent (apps/web/src/modules/bookings)', () => {
     expect(screen.queryByText(/Հյուրերի քանակ/)).not.toBeInTheDocument();
   });
 
+  // Step L6.2H3B: a departure's people count is its quantity, named by
+  // category — never derived from named guest rows.
+  test('Step L6.2H3B: a departure shows its visitors from the quantity, not guest rows', () => {
+    useBookingQuery.mockReturnValue({
+      data: {
+        ...BASE_BOOKING,
+        booking_type: 'TOUR_BOOKING',
+        listing_category_slug: 'attractions',
+        items: [
+          {
+            ...BASE_BOOKING.items[0],
+            bookable_unit_type: 'TOUR_DEPARTURE',
+            quantity: 4,
+            guests: [{ id: 1, full_name: 'Ana Smith', document_number: null }],
+          },
+        ],
+      },
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    renderPage();
+    expect(screen.getByText(/Այցելուներ: 4/)).toBeInTheDocument();
+    expect(screen.queryByText(/Հյուրեր: 1/)).not.toBeInTheDocument();
+  });
+
   test('P2.2E: shows the cancellation reason when present, omits it otherwise', () => {
     useBookingQuery.mockReturnValue({
       data: {

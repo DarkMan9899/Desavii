@@ -47,6 +47,10 @@ const SLUGS = {
   guide: 'demo-vendor-certified-yerevan-city-guide',
 };
 
+// Step L6.2H3B: the guide walk's visitor places (`GUIDE_WALK_PLACES` in
+// seedDemoInventoryScenarios.js). Selling a date out takes every place.
+const GUIDE_WALK_PLACES = 6;
+
 /**
  * Mirrors `accessibility.spec.js`'s established helper, plus one addition:
  * a fixed wait for `EmptyState`'s own 300ms fade-in
@@ -303,19 +307,46 @@ test.describe('Phase 17 accessibility — Customer-facing availability UI', () =
   test('Sold-out/low-availability badge states have no serious/critical accessibility violations', async ({
     page,
   }) => {
-    // The guide is a capacity-1 resource — always bucketed 'LOW' or
-    // 'SOLD_OUT' within the customer summary's rolling 30-day window
-    // (see `seedDemoInventoryScenarios.js`'s guide scenario, and
-    // `inventory.spec.js`'s flow C, which proves this same listing is
-    // never bucketed 'AVAILABLE'), so this reliably exercises the
-    // warning/danger `Badge` variants without needing to engineer a
-    // fresh mutation just for this scan.
+    // Step L6.2H3B: the guide walk now has 6 places, so it is no longer a
+    // capacity-1 resource that is always LOW/SOLD_OUT. This scan makes its
+    // own LOW state instead: an outside booking for all but one place on a
+    // day inside the customer summary's rolling 30-day window (clear of the
+    // seeded days off) leaves "1 seat available" — the summary reports the
+    // worst open day. A re-run on the same day simply finds it LOW already
+    // (the extra booking is refused for lack of places, which is fine).
     const guideListingId = await resolveListingId(SLUGS.guide);
+    const lowDay = (() => {
+      const d = new Date();
+      d.setHours(12, 0, 0, 0);
+      d.setDate(d.getDate() + 15 + (Date.now() % 10));
+      return d.toISOString().slice(0, 10);
+    })();
+    const vendorCtx = await playwrightRequest.newContext({
+      baseURL: API_BASE,
+    });
+    const vendorLogin = await vendorCtx.post('auth/login', { data: VENDOR });
+    const vendorToken = (await vendorLogin.json()).data.access_token;
+    const guideUnits = await vendorCtx.get(
+      `availability/${guideListingId}/units`,
+    );
+    await vendorCtx.post('availability/external-reservations', {
+      headers: { Authorization: `Bearer ${vendorToken}` },
+      data: {
+        unitId: (await guideUnits.json()).data[0].id,
+        dateFrom: lowDay,
+        dateTo: lowDay,
+        quantity: GUIDE_WALK_PLACES - 1,
+        sourceCode: 'WALK_IN',
+        guestName: 'Accessibility-scan low-availability trigger',
+      },
+    });
+    await vendorCtx.dispose();
+
     await page.goto(`/en/listings/${guideListingId}`);
     await expect(
       page.getByRole('heading', { name: 'Availability' }),
     ).toBeVisible({ timeout: 10_000 });
-    // The guide's unit type is TOUR_DEPARTURE (a "Full-Day Guide Service"
+    // The guide's unit type is TOUR_DEPARTURE (a "Small-Group City Walk"
     // bookable unit — see seedDemoInventoryScenarios.js), whose
     // lowByType phrasing is "{{count}} seat(s) available", not the "Only
     // {{count}} X left" wording other unit types (rooms/vehicles/tables)
@@ -385,7 +416,7 @@ test.describe('Phase 17 accessibility — Customer-facing availability UI', () =
         unitId: guideUnitId,
         dateFrom: iso,
         dateTo: iso,
-        quantity: 1,
+        quantity: GUIDE_WALK_PLACES,
         sourceCode: 'WALK_IN',
         guestName: 'Accessibility-scan conflict trigger',
       },

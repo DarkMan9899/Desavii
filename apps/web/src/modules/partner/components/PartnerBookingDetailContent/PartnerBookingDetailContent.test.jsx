@@ -169,6 +169,31 @@ describe('PartnerBookingDetailContent (apps/web/src/modules/partner)', () => {
     ).toBeInTheDocument();
   });
 
+  // Step L6.2H3B: the Partner sees the booked travelers (the quantity).
+  test('Step L6.2H3B: a tour departure shows its travelers instead of a quantity', () => {
+    useBookingQuery.mockReturnValue({
+      data: {
+        ...BASE_BOOKING,
+        booking_type: 'TOUR_BOOKING',
+        listing_category_slug: 'tours',
+        items: [
+          {
+            ...BASE_BOOKING.items[0],
+            bookable_unit_type: 'TOUR_DEPARTURE',
+            quantity: 3,
+          },
+        ],
+      },
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    renderPage();
+    expect(screen.getByText(/Ճանապարհորդներ: 3/)).toBeInTheDocument();
+    expect(screen.queryByText(/Քանակ: 3/)).not.toBeInTheDocument();
+  });
+
   test('shows Cancel, Complete, and No-show for CONFIRMED, hides Confirm/Reject', () => {
     useBookingQuery.mockReturnValue({
       data: {

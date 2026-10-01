@@ -55,3 +55,51 @@ export async function findPriceBasisClaims(db, scopeSql, params) {
     .map((row) => `${row.slug} (${row.locale})`);
   return { checked: rows.length, claims };
 }
+
+// Step L6.2H3B — a departure's (TOUR_DEPARTURE's) capacity counts people,
+// billed per person. Copy that promises a private group, a whole-day guide
+// booking, or a lane inventory contradicts that model. Deliberately whole
+// phrases: a bare "частн" also matches "участники" (participants).
+export const DEPARTURE_CAPACITY_CONTRADICTIONS =
+  /private guide|one-on-one|seat-based|for your party only|частн(ый|ого) гид|индивидуальн\S* бронирован|անհատական ուղեկց|\b(six|6) (bowling )?lanes\b|шесть(ю)? (боулинг-)?дорож|վեց (բոուլինգ )?ուղ/i;
+
+/**
+ * Every text a customer reads on the scoped listings that have a
+ * TOUR_DEPARTURE unit — translations, highlights, itinerary and FAQs — that
+ * contradicts "capacity = people".
+ * @returns {Promise<{checked: number, contradictions: string[]}>}
+ */
+export async function findDepartureCopyContradictions(db, scopeSql, params) {
+  const departureListings = `
+    SELECT l.id FROM listings l
+    WHERE ${scopeSql} AND EXISTS (
+      SELECT 1 FROM bookable_units bu
+      JOIN bookable_unit_types but ON but.id = bu.bookable_unit_type_id
+      WHERE bu.listing_id = l.id AND but.code = 'TOUR_DEPARTURE'
+    )`;
+  const [rows] = await db.query(
+    `SELECT l.slug, CONCAT_WS(' ', lt.title, lt.summary, lt.description) AS text
+       FROM listings l JOIN listing_translations lt ON lt.listing_id = l.id
+       WHERE l.id IN (${departureListings})
+     UNION ALL
+     SELECT l.slug, h.text FROM listings l JOIN listing_highlights h ON h.listing_id = l.id
+       WHERE l.id IN (${departureListings})
+     UNION ALL
+     SELECT l.slug, CONCAT_WS(' ', s.title, s.description)
+       FROM listings l JOIN listing_itinerary_steps s ON s.listing_id = l.id
+       WHERE l.id IN (${departureListings})
+     UNION ALL
+     SELECT l.slug, CONCAT_WS(' ', f.question, f.answer)
+       FROM listings l JOIN listing_faqs f ON f.listing_id = l.id
+       WHERE l.id IN (${departureListings})`,
+    [...params, ...params, ...params, ...params],
+  );
+  const contradictions = [
+    ...new Set(
+      rows
+        .filter((row) => DEPARTURE_CAPACITY_CONTRADICTIONS.test(row.text ?? ''))
+        .map((row) => row.slug),
+    ),
+  ];
+  return { checked: rows.length, contradictions };
+}
