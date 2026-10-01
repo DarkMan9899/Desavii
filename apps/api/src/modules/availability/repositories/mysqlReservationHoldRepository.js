@@ -156,14 +156,44 @@ export class MySqlReservationHoldRepository {
     return rows.map(toDomain);
   }
 
-  /** Ownership- and expiry-scoped — only rows belonging to `userId` and not yet expired. */
-  async findActiveByIds(ids, userId, connection = this.#pool) {
+  /**
+   * Step L6.2H4 — ownership- and expiry-scoped locking read: the caller's
+   * still-active rows among `ids`, row-locked (`FOR UPDATE`) until the
+   * caller's transaction ends. Consuming (booking) and releasing a hold both
+   * start here, so two operations on the same hold serialize: the second
+   * waits for the first to commit, then re-reads the current rows and finds
+   * them gone. Must run on the caller's transaction connection.
+   */
+  async lockActiveByIds(ids, userId, connection) {
     if (ids.length === 0) return [];
     const placeholders = ids.map(() => '?').join(', ');
     const [rows] = await connection.query(
       `SELECT * FROM reservation_holds
-       WHERE id IN (${placeholders}) AND user_id = ? AND expires_at > UTC_TIMESTAMP(3)`,
+       WHERE id IN (${placeholders}) AND user_id = ? AND expires_at > UTC_TIMESTAMP(3)
+       ORDER BY id ASC
+       FOR UPDATE`,
       [...ids, userId],
+    );
+    return rows.map(toDomain);
+  }
+
+  /**
+   * Step L6.2H4 — the expiry sweep's locking read: which of `ids` are still
+   * present and expired, row-locked. `SKIP LOCKED` leaves a row another
+   * transaction is consuming/releasing right now to that transaction (it
+   * deletes it) instead of restoring its capacity a second time. Point
+   * lookups by primary key, so no gap locks are taken. Must run on the
+   * caller's transaction connection.
+   */
+  async lockExpiredByIds(ids, connection) {
+    if (ids.length === 0) return [];
+    const placeholders = ids.map(() => '?').join(', ');
+    const [rows] = await connection.query(
+      `SELECT * FROM reservation_holds
+       WHERE id IN (${placeholders}) AND expires_at <= UTC_TIMESTAMP(3)
+       ORDER BY id ASC
+       FOR UPDATE SKIP LOCKED`,
+      ids,
     );
     return rows.map(toDomain);
   }
@@ -194,13 +224,15 @@ export class MySqlReservationHoldRepository {
     return rows.map(toDomain);
   }
 
+  /** @returns {Promise<number>} how many rows were actually deleted. */
   async deleteByIds(ids, connection = this.#pool) {
-    if (ids.length === 0) return;
+    if (ids.length === 0) return 0;
     const placeholders = ids.map(() => '?').join(', ');
-    await connection.query(
+    const [result] = await connection.query(
       `DELETE FROM reservation_holds WHERE id IN (${placeholders})`,
       ids,
     );
+    return result.affectedRows;
   }
 
   /**

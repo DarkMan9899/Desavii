@@ -13,6 +13,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 
 let up;
 let seedAll;
@@ -105,13 +106,13 @@ async function createBookingFixture(customerAuth, desiredTotal = 10_000) {
     .send({
       items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
     });
-  const holdIds = holdRes.body.data.items[0].hold_ids;
+  const holdIds = rememberHoldQuotes(holdRes).body.data.items[0].hold_ids;
 
   const res = await request(app)
     .post('/api/v1/bookings')
     .set('Authorization', `Bearer ${customerAuth.accessToken}`)
     .send({
-      items: [{ holdIds, guests: [] }],
+      items: [quotedItem(holdIds, { guests: [] })],
       guestContactSnapshot: {
         fullName: 'Ada Lovelace',
         email: 'ada@example.com',

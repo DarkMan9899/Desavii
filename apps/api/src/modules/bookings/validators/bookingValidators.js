@@ -11,6 +11,11 @@ import { BOOKING_STATUSES } from '../../../core/domain/bookingStatusTransitions.
 import { BOOKING_REFUND_STATUSES } from '../../../core/domain/bookingRefundStatuses.js';
 import { isoDateSchema } from '../../../validation/isoDate.js';
 import { SMALLINT_UNSIGNED_MAX } from '../../../validation/sqlIntegerBounds.js';
+import { EXPECTED_AMOUNT_PATTERN } from '../../../core/domain/bookingQuote.js';
+
+// Structural only; whether it is a configured currency is checked against
+// `currencies` in `BookingService#createBooking` (UNKNOWN_CURRENCY).
+const CURRENCY_CODE_PATTERN = /^[A-Z]{3}$/;
 
 const passthroughQuery = z.object({}).passthrough();
 const passthroughParams = z.object({}).passthrough();
@@ -46,6 +51,17 @@ const bookingItemInputSchema = z.object({
     .positive()
     .max(SMALLINT_UNSIGNED_MAX)
     .optional(),
+  // Step L6.2H4: the item quote the customer accepted (the hold's server
+  // quote, echoed back) — compared with the current price, never charged.
+  // Strings only, in the exact canonical form the server emits, so no
+  // number/exponent/float form can be coerced into a match.
+  expectedTotalAmount: z.string().regex(EXPECTED_AMOUNT_PATTERN, {
+    message:
+      'expectedTotalAmount must be a decimal string with exactly two decimals.',
+  }),
+  expectedCurrency: z.string().regex(CURRENCY_CODE_PATTERN, {
+    message: 'expectedCurrency must be a 3-letter currency code.',
+  }),
 });
 
 const guestContactSnapshotSchema = z.object({

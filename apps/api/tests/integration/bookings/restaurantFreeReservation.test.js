@@ -27,6 +27,7 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
@@ -164,7 +165,7 @@ function book(holdIds, item = {}) {
     .post('/api/v1/bookings')
     .set('Authorization', `Bearer ${customer}`)
     .send({
-      items: [{ holdIds, guests: [], ...item }],
+      items: [quotedItem(holdIds, { guests: [], ...item })],
       guestContactSnapshot: GUEST_CONTACT,
     });
 }
@@ -172,7 +173,10 @@ function book(holdIds, item = {}) {
 async function reserve(unitId, date, guestCount) {
   const held = await hold(unitId, date);
   expect(held.status).toBe(201);
-  const booked = await book(held.body.data.items[0].hold_ids, { guestCount });
+  const booked = await book(
+    rememberHoldQuotes(held).body.data.items[0].hold_ids,
+    { guestCount },
+  );
   expect(booked.status).toBe(201);
   return booked.body.data;
 }
@@ -278,7 +282,7 @@ describe('POST /bookings — the party size contract', () => {
   test('a missing party size is rejected and the hold stays active', async () => {
     const { unitId } = await createRestaurant();
     const held = await hold(unitId, day(12));
-    const holdIds = held.body.data.items[0].hold_ids;
+    const holdIds = rememberHoldQuotes(held).body.data.items[0].hold_ids;
 
     const res = await book(holdIds);
 
@@ -299,7 +303,10 @@ describe('POST /bookings — the party size contract', () => {
     const { unitId } = await createRestaurant();
     const held = await hold(unitId, day(13));
 
-    const res = await book(held.body.data.items[0].hold_ids, { guestCount });
+    const res = await book(
+      rememberHoldQuotes(held).body.data.items[0].hold_ids,
+      { guestCount },
+    );
 
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('VALIDATION_FAILED');
@@ -432,9 +439,12 @@ describe('other booking types are unchanged', () => {
         ],
       });
     expect(held.status).toBe(201);
-    const booked = await book(held.body.data.items[0].hold_ids, {
-      guestCount: 2,
-    });
+    const booked = await book(
+      rememberHoldQuotes(held).body.data.items[0].hold_ids,
+      {
+        guestCount: 2,
+      },
+    );
 
     expect(booked.status).toBe(201);
     expect(booked.body.data.total_amount).toBe('16000.00');

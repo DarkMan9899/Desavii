@@ -1226,6 +1226,61 @@ one reservation — `quantity` other than 1 is a `422` `items` /
 `RESERVATION_QUANTITY_NOT_SUPPORTED`, raised before any capacity, ledger or
 hold write (§51.2).
 
+**Server quote and accepted quote (Step L6.2H4, implemented):** every held item
+in the `POST /booking-holds` response carries the server's quote for exactly
+what it holds, and the batch carries its total (§51.4):
+
+```json
+{ "items": [{ "hold_ids": [101, 102], "quantity": 2,
+              "quote": { "unit_price_amount": "8000.00", "total_amount": "16000.00", "currency": "AMD" } }],
+  "quote_total": { "amount": "16000.00", "currency": "AMD" },
+  "expires_at": "…" }
+```
+
+`quote` is `null` when the unit has no complete single-currency price (the hold
+is still granted; booking it is `PRICING_INCOMPLETE` /
+`PRICING_CURRENCY_MISMATCH`); `quote_total` is `null` when any item has no
+quote or the items' currencies differ. `POST /bookings` requires, per item,
+the quote the customer accepted:
+
+| Field | Rule (`422` when broken) |
+|---|---|
+| `items[].expectedTotalAmount` | required string, exactly two decimals, no sign/exponent/leading zero, within `DECIMAL(12,2)` (`"16000.00"`, `"0.00"`); a JSON number is rejected, never coerced |
+| `items[].expectedCurrency` | required, 3 uppercase letters, and a configured currency — otherwise `items.<n>.expectedCurrency` / `UNKNOWN_CURRENCY`, before any hold is touched |
+
+The accepted quote is **compared, never charged**. Inside the booking
+transaction the server consumes the holds (row-locked), recomputes every
+item's canonical price and continues only if each item's amount **and**
+currency equal the accepted quote exactly. Otherwise:
+
+```json
+409 { "error": { "code": "PRICE_CHANGED", "message": "The price changed while you were booking.",
+  "details": [ { "field": "items.0", "issue": "PRICE_CHANGED",
+                 "unit_price_amount": "15000.00", "total_amount": "30000.00", "currency": "AMD" } ],
+  "request_id": "…" } }
+```
+
+- One detail per request item (`PRICE_CHANGED` or `PRICE_UNCHANGED`), so the
+  client can rebuild the whole current quote; no price-source internals.
+- Raised for increases **and** decreases, unit prices, calendar prices and
+  currency changes, and for a tampered amount or currency.
+- Nothing is written: no booking, item, history or audit row. The transaction
+  rolls back, so every hold — and the capacity it holds — stays active.
+- The customer must accept the returned quote and submit again. If the hold
+  expires meanwhile, the retry is `409 HOLD_EXPIRED`; nothing is recreated.
+- Holds are consumed and expiry is checked before prices, and listing
+  bookability before the comparison, so an expired hold or unbookable listing
+  answers with its own error rather than a re-quote.
+
+**One hold, one winner (Step L6.2H4):** booking conversion, customer release
+(`DELETE /booking-holds`) and the expiry sweep each row-lock the hold rows
+(`SELECT … FOR UPDATE`, on the operation's own transaction) before acting, and
+require every locked row to be deleted. Two simultaneous `POST /bookings` of one
+hold create exactly one booking (the other is `409 HOLD_EXPIRED`); a release and
+a booking racing on one hold serialize, so capacity is never both booked and
+restored; the expiry sweep skips (`SKIP LOCKED`) a hold another operation is
+acting on.
+
 **Request (POST /booking-holds/{id}/confirm):** `payment_method_id` (or
 `payment_token` for a not-yet-saved method), `coupon_code?`,
 `wallet_amount?` (Section 8.3).
@@ -1294,6 +1349,33 @@ VALIDATION_FAILED` raised before any write:
 | `bookableUnitType` | `ONE_VEHICLE_PER_LISTING` | a second, different active unit on a Car Rental listing (an identical re-registration still returns the existing unit; a retired unit doesn't count, so it can be replaced). Registration is serialized on the listing row, so concurrent requests can never create a second vehicle |
 | the field sent | `NOT_APPLICABLE_FOR_UNIT_TYPE` | a type-specific field the unit type doesn't use |
 | `bookableUnitType` | `ROOM_DETAILS_NOT_APPLICABLE` | adding a description, amenities or a photo to a non-`HOTEL_ROOM` unit (clearing or removing stays allowed) |
+
+### 49.2 Calendar writes — partial updates and safe removal (Step L6.2H4)
+
+`POST /availability` (a date range) and `PATCH /availability/{id}` (one date)
+change **only the fields they carry**, each date under its row lock:
+
+| Field omitted | Result |
+|---|---|
+| `status` | each date keeps its current status (a new date starts `AVAILABLE`) |
+| `quantityAvailable` | remaining capacity untouched |
+| `priceOverrideAmount` + `priceOverrideCurrency` | the date keeps its price — a status-only or quantity-only save never wipes it |
+
+A price is removed only by sending **both** fields as `null`; one `null` and one
+value is a `422`. A changed date price applies to bookings not yet converted:
+an active hold's booking gets `PRICE_CHANGED` (§48), never a silent new charge.
+Concurrent edits of one date (e.g. a price edit and a status edit) serialize on
+the row lock and both survive. A capacity below what is already consumed stays
+`409 CAPACITY_BELOW_CONSUMED`; blocking a held date keeps the hold and its
+places (new holds are refused).
+
+`DELETE /availability/{id}` resets a date to the unit's default (status, price
+and capacity). It is allowed only while **nothing consumes the date**, decided
+from the inventory ledger under the same row lock every hold, booking, block and
+reservation takes (consumption = the date's non-`ADJUSTMENT` ledger entries).
+With an active hold, booking, manual block or external/connector reservation it
+is `409 CALENDAR_ENTRY_IN_USE` and nothing changes — sold or held places are
+never restored. Change such a date's status or price instead.
 
 ## 50. Calendar
 
@@ -1420,6 +1502,30 @@ supported `PER_PERSON` departure one number — the hold's `quantity` — is:
   and would need their own pricing model and group-size field.
 - Historical departure bookings are unchanged: their `quantity` already is the
   people billed and places consumed. No migration.
+
+### 51.4 Quote integrity (Step L6.2H4)
+
+One canonical calculation prices a hold quote, a booking charge and the public
+hotel stay total (`core/domain/unitRangePrice.js` via
+`AvailabilityService#priceUnitRange` / `#quoteUnitRange`):
+
+- per charged date (checkout-exclusive nights for lodging, inclusive days
+  otherwise): calendar override → unit base price → listing base price;
+- summed in integer minor units; one item never mixes currencies;
+- × the held quantity (rooms/units, vehicles, people — §51.1, §51.3);
+- a restaurant reservation is always `0.00 AMD` (§51.2): its average spend,
+  table price and date prices are never read, so changing them never
+  re-quotes.
+
+| Aspect | Contract |
+|---|---|
+| Accepted quote | the hold's quote, echoed per item as `expectedTotalAmount` + `expectedCurrency`; compared at **item** level, so offsetting changes between items can't hide behind an unchanged booking total |
+| Not a price lock | a Partner may still change prices during a hold; the customer sees and explicitly accepts the new quote (`PRICE_CHANGED`, §48) — never charged a changed price silently, cheaper or dearer |
+| Persisted amounts | a successful booking stores the accepted quote exactly (`booking_items.unit_price_amount` × `quantity` = the item quote; `subtotal_amount` = `total_amount` = their sum, in the quote currency). Later price edits never rewrite them; a future payment intent uses this stored total |
+| Zero prices | a non-restaurant listing priced at `0` quotes and books `0.00` in its currency, with `payment_required: false` |
+| Non-AMD prices | a Partner's USD/EUR/RUB unit or calendar price quotes, books and persists in that currency. Display FX conversion exists only for AMD amounts, so such a booking stores no display snapshot (`display_currency: null`) and is shown in its own currency — never relabelled or converted, never a 500. Items in different currencies are `422 PRICING_CURRENCY_MISMATCH` |
+| Concurrency | prices are read inside the booking transaction without long-lived locks on Partner rows: an edit committed before the read re-quotes; one committed after applies to later bookings only |
+| Client state | checkout keeps the hold ids and accepted quote in its browser history entry (same-tab refresh and back/forward keep them; a stale one is caught by `PRICE_CHANGED` / `HOLD_EXPIRED`) |
 
 ## 52. Coupons
 

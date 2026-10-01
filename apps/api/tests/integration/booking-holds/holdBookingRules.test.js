@@ -27,6 +27,7 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { toBusinessDateTime } from '../../../src/core/domain/bookingTimebase.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
@@ -477,7 +478,8 @@ describe('active holds keep the rules they were granted under', () => {
       { bookableUnitId: unitId, dateFrom: day(50), dateTo: day(53) },
     ]);
     expect(granted.status).toBe(201);
-    const { hold_ids: holdIds } = granted.body.data.items[0];
+    const { hold_ids: holdIds } =
+      rememberHoldQuotes(granted).body.data.items[0];
 
     const unpublished = await request(app)
       .post(`/api/v1/listings/${listingId}/unpublish`)
@@ -490,7 +492,7 @@ describe('active holds keep the rules they were granted under', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
     expect(booking.status).toBe(201);
@@ -516,7 +518,8 @@ describe('active holds keep the rules they were granted under', () => {
       },
     ]);
     expect(granted.status).toBe(201);
-    const { hold_ids: holdIds } = granted.body.data.items[0];
+    const { hold_ids: holdIds } =
+      rememberHoldQuotes(granted).body.data.items[0];
     const [[bookingsBefore]] = await pool.query(
       'SELECT COUNT(*) AS total FROM bookings',
     );
@@ -532,7 +535,7 @@ describe('active holds keep the rules they were granted under', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
     expect(res.status).toBe(422);

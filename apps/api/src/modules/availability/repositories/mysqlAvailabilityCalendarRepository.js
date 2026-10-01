@@ -153,10 +153,33 @@ export class MySqlAvailabilityCalendarRepository {
     return this.findById(id, connection);
   }
 
+  /**
+   * Step L6.2H4 — row-locks one unit/date row (`FOR UPDATE`) on the
+   * caller's transaction connection, reached through the same
+   * `UNIQUE(bookable_unit_id, date)` key — and only this table — that every
+   * capacity consumer (`lockForCapacity`) locks first. The identical lock
+   * order is what lets a removal decision serialize with a hold, block,
+   * reservation or capacity edit on that date without deadlocking.
+   *
+   * @returns {Promise<{id: number}|null>}
+   */
+  async lockByUnitDate(bookableUnitId, date, connection) {
+    const [rows] = await connection.query(
+      `SELECT id FROM availability_calendar
+       WHERE bookable_unit_id = ? AND \`date\` = ?
+       FOR UPDATE`,
+      [bookableUnitId, date],
+    );
+    return rows[0] ?? null;
+  }
+
+  /** @returns {Promise<number>} how many rows were actually deleted. */
   async remove(id, connection = this.#pool) {
-    await connection.query('DELETE FROM availability_calendar WHERE id = ?', [
-      id,
-    ]);
+    const [result] = await connection.query(
+      'DELETE FROM availability_calendar WHERE id = ?',
+      [id],
+    );
+    return result.affectedRows;
   }
 
   async listForUnit(bookableUnitId, { from, to }, connection = this.#pool) {

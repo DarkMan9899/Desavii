@@ -21,6 +21,7 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
 let admin;
@@ -117,19 +118,18 @@ async function createPendingBooking({
       ],
     });
   expect(holdRes.status).toBe(201);
-  const holdIds = holdRes.body.data.items[0].hold_ids;
+  const holdIds = rememberHoldQuotes(holdRes).body.data.items[0].hold_ids;
 
   const bookingRes = await request(app)
     .post('/api/v1/bookings')
     .set('Authorization', `Bearer ${customer.accessToken}`)
     .send({
       items: [
-        {
-          holdIds,
+        quotedItem(holdIds, {
           guests: [],
           // Step L6.2H2B: a restaurant reservation requires its party size.
           ...(bookableUnitType === 'RESTAURANT_TABLE' && { guestCount: 2 }),
-        },
+        }),
       ],
       guestContactSnapshot: GUEST_CONTACT,
     });

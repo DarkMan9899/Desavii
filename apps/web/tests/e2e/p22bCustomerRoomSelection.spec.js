@@ -305,12 +305,21 @@ test.describe('P2.2B — HOTEL customer room selection, guest capacity, and chec
         ],
       },
     });
-    const holdIds = (await holdRes.json()).data.items[0].hold_ids;
+    const { hold_ids: holdIds, quote } = (await holdRes.json()).data.items[0];
 
     const bookingRes = await ctx.post('bookings', {
       headers: { Authorization: `Bearer ${customerToken}` },
       data: {
-        items: [{ holdIds, guests: [], guestCount: 3 }],
+        items: [
+          {
+            holdIds,
+            guests: [],
+            guestCount: 3,
+            // Step L6.2H4: the customer accepts the hold's server quote.
+            expectedTotalAmount: quote.total_amount,
+            expectedCurrency: quote.currency,
+          },
+        ],
         guestContactSnapshot: {
           fullName: 'E2E Guest',
           email: 'e2e-guest@example.com',

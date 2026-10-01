@@ -358,12 +358,19 @@
         "quantity": "Quantity",
         "guests": "Guests",
         "partySize": "Party size",
-        "total": "Estimated total",
-        "estimateSuffix": "(estimate)",
-        "unavailable": "Calculated at booking"
+        "total": "Total",
+        "unavailable": "Price not available"
       },
       "partySizeRequired": "Enter your party size.",
-      "partySizeInvalid": "Enter a whole number of people, at least 1."
+      "partySizeInvalid": "Enter a whole number of people, at least 1.",
+      "priceChanged": {
+        "title": "The price changed while you were booking.",
+        "description": "Nothing has been booked yet and your dates are still held. Review the new total and accept it to continue.",
+        "previousTotal": "Previous total",
+        "newTotal": "New total",
+        "accept": "Accept new price"
+      },
+      "quoteUnavailable": "We can't confirm a price for this booking right now. Release the hold and try again later."
     },
     "unitLabels": {
       "HOTEL_ROOM": "Room type",
@@ -667,7 +674,8 @@
       "AVAILABILITY_CONFLICT": "The requested quantity isn't available for one or more of these dates.",
       "MENU_HAS_SECTIONS": "Remove every section from this menu before deleting it.",
       "SECTION_HAS_ITEMS": "Remove every item from this section before deleting it.",
-      "PAYMENT_NOT_REQUIRED": "This booking doesn't need an online payment."
+      "PAYMENT_NOT_REQUIRED": "This booking doesn't need an online payment.",
+      "PRICE_CHANGED": "The price changed while you were booking. Review the new total before booking."
     }
   },
   "auth": {

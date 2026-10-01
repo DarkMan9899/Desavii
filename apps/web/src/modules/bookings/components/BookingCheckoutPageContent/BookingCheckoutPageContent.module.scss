@@ -156,6 +156,24 @@
   border-top: 1px solid tokens.$color-gray-200;
 }
 
+// Step L6.2H4: the price-change warning receives focus when it appears
+// (programmatically, so it is reachable without being a tab stop itself).
+.priceChanged {
+  border-radius: tokens.$radius-md;
+
+  &:focus-visible {
+    outline: 2px solid tokens.$color-royal-blue;
+    outline-offset: tokens.$space-1;
+  }
+}
+
+.priceChangedList {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+}
+
 // Step L6.2H2B: a free restaurant reservation, in place of the total row.
 .freeReservation {
   margin: 0;

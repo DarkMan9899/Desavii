@@ -73,6 +73,7 @@ import {
 import { Section, Stack, Inline } from '@desavii/ui/components/layout';
 import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
 import Money from '../../../../../components/Money/Money.jsx';
+import PriceInCurrency from '../../../../../components/Money/PriceInCurrency.jsx';
 import { useAuth } from '../../../../../contexts/AuthContext.jsx';
 import { useToast } from '../../../../../contexts/ToastContext.jsx';
 import { formatTimeRange } from '../../../../../utils/formatTimeRange.js';
@@ -470,13 +471,15 @@ export default function ListingReservationWidget({
   // day-by-day estimate — the one category this endpoint now serves
   // authoritatively. `null` (pricing incomplete, or the range not valid
   // yet) means genuinely "no total to show", not a stale/wrong number.
+  // Step L6.2H4: `stay_total_amount` is ONE room's stay — the estimate is
+  // that × the rooms selected, as the hold quote and booking charge it.
   const hasServerStayTotal =
     hasValidStayRange && selectedUnitStayInfo?.stay_total_amount != null;
   let estimatedTotal = clientEstimatedTotal;
   if (isAccommodationListing) {
     estimatedTotal = hasServerStayTotal
       ? {
-          amount: selectedUnitStayInfo.stay_total_amount,
+          amount: Number(selectedUnitStayInfo.stay_total_amount) * quantity,
           currency: selectedUnitStayInfo.stay_total_currency,
         }
       : null;
@@ -714,19 +717,16 @@ export default function ListingReservationWidget({
         },
       ]);
       navigate(`/${locale}/booking/checkout`, {
-        // Phase 12 (Product Polish): the already-computed client estimate
-        // rides along so checkout can show a real price summary card
-        // without a new backend endpoint — still explicitly labeled an
-        // estimate there too, same as here. P2.2B additive: `unitLabel`
-        // (this widget's own real-label resolution, so checkout never has
-        // to re-derive it) and `guestCount` — both ephemeral, display/
-        // payload-only hand-off, same category as `estimatedTotal`; the
+        // Step L6.2H4: checkout prices from the hold's own server quote
+        // (`holdBatch.items[].quote`) — this widget's estimate never leaves
+        // the listing page. P2.2B additive: `unitLabel` (this widget's own
+        // real-label resolution, so checkout never has to re-derive it) and
+        // `guestCount` — both ephemeral, display/payload-only hand-offs; the
         // persisted, authoritative unit identity checkout/history read
         // afterward always comes from the real booking response instead.
         state: {
           listingId,
           holdBatch: data,
-          estimatedTotal,
           unitLabel: resolveUnitDisplayLabel(selectedUnit),
           // Step L6.2B: lets checkout name the unit in its own domain
           // noun (Room type / Table / Departure / Vehicle) and show a
@@ -1141,8 +1141,9 @@ export default function ListingReservationWidget({
         )}
 
         {estimatedTotal && (
-          <Money
-            amountAmd={estimatedTotal.amount}
+          <PriceInCurrency
+            amount={estimatedTotal.amount}
+            currency={estimatedTotal.currency}
             locale={locale}
             suffix={t('pages.listingDetail.reservation.estimatedTotal')}
           />

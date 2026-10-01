@@ -31,6 +31,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 
 let up;
 let seedAll;
@@ -141,7 +142,7 @@ async function createHold(customerAuth, unitId, dateFrom, dateTo) {
     .send({
       items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
     });
-  return res.body.data.items[0].hold_ids;
+  return rememberHoldQuotes(res).body.data.items[0].hold_ids;
 }
 
 const GUEST_CONTACT = {
@@ -171,7 +172,7 @@ async function createBookingFixture(customerAuth, desiredTotal = 10_000) {
     .post('/api/v1/bookings')
     .set('Authorization', `Bearer ${customerAuth.accessToken}`)
     .send({
-      items: [{ holdIds, guests: [] }],
+      items: [quotedItem(holdIds, { guests: [] })],
       guestContactSnapshot: GUEST_CONTACT,
     });
   expect(res.status).toBe(201);

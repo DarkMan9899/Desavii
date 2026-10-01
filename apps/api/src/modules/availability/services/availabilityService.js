@@ -81,9 +81,13 @@ import {
   isBookingStartInPast,
 } from '../../../core/domain/bookingTimebase.js';
 import { evaluateBookingRules } from '../../../core/domain/bookingRuleEvaluation.js';
-import { RESTAURANT_RESERVATION_QUANTITY } from '../../../core/domain/restaurantReservation.js';
+import {
+  RESTAURANT_RESERVATION_QUANTITY,
+  restaurantReservationCharge,
+} from '../../../core/domain/restaurantReservation.js';
 import { resolvePriceForDate } from '../../../core/domain/accommodationPriceResolution.js';
-import { Money } from '../../../core/domain/money.js';
+import { sumUnitRangePrice } from '../../../core/domain/unitRangePrice.js';
+import { quoteItemTotal } from '../../../core/domain/bookingQuote.js';
 import {
   isVehicleUnitType,
   isRestaurantUnitType,
@@ -803,19 +807,26 @@ export class AvailabilityService {
       unitId,
       dateFrom,
       dateTo,
-      status = 'AVAILABLE',
+      status,
       quantityAvailable,
       priceOverrideAmount,
       priceOverrideCurrency,
     } = input;
-    assertWritableStatus(status);
+    if (status !== undefined) assertWritableStatus(status);
 
     const unit = await this.#bookableUnitService.findById(unitId);
     if (!unit) throw new NotFoundError('Bookable unit not found.');
     await this.#loadListingForManagement(principal, unit.listingId);
 
+    // Step L6.2H4: a write changes only the fields it carries. An omitted
+    // status, quantity or price keeps the date's current value (a new date
+    // starts AVAILABLE at full capacity with no override); a price is
+    // removed only by an explicit `null` pair. A status-only save can never
+    // silently wipe a date's price, nor a price-only save its status.
     const statusId =
-      await this.#availabilityCalendarRepository.findStatusIdByCode(status);
+      status === undefined
+        ? undefined
+        : await this.#availabilityCalendarRepository.findStatusIdByCode(status);
     const dates = enumerateDates(dateFrom, dateTo);
     const priceOverrideCurrencyId = await this.#resolveCurrencyId(
       priceOverrideCurrency,
@@ -838,8 +849,8 @@ export class AvailabilityService {
             date,
             statusId,
             quantityAvailable,
-            priceOverrideAmount: priceOverrideAmount ?? null,
-            priceOverrideCurrencyId: priceOverrideCurrencyId ?? null,
+            priceOverrideAmount,
+            priceOverrideCurrencyId,
             actorUserId: principal.userId,
           },
           connection,
@@ -855,14 +866,27 @@ export class AvailabilityService {
       action: 'availability_calendar.set',
       targetType: 'bookable_unit',
       targetId: unit.id,
-      afterSnapshot: { dateFrom, dateTo, status, quantityAvailable },
+      afterSnapshot: {
+        dateFrom,
+        dateTo,
+        status,
+        quantityAvailable,
+        priceOverrideAmount,
+        priceOverrideCurrency,
+      },
     });
     return result;
   }
 
-  /** Resolves a client-supplied currency code to its id, or `undefined` when none was supplied. */
+  /**
+   * Resolves a client-supplied currency code to its id — `undefined` when
+   * none was supplied (keep the current value), `null` for an explicit
+   * clear.
+   */
   async #resolveCurrencyId(currencyCode) {
-    if (currencyCode === undefined) return undefined;
+    if (currencyCode === undefined || currencyCode === null) {
+      return currencyCode;
+    }
     const currency = await findCurrencyByCode(currencyCode);
     if (!currency) {
       throw new ValidationError('Unknown currency code.', [
@@ -1018,7 +1042,34 @@ export class AvailabilityService {
     if (!unit) throw new NotFoundError('Calendar entry not found.');
     await this.#loadListingForManagement(principal, unit.listingId);
 
-    await this.#availabilityCalendarRepository.remove(id);
+    // Step L6.2H4: removing a date's row resets it to the unit's default
+    // capacity — safe only while nothing consumes that date. Decided under
+    // the same row lock every hold/booking/block/reservation takes, from the
+    // inventory ledger (not the raw remaining count, which a Partner
+    // capacity override also lowers).
+    await withTransaction(async (connection) => {
+      const locked = await this.#availabilityCalendarRepository.lockByUnitDate(
+        existing.bookableUnitId,
+        existing.date,
+        connection,
+      );
+      if (locked?.id !== id) {
+        throw new NotFoundError('Calendar entry not found.');
+      }
+      const consumed = await this.#inventoryLedgerRepository.sumConsumedForDate(
+        existing.bookableUnitId,
+        existing.date,
+        LEDGER_SOURCE_TYPES.ADJUSTMENT,
+        connection,
+      );
+      if (consumed > 0) {
+        throw new ConflictError(
+          'This date has active holds, bookings, blocks or reservations, so its capacity cannot be reset. Change its status or price instead.',
+          'CALENDAR_ENTRY_IN_USE',
+        );
+      }
+      await this.#availabilityCalendarRepository.remove(id, connection);
+    });
     await this.#auditLogger.record({
       actorId: principal.userId,
       action: 'availability_calendar.removed',
@@ -1234,12 +1285,11 @@ export class AvailabilityService {
    * available 5/5/0/5 across 4 nights is unavailable for that stay,
    * full stop.
    *
-   * Pricing: mirrors `bookingService.js#resolveItem` exactly (same
-   * `getPricingForRange` read, same `resolvePriceForDate` 3-rung
-   * precedence, same per-night sum) but wrapped defensively — one unit
-   * with incomplete/mismatched-currency pricing returns a null stay
-   * total rather than throwing and failing every OTHER room type's
-   * availability in the same listing-wide query.
+   * Pricing: Step L6.2H4 — the one per-range price (`priceUnitRange`)
+   * booking conversion charges and a hold quotes, for ONE room. An
+   * incomplete/mismatched-currency price returns a null stay total rather
+   * than failing every OTHER room type's availability in the same
+   * listing-wide query.
    */
   async #getStayAvailabilityForUnit(unit, listing, checkIn, checkOut) {
     const consumedRange = resolveConsumedRange(
@@ -1250,7 +1300,7 @@ export class AvailabilityService {
     const dates = enumerateDates(consumedRange.dateFrom, consumedRange.dateTo);
     const nightCountForStay = dates.length;
 
-    const [calendarRows, blockedRanges, priceRows] = await Promise.all([
+    const [calendarRows, blockedRanges, stayPrice] = await Promise.all([
       this.#availabilityCalendarRepository.listForUnit(unit.id, {
         from: consumedRange.dateFrom,
         to: consumedRange.dateTo,
@@ -1259,9 +1309,11 @@ export class AvailabilityService {
         from: consumedRange.dateFrom,
         to: consumedRange.dateTo,
       }),
-      this.#availabilityCalendarRepository.listPricesForUnit(unit.id, {
-        from: consumedRange.dateFrom,
-        to: consumedRange.dateTo,
+      this.priceUnitRange({
+        unit,
+        listingPricing: listing.pricing,
+        dateFrom: checkIn,
+        dateTo: checkOut,
       }),
     ]);
 
@@ -1276,48 +1328,11 @@ export class AvailabilityService {
     const remainingForStay =
       perNightRemaining.length === 0 ? 0 : Math.min(...perNightRemaining);
 
-    const overrideByDate = new Map(priceRows.map((row) => [row.date, row]));
-    let stayTotalAmount = null;
-    let stayTotalCurrency = null;
-    try {
-      const resolvedPrices = dates.map((date) => {
-        const override = overrideByDate.get(date);
-        const resolved = resolvePriceForDate({
-          overrideAmount: override?.amount,
-          overrideCurrencyCode: override?.currencyCode,
-          unitBaseAmount: unit.basePriceAmount,
-          unitBaseCurrencyCode: unit.basePriceCurrencyCode,
-          listingBaseAmount: listing.pricing?.amount,
-          listingBaseCurrencyCode: listing.pricing?.currencyCode,
-        });
-        if (!resolved) throw new Error('PRICING_INCOMPLETE');
-        return resolved;
-      });
-      const { currencyCode } = resolvedPrices[0];
-      const currencyConsistent = resolvedPrices.every(
-        (price) => price.currencyCode === currencyCode,
-      );
-      if (currencyConsistent && resolvedPrices.length > 0) {
-        let total = Money.zero(currencyCode);
-        resolvedPrices.forEach((price) => {
-          total = total.add(
-            Money.fromDecimalString(String(price.amount), currencyCode),
-          );
-        });
-        stayTotalAmount = total.toDecimalString();
-        stayTotalCurrency = currencyCode;
-      }
-    } catch {
-      // Leave stayTotalAmount/stayTotalCurrency null — a single room
-      // type's incomplete pricing must never fail the whole listing's
-      // stay-availability query (other room types may price correctly).
-    }
-
     return {
       remainingForStay,
       nightCountForStay,
-      stayTotalAmount,
-      stayTotalCurrency,
+      stayTotalAmount: stayPrice.unitPrice?.toDecimalString() ?? null,
+      stayTotalCurrency: stayPrice.unitPrice?.currency ?? null,
     };
   }
 
@@ -1675,7 +1690,7 @@ export class AvailabilityService {
    * Step L6.2E: `now`/`expiresAtUtc` come from `readReservationClock`
    * (one DB-sourced instant per reservation request).
    *
-   * @returns {Promise<{holdIds: number[], unitId: number, dateFrom: string, dateTo: string, startTime: string|null, endTime: string|null, quantity: number}>}
+   * @returns {Promise<{holdIds: number[], quote: {unitPrice: Money, total: Money}|null, unitId: number, dateFrom: string, dateTo: string, startTime: string|null, endTime: string|null, quantity: number}>}
    */
   async reserveCapacity(
     {
@@ -1871,8 +1886,26 @@ export class AvailabilityService {
       },
       connection,
     );
+    // Step L6.2H4: the server quote for exactly what was just held — the
+    // same calculation booking conversion charges and re-checks against.
+    // `null` when the unit has no complete single-currency price (the hold
+    // is still granted, as before; booking it fails PRICING_INCOMPLETE /
+    // PRICING_CURRENCY_MISMATCH until the Partner prices it).
+    const quote = await this.quoteUnitRange(
+      {
+        unit,
+        listingPricing: listing.pricing,
+        dateFrom,
+        dateTo,
+        quantity,
+      },
+      connection,
+    );
     return {
       holdIds,
+      quote: quote.issue
+        ? null
+        : { unitPrice: quote.unitPrice, total: quote.total },
       unitId: unit.id,
       // Step A2: server-resolved context for the BOOKING_HOLD_CREATED
       // analytics event — never client-supplied.
@@ -1905,11 +1938,14 @@ export class AvailabilityService {
   }
 
   /**
-   * Releases holds the caller owns, restoring the capacity they consumed.
-   * Must run inside the caller's transaction (`connection` is required).
+   * Step L6.2H4 — the one entry point for acting on a caller's holds:
+   * row-locks every requested hold (`FOR UPDATE`, on the caller's
+   * transaction connection) BEFORE anything is decided, so a concurrent
+   * consume/release/expiry of the same hold waits for this transaction and
+   * then finds the rows gone. Exactly one operation can ever win a hold.
    */
-  async releaseHold({ holdIds, userId }, connection) {
-    const holds = await this.#reservationHoldRepository.findActiveByIds(
+  async #lockOwnedActiveHolds(holdIds, userId, connection) {
+    const holds = await this.#reservationHoldRepository.lockActiveByIds(
       holdIds,
       userId,
       connection,
@@ -1920,6 +1956,29 @@ export class AvailabilityService {
         'HOLD_EXPIRED',
       );
     }
+    return holds;
+  }
+
+  /** Deletes already-locked holds; anything short of every row is a lost race, never a partial success. */
+  async #deleteLockedHolds(holdIds, connection) {
+    const deleted = await this.#reservationHoldRepository.deleteByIds(
+      holdIds,
+      connection,
+    );
+    if (deleted !== holdIds.length) {
+      throw new ConflictError(
+        'One or more holds are already expired, consumed, or do not belong to you.',
+        'HOLD_EXPIRED',
+      );
+    }
+  }
+
+  /**
+   * Releases holds the caller owns, restoring the capacity they consumed.
+   * Must run inside the caller's transaction (`connection` is required).
+   */
+  async releaseHold({ holdIds, userId }, connection) {
+    const holds = await this.#lockOwnedActiveHolds(holdIds, userId, connection);
     const groups = groupHoldsByRange(holds);
     for (const group of groups) {
       // eslint-disable-next-line no-await-in-loop
@@ -1934,7 +1993,7 @@ export class AvailabilityService {
         connection,
       );
     }
-    await this.#reservationHoldRepository.deleteByIds(holdIds, connection);
+    await this.#deleteLockedHolds(holdIds, connection);
   }
 
   /**
@@ -1945,18 +2004,8 @@ export class AvailabilityService {
    * (quantity = how many rows shared one unit + date range).
    */
   async consumeHold({ holdIds, userId }, connection) {
-    const holds = await this.#reservationHoldRepository.findActiveByIds(
-      holdIds,
-      userId,
-      connection,
-    );
-    if (holds.length !== holdIds.length) {
-      throw new ConflictError(
-        'One or more holds are already expired, consumed, or do not belong to you.',
-        'HOLD_EXPIRED',
-      );
-    }
-    await this.#reservationHoldRepository.deleteByIds(holdIds, connection);
+    const holds = await this.#lockOwnedActiveHolds(holdIds, userId, connection);
+    await this.#deleteLockedHolds(holdIds, connection);
     return holds;
   }
 
@@ -2008,8 +2057,16 @@ export class AvailabilityService {
    */
   async releaseExpiredHoldsBatch(limit = EXPIRY_SWEEP_BATCH_SIZE) {
     return withTransaction(async (connection) => {
-      const expired = await this.#reservationHoldRepository.findExpired(
+      const candidates = await this.#reservationHoldRepository.findExpired(
         limit,
+        connection,
+      );
+      // Step L6.2H4: lock before restoring — a hold a booking conversion or
+      // release is acting on right now is skipped (that transaction deletes
+      // it), so its capacity is never restored twice nor restored under a
+      // booking.
+      const expired = await this.#reservationHoldRepository.lockExpiredByIds(
+        candidates.map((hold) => hold.id),
         connection,
       );
       if (expired.length === 0) return 0;
@@ -2027,7 +2084,7 @@ export class AvailabilityService {
           connection,
         );
       }
-      await this.#reservationHoldRepository.deleteByIds(
+      await this.#deleteLockedHolds(
         expired.map((hold) => hold.id),
         connection,
       );
@@ -2036,19 +2093,63 @@ export class AvailabilityService {
   }
 
   /**
-   * Per-date `price_override_amount` for a range — the only pricing
-   * source that exists until a real Pricing module ships (§6 of the
-   * approved Sprint 10 proposal: no `base_price` on `listings`, deferred
-   * since Sprint 7). Thin passthrough so `BookingService` never touches
-   * `availability_calendar` directly, same cross-module rule as every
-   * other Availability capability.
+   * Step L6.2H4 — the ONE canonical price of one unit of capacity across a
+   * requested range (see `core/domain/unitRangePrice.js`): the charged dates
+   * come from `resolveConsumedRange` (checkout-exclusive nights for lodging,
+   * inclusive days otherwise), each priced calendar override -> unit base
+   * price -> listing base price. Booking conversion, the hold quote and the
+   * public stay total all price through here.
+   *
+   * @param {{unit: object, listingPricing: ?{amount, currencyCode}, dateFrom: string, dateTo: string}} input
+   * @param {import('mysql2/promise').PoolConnection} [connection]
+   * @returns {Promise<{unitPrice: Money, issue: null}|{unitPrice: null, issue: string}>}
    */
-  async getPricingForRange({ unitId, dateFrom, dateTo }, connection) {
-    return this.#availabilityCalendarRepository.listPricesForUnit(
-      unitId,
-      { from: dateFrom, to: dateTo },
-      connection,
+  async priceUnitRange({ unit, listingPricing, dateFrom, dateTo }, connection) {
+    const consumedRange = resolveConsumedRange(
+      unit.bookableUnitTypeCode,
+      dateFrom,
+      dateTo,
     );
+    const overrides =
+      await this.#availabilityCalendarRepository.listPricesForUnit(
+        unit.id,
+        { from: consumedRange.dateFrom, to: consumedRange.dateTo },
+        connection,
+      );
+    return sumUnitRangePrice({
+      dates: enumerateDates(consumedRange.dateFrom, consumedRange.dateTo),
+      overrideByDate: new Map(overrides.map((row) => [row.date, row])),
+      unitBase: {
+        amount: unit.basePriceAmount,
+        currencyCode: unit.basePriceCurrencyCode,
+      },
+      listingBase: {
+        amount: listingPricing?.amount,
+        currencyCode: listingPricing?.currencyCode,
+      },
+    });
+  }
+
+  /**
+   * Step L6.2H4 — the canonical quote for `quantity` units of one unit over
+   * a range: what a hold quotes and what booking conversion re-checks and
+   * charges. A restaurant reservation is free (`restaurantReservationCharge`)
+   * — its listing price is average-spend metadata and is never read here.
+   *
+   * @returns {Promise<{unitPrice: Money, total: Money, issue: null}|{unitPrice: null, total: null, issue: string}>}
+   */
+  async quoteUnitRange(
+    { unit, listingPricing, dateFrom, dateTo, quantity },
+    connection,
+  ) {
+    const { unitPrice, issue } = isRestaurantUnitType(unit.bookableUnitTypeCode)
+      ? { unitPrice: restaurantReservationCharge(), issue: null }
+      : await this.priceUnitRange(
+          { unit, listingPricing, dateFrom, dateTo },
+          connection,
+        );
+    if (issue) return { unitPrice: null, total: null, issue };
+    return { unitPrice, total: quoteItemTotal(unitPrice, quantity), issue };
   }
 
   // --- Phase 17: manual blocks + external reservations. Both are a

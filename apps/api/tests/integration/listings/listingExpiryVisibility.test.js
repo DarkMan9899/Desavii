@@ -114,7 +114,9 @@ beforeAll(async () => {
         {
           languageId: language.id,
           title: uniqueTitle,
-          description: `${uniqueTitle} — a lovely place to stay.`,
+          // Own wording: searchListings.test.js scopes its sort/pagination
+          // assertions to the keyword "lovely" in the shared test database.
+          description: `${uniqueTitle} — a listing-expiry visibility fixture.`,
         },
       ],
       categoryIds: [hotelsCategory.id],

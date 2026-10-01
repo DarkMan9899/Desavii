@@ -17,6 +17,11 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import {
+  rememberHoldQuotes,
+  quotedItem,
+  UNPRICED_HOLD_QUOTE,
+} from '../helpers/holdQuotes.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
 let vendor;
@@ -188,7 +193,7 @@ async function createHold(
         },
       ],
     });
-  return res.body.data.items[0].hold_ids;
+  return rememberHoldQuotes(res).body.data.items[0].hold_ids;
 }
 
 /**
@@ -299,7 +304,9 @@ describe('POST /bookings — converts holds into a booking', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [{ fullName: 'Ada Lovelace' }] }],
+        items: [
+          quotedItem(holdIds, { guests: [{ fullName: 'Ada Lovelace' }] }),
+        ],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -331,7 +338,7 @@ describe('POST /bookings — converts holds into a booking', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
     expect(firstAttempt.status).toBe(201);
@@ -340,7 +347,7 @@ describe('POST /bookings — converts holds into a booking', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
     expect(secondAttempt.status).toBe(409);
@@ -368,8 +375,8 @@ describe('POST /bookings — converts holds into a booking', () => {
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
         items: [
-          { holdIds: holdIdsA, guests: [] },
-          { holdIds: holdIdsB, guests: [] },
+          quotedItem(holdIdsA, { guests: [] }),
+          quotedItem(holdIdsB, { guests: [] }),
         ],
         guestContactSnapshot: GUEST_CONTACT,
       });
@@ -394,7 +401,7 @@ describe('POST /bookings — converts holds into a booking', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [], ...UNPRICED_HOLD_QUOTE })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -481,7 +488,7 @@ describe('P2.2A — accommodation price-resolution precedence (date override -> 
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -505,7 +512,7 @@ describe('P2.2A — accommodation price-resolution precedence (date override -> 
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -542,7 +549,7 @@ describe('P2.2A — accommodation price-resolution precedence (date override -> 
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [], ...UNPRICED_HOLD_QUOTE })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -568,7 +575,7 @@ describe('P2.2A — accommodation price-resolution precedence (date override -> 
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -594,7 +601,7 @@ describe('P2.2A — accommodation price-resolution precedence (date override -> 
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -606,7 +613,7 @@ describe('P2.2A — accommodation price-resolution precedence (date override -> 
     const res = await request(app)
       .post('/api/v1/bookings')
       .send({
-        items: [{ holdIds: [1], guests: [] }],
+        items: [quotedItem([1], { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
     expect(res.status).toBe(401);
@@ -649,7 +656,7 @@ describe('P2.2B — booking-item unit identity and guest-capacity enforcement', 
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -677,7 +684,7 @@ describe('P2.2B — booking-item unit identity and guest-capacity enforcement', 
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [], guestCount: 2 }],
+        items: [quotedItem(holdIds, { guests: [], guestCount: 2 })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -702,7 +709,7 @@ describe('P2.2B — booking-item unit identity and guest-capacity enforcement', 
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [], guestCount: 3 }],
+        items: [quotedItem(holdIds, { guests: [], guestCount: 3 })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -732,7 +739,7 @@ describe('P2.2B — booking-item unit identity and guest-capacity enforcement', 
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
         // 4 guests would exceed max_guests (2) alone, but not 2 x quantity(2).
-        items: [{ holdIds, guests: [], guestCount: 4 }],
+        items: [quotedItem(holdIds, { guests: [], guestCount: 4 })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -757,7 +764,7 @@ describe('P2.2B — booking-item unit identity and guest-capacity enforcement', 
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [], guestCount: 999 }],
+        items: [quotedItem(holdIds, { guests: [], guestCount: 999 })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -784,7 +791,7 @@ describe('P2.2B — booking-item unit identity and guest-capacity enforcement', 
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -858,7 +865,7 @@ describe('P2.2B final review — mixed-price stay: UI estimate must equal the re
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -949,7 +956,7 @@ describe('P2.2B final review — listing-fallback stay: UI estimate must equal t
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -982,7 +989,7 @@ describe('P2.2B final review — booking identity after unit retirement', () => 
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
     expect(bookingRes.status).toBe(201);
@@ -1042,7 +1049,7 @@ describe('P2.2E — historical booking integrity: unit-label snapshot survives a
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
     expect(bookingRes.status).toBe(201);
@@ -1104,7 +1111,7 @@ describe('P2.2E — historical booking integrity: unit-label snapshot survives a
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
     expect(bookingRes.status).toBe(201);
@@ -1168,7 +1175,7 @@ describe('P2.2B final review — guestCount schema validation edge cases', () =>
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [], guestCount: 0 }],
+        items: [quotedItem(holdIds, { guests: [], guestCount: 0 })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -1194,7 +1201,7 @@ describe('P2.2B final review — guestCount schema validation edge cases', () =>
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [], guestCount: -3 }],
+        items: [quotedItem(holdIds, { guests: [], guestCount: -3 })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -1220,7 +1227,7 @@ describe('P2.2B final review — guestCount schema validation edge cases', () =>
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [], guestCount: 1.5 }],
+        items: [quotedItem(holdIds, { guests: [], guestCount: 1.5 })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -1246,7 +1253,7 @@ describe('P2.2B final review — guestCount schema validation edge cases', () =>
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [], guestCount: 'abc' }],
+        items: [quotedItem(holdIds, { guests: [], guestCount: 'abc' })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -1273,7 +1280,7 @@ describe('P2.2B final review — guestCount schema validation edge cases', () =>
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
         // "5" coerces to 5, which exceeds 2 max_guests x 1 quantity.
-        items: [{ holdIds, guests: [], guestCount: '5' }],
+        items: [quotedItem(holdIds, { guests: [], guestCount: '5' })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -1327,7 +1334,7 @@ describe('Sprint A (Time-Aware Booking Foundation) — booking_items.start_time/
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -1386,7 +1393,7 @@ describe('Sprint A (Time-Aware Booking Foundation) — booking_items.start_time/
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -1416,7 +1423,7 @@ describe('Sprint B (Car Rental Pickup/Return Interval) — booking_items.pickup_
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -1494,7 +1501,7 @@ describe('Sprint B (Car Rental Pickup/Return Interval) — booking_items.pickup_
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -1560,7 +1567,7 @@ describe('Listing Lifetime / Renewal, Step B4 — expired listings cannot accept
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -1592,7 +1599,7 @@ describe('Listing Lifetime / Renewal, Step B4 — expired listings cannot accept
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
     expect(createRes.status).toBe(201);

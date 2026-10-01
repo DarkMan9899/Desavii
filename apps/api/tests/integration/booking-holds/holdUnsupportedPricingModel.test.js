@@ -25,6 +25,7 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
@@ -233,7 +234,9 @@ describe('supported PER_PERSON holds', () => {
       ]);
 
       expect(res.status).toBe(201);
-      expect(res.body.data.items[0].hold_ids).toHaveLength(2);
+      expect(rememberHoldQuotes(res).body.data.items[0].hold_ids).toHaveLength(
+        2,
+      );
       expect(await countFor('reservation_holds', unitId)).toBe(2);
     },
   );
@@ -261,7 +264,8 @@ describe('booking conversion', () => {
       { bookableUnitId: unitId, dateFrom: day(16), dateTo: day(16) },
     ]);
     expect(granted.status).toBe(201);
-    const { hold_ids: holdIds } = granted.body.data.items[0];
+    const { hold_ids: holdIds } =
+      rememberHoldQuotes(granted).body.data.items[0];
     await makeLegacyHourly(listingId);
     const [[bookingsBefore]] = await pool.query(
       'SELECT COUNT(*) AS total FROM bookings',
@@ -271,7 +275,7 @@ describe('booking conversion', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 

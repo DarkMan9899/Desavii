@@ -78,6 +78,18 @@ export class ConflictError extends AppError {
   }
 }
 
+/**
+ * Step L6.2H4 — a booking's accepted quote no longer matches the current
+ * server price (409). `details` carries the complete current quote, one
+ * entry per request item, so the client can show it and ask the customer to
+ * accept it before retrying. No booking was created; the holds stay active.
+ */
+export class PriceChangedError extends AppError {
+  constructor(details, message = 'The price changed while you were booking.') {
+    super(message, { code: 'PRICE_CHANGED', httpStatus: 409, details });
+  }
+}
+
 export class LockedError extends AppError {
   constructor(
     message = 'This account is temporarily locked. Please try again later.',

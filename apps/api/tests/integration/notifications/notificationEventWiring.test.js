@@ -15,6 +15,7 @@ import app from '../../../src/app.js';
 import { closeMysqlPool } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
 let vendor;
@@ -93,7 +94,11 @@ async function createBooking(unitId, dateFrom, dateTo) {
     .post('/api/v1/bookings')
     .set('Authorization', `Bearer ${customer.accessToken}`)
     .send({
-      items: [{ holdIds: holdRes.body.data.items[0].hold_ids, guests: [] }],
+      items: [
+        quotedItem(rememberHoldQuotes(holdRes).body.data.items[0].hold_ids, {
+          guests: [],
+        }),
+      ],
       guestContactSnapshot: GUEST_CONTACT,
     });
   return bookingRes.body.data.id;

@@ -10,6 +10,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 
 let up;
 let seedAll;
@@ -92,11 +93,10 @@ async function createRestaurantBooking() {
     .set('Authorization', `Bearer ${customer}`)
     .send({
       items: [
-        {
-          holdIds: held.body.data.items[0].hold_ids,
+        quotedItem(rememberHoldQuotes(held).body.data.items[0].hold_ids, {
           guests: [],
           guestCount: 4,
-        },
+        }),
       ],
       guestContactSnapshot: {
         fullName: 'Ada Lovelace',

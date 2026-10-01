@@ -23,6 +23,7 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
 let admin;
@@ -105,7 +106,7 @@ async function createHold(dateFrom, dateTo, unitId) {
     .send({
       items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
     });
-  return res.body.data.items[0].hold_ids;
+  return rememberHoldQuotes(res).body.data.items[0].hold_ids;
 }
 
 const GUEST_CONTACT = {
@@ -160,7 +161,7 @@ describe('POST /bookings — FX display snapshot (Pass 8)', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 
@@ -182,7 +183,7 @@ describe('POST /bookings — FX display snapshot (Pass 8)', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
         displayCurrencyCode: 'AMD',
       });
@@ -206,7 +207,7 @@ describe('POST /bookings — FX display snapshot (Pass 8)', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
         displayCurrencyCode: 'USD',
         // Brief §30 — a tampering attempt: this field does not exist in
@@ -235,7 +236,7 @@ describe('POST /bookings — FX display snapshot (Pass 8)', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
         displayCurrencyCode: 'RUB',
       });
@@ -257,7 +258,7 @@ describe('POST /bookings — FX display snapshot (Pass 8)', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
         displayCurrencyCode: 'EUR',
       });
@@ -276,7 +277,7 @@ describe('POST /bookings — FX display snapshot (Pass 8)', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
         displayCurrencyCode: 'USD',
       });

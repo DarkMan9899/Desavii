@@ -5,12 +5,18 @@
  * exists, `POST /booking-holds`'s own response has everything this page
  * needs) into a real `PENDING_VENDOR` booking via `POST /bookings`.
  *
- * A page refresh (or any direct navigation without the router state)
- * loses that in-memory hand-off — this is a legitimate, honest empty
- * state (`noActiveHold`), not an error, since the hold itself may still
- * be valid server-side; the customer simply needs to re-select dates
- * from the listing page to resume (the same "eventual consistency,
- * never silently wrong" ethos the rest of this phase follows).
+ * The router state lives in the browser's history entry, so a same-tab
+ * refresh or back/forward keeps it. A new tab or a typed URL has none — a
+ * legitimate, honest empty state (`noActiveHold`), not an error, since the
+ * hold itself may still be valid server-side; the customer simply needs to
+ * re-select dates from the listing page to resume.
+ *
+ * Step L6.2H4: the total is the hold's SERVER quote (`useCheckoutQuote`),
+ * never the reservation widget's browser estimate, and booking sends it
+ * back as the accepted quote. If the price changed meanwhile, the server
+ * refuses with `PRICE_CHANGED`: the hold stays, the page shows the previous
+ * and new totals, and booking stays disabled until the customer explicitly
+ * accepts the new price — it never resubmits on its own.
  *
  * The countdown is a client-side re-render of the same `expires_at` the
  * server already returned — never trusted as the source of truth for
@@ -30,7 +36,7 @@
  * messaging to add — nothing was invented to fill that gap.
  *
  * Pass 8 (Multi-Currency / CBA FX Pricing) — this is the documented "FX
- * freeze point" (brief §27): the summary total renders through `<Money>`
+ * freeze point" (brief §27): an AMD summary total renders through `<Money>`
  * (a LIVE conversion, so it may still move if the customer switches
  * currency before submitting), but `onSubmit` sends the customer's
  * current `currency` as `displayCurrencyCode` — the server resolves and
@@ -41,7 +47,7 @@
  * `resolveBookingDisplayAmount.js`).
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -53,7 +59,6 @@ import { Breadcrumbs } from '@desavii/ui/components/navigation';
 import { Stack } from '@desavii/ui/components/layout';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import DestinationArt from '../../../../components/DestinationArt/DestinationArt.jsx';
-import Money from '../../../../components/Money/Money.jsx';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
 import { useCurrency } from '../../../../contexts/CurrencyContext.jsx';
@@ -66,6 +71,9 @@ import { SMALLINT_UNSIGNED_MAX } from '../../../availability/index.js';
 import { resolveUnitNounKey } from '../../utils/resolveUnitNounKey.js';
 import { useCreateBookingMutation } from '../../mutations/useCreateBookingMutation.js';
 import { useReleaseBookingHoldMutation } from '../../mutations/useReleaseBookingHoldMutation.js';
+import { useCheckoutQuote } from '../../hooks/useCheckoutQuote.js';
+import { toAcceptedQuoteFields } from '../../utils/bookingQuote.js';
+import PriceInCurrency from '../../../../components/Money/PriceInCurrency.jsx';
 import styles from './BookingCheckoutPageContent.module.scss';
 
 const URGENT_THRESHOLD_MS = 2 * 60_000;
@@ -103,13 +111,23 @@ export default function BookingCheckoutPageContent() {
   const holdItem = holdState?.holdBatch?.items?.[0];
   const holdIds = holdItem?.hold_ids ?? [];
   const expiresAt = holdState?.holdBatch?.expires_at;
-  const estimatedTotal = holdState?.estimatedTotal;
+  const {
+    acceptedQuote,
+    changedQuote,
+    handleBookingError,
+    acceptChangedQuote,
+  } = useCheckoutQuote(holdState);
+  const priceChangedRef = useRef(null);
+  // Step L6.2H4: a changed price moves focus to its warning, so keyboard
+  // and screen-reader users land on it (and its accept action) at once.
+  useEffect(() => {
+    if (changedQuote) priceChangedRef.current?.focus();
+  }, [changedQuote]);
   // P2.2B: `ListingReservationWidget`'s own real-label resolution and the
-  // customer's entered guest count, both carried through router state the
-  // same way `estimatedTotal` already is — ephemeral, display/payload-only,
-  // lost on a refresh same as everything else on this page (the persisted,
-  // authoritative unit identity a customer sees afterward always comes
-  // from the real booking response, not this hand-off).
+  // customer's entered guest count, both carried through router state —
+  // ephemeral, display/payload-only hand-offs (the persisted, authoritative
+  // unit identity a customer sees afterward always comes from the real
+  // booking response, not this hand-off).
   const unitLabel = holdState?.unitLabel;
   const guestCount = holdState?.guestCount;
   // Pass 6 (Restaurant vertical): same ephemeral, display-only hand-off
@@ -214,6 +232,7 @@ export default function BookingCheckoutPageContent() {
   }
 
   async function onSubmit(values) {
+    if (!acceptedQuote || changedQuote) return;
     try {
       const { data } = await createBookingMutation.mutateAsync({
         items: [
@@ -225,6 +244,8 @@ export default function BookingCheckoutPageContent() {
             guestCount: isRestaurantReservation
               ? Number(values.partySize)
               : (guestCount ?? undefined),
+            // Step L6.2H4: the server quote the customer is accepting.
+            ...toAcceptedQuoteFields(acceptedQuote),
           },
         ],
         guestContactSnapshot: {
@@ -251,6 +272,7 @@ export default function BookingCheckoutPageContent() {
       // checking out" scenario — surfaced here as a blocking, specific
       // conflict state (not just a toast) so the customer can't retry
       // into the same wall.
+      if (handleBookingError(err)) return;
       if (err?.code === 'HOLD_EXPIRED') {
         setBookingConflict(true);
       } else {
@@ -272,6 +294,7 @@ export default function BookingCheckoutPageContent() {
     .toString()
     .padStart(2, '0');
   const isBlocked = bookingConflict || isExpired;
+  const canSubmit = !isBlocked && Boolean(acceptedQuote) && !changedQuote;
   const isUrgent =
     !isBlocked && remainingMs > 0 && remainingMs <= URGENT_THRESHOLD_MS;
 
@@ -316,6 +339,58 @@ export default function BookingCheckoutPageContent() {
               <Clock size={16} aria-hidden="true" />
               {t('bookings.checkout.holdExpiresIn', { minutes, seconds })}
             </div>
+          )}
+          {!isBlocked && changedQuote && (
+            <div
+              ref={priceChangedRef}
+              tabIndex={-1}
+              className={styles.priceChanged}
+            >
+              <Alert
+                variant="warning"
+                title={t('bookings.checkout.priceChanged.title')}
+              >
+                <Stack gap="3">
+                  <p>{t('bookings.checkout.priceChanged.description')}</p>
+                  <dl className={styles.priceChangedList}>
+                    <div className={styles.summaryRow}>
+                      <dt>
+                        {t('bookings.checkout.priceChanged.previousTotal')}
+                      </dt>
+                      <dd>
+                        <PriceInCurrency
+                          amount={acceptedQuote.total_amount}
+                          currency={acceptedQuote.currency}
+                          locale={locale}
+                          size="sm"
+                        />
+                      </dd>
+                    </div>
+                    <div className={styles.summaryRow}>
+                      <dt>{t('bookings.checkout.priceChanged.newTotal')}</dt>
+                      <dd>
+                        <PriceInCurrency
+                          amount={changedQuote.total_amount}
+                          currency={changedQuote.currency}
+                          locale={locale}
+                          size="sm"
+                        />
+                      </dd>
+                    </div>
+                  </dl>
+                  <div>
+                    <Button variant="primary" onClick={acceptChangedQuote}>
+                      {t('bookings.checkout.priceChanged.accept')}
+                    </Button>
+                  </div>
+                </Stack>
+              </Alert>
+            </div>
+          )}
+          {!isBlocked && !acceptedQuote && (
+            <Alert variant="warning">
+              {t('bookings.checkout.quoteUnavailable')}
+            </Alert>
           )}
 
           <Card
@@ -427,7 +502,7 @@ export default function BookingCheckoutPageContent() {
               <Button
                 type="submit"
                 variant="primary"
-                disabled={isBlocked}
+                disabled={!canSubmit}
                 loading={createBookingMutation.isPending}
               >
                 {t('bookings.checkout.confirmAction')}
@@ -576,10 +651,10 @@ export default function BookingCheckoutPageContent() {
               ) : (
                 <div className={styles.summaryTotalRow}>
                   <strong>{t('bookings.checkout.summary.total')}</strong>
-                  {estimatedTotal ? (
-                    <Money
-                      amountAmd={estimatedTotal.amount}
-                      suffix={t('bookings.checkout.summary.estimateSuffix')}
+                  {acceptedQuote ? (
+                    <PriceInCurrency
+                      amount={acceptedQuote.total_amount}
+                      currency={acceptedQuote.currency}
                       locale={locale}
                     />
                   ) : (

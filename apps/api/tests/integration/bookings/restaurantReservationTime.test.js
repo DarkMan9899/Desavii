@@ -23,6 +23,7 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
 let admin;
@@ -169,13 +170,13 @@ describe('POST /bookings — a Restaurant reservation carries its real time onto
     await setPrice(unitId, date, date, 6500);
 
     const holdRes = await createHold(unitId, date, '20:00');
-    const holdIds = holdRes.body.data.items[0].hold_ids;
+    const holdIds = rememberHoldQuotes(holdRes).body.data.items[0].hold_ids;
 
     const res = await request(app)
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guestCount: 2 }],
+        items: [quotedItem(holdIds, { guestCount: 2 })],
         guestContactSnapshot: GUEST_CONTACT,
       });
 

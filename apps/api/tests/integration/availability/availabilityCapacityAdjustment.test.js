@@ -37,6 +37,7 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { addIsoDays } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
@@ -138,7 +139,7 @@ async function holdCapacity(unitId, date, quantity) {
       ],
     });
   expect(res.status).toBe(201);
-  return res.body.data.items[0].hold_ids;
+  return rememberHoldQuotes(res).body.data.items[0].hold_ids;
 }
 
 /** Holds 1 unit for [date, date+1] and confirms it into a real PENDING_VENDOR booking. */
@@ -163,13 +164,13 @@ async function confirmBooking(unitId, dateFrom, dateTo) {
       items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
     });
   expect(holdRes.status).toBe(201);
-  const holdIds = holdRes.body.data.items[0].hold_ids;
+  const holdIds = rememberHoldQuotes(holdRes).body.data.items[0].hold_ids;
 
   const bookingRes = await request(app)
     .post('/api/v1/bookings')
     .set('Authorization', `Bearer ${customer.accessToken}`)
     .send({
-      items: [{ holdIds, guests: [{ fullName: 'Ada Lovelace' }] }],
+      items: [quotedItem(holdIds, { guests: [{ fullName: 'Ada Lovelace' }] })],
       guestContactSnapshot: GUEST_CONTACT,
     });
   expect(bookingRes.status).toBe(201);

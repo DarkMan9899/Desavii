@@ -27,6 +27,7 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
@@ -125,7 +126,7 @@ async function hold(unitId, date, quantity) {
       ],
     });
   expect(res.status).toBe(201);
-  return res.body.data.items[0].hold_ids;
+  return rememberHoldQuotes(res).body.data.items[0].hold_ids;
 }
 
 function book(holdIds, guestCount) {
@@ -134,11 +135,10 @@ function book(holdIds, guestCount) {
     .set('Authorization', `Bearer ${customer}`)
     .send({
       items: [
-        {
-          holdIds,
+        quotedItem(holdIds, {
           guests: [],
           ...(guestCount !== undefined && { guestCount }),
-        },
+        }),
       ],
       guestContactSnapshot: GUEST_CONTACT,
     });

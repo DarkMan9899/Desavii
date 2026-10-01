@@ -27,6 +27,11 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import {
+  rememberHoldQuotes,
+  quotedItem,
+  UNPRICED_HOLD_QUOTE,
+} from '../helpers/holdQuotes.js';
 import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
@@ -144,7 +149,7 @@ describe('hold expiry — DB UTC + configured TTL', () => {
       dateTo: day(21),
     });
     expect(res.status).toBe(201);
-    const [holdId] = res.body.data.items[0].hold_ids;
+    const [holdId] = rememberHoldQuotes(res).body.data.items[0].hold_ids;
 
     const [[stored]] = await pool.query(
       'SELECT TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(3), expires_at) AS seconds_left FROM reservation_holds WHERE id = ?',
@@ -181,7 +186,7 @@ describe('hold expiry — DB UTC + configured TTL', () => {
       dateFrom: day(22),
       dateTo: day(23),
     });
-    const holdIds = res.body.data.items[0].hold_ids;
+    const holdIds = rememberHoldQuotes(res).body.data.items[0].hold_ids;
     await pool.query(
       'UPDATE reservation_holds SET expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 SECOND) WHERE id IN (?)',
       [holdIds],
@@ -198,7 +203,7 @@ describe('hold expiry — DB UTC + configured TTL', () => {
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [], ...UNPRICED_HOLD_QUOTE })],
         guestContactSnapshot: {
           fullName: 'Ada Lovelace',
           email: 'ada@example.com',

@@ -7,6 +7,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 
 let app;
 let up;
@@ -247,13 +248,17 @@ describe('Bookings -> booking_request_submitted / booking_confirmed / booking_re
       .send({
         items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
       });
-    const holdIds = holdRes.body.data.items[0].hold_ids;
+    const holdIds = rememberHoldQuotes(holdRes).body.data.items[0].hold_ids;
 
     const bookingRes = await request(app)
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [{ fullName: 'Server Events Guest' }] }],
+        items: [
+          quotedItem(holdIds, {
+            guests: [{ fullName: 'Server Events Guest' }],
+          }),
+        ],
         guestContactSnapshot: GUEST_CONTACT,
       });
     expect(bookingRes.status).toBe(201);
@@ -289,14 +294,16 @@ describe('Bookings -> booking_request_submitted / booking_confirmed / booking_re
       .send({
         items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
       });
-    const holdIds = holdRes.body.data.items[0].hold_ids;
+    const holdIds = rememberHoldQuotes(holdRes).body.data.items[0].hold_ids;
 
     const bookingRes = await request(app)
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
         items: [
-          { holdIds, guests: [{ fullName: 'Server Events Reject Guest' }] },
+          quotedItem(holdIds, {
+            guests: [{ fullName: 'Server Events Reject Guest' }],
+          }),
         ],
         guestContactSnapshot: GUEST_CONTACT,
       });
@@ -326,14 +333,16 @@ describe('Bookings -> booking_request_submitted / booking_confirmed / booking_re
       .send({
         items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
       });
-    const holdIds = holdRes.body.data.items[0].hold_ids;
+    const holdIds = rememberHoldQuotes(holdRes).body.data.items[0].hold_ids;
 
     const bookingRes = await request(app)
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
         items: [
-          { holdIds, guests: [{ fullName: 'Server Events Cancel Guest' }] },
+          quotedItem(holdIds, {
+            guests: [{ fullName: 'Server Events Cancel Guest' }],
+          }),
         ],
         guestContactSnapshot: GUEST_CONTACT,
       });

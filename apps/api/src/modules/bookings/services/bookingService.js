@@ -13,17 +13,22 @@
  *
  * Depends on `AvailabilityService`'s public interface for everything
  * touching `bookable_units`/`availability_calendar`/`reservation_holds`
- * (`consumeHold`, `getUnitById`, `getPricingForRange`,
+ * (`consumeHold`, `getUnitById`, `quoteUnitRange`,
  * `releaseBookedCapacity`) — never a second Repository over those tables,
  * same cross-module rule Sprint 9 established. Depends on
  * `ListingService` only to resolve a listing's `partnerId`.
  *
  * **Booking creation never trusts client-supplied price, capacity, or
  * availability** (BACKEND_ARCHITECTURE.md §13) — every item's price is
- * resolved server-side from `availability_calendar.price_override_amount`
- * (the only pricing source that exists until a real Pricing module
- * ships), and every item's capacity was already re-verified, under lock,
- * when its hold was granted.
+ * resolved server-side (`AvailabilityService#quoteUnitRange`), and every
+ * item's capacity was already re-verified, under lock, when its hold was
+ * granted.
+ *
+ * Step L6.2H4: the customer's accepted quote (`expectedTotalAmount` +
+ * `expectedCurrency` per item, echoed from the hold's server quote) is
+ * compared — never charged. Booking proceeds only when every item's current
+ * canonical total equals it exactly; otherwise `PRICE_CHANGED` (409) returns
+ * the current quote and the transaction rolls back, keeping every hold.
  */
 
 import {
@@ -32,13 +37,15 @@ import {
   ConflictError,
   ValidationError,
   NotFoundError,
+  PriceChangedError,
 } from '../../../errors/AppError.js';
 import { isPartnerOwner } from '../../../infrastructure/database/repositories/partnerEmployeeRepository.js';
 import { isManagerAssignedToPartner } from '../../../infrastructure/database/repositories/managerAssignmentRepository.js';
 import { findCurrencyByCode } from '../../../infrastructure/database/repositories/currencyRepository.js';
 import { withTransaction } from '../../../infrastructure/database/transaction.js';
 import { Money } from '../../../core/domain/money.js';
-import { restaurantReservationCharge } from '../../../core/domain/restaurantReservation.js';
+import { isAcceptedQuoteCurrent } from '../../../core/domain/bookingQuote.js';
+import { UNIT_RANGE_PRICE_ISSUES } from '../../../core/domain/unitRangePrice.js';
 import {
   isDepartureUnitType,
   isDeparturePeopleCountConsistent,
@@ -48,9 +55,6 @@ import {
   BASE_CURRENCY as FX_BASE_CURRENCY,
   SUPPORTED_DISPLAY_CURRENCIES,
 } from '../../fx/services/exchangeRateService.js';
-import { enumerateDates } from '../../../core/domain/calendarExpansion.js';
-import { resolveConsumedRange } from '../../../core/domain/accommodationDateSemantics.js';
-import { resolvePriceForDate } from '../../../core/domain/accommodationPriceResolution.js';
 import { resolveBookingTypeCode } from '../../../core/domain/bookableUnitTypeToBookingType.js';
 import {
   isVehicleUnitType,
@@ -94,6 +98,28 @@ const ALLOWED_DISPLAY_CURRENCIES = [
   FX_BASE_CURRENCY,
   ...SUPPORTED_DISPLAY_CURRENCIES,
 ];
+
+const PRICING_ISSUE_MESSAGES = Object.freeze({
+  [UNIT_RANGE_PRICE_ISSUES.INCOMPLETE]:
+    'One or more requested dates has no price set for this unit.',
+  [UNIT_RANGE_PRICE_ISSUES.CURRENCY_MISMATCH]:
+    'All dates within one booking item must share the same currency.',
+});
+
+/**
+ * Step L6.2H4 — one `PRICE_CHANGED` detail per request item: its complete
+ * current quote (same shape as the hold quote), so checkout can show and
+ * re-accept the whole quote. No price-source internals.
+ */
+function toCurrentQuoteDetail(resolved, index, isChanged) {
+  return {
+    field: `items.${index}`,
+    issue: isChanged ? 'PRICE_CHANGED' : 'PRICE_UNCHANGED',
+    unit_price_amount: resolved.unitPrice.toDecimalString(),
+    total_amount: resolved.total.toDecimalString(),
+    currency: resolved.currencyCode,
+  };
+}
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -243,6 +269,12 @@ export class BookingService {
    * `ListingReservationWidget` reads) calls the exact same function, so
    * the estimate a customer sees can never silently diverge from what
    * this method actually charges.
+   *
+   * Step L6.2H4: the whole item price (charged dates, precedence, currency,
+   * × quantity, the free restaurant reservation) is
+   * `AvailabilityService#quoteUnitRange` — the exact calculation the hold
+   * quoted, so the accepted quote and the charge can only differ when a
+   * price really changed.
    */
   async #resolveItem(item, userId, connection, principal, now) {
     const holds = await this.#availabilityService.consumeHold(
@@ -343,11 +375,27 @@ export class BookingService {
     }
 
     // Step L6.2H2B: a restaurant reservation is free — its PER_PERSON
-    // listing price is average-spend metadata, so no calendar override, unit
-    // base price, listing price or menu price is ever resolved or charged.
-    const { unitPrice, listing } = isRestaurant
-      ? { unitPrice: restaurantReservationCharge(), listing: null }
-      : await this.#resolveUnitPrice(unit, firstHold, principal, connection);
+    // listing price is average-spend metadata, so its listing (and price)
+    // is never read for pricing; `quoteUnitRange` charges zero.
+    const listing = isRestaurant
+      ? null
+      : await this.#listingService.getListing(principal, unit.listingId);
+    const quote = await this.#availabilityService.quoteUnitRange(
+      {
+        unit,
+        listingPricing: listing?.pricing,
+        dateFrom: firstHold.dateFrom,
+        dateTo: firstHold.dateTo,
+        quantity,
+      },
+      connection,
+    );
+    if (quote.issue) {
+      throw new ValidationError(PRICING_ISSUE_MESSAGES[quote.issue], [
+        { field: 'items', issue: quote.issue },
+      ]);
+    }
+    const { unitPrice, total } = quote;
     const currencyCode = unitPrice.currency;
 
     return {
@@ -388,6 +436,7 @@ export class BookingService {
       dateTo: firstHold.dateTo,
       quantity,
       unitPrice,
+      total,
       currencyCode,
       listingId: unit.listingId,
       bookableUnitTypeCode: unit.bookableUnitTypeCode,
@@ -396,82 +445,6 @@ export class BookingService {
       // unit type keeps its current (unpersisted) guest-count semantics.
       guestCount: isRestaurant ? item.guestCount : null,
     };
-  }
-
-  /**
-   * The charge for ONE unit of capacity across a hold's consumed range (see
-   * `#resolveItem`'s doc comment for the full precedence history), plus the
-   * listing it was resolved against.
-   *
-   * @returns {Promise<{unitPrice: Money, listing: object}>}
-   */
-  async #resolveUnitPrice(unit, firstHold, principal, connection) {
-    // Prices (and the capacity `reserveCapacity` already consumed for
-    // this hold) cover only the actually-occupied range — for lodging
-    // (HOTEL_ROOM/PROPERTY_UNIT) that's checkout-exclusive nights, not
-    // the full [dateFrom, dateTo] the guest picked. See
-    // `accommodationDateSemantics.js`.
-    const consumedRange = resolveConsumedRange(
-      unit.bookableUnitTypeCode,
-      firstHold.dateFrom,
-      firstHold.dateTo,
-    );
-    const prices = await this.#availabilityService.getPricingForRange(
-      {
-        unitId: firstHold.bookableUnitId,
-        dateFrom: consumedRange.dateFrom,
-        dateTo: consumedRange.dateTo,
-      },
-      connection,
-    );
-    const dates = enumerateDates(consumedRange.dateFrom, consumedRange.dateTo);
-    const overrideByDate = new Map(prices.map((price) => [price.date, price]));
-
-    // Rung 3 needs the listing's own flat price — fetched once up front
-    // (same eager-fetch shape `availabilityService.js#getCalendar` uses
-    // for the identical precedence chain, P2.2B) rather than only when a
-    // date turns out to need it; simpler control flow, and `getListing`
-    // is cheap next to the per-date work already happening here.
-    const listing = await this.#listingService.getListing(
-      principal,
-      unit.listingId,
-    );
-    const listingBasePrice = listing.pricing;
-
-    const resolvedPrices = dates.map((date) => {
-      const override = overrideByDate.get(date);
-      const resolved = resolvePriceForDate({
-        overrideAmount: override?.amount,
-        overrideCurrencyCode: override?.currencyCode,
-        unitBaseAmount: unit.basePriceAmount,
-        unitBaseCurrencyCode: unit.basePriceCurrencyCode,
-        listingBaseAmount: listingBasePrice?.amount,
-        listingBaseCurrencyCode: listingBasePrice?.currencyCode,
-      });
-      if (!resolved) {
-        throw new ValidationError(
-          'One or more requested dates has no price set for this unit.',
-          [{ field: 'items', issue: 'PRICING_INCOMPLETE' }],
-        );
-      }
-      return resolved;
-    });
-    const { currencyCode } = resolvedPrices[0];
-    if (resolvedPrices.some((price) => price.currencyCode !== currencyCode)) {
-      throw new ValidationError(
-        'All dates within one booking item must share the same currency.',
-        [{ field: 'items', issue: 'PRICING_CURRENCY_MISMATCH' }],
-      );
-    }
-
-    let unitPrice = Money.zero(currencyCode);
-    resolvedPrices.forEach((price) => {
-      unitPrice = unitPrice.add(
-        Money.fromDecimalString(String(price.amount), currencyCode),
-      );
-    });
-
-    return { unitPrice, listing };
   }
 
   /**
@@ -492,7 +465,8 @@ export class BookingService {
    *
    * Returns `null` (no display-currency columns written) when
    * `displayCurrencyCode` is omitted — the base AMD amount stays the only
-   * price on record, exactly as it was before this pass.
+   * price on record, exactly as it was before this pass — or when the
+   * booking is not priced in AMD (Step L6.2H4).
    */
   async #resolveDisplayFxSnapshot(displayCurrencyCode, baseAmount, connection) {
     if (!displayCurrencyCode) return null;
@@ -502,6 +476,12 @@ export class BookingService {
         [{ field: 'displayCurrencyCode', issue: 'UNSUPPORTED_CURRENCY' }],
       );
     }
+    // Step L6.2H4: the CBA rates convert AMD only. A booking priced in
+    // another currency (a Partner's USD/EUR/RUB unit or calendar price) has
+    // no display conversion — it is shown in its own canonical currency,
+    // which is never relabelled or converted. Presentation only: the booking
+    // amount and currency are unaffected either way.
+    if (baseAmount.currency !== FX_BASE_CURRENCY) return null;
 
     const displayCurrency = await findCurrencyByCode(
       displayCurrencyCode,
@@ -557,11 +537,41 @@ export class BookingService {
     };
   }
 
+  /**
+   * Step L6.2H4 — an accepted quote's currency must be a configured
+   * currency (`currencies`), checked before any hold is touched. A valid but
+   * different currency is not an input error: it is a changed quote.
+   */
+  async #assertKnownQuoteCurrencies(items) {
+    const codes = [...new Set(items.map((item) => item.expectedCurrency))];
+    const currencies = await Promise.all(
+      codes.map((code) => findCurrencyByCode(code)),
+    );
+    const unknownCodes = new Set(
+      codes.filter((code, index) => !currencies[index]),
+    );
+    if (unknownCodes.size === 0) return;
+    throw new ValidationError(
+      'Unknown currency code.',
+      items.flatMap((item, index) =>
+        unknownCodes.has(item.expectedCurrency)
+          ? [
+              {
+                field: `items.${index}.expectedCurrency`,
+                issue: 'UNKNOWN_CURRENCY',
+              },
+            ]
+          : [],
+      ),
+    );
+  }
+
   async createBooking(
     principal,
     { items, customerNotes, guestContactSnapshot, displayCurrencyCode },
   ) {
     if (!principal) throw new AuthenticationError();
+    await this.#assertKnownQuoteCurrencies(items);
 
     const booking = await withTransaction(async (connection) => {
       // Step L6.2F: one DB-sourced "now" for this conversion.
@@ -615,10 +625,27 @@ export class BookingService {
       // is actually confirmed.
       await this.#listingService.assertBookable(first.listingId);
 
-      let subtotal = Money.zero(first.currencyCode);
-      resolvedItems.forEach((resolved) => {
-        subtotal = subtotal.add(resolved.unitPrice.multiply(resolved.quantity));
-      });
+      // Step L6.2H4: the customer's accepted quote must be exactly the
+      // current canonical price of EVERY item (amount and currency) — an
+      // item-level check, so offsetting changes across items can't hide
+      // behind an unchanged booking total. Thrown before anything is
+      // written: the rollback restores every consumed hold.
+      const changedItems = resolvedItems.map(
+        (resolved, index) =>
+          !isAcceptedQuoteCurrent(items[index], resolved.total),
+      );
+      if (changedItems.includes(true)) {
+        throw new PriceChangedError(
+          resolvedItems.map((resolved, index) =>
+            toCurrentQuoteDetail(resolved, index, changedItems[index]),
+          ),
+        );
+      }
+
+      const subtotal = resolvedItems.reduce(
+        (sum, resolved) => sum.add(resolved.total),
+        Money.zero(first.currencyCode),
+      );
 
       const currency = await findCurrencyByCode(first.currencyCode, connection);
       // Pass 8 — resolved once, before the reference-retry loop below, so

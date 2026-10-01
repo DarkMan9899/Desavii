@@ -16,6 +16,15 @@ module's only Repository-level dependency, injected as
 `AvailabilityService`). See `services/bookingHoldsService.js` and the
 approved Sprint 10 architecture proposal for the full design.
 
+**Step L6.2H4 — server quote:** each held item in the `POST /booking-holds`
+response carries `quote` (`unit_price_amount`, `total_amount`, `currency` —
+decimal strings), and the batch carries `quote_total`; both come from
+`AvailabilityService#quoteUnitRange`, the calculation booking conversion
+re-checks. `null` when the unit has no complete single-currency price. The
+quote is not a price lock (see `API_SPECIFICATION.md` §48, §51.4). Release,
+consumption and the expiry sweep row-lock the hold rows first, so exactly
+one operation wins a hold.
+
 ## Folder contents (per BACKEND_ARCHITECTURE.md §2)
 
 - `controllers/` — HTTP-to-Service translation only (Ch. 5)

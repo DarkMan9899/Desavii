@@ -120,12 +120,20 @@ async function loginAndCreateConfirmedBooking(page, request, email) {
     );
   }
   const { data: holdBatch } = await holdResponse.json();
-  const holdIds = holdBatch.items[0].hold_ids;
+  const { hold_ids: holdIds, quote } = holdBatch.items[0];
 
   const bookingResponse = await request.post(`${API_BASE_URL}/bookings`, {
     headers,
     data: {
-      items: [{ holdIds, guests: [{ fullName: 'Elena Simonyan' }] }],
+      items: [
+        {
+          holdIds,
+          guests: [{ fullName: 'Elena Simonyan' }],
+          // Step L6.2H4: the customer accepts the hold's server quote.
+          expectedTotalAmount: quote.total_amount,
+          expectedCurrency: quote.currency,
+        },
+      ],
       guestContactSnapshot: {
         fullName: 'Elena Simonyan',
         email,

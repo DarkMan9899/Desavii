@@ -17,6 +17,17 @@ MVP, offline-payment model. Owns `bookings`/`booking_items`/
 a second Repository over their tables. See `services/bookingService.js`
 and the approved Sprint 10 architecture proposal for the full design.
 
+**Step L6.2H4 — price integrity:** `POST /bookings` requires each item's
+accepted quote (`expectedTotalAmount` + `expectedCurrency`, echoed from the
+hold's server quote). It is compared, never charged: every item is repriced
+through `AvailabilityService#quoteUnitRange` (the same calculation that
+quoted the hold) and booking proceeds only on an exact item-level match of
+amount and currency; otherwise `409 PRICE_CHANGED` returns the complete
+current quote and the transaction rolls back, keeping every hold. The stored
+amounts are the accepted quote. A booking priced in a non-AMD currency keeps
+that currency and stores no display FX snapshot. See
+`API_SPECIFICATION.md` §48 and §51.4.
+
 ## Folder contents (per BACKEND_ARCHITECTURE.md §2)
 
 - `controllers/` — HTTP-to-Service translation only (Ch. 5)

@@ -1665,6 +1665,45 @@ describe('ListingReservationWidget — Sprint C-3 (Date-Range Room Availability)
     expect(screen.queryByText(/220/)).not.toBeInTheDocument();
   });
 
+  test('Step L6.2H4: two rooms of one type estimate the stay total for both rooms, not one', async () => {
+    useListingBookableUnitsQuery.mockImplementation((_listingId, opts = {}) =>
+      opts.checkIn
+        ? {
+            data: [
+              {
+                ...MULTI_UNIT_LABELED[0],
+                availability_status_for_stay: 'AVAILABLE',
+                remaining_count_for_stay: null,
+                night_count_for_stay: 3,
+                stay_total_amount: '142500.00',
+                stay_total_currency: 'AMD',
+              },
+              MULTI_UNIT_LABELED[1],
+            ],
+            isPending: false,
+            isError: false,
+          }
+        : { data: MULTI_UNIT_LABELED, isPending: false, isError: false },
+    );
+    const user = userEvent.setup();
+    renderWidget({}, '/hy/listings/10');
+
+    await user.click(screen.getByRole('button', { name: 'pick dates' }));
+    await user.click(screen.getByTestId('select-trigger'));
+    await user.click(
+      screen.getByRole('option', {
+        name: 'Standard Room — Sleeps 2 — 50000.00 AMD / night — 2 available',
+      }),
+    );
+    const rooms = screen.getByLabelText('Quantity');
+    await user.clear(rooms);
+    await user.type(rooms, '2');
+
+    // 142,500.00 per room × 2 rooms — what the hold quotes and booking charges.
+    expect(screen.getByText(/285[,\s]?000/)).toBeInTheDocument();
+    expect(screen.queryByText(/142[,\s]?500/)).not.toBeInTheDocument();
+  });
+
   test('a room already SOLD_OUT for the chosen stay disables Request to Book and shows an explicit sold-out message', async () => {
     useListingBookableUnitsQuery.mockImplementation((_listingId, opts = {}) =>
       opts.checkIn
@@ -1910,16 +1949,19 @@ describe('ListingReservationWidget — departure people count (Step L6.2H3B)', (
         quantity: 4,
       },
     ]);
-    // Inclusive departure days (100 + 120) × 4 people.
     expect(mockNavigate).toHaveBeenCalledWith(
       '/en/booking/checkout',
       expect.objectContaining({
         state: expect.objectContaining({
-          estimatedTotal: { amount: 880, currency: 'AMD' },
           guestCount: null,
           departurePeopleKey: 'travelers',
         }),
       }),
+    );
+    // Step L6.2H4: checkout prices from the hold's server quote — the
+    // widget's own estimate never travels to it.
+    expect(mockNavigate.mock.calls[0][1].state).not.toHaveProperty(
+      'estimatedTotal',
     );
   });
 

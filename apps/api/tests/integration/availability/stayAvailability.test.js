@@ -20,6 +20,7 @@ import {
 } from '../../../src/infrastructure/database/mysqlPool.js';
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 
 let admin;
@@ -99,7 +100,7 @@ async function createHold(unitId, dateFrom, dateTo, quantity = 1, extra = {}) {
     .send({
       items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity, ...extra }],
     });
-  return res.body.data.items[0].hold_ids;
+  return rememberHoldQuotes(res).body.data.items[0].hold_ids;
 }
 
 async function createBookingFromHold(holdIds) {
@@ -107,7 +108,7 @@ async function createBookingFromHold(holdIds) {
     .post('/api/v1/bookings')
     .set('Authorization', `Bearer ${customer.accessToken}`)
     .send({
-      items: [{ holdIds, guests: [{ fullName: 'Ada Lovelace' }] }],
+      items: [quotedItem(holdIds, { guests: [{ fullName: 'Ada Lovelace' }] })],
       guestContactSnapshot: GUEST_CONTACT,
     });
   return res.body.data;
@@ -500,7 +501,7 @@ describe('GET /availability/:listingId/units?checkIn=&checkOut= (Sprint C-3)', (
           },
         ],
       });
-    const holdIds = res.body.data.items[0].hold_ids;
+    const holdIds = rememberHoldQuotes(res).body.data.items[0].hold_ids;
     const booking = await createBookingFromHold(holdIds);
     // The real base price (5000), never the tampered "1".
     expect(booking.total_amount).toBe('5000.00');

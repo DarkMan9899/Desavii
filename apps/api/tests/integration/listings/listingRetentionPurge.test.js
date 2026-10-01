@@ -25,6 +25,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
+import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 
 let up;
 let seedAll;
@@ -173,13 +174,13 @@ describe('Listing retention purge — Step B7 — historical dependency safety',
       .send({
         items: [{ bookableUnitId: unitId, dateFrom, dateTo, quantity: 1 }],
       });
-    const holdIds = holdRes.body.data.items[0].hold_ids;
+    const holdIds = rememberHoldQuotes(holdRes).body.data.items[0].hold_ids;
 
     const bookingRes = await request(app)
       .post('/api/v1/bookings')
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .send({
-        items: [{ holdIds, guests: [] }],
+        items: [quotedItem(holdIds, { guests: [] })],
         guestContactSnapshot: GUEST_CONTACT,
       });
     expect(bookingRes.status).toBe(201);

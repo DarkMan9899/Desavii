@@ -46,6 +46,17 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+const SERVER_QUOTE = {
+  unit_price_amount: '42000.00',
+  total_amount: '42000.00',
+  currency: 'AMD',
+};
+// What booking sends back: the quote the customer accepted.
+const ACCEPTED_QUOTE = {
+  expectedTotalAmount: '42000.00',
+  expectedCurrency: 'AMD',
+};
+
 const HOLD_STATE = {
   listingId: 10,
   holdBatch: {
@@ -56,6 +67,8 @@ const HOLD_STATE = {
         date_to: '2026-08-02',
         quantity: 1,
         hold_ids: [55],
+        // Step L6.2H4: the hold's server quote.
+        quote: SERVER_QUOTE,
       },
     ],
     expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
@@ -176,7 +189,7 @@ describe('BookingCheckoutPageContent (apps/web/src/modules/bookings)', () => {
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
     expect(mutateAsync).toHaveBeenCalledWith({
-      items: [{ holdIds: [55], guests: [] }],
+      items: [{ holdIds: [55], guests: [], ...ACCEPTED_QUOTE }],
       guestContactSnapshot: {
         fullName: 'Ana Smith',
         email: 'ana@example.com',
@@ -208,7 +221,9 @@ describe('BookingCheckoutPageContent (apps/web/src/modules/bookings)', () => {
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
     expect(mutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        items: [{ holdIds: [55], guests: [], guestCount: 2 }],
+        items: [
+          { holdIds: [55], guests: [], guestCount: 2, ...ACCEPTED_QUOTE },
+        ],
       }),
     );
   });
@@ -418,7 +433,19 @@ describe('BookingCheckoutPageContent (apps/web/src/modules/bookings)', () => {
       bookableUnitType: 'RESTAURANT_TABLE',
       unitLabel: 'Main hall',
       guestCount: 4,
-      estimatedTotal: { amount: 6500, currency: 'AMD' },
+      holdBatch: {
+        ...HOLD_STATE.holdBatch,
+        items: [
+          {
+            ...HOLD_STATE.holdBatch.items[0],
+            quote: {
+              unit_price_amount: '0.00',
+              total_amount: '0.00',
+              currency: 'AMD',
+            },
+          },
+        ],
+      },
     };
 
     test('shows free-reservation wording instead of a monetary total', () => {
@@ -449,7 +476,15 @@ describe('BookingCheckoutPageContent (apps/web/src/modules/bookings)', () => {
       await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
       expect(mutateAsync).toHaveBeenCalledWith(
         expect.objectContaining({
-          items: [{ holdIds: [55], guests: [], guestCount: 6 }],
+          items: [
+            {
+              holdIds: [55],
+              guests: [],
+              guestCount: 6,
+              expectedTotalAmount: '0.00',
+              expectedCurrency: 'AMD',
+            },
+          ],
         }),
       );
     });
@@ -524,11 +559,188 @@ describe('BookingCheckoutPageContent (apps/web/src/modules/bookings)', () => {
       await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
       const [{ items }] = mutateAsync.mock.calls[0];
       expect(items).toEqual([
-        { holdIds: [55], guests: [], guestCount: undefined },
+        {
+          holdIds: [55],
+          guests: [],
+          guestCount: undefined,
+          ...ACCEPTED_QUOTE,
+        },
       ]);
       expect(JSON.parse(JSON.stringify(items))).toEqual([
-        { holdIds: [55], guests: [] },
+        { holdIds: [55], guests: [], ...ACCEPTED_QUOTE },
       ]);
+    });
+  });
+
+  // Step L6.2H4 — the hold's server quote is the checkout total and the
+  // accepted quote; a changed price needs the customer's explicit accept.
+  describe('server quote (Step L6.2H4)', () => {
+    const SUBMIT_LABEL = 'Հաստատել ամրագրման հայտը';
+    const CHANGED_QUOTE = {
+      unit_price_amount: '60000.00',
+      total_amount: '60000.00',
+      currency: 'AMD',
+    };
+
+    function stateWithQuote(quote, itemOverrides = {}) {
+      return {
+        ...HOLD_STATE,
+        holdBatch: {
+          ...HOLD_STATE.holdBatch,
+          items: [
+            { ...HOLD_STATE.holdBatch.items[0], ...itemOverrides, quote },
+          ],
+        },
+      };
+    }
+
+    function priceChangedError(quote = CHANGED_QUOTE) {
+      return Object.assign(new Error('Price changed'), {
+        code: 'PRICE_CHANGED',
+        status: 409,
+        details: [{ field: 'items.0', issue: 'PRICE_CHANGED', ...quote }],
+      });
+    }
+
+    test('the total is the server quote (in the display currency), with no estimate wording', async () => {
+      renderPage();
+      // 42,000 AMD at the fixture's 400 AMD/USD; 'en' displays USD.
+      expect(await screen.findByText(/\$105\.00/)).toBeInTheDocument();
+      expect(screen.queryByText(/գնահատական/)).not.toBeInTheDocument();
+    });
+
+    test('a multi-room hold shows the quote for every held room', async () => {
+      renderPage(
+        stateWithQuote(
+          {
+            unit_price_amount: '40000.00',
+            total_amount: '80000.00',
+            currency: 'AMD',
+          },
+          { quantity: 2 },
+        ),
+      );
+      expect(await screen.findByText(/\$200\.00/)).toBeInTheDocument();
+    });
+
+    test.each([
+      ['USD', '241.00', /\$241\.00/],
+      ['EUR', '60.00', /€60\.00/],
+    ])(
+      'a %s quote renders in its own currency, never relabelled as AMD',
+      (currency, amount, shown) => {
+        renderPage(
+          stateWithQuote({
+            unit_price_amount: amount,
+            total_amount: amount,
+            currency,
+          }),
+        );
+        expect(screen.getByText(shown)).toBeInTheDocument();
+      },
+    );
+
+    test('a hold without a server quote cannot be booked', () => {
+      renderPage(stateWithQuote(null));
+      expect(
+        screen.getByText(
+          'Այս պահին չենք կարող հաստատել այս ամրագրման գինը։ Ազատեք պահումը և փորձեք ավելի ուշ։',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: SUBMIT_LABEL })).toBeDisabled();
+    });
+
+    test('PRICE_CHANGED shows the previous and new totals, books nothing and never resubmits on its own', async () => {
+      const mutateAsync = vi.fn().mockRejectedValueOnce(priceChangedError());
+      useCreateBookingMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      });
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }));
+
+      const title = await screen.findByText('Գինը փոխվեց ամրագրման ընթացքում։');
+      const warning = title.closest('[role="status"]');
+      expect(warning).toHaveTextContent('Նախորդ ընդհանուր գումար');
+      expect(warning).toHaveTextContent('$105.00');
+      expect(warning).toHaveTextContent('Նոր ընդհանուր գումար');
+      expect(warning).toHaveTextContent('$150.00');
+      expect(warning.parentElement).toHaveFocus();
+      expect(screen.getByRole('button', { name: SUBMIT_LABEL })).toBeDisabled();
+      expect(mutateAsync).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(
+        screen.queryByText(
+          'Չհաջողվեց ուղարկել ձեր ամրագրման հայտը։ Խնդրում ենք կրկին փորձել։',
+        ),
+      ).not.toBeInTheDocument();
+    });
+
+    test('accepting the new price keeps it in history state and books at it only on the next explicit submit', async () => {
+      const mutateAsync = vi
+        .fn()
+        .mockRejectedValueOnce(priceChangedError())
+        .mockResolvedValueOnce({ data: { id: 77 } });
+      useCreateBookingMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      });
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }));
+
+      await user.click(
+        await screen.findByRole('button', { name: 'Ընդունել նոր գինը' }),
+      );
+
+      expect(mockNavigate).toHaveBeenCalledWith('/en/booking/checkout', {
+        replace: true,
+        state: expect.objectContaining({
+          holdBatch: expect.objectContaining({
+            items: [expect.objectContaining({ quote: CHANGED_QUOTE })],
+          }),
+        }),
+      });
+      expect(
+        screen.queryByText('Գինը փոխվեց ամրագրման ընթացքում։'),
+      ).not.toBeInTheDocument();
+      expect(screen.getByText(/\$150\.00/)).toBeInTheDocument();
+      expect(mutateAsync).toHaveBeenCalledTimes(1);
+
+      await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }));
+
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(2));
+      expect(mutateAsync.mock.calls[1][0].items).toEqual([
+        {
+          holdIds: [55],
+          guests: [],
+          guestCount: undefined,
+          expectedTotalAmount: '60000.00',
+          expectedCurrency: 'AMD',
+        },
+      ]);
+      expect(mockNavigate).toHaveBeenLastCalledWith('/en/account/bookings/77');
+    });
+
+    test('a quote accepted earlier (a same-tab refresh) is the one shown and sent', async () => {
+      const mutateAsync = vi.fn().mockResolvedValue({ data: { id: 78 } });
+      useCreateBookingMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      });
+      const user = userEvent.setup();
+      renderPage(stateWithQuote(CHANGED_QUOTE));
+
+      expect(await screen.findByText(/\$150\.00/)).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }));
+
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+      expect(mutateAsync.mock.calls[0][0].items[0]).toMatchObject({
+        expectedTotalAmount: '60000.00',
+        expectedCurrency: 'AMD',
+      });
     });
   });
 });
