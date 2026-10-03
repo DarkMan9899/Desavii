@@ -21,6 +21,14 @@ inventory ledger shows the date consumed. Hold consume/release/expiry
 row-lock their hold rows (`lockActiveByIds`, `lockExpiredByIds`) and require
 every locked row deleted. See `API_SPECIFICATION.md` §48, §49.2, §51.4.
 
+**Step L6.3A:** a hotel room's structured details — the sleeping setup
+(`bed_configuration`, one integer count per bed type, including extra bed,
+child bed and crib), its meal basis (`meal_plan`, migration 0053), size,
+bathroom, view and smoking — are `HOTEL_ROOM`-only and enforced server-side
+(`bookableUnitFieldApplicability.js`). An omitted field keeps its value, an
+explicit `null` clears it. Room comforts are catalog amenities. See
+`API_SPECIFICATION.md` §49.1.
+
 ## Folder contents (per BACKEND_ARCHITECTURE.md §2)
 
 - `controllers/` — HTTP-to-Service translation only (Ch. 5)

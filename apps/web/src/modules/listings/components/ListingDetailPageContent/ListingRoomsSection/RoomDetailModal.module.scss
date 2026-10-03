@@ -43,6 +43,28 @@
   gap: tokens.$space-2;
 }
 
+// Step L6.3A: one bed type per line — the full sleeping setup at a glance.
+.bedList {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: tokens.$color-gray-900;
+  font-size: tokens.$font-size-body;
+}
+
+.meal {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-2;
+  margin: 0;
+  color: tokens.$color-navy;
+  font-size: tokens.$font-size-body;
+  font-weight: 600;
+}
+
 .amenitiesHeading {
   font-size: tokens.$font-size-h4;
   font-weight: 700;

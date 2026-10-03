@@ -17,27 +17,17 @@ vi.mock('../../../availability/index.js', async () => {
     '../../../availability/constants/listingTypeBookableUnitTypes.js',
   );
   return {
-    BED_TYPES: [
-      'SINGLE',
-      'DOUBLE',
-      'QUEEN',
-      'KING',
-      'TWIN',
-      'SOFA_BED',
-      'BUNK',
-    ],
+    // Step L6.3A: the real vocabularies, never a hand-copied list.
+    BED_TYPES: (
+      await vi.importActual('../../../availability/constants/bedTypes.js')
+    ).BED_TYPES,
+    BED_COUNT_MAX: (
+      await vi.importActual('../../../availability/constants/bedTypes.js')
+    ).BED_COUNT_MAX,
+    ...(await vi.importActual(
+      '../../../availability/constants/roomAttributes.js',
+    )),
     INT_UNSIGNED_MAX: 4294967295,
-    BATHROOM_TYPES: ['PRIVATE', 'SHARED', 'ENSUITE'],
-    VIEW_TYPES: [
-      'CITY',
-      'MOUNTAIN',
-      'GARDEN',
-      'COURTYARD',
-      'POOL',
-      'LANDMARK',
-      'NONE',
-    ],
-    SMOKING_POLICIES: ['NON_SMOKING', 'SMOKING_ALLOWED'],
     unitTypeUsesField: applicability.unitTypeUsesField,
     supportsRoomDetails: applicability.supportsRoomDetails,
     getBookableUnitTypeForListingType:
@@ -119,7 +109,7 @@ describe('BookableUnitsManager (P2.2A)', () => {
     // No custom label — falls back to the category's own unit noun.
     expect(screen.getByText('Բնակարան / միավոր')).toBeInTheDocument();
     expect(screen.getByText('Ընդունում է 4 հյուր')).toBeInTheDocument();
-    expect(screen.getByText('1 × Քուին')).toBeInTheDocument();
+    expect(screen.getByText('1 queen չափի մահճակալ')).toBeInTheDocument();
     expect(screen.getByText('95.00 AMD / գիշեր')).toBeInTheDocument();
   });
 

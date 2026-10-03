@@ -39,6 +39,7 @@ const EXPECTED_UNIT_FIELDS_BY_TYPE = {
     'bathroomType',
     'viewType',
     'smokingPolicy',
+    'mealPlan',
   ],
   PROPERTY_UNIT: ['maxGuests', 'bedConfiguration'],
   RESTAURANT_TABLE: [],

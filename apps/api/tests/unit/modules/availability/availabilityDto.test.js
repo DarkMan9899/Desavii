@@ -41,6 +41,7 @@ describe('toPublicBookableUnitResponse', () => {
       bathroom_type: null,
       view_type: null,
       smoking_policy: null,
+      meal_plan: null,
     });
   });
 

@@ -268,6 +268,21 @@ const AMENITIES = [
   ['Desk', 'IN_ROOM'],
   ['Safe', 'IN_ROOM'],
   ['Kitchenette', 'IN_ROOM'],
+  // Step L6.3A — the remaining room-level comfort, bathroom and
+  // accessibility features a guest compares rooms by. Catalog entries like
+  // every other room amenity (never new columns), so a Partner ticks them
+  // per room and the public room card/detail lists them.
+  ['Heating', 'IN_ROOM'],
+  ['Coffee Maker', 'IN_ROOM'],
+  ['Soundproofing', 'IN_ROOM'],
+  ['Wardrobe', 'IN_ROOM'],
+  ['Iron', 'IN_ROOM'],
+  ['Shower', 'IN_ROOM'],
+  ['Bathtub', 'IN_ROOM'],
+  ['Hair Dryer', 'IN_ROOM'],
+  ['Toiletries', 'IN_ROOM'],
+  ['Step-free Access', 'ACCESSIBILITY_SAFETY'],
+  ['Accessible Bathroom', 'ACCESSIBILITY_SAFETY'],
 ];
 
 // Feeds listing_amenity_translations, which mysqlListingMetadataRepository's
@@ -356,6 +371,37 @@ const AMENITY_TRANSLATIONS = {
   Desk: { en: 'Desk', hy: 'Գրասեղան', ru: 'Письменный стол' },
   Safe: { en: 'Safe', hy: 'Սեյֆ', ru: 'Сейф' },
   Kitchenette: { en: 'Kitchenette', hy: 'Փոքր խոհանոց', ru: 'Мини-кухня' },
+  Heating: { en: 'Heating', hy: 'Ջեռուցում', ru: 'Отопление' },
+  'Coffee Maker': { en: 'Coffee maker', hy: 'Սրճեփ', ru: 'Кофеварка' },
+  Soundproofing: {
+    en: 'Soundproofing',
+    hy: 'Ձայնամեկուսացում',
+    ru: 'Звукоизоляция',
+  },
+  Wardrobe: { en: 'Wardrobe', hy: 'Զգեստապահարան', ru: 'Шкаф для одежды' },
+  Iron: {
+    en: 'Iron and ironing board',
+    hy: 'Արդուկ և արդուկի սեղան',
+    ru: 'Утюг и гладильная доска',
+  },
+  Shower: { en: 'Shower', hy: 'Ցնցուղ', ru: 'Душ' },
+  Bathtub: { en: 'Bathtub', hy: 'Վաննա', ru: 'Ванна' },
+  'Hair Dryer': { en: 'Hair dryer', hy: 'Վարսահարդարիչ', ru: 'Фен' },
+  Toiletries: {
+    en: 'Free toiletries',
+    hy: 'Անվճար հիգիենայի պարագաներ',
+    ru: 'Бесплатные туалетные принадлежности',
+  },
+  'Step-free Access': {
+    en: 'Step-free access',
+    hy: 'Մուտք առանց աստիճանների',
+    ru: 'Доступ без ступенек',
+  },
+  'Accessible Bathroom': {
+    en: 'Accessible bathroom',
+    hy: 'Հարմարեցված լոգարան',
+    ru: 'Адаптированная ванная комната',
+  },
 };
 
 const ATTRIBUTE_DEFINITIONS = [
@@ -520,6 +566,18 @@ const CATEGORY_AMENITIES = {
     'Kitchenette',
     'Balcony',
     'Washing Machine',
+    // Step L6.3A — room comfort, bathroom and accessibility features.
+    'Heating',
+    'Coffee Maker',
+    'Soundproofing',
+    'Wardrobe',
+    'Iron',
+    'Shower',
+    'Bathtub',
+    'Hair Dryer',
+    'Toiletries',
+    'Step-free Access',
+    'Accessible Bathroom',
     // Step L6.1 (locked product decision) — a hotel can accept pets like
     // every other accommodation category already can.
     'Pet Friendly',

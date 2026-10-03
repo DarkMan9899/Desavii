@@ -1338,8 +1338,8 @@ Type-specific fields follow the unit type
 (`core/domain/bookableUnitFieldApplicability.js`): `maxGuests` and
 `bedConfiguration` apply to `HOTEL_ROOM` and `PROPERTY_UNIT`;
 `timeSlotStart`/`timeSlotEnd` to `TOUR_DEPARTURE`; `roomSizeSqm`,
-`bathroomType`, `viewType`, `smokingPolicy` and room description, amenities
-and photos to `HOTEL_ROOM` only. A unit's type never changes, so an existing
+`bathroomType`, `viewType`, `smokingPolicy`, `mealPlan` and room description,
+amenities and photos to `HOTEL_ROOM` only. A unit's type never changes, so an existing
 unit is judged by its own stored type. Every rejection is a `422
 VALIDATION_FAILED` raised before any write:
 
@@ -1349,6 +1349,28 @@ VALIDATION_FAILED` raised before any write:
 | `bookableUnitType` | `ONE_VEHICLE_PER_LISTING` | a second, different active unit on a Car Rental listing (an identical re-registration still returns the existing unit; a retired unit doesn't count, so it can be replaced). Registration is serialized on the listing row, so concurrent requests can never create a second vehicle |
 | the field sent | `NOT_APPLICABLE_FOR_UNIT_TYPE` | a type-specific field the unit type doesn't use |
 | `bookableUnitType` | `ROOM_DETAILS_NOT_APPLICABLE` | adding a description, amenities or a photo to a non-`HOTEL_ROOM` unit (clearing or removing stays allowed) |
+
+**Hotel room details (Step L6.3A).** What a guest compares rooms by, all
+structured codes (never localized text), returned by the owner and public
+unit DTOs (`null` when unstated, and always `null` on non-room units):
+
+| Field (request → response) | Contract |
+|---|---|
+| `bedConfiguration` → `bed_configuration` | The room's sleeping setup: `[{ type, count }]`, one entry per type from `SINGLE`, `DOUBLE`, `QUEEN`, `KING`, `TWIN`, `SOFA_BED`, `BUNK`, `EXTRA_BED`, `CHILD_BED`, `CRIB` (`EXTRA_BED`, `CHILD_BED` and `CRIB` are separate options; age rules and charges stay hotel policy). `count` is a JSON integer 0–20 — strings, fractions, negatives, a repeated type or an unknown type are a `422`. Zero entries are dropped, and a setup with none left is stored as `null`. Bed counts never redefine `maxGuests`, which stays the occupancy limit |
+| `mealPlan` → `meal_plan` | The room's board basis: `NO_MEALS`, `BREAKFAST_INCLUDED`, `BREAKFAST_AVAILABLE_EXTRA`, `HALF_BOARD`, `FULL_BOARD`, `ALL_INCLUSIVE` (`HOTEL_ROOM` only — a `PROPERTY_UNIT` is self-catering). Display only: it never changes the nightly charge. A breakfast price for `BREAKFAST_AVAILABLE_EXTRA` is not stored yet (that needs a rate plan) |
+| `roomSizeSqm`, `bathroomType`, `viewType`, `smokingPolicy` | Unchanged (`DECIMAL(6,2)` up to 1000 m²; closed code sets) |
+
+Shower, bathtub, hair dryer, toiletries, heating, coffee maker,
+soundproofing, wardrobe, iron, balcony, step-free access, accessible
+bathroom and the other comforts are room **amenities** from the shared
+catalog (`PATCH /availability/units/{id}/amenities`), never extra columns.
+
+`PATCH /availability/units/{id}` is a partial update: an omitted field keeps
+its value; an explicit `null` clears `maxGuests`, `bedConfiguration`,
+`roomSizeSqm`, `bathroomType`, `viewType`, `smokingPolicy` or `mealPlan`
+(sending any of them — even `null` — for a unit type that doesn't use it is
+`NOT_APPLICABLE_FOR_UNIT_TYPE`). Rooms created before this step keep `null`
+details, with nothing guessed or backfilled, and stay bookable.
 
 ### 49.2 Calendar writes — partial updates and safe removal (Step L6.2H4)
 

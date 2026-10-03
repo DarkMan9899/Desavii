@@ -12,6 +12,13 @@ export const BED_TYPES = [
   'TWIN',
   'SOFA_BED',
   'BUNK',
+  // Step L6.3A — extra bed, child bed and baby crib/cot: separate options.
+  'EXTRA_BED',
+  'CHILD_BED',
+  'CRIB',
 ];
+
+// Step L6.3A — mirrors `BED_COUNT_MAX` (one bed type's quantity per room).
+export const BED_COUNT_MAX = 20;
 
 export default BED_TYPES;

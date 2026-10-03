@@ -1,8 +1,10 @@
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import i18n from 'i18next';
 import ApiError from '../../../../api/ApiError.js';
 import { resolveBookableUnitProfile } from '../../utils/resolveBookableUnitProfile.js';
+import { BED_TYPES } from '../../../availability/constants/bedTypes.js';
 import BookableUnitForm from './BookableUnitForm.jsx';
 
 // Sprint C-1: these three room sub-editors have their own real query/
@@ -59,7 +61,11 @@ const APARTMENT_MAX_GUESTS = 'Առավելագույն հյուրեր մեկ մ�
 const PER_NIGHT_PRICE = 'Հիմնական գին մեկ գիշերվա համար';
 const START_TIME = 'Սկզբի ժամ';
 const END_TIME = 'Ավարտի ժամ';
-const ADD_BED = 'Ավելացնել մահճակալ';
+const SINGLE_BEDS = 'Մեկտեղանոց մահճակալ';
+const DOUBLE_BEDS = 'Երկտեղանոց մահճակալ';
+const CHILD_BEDS = 'Մանկական մահճակալ';
+const MEAL_PLAN = 'Սննդի տարբերակ';
+const BED_COUNT_ERROR = 'Մուտքագրեք ամբողջ թիվ՝ 0-ից 20։';
 const ROOM_SIZE = 'Սենյակի մակերես (մ²)';
 
 describe('BookableUnitForm (P2.2A)', () => {
@@ -128,47 +134,153 @@ describe('BookableUnitForm (P2.2A)', () => {
       bathroomType: undefined,
       viewType: undefined,
       smokingPolicy: undefined,
+      mealPlan: undefined,
     });
   });
 
-  test('adding a bed row includes it (with the default type/count) in the submitted payload', async () => {
+  // Step L6.3A — one quantity per bed type, never free-form rows.
+  test('single, double and child bed quantities submit as one structured setup', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(
       <BookableUnitForm
         profile={HOTEL}
-        submitLabel="Save"
+        isCreating
+        submitLabel="Register"
         onSubmit={onSubmit}
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: ADD_BED }));
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.type(screen.getByLabelText(HOTEL_CAPACITY), '2');
+    await user.clear(screen.getByLabelText(SINGLE_BEDS));
+    await user.type(screen.getByLabelText(SINGLE_BEDS), '2');
+    await user.clear(screen.getByLabelText(DOUBLE_BEDS));
+    await user.type(screen.getByLabelText(DOUBLE_BEDS), '1');
+    await user.clear(screen.getByLabelText(CHILD_BEDS));
+    await user.type(screen.getByLabelText(CHILD_BEDS), '1');
+    await user.click(screen.getByRole('button', { name: 'Register' }));
 
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        bedConfiguration: [{ type: 'SINGLE', count: 1 }],
-      }),
-    );
+    expect(onSubmit.mock.calls[0][0].bedConfiguration).toEqual([
+      { type: 'SINGLE', count: 2 },
+      { type: 'DOUBLE', count: 1 },
+      { type: 'CHILD_BED', count: 1 },
+    ]);
   });
 
-  test('removing a bed row leaves bedConfiguration undefined again', async () => {
+  test('every bed type has exactly one quantity field, starting at 0', () => {
+    render(
+      <BookableUnitForm
+        profile={HOTEL}
+        isCreating
+        submitLabel="Register"
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    BED_TYPES.forEach((type) => {
+      const label = i18n.t(`partner.listingWizard.bedTypes.${type}`);
+      expect(screen.getAllByLabelText(label)).toHaveLength(1);
+      expect(screen.getByLabelText(label)).toHaveValue(0);
+    });
+  });
+
+  test('editing pre-fills the stated beds, and setting them all to 0 clears the setup', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(
       <BookableUnitForm
         profile={HOTEL}
+        initialValues={{
+          bookableUnitType: 'HOTEL_ROOM',
+          bedConfiguration: [
+            { type: 'DOUBLE', count: 1 },
+            { type: 'CRIB', count: 1 },
+          ],
+        }}
         submitLabel="Save"
         onSubmit={onSubmit}
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: ADD_BED }));
-    await user.click(screen.getByRole('button', { name: 'Հեռացնել' }));
+    expect(screen.getByLabelText(DOUBLE_BEDS)).toHaveValue(1);
+    await user.clear(screen.getByLabelText(DOUBLE_BEDS));
+    await user.type(screen.getByLabelText(DOUBLE_BEDS), '0');
+    await user.clear(screen.getByLabelText('Մանկական օրորոց'));
+    await user.type(screen.getByLabelText('Մանկական օրորոց'), '0');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ bedConfiguration: undefined }),
+    expect(onSubmit.mock.calls[0][0].bedConfiguration).toBeNull();
+  });
+
+  test('a meal plan is chosen from translated options and submitted as its code', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <BookableUnitForm
+        profile={HOTEL}
+        initialValues={{ bookableUnitType: 'HOTEL_ROOM' }}
+        submitLabel="Save"
+        onSubmit={onSubmit}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: MEAL_PLAN }));
+    await user.click(
+      screen.getByRole('option', { name: 'Նախաճաշը ներառված է' }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSubmit.mock.calls[0][0].mealPlan).toBe('BREAKFAST_INCLUDED');
+  });
+
+  test('editing clears blanked room details with null instead of keeping the old values', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <BookableUnitForm
+        profile={HOTEL}
+        initialValues={{
+          bookableUnitType: 'HOTEL_ROOM',
+          maxGuests: 2,
+          roomSizeSqm: '24.00',
+          bathroomType: 'PRIVATE',
+          mealPlan: 'HALF_BOARD',
+        }}
+        submitLabel="Save"
+        onSubmit={onSubmit}
+      />,
+    );
+
+    await user.clear(screen.getByLabelText(HOTEL_MAX_GUESTS));
+    await user.clear(screen.getByLabelText(ROOM_SIZE));
+    await user.click(screen.getByRole('button', { name: 'Լոգարան' }));
+    await user.click(screen.getByRole('option', { name: 'Նշված չէ' }));
+    await user.click(screen.getByRole('button', { name: MEAL_PLAN }));
+    await user.click(screen.getByRole('option', { name: 'Նշված չէ' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      maxGuests: null,
+      roomSizeSqm: null,
+      bathroomType: null,
+      mealPlan: null,
+      bedConfiguration: null,
+    });
+  });
+
+  test('the room editor is grouped into labelled sections', () => {
+    render(
+      <BookableUnitForm
+        profile={HOTEL}
+        isCreating
+        submitLabel="Register"
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    ['Քնելու համար', 'Սնունդ', 'Սենյակի առանձնահատկություններ'].forEach(
+      (legend) =>
+        expect(screen.getByRole('group', { name: legend })).toBeInTheDocument(),
     );
   });
 
@@ -413,8 +525,9 @@ describe('BookableUnitForm (P2.2A)', () => {
         expect(Boolean(screen.queryByText(/Առավելագույն հյուրեր/))).toBe(
           lodging,
         );
-        expect(Boolean(screen.queryByRole('button', { name: ADD_BED }))).toBe(
-          lodging,
+        expect(Boolean(screen.queryByLabelText(SINGLE_BEDS))).toBe(lodging);
+        expect(Boolean(screen.queryByRole('button', { name: MEAL_PLAN }))).toBe(
+          room,
         );
         expect(Boolean(screen.queryByLabelText(ROOM_SIZE))).toBe(room);
         expect(Boolean(screen.queryByLabelText(START_TIME))).toBe(timeSlot);
@@ -452,6 +565,7 @@ describe('BookableUnitForm (P2.2A)', () => {
         'bathroomType',
         'viewType',
         'smokingPolicy',
+        'mealPlan',
       ].forEach((field) => expect(payload).not.toHaveProperty(field));
     });
 
@@ -974,79 +1088,50 @@ describe('BookableUnitForm (P2.2A)', () => {
       expect(onSubmit).not.toHaveBeenCalled();
     });
 
-    test('a bed count of 0 is rejected', async () => {
+    test.each([
+      ['a negative', '-1'],
+      ['a fractional', '1.5'],
+      ['an above-the-max (20)', '21'],
+    ])(
+      '%s bed count is rejected, onSubmit never called',
+      async (_label, typed) => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn();
+        render(
+          <BookableUnitForm
+            profile={APARTMENT}
+            initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
+            submitLabel="Save"
+            onSubmit={onSubmit}
+          />,
+        );
+
+        const countField = screen.getByLabelText(SINGLE_BEDS);
+        await user.clear(countField);
+        await user.type(countField, typed);
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+
+        expect(await screen.findByText(BED_COUNT_ERROR)).toBeInTheDocument();
+        expect(onSubmit).not.toHaveBeenCalled();
+      },
+    );
+
+    test('a bed count of 0 is valid and simply means none of that bed', async () => {
       const user = userEvent.setup();
       const onSubmit = vi.fn();
       render(
         <BookableUnitForm
           profile={APARTMENT}
-          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
-          submitLabel="Save"
+          isCreating
+          submitLabel="Register"
           onSubmit={onSubmit}
         />,
       );
 
-      await user.click(screen.getByRole('button', { name: ADD_BED }));
-      const countField = screen.getByLabelText('Քանակ');
-      await user.clear(countField);
-      await user.type(countField, '0');
-      await user.click(screen.getByRole('button', { name: 'Save' }));
+      await user.type(screen.getByLabelText(APARTMENT_CAPACITY), '1');
+      await user.click(screen.getByRole('button', { name: 'Register' }));
 
-      expect(
-        await screen.findByText(
-          'Մուտքագրեք մահճակալների ամբողջ թիվ՝ 1-ից 20-ի միջակայքում։',
-        ),
-      ).toBeInTheDocument();
-      expect(onSubmit).not.toHaveBeenCalled();
-    });
-
-    test('a bed count above the metadata-derived max (20) is rejected', async () => {
-      const user = userEvent.setup();
-      const onSubmit = vi.fn();
-      render(
-        <BookableUnitForm
-          profile={APARTMENT}
-          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
-          submitLabel="Save"
-          onSubmit={onSubmit}
-        />,
-      );
-
-      await user.click(screen.getByRole('button', { name: ADD_BED }));
-      const countField = screen.getByLabelText('Քանակ');
-      await user.clear(countField);
-      await user.type(countField, '21');
-      await user.click(screen.getByRole('button', { name: 'Save' }));
-
-      expect(
-        await screen.findByText(
-          'Մուտքագրեք մահճակալների ամբողջ թիվ՝ 1-ից 20-ի միջակայքում։',
-        ),
-      ).toBeInTheDocument();
-      expect(onSubmit).not.toHaveBeenCalled();
-    });
-
-    test('"Add bed" disables once 12 rows (the schema array max) are reached', async () => {
-      const user = userEvent.setup();
-      render(
-        <BookableUnitForm
-          profile={APARTMENT}
-          initialValues={{ bookableUnitType: 'PROPERTY_UNIT' }}
-          submitLabel="Save"
-          onSubmit={vi.fn()}
-        />,
-      );
-
-      const addBedButton = screen.getByRole('button', {
-        name: ADD_BED,
-      });
-      // eslint-disable-next-line no-plusplus -- straightforward fixed-count loop, not worth a reduce/array-from rewrite
-      for (let i = 0; i < 12; i++) {
-        // eslint-disable-next-line no-await-in-loop -- each click must land before the next (state-dependent disabled check)
-        await user.click(addBedButton);
-      }
-
-      expect(addBedButton).toBeDisabled();
+      expect(onSubmit.mock.calls[0][0].bedConfiguration).toBeUndefined();
     });
   });
 
@@ -1086,12 +1171,13 @@ describe('BookableUnitForm (P2.2A)', () => {
       );
     });
 
-    test('blank stays undefined — never coerced to 0', async () => {
+    test('blank stays undefined when creating — never coerced to 0', async () => {
       const user = userEvent.setup();
       const onSubmit = vi.fn();
       render(
         <BookableUnitForm
           profile={HOTEL}
+          isCreating
           submitLabel="Save"
           onSubmit={onSubmit}
         />,

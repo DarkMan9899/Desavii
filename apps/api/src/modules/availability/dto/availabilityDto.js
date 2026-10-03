@@ -48,6 +48,8 @@ export function toBookableUnitResponse(unit) {
     bathroom_type: unit.bathroomType ?? null,
     view_type: unit.viewType ?? null,
     smoking_policy: unit.smokingPolicy ?? null,
+    // Step L6.3A: the room's meal / board basis code (null when unstated).
+    meal_plan: unit.mealPlan ?? null,
     // Present only when the caller went through `AvailabilityService`'s
     // `#enrichUnit` (every owner-facing register/update/list path) — a
     // bare `BookableUnitService` read (e.g. Sprint 10's internal
@@ -126,6 +128,8 @@ export function toPublicBookableUnitResponse(unit) {
     bathroom_type: unit.bathroomType ?? null,
     view_type: unit.viewType ?? null,
     smoking_policy: unit.smokingPolicy ?? null,
+    // Step L6.3A: the room's meal / board basis code (null when unstated).
+    meal_plan: unit.mealPlan ?? null,
     ...(unit.translations !== undefined && {
       translations: unit.translations.map((t) => ({
         language_code: t.languageCode,

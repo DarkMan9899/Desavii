@@ -28,23 +28,14 @@ import {
   useUpdateBookableUnitMutation,
 } from '../../../availability/index.js';
 import { bookableUnitProfileShape } from '../../utils/resolveBookableUnitProfile.js';
+import { formatBedConfiguration } from '../../utils/bedConfigurationDisplay.js';
+import { formatMealPlan } from '../ListingDetailPageContent/ListingRoomsSection/roomAttributeLabels.js';
 import BookableUnitForm from './BookableUnitForm.jsx';
-
-function formatBedConfiguration(t, bedConfiguration) {
-  if (!bedConfiguration || bedConfiguration.length === 0) return null;
-  return bedConfiguration
-    .map((row) =>
-      t('partner.listingWizard.availability.bedSummaryItem', {
-        count: row.count,
-        type: t(`partner.listingWizard.bedTypes.${row.type}`, row.type),
-      }),
-    )
-    .join(', ');
-}
 
 function UnitSummaryRow({ unit, profile, onEdit }) {
   const { t } = useTranslation();
   const bedSummary = formatBedConfiguration(t, unit.bed_configuration);
+  const mealLabel = formatMealPlan(t, unit.meal_plan);
 
   return (
     <Card padding="md">
@@ -71,6 +62,7 @@ function UnitSummaryRow({ unit, profile, onEdit }) {
           </span>
         )}
         {bedSummary && <span>{bedSummary}</span>}
+        {mealLabel && <span>{mealLabel}</span>}
         {unit.base_price_amount != null && (
           <span>
             {t(`partner.listingWizard.unitPriceSummary.${profile.priceBasis}`, {
@@ -97,6 +89,7 @@ UnitSummaryRow.propTypes = {
         count: PropTypes.number,
       }),
     ),
+    meal_plan: PropTypes.string,
     base_price_amount: PropTypes.string,
     base_price_currency: PropTypes.string,
   }).isRequired,
@@ -194,6 +187,7 @@ export default function BookableUnitsManager({
                     bathroomType: unit.bathroom_type ?? undefined,
                     viewType: unit.view_type ?? undefined,
                     smokingPolicy: unit.smoking_policy ?? undefined,
+                    mealPlan: unit.meal_plan ?? undefined,
                   }}
                   isSubmitting={updateMutation.isPending}
                   submitLabel={t('partner.listingWizard.availability.saveUnit')}

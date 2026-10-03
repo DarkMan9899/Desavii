@@ -1901,11 +1901,7 @@
         "capacityTooLarge": "Максимум — 4 294 967 295.",
         "maxGuestsInvalid": "Введите целое число от 1 до 100.",
         "bedConfiguration": "Конфигурация кроватей",
-        "bedType": "Тип кровати",
-        "bedCount": "Количество",
-        "bedCountInvalid": "Введите целое число кроватей от 1 до 20.",
-        "removeBed": "Удалить",
-        "addBed": "Добавить кровать",
+        "bedCountInvalid": "Введите целое число от 0 до 20.",
         "basePriceCurrency": "Валюта",
         "basePriceIncomplete": "Укажите и сумму, и валюту, либо оставьте оба поля пустыми.",
         "basePriceAmountInvalid": "Введите корректную цену.",
@@ -1917,7 +1913,6 @@
         "editUnit": "Изменить",
         "capacitySummary": "Доступно: {{count}}",
         "maxGuestsSummary": "Вмещает {{count}}",
-        "bedSummaryItem": "{{count}} × {{type}}",
         "saveUnit": "Сохранить изменения",
         "roomBasicsHeading": "Основные данные номера",
         "roomSizeSqm": "Площадь номера (м²)",
@@ -1951,7 +1946,15 @@
           "departure": "За сколько часов до отправления вы хотите получать бронирования.",
           "reservation": "За сколько часов до времени бронирования вы хотите получать бронирования.",
           "visit": "За сколько часов до сеанса или посещения вы хотите получать бронирования."
-        }
+        },
+        "bedsHint": "Сколько кроватей каждого типа в номере. 0 — если нет.",
+        "bedsMainGroup": "Кровати",
+        "bedsExtraGroup": "Дополнительные и детские места",
+        "bedsExtraHint": "Необязательные спальные места для дополнительных гостей и детей. Возрастные правила и доплаты укажите в правилах отеля.",
+        "roomMealsHeading": "Питание",
+        "mealPlan": "Тип питания",
+        "mealPlanHint": "Что входит в стоимость этого номера. Цена за ночь не меняется.",
+        "notSpecified": "Не указано"
       },
       "bookableUnitTypes": {
         "HOTEL_ROOM": "Номер отеля",
@@ -2056,13 +2059,16 @@
         "dayCount": "{{count}} дн."
       },
       "bedTypes": {
-        "SINGLE": "Односпальная",
-        "DOUBLE": "Двуспальная",
-        "QUEEN": "Queen",
-        "KING": "King",
-        "TWIN": "Две отдельные кровати",
+        "SINGLE": "Односпальная кровать",
+        "DOUBLE": "Двуспальная кровать",
+        "QUEEN": "Кровать queen-size",
+        "KING": "Кровать king-size",
+        "TWIN": "Отдельная кровать (twin)",
         "SOFA_BED": "Диван-кровать",
-        "BUNK": "Двухъярусная кровать"
+        "BUNK": "Двухъярусная кровать",
+        "EXTRA_BED": "Дополнительная кровать",
+        "CHILD_BED": "Детская кровать",
+        "CRIB": "Детская кроватка"
       },
       "bathroomTypes": {
         "PRIVATE": "Собственная ванная комната",
@@ -2176,6 +2182,14 @@
         "perDay": "{{amount}} {{currency}} / день",
         "perPerson": "{{amount}} {{currency}} / человек",
         "neutral": "{{amount}} {{currency}}"
+      },
+      "mealPlans": {
+        "NO_MEALS": "Без питания",
+        "BREAKFAST_INCLUDED": "Завтрак включён",
+        "BREAKFAST_AVAILABLE_EXTRA": "Завтрак за дополнительную плату",
+        "HALF_BOARD": "Полупансион (завтрак и ужин)",
+        "FULL_BOARD": "Полный пансион (завтрак, обед и ужин)",
+        "ALL_INCLUSIVE": "Всё включено"
       }
     },
     "listingRooms": {
@@ -3817,7 +3831,60 @@
         "selectDatesHint": "Выберите даты в панели бронирования, чтобы увидеть реальную доступность и цены для каждого номера.",
         "stayTotalSuffix": "итого за {{count}} ноч.",
         "soldOutForDates": "Распродано на эти даты",
-        "fewRoomsLeftForStay": "Осталось всего {{count}} на эти даты"
+        "fewRoomsLeftForStay": "Осталось всего {{count}} на эти даты",
+        "bedCounts": {
+          "SINGLE_one": "{{count}} односпальная кровать",
+          "SINGLE_few": "{{count}} односпальные кровати",
+          "SINGLE_many": "{{count}} односпальных кроватей",
+          "SINGLE_other": "{{count}} односпальной кровати",
+          "DOUBLE_one": "{{count}} двуспальная кровать",
+          "DOUBLE_few": "{{count}} двуспальные кровати",
+          "DOUBLE_many": "{{count}} двуспальных кроватей",
+          "DOUBLE_other": "{{count}} двуспальной кровати",
+          "QUEEN_one": "{{count}} кровать queen-size",
+          "QUEEN_few": "{{count}} кровати queen-size",
+          "QUEEN_many": "{{count}} кроватей queen-size",
+          "QUEEN_other": "{{count}} кровати queen-size",
+          "KING_one": "{{count}} кровать king-size",
+          "KING_few": "{{count}} кровати king-size",
+          "KING_many": "{{count}} кроватей king-size",
+          "KING_other": "{{count}} кровати king-size",
+          "TWIN_one": "{{count}} отдельная кровать",
+          "TWIN_few": "{{count}} отдельные кровати",
+          "TWIN_many": "{{count}} отдельных кроватей",
+          "TWIN_other": "{{count}} отдельной кровати",
+          "SOFA_BED_one": "{{count}} диван-кровать",
+          "SOFA_BED_few": "{{count}} дивана-кровати",
+          "SOFA_BED_many": "{{count}} диванов-кроватей",
+          "SOFA_BED_other": "{{count}} дивана-кровати",
+          "BUNK_one": "{{count}} двухъярусная кровать",
+          "BUNK_few": "{{count}} двухъярусные кровати",
+          "BUNK_many": "{{count}} двухъярусных кроватей",
+          "BUNK_other": "{{count}} двухъярусной кровати",
+          "EXTRA_BED_one": "Доступна {{count}} дополнительная кровать",
+          "EXTRA_BED_few": "Доступны {{count}} дополнительные кровати",
+          "EXTRA_BED_many": "Доступно {{count}} дополнительных кроватей",
+          "EXTRA_BED_other": "Доступно {{count}} дополнительной кровати",
+          "CHILD_BED_one": "Доступна {{count}} детская кровать",
+          "CHILD_BED_few": "Доступны {{count}} детские кровати",
+          "CHILD_BED_many": "Доступно {{count}} детских кроватей",
+          "CHILD_BED_other": "Доступно {{count}} детской кровати",
+          "CRIB_one": "Доступна {{count}} детская кроватка",
+          "CRIB_few": "Доступны {{count}} детские кроватки",
+          "CRIB_many": "Доступно {{count}} детских кроваток",
+          "CRIB_other": "Доступно {{count}} детской кроватки"
+        },
+        "mealPlans": {
+          "NO_MEALS": "Питание не включено",
+          "BREAKFAST_INCLUDED": "Завтрак включён",
+          "BREAKFAST_AVAILABLE_EXTRA": "Завтрак за дополнительную плату",
+          "HALF_BOARD": "Полупансион включён",
+          "FULL_BOARD": "Полный пансион включён",
+          "ALL_INCLUSIVE": "Всё включено"
+        },
+        "sleepingHeading": "Спальные места",
+        "mealsHeading": "Питание",
+        "roomDetailsHeading": "О номере"
       },
       "relatedListings": {
         "heading": "Вам также может понравиться"

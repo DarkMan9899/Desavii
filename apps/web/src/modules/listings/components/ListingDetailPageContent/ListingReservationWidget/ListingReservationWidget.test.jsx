@@ -480,7 +480,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     // unit's price — both agree with each other, never diverge.
     expect(screen.getAllByText(/90[.,\s]?000/)).toHaveLength(2);
     expect(screen.queryByText(/85[.,\s]?000/)).not.toBeInTheDocument();
-    expect(screen.getByText('1 × Քինգ')).toBeInTheDocument();
+    expect(screen.getByText('1 king չափի մահճակալ')).toBeInTheDocument();
   });
 
   test('guest count is clamped to max_guests × quantity, both directly and when a shrinking quantity lowers the cap', () => {

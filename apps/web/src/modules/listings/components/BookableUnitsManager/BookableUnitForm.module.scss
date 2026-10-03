@@ -1,0 +1,81 @@
+// BookableUnitForm — tokens only, consumed from @desavii/ui.
+//
+// Step L6.3A: the room editor reads as a few clear groups (basics, beds,
+// room details, meals, price) instead of one long flat form. Each group is
+// a real <fieldset>/<legend>, so the grouping is announced to assistive
+// technology too, not only drawn.
+
+@use 'tokens' as tokens;
+
+// A bed-quantity field stays wide enough for its longest localized label
+// ("Дополнительная кровать") without crowding at phone width.
+$bed-field-min-width: 9.5rem;
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-3;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 tokens.$space-4;
+  border: 0;
+  border-bottom: 1px solid tokens.$color-gray-200;
+
+  &:last-of-type {
+    border-bottom: 0;
+  }
+}
+
+.legend {
+  padding: 0;
+  margin-bottom: tokens.$space-2;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-body-large;
+  line-height: tokens.$line-height-body-large;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
+.groupHeading {
+  padding: 0;
+  margin: 0 0 tokens.$space-1;
+  font-size: tokens.$font-size-body;
+  line-height: tokens.$line-height-body;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
+.hint {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+}
+
+.error {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-danger-strong;
+}
+
+.bedGroup {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+}
+
+.bedGrid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(100%, $bed-field-min-width), 1fr)
+  );
+  gap: tokens.$space-3;
+  // A wrapped (two-line) label must not push its input out of line with
+  // the inputs beside it.
+  align-items: end;
+}

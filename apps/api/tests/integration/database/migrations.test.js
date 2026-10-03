@@ -286,6 +286,58 @@ describe('Fresh migration from an empty database (Sprint 5 Quality Gate #4)', ()
     await up(undefined, { databaseName: MIGRATION_CHECK_DATABASE });
   });
 
+  // Step L6.3A: same pattern — 0053 adds a room's meal basis as a nullable
+  // VARCHAR code (no backfill), and its down.sql removes exactly that column.
+  test('migration 0053 adds bookable_units.meal_plan as a nullable VARCHAR(30), and its down.sql removes only that column', async () => {
+    const connection = await mysql.createConnection({
+      host: config.database.host,
+      port: config.database.port,
+      database: MIGRATION_CHECK_DATABASE,
+      user: config.database.user,
+      password: config.database.password,
+      multipleStatements: true,
+    });
+    const unitColumns = async () => {
+      const [columns] = await connection.query(
+        `SELECT column_name, column_type, is_nullable, column_default
+         FROM information_schema.columns
+         WHERE table_schema = ? AND table_name = 'bookable_units'`,
+        [MIGRATION_CHECK_DATABASE],
+      );
+      return new Map(
+        columns.map((row) => [row.column_name ?? row.COLUMN_NAME, row]),
+      );
+    };
+    try {
+      const mealPlan = (await unitColumns()).get('meal_plan');
+      expect(mealPlan).toBeDefined();
+      expect((mealPlan.column_type ?? mealPlan.COLUMN_TYPE).toLowerCase()).toBe(
+        'varchar(30)',
+      );
+      expect(mealPlan.is_nullable ?? mealPlan.IS_NULLABLE).toBe('YES');
+      expect(mealPlan.column_default ?? mealPlan.COLUMN_DEFAULT).toBeNull();
+
+      const downSql = readFileSync(
+        path.join(MIGRATIONS_DIR, '0053_bookable_unit_meal_plan.down.sql'),
+        'utf8',
+      );
+      await expect(connection.query(downSql)).resolves.not.toThrow();
+
+      const columnNames = await unitColumns();
+      expect(columnNames.has('meal_plan')).toBe(false);
+      expect(columnNames.has('smoking_policy')).toBe(true);
+      expect(columnNames.has('bed_configuration')).toBe(true);
+      expect(columnNames.has('room_size_sqm')).toBe(true);
+
+      await connection.query(
+        `DELETE FROM schema_migrations WHERE version = '0053'`,
+      );
+    } finally {
+      await connection.end();
+    }
+    await up(undefined, { databaseName: MIGRATION_CHECK_DATABASE });
+  });
+
   // Listing Lifetime / Renewal, Step B2: same pattern as the 0034/0035
   // proofs above, now for the current most-recent migration. Also proves
   // the specific real bug this migration's own down.sql was written

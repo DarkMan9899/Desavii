@@ -21,19 +21,17 @@ vi.mock('../../../../availability/index.js', async () => ({
   ...(await vi.importActual(
     '../../../../availability/constants/listingTypeBookableUnitTypes.js',
   )),
-  BED_TYPES: ['SINGLE', 'DOUBLE', 'QUEEN', 'KING', 'TWIN', 'SOFA_BED', 'BUNK'],
+  // Step L6.3A: the real vocabularies, never a hand-copied list.
+  BED_TYPES: (
+    await vi.importActual('../../../../availability/constants/bedTypes.js')
+  ).BED_TYPES,
+  BED_COUNT_MAX: (
+    await vi.importActual('../../../../availability/constants/bedTypes.js')
+  ).BED_COUNT_MAX,
+  ...(await vi.importActual(
+    '../../../../availability/constants/roomAttributes.js',
+  )),
   INT_UNSIGNED_MAX: 4294967295,
-  BATHROOM_TYPES: ['PRIVATE', 'SHARED', 'ENSUITE'],
-  VIEW_TYPES: [
-    'CITY',
-    'MOUNTAIN',
-    'GARDEN',
-    'COURTYARD',
-    'POOL',
-    'LANDMARK',
-    'NONE',
-  ],
-  SMOKING_POLICIES: ['NON_SMOKING', 'SMOKING_ALLOWED'],
   useBookableUnitsQuery: vi.fn(),
   useBlackoutsQuery: vi.fn(),
   useRegisterBookableUnitMutation: vi.fn(),

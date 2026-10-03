@@ -23,7 +23,7 @@ const SELECT_COLUMNS = `
   bu.time_slot_start, bu.time_slot_end, bu.unit_label,
   bu.max_guests, bu.bed_configuration,
   bu.base_price_amount, bu.base_price_currency_id, cur.code AS base_price_currency_code,
-  bu.room_size_sqm, bu.bathroom_type, bu.view_type, bu.smoking_policy,
+  bu.room_size_sqm, bu.bathroom_type, bu.view_type, bu.smoking_policy, bu.meal_plan,
   bu.created_at, bu.updated_at
 `;
 const FROM_JOINED = `
@@ -70,6 +70,7 @@ function toDomain(row) {
     bathroomType: row.bathroom_type,
     viewType: row.view_type,
     smokingPolicy: row.smoking_policy,
+    mealPlan: row.meal_plan,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -190,6 +191,7 @@ export class MySqlBookableUnitRepository {
       bathroomType,
       viewType,
       smokingPolicy,
+      mealPlan,
       createdBy,
     },
     connection = this.#pool,
@@ -200,9 +202,9 @@ export class MySqlBookableUnitRepository {
           (listing_id, bookable_unit_type_id, source_table, source_id, capacity,
            time_slot_start, time_slot_end, unit_label, max_guests, bed_configuration,
            base_price_amount, base_price_currency_id,
-           room_size_sqm, bathroom_type, view_type, smoking_policy,
+           room_size_sqm, bathroom_type, view_type, smoking_policy, meal_plan,
            created_by, updated_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           listingId,
           bookableUnitTypeId,
@@ -220,6 +222,7 @@ export class MySqlBookableUnitRepository {
           bathroomType ?? null,
           viewType ?? null,
           smokingPolicy ?? null,
+          mealPlan ?? null,
           createdBy,
           createdBy,
         ],
@@ -283,6 +286,10 @@ export class MySqlBookableUnitRepository {
     if (fields.smokingPolicy !== undefined) {
       assignments.push('smoking_policy = ?');
       params.push(fields.smokingPolicy);
+    }
+    if (fields.mealPlan !== undefined) {
+      assignments.push('meal_plan = ?');
+      params.push(fields.mealPlan);
     }
 
     if (assignments.length === 0) return this.findById(id, connection);

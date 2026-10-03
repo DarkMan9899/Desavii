@@ -27,10 +27,11 @@ import { Input, Select } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import {
-  BED_TYPES,
+  BED_COUNT_MAX,
   BATHROOM_TYPES,
   VIEW_TYPES,
   SMOKING_POLICIES,
+  MEAL_PLANS,
   INT_UNSIGNED_MAX,
   unitTypeUsesField,
   supportsRoomDetails,
@@ -43,6 +44,7 @@ import RoomMediaGallery from './RoomMediaGallery.jsx';
 import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import apiErrorPropType from '../../../../components/ApiErrorAlert/apiErrorPropType.js';
 import useApiFieldErrors from '../../../../hooks/useApiFieldErrors.js';
+import styles from './BookableUnitForm.module.scss';
 
 // Mirrors `availabilityValidators.js`'s `registerUnitSchema`/
 // `updateUnitSchema` exactly. `capacity` is capped at its `INT UNSIGNED`
@@ -53,15 +55,35 @@ import useApiFieldErrors from '../../../../hooks/useApiFieldErrors.js';
 const INTEGER_STRING_PATTERN = /^-?\d+$/;
 const DECIMAL_STRING_PATTERN = /^-?\d*\.?\d*$/;
 const MAX_GUESTS_MAX = 100; // availabilityValidators.js: maxGuests.max(100)
-const BED_COUNT_MAX = 20; // availabilityValidators.js: bedConfigurationSchema count.max(20)
-const BED_ROWS_MAX = 12; // availabilityValidators.js: bedConfigurationSchema array.max(12)
 const BASE_PRICE_MAX = 9999999999.99; // bookable_units.base_price_amount DECIMAL(12,2)
 const ROOM_SIZE_SQM_MAX = 1000; // availabilityValidators.js: roomSizeSqm.max(1000)
 const UNIT_LABEL_MAX_LENGTH = 120; // availabilityValidators.js: unitLabel.max(120), VARCHAR(120)
 const LODGING_FALLBACK_TERMS = 'apartment';
 
-// Fields that render their own server error inline (bed rows are added
-// per index at render time).
+// Step L6.3A — the sleeping setup as one quantity per bed type (stored as
+// `bedConfiguration`: present types only), grouped the way a Partner
+// thinks about a room: its own beds, then optional extra/children's
+// sleeping. Every type in BED_TYPES appears in exactly one group.
+const BED_TYPE_GROUPS = [
+  {
+    key: 'main',
+    labelKey: 'bedsMainGroup',
+    types: ['SINGLE', 'DOUBLE', 'QUEEN', 'KING', 'TWIN', 'BUNK', 'SOFA_BED'],
+  },
+  {
+    key: 'extra',
+    labelKey: 'bedsExtraGroup',
+    hintKey: 'bedsExtraHint',
+    types: ['EXTRA_BED', 'CHILD_BED', 'CRIB'],
+  },
+];
+const ALL_BED_TYPES = BED_TYPE_GROUPS.flatMap((group) => group.types);
+// A Select option for "nothing stated" — saved as `null` on an edit.
+const NOT_SPECIFIED = '';
+
+// Fields that render their own server error inline. A per-bed server issue
+// (`bedConfiguration.<index>...`) reaches the summary alert: the grid's
+// client validation already covers every per-type rule.
 // `bookableUnitType` is deliberately absent: the type has no field of its
 // own (it's implied by the listing), so a rejection about it — wrong type
 // for this listing, a second vehicle, room details on a non-room unit —
@@ -76,6 +98,8 @@ const INLINE_API_PATHS = [
   'bathroomType',
   'viewType',
   'smokingPolicy',
+  'bedConfiguration',
+  'mealPlan',
   'basePriceAmount',
   'basePriceCurrency',
 ];
@@ -141,17 +165,29 @@ function validateMaxGuests(rawValue, t) {
   return { value, error: undefined };
 }
 
-// Unlike capacity/maxGuests, a bed row's `count` is required by
-// `bedConfigurationSchema` whenever the row exists — blank is an error.
+// Step L6.3A: one bed type's quantity — a whole number 0..BED_COUNT_MAX
+// (blank means 0, "none of this bed").
 function validateBedCount(rawValue, t) {
   const { value, malformed } = parseIntegerField(rawValue);
-  if (malformed || value === undefined || value < 1 || value > BED_COUNT_MAX) {
+  if (
+    malformed ||
+    (value !== undefined && (value < 0 || value > BED_COUNT_MAX))
+  ) {
     return {
       value: undefined,
       error: t('partner.listingWizard.availability.bedCountInvalid'),
     };
   }
-  return { value, error: undefined };
+  return { value: value ?? 0, error: undefined };
+}
+
+function initialBedCounts(bedConfiguration) {
+  const stated = new Map(
+    (bedConfiguration ?? []).map((row) => [row.type, String(row.count)]),
+  );
+  return Object.fromEntries(
+    ALL_BED_TYPES.map((type) => [type, stated.get(type) ?? '0']),
+  );
 }
 
 // Optional, strictly positive, at most 2 decimal places, capped at `max`.
@@ -173,10 +209,6 @@ function validatePositiveTwoDecimal(rawValue, max, messages, t) {
     return { value: undefined, error: t(messages.precision) };
   }
   return { value: numeric, error: undefined };
-}
-
-function emptyBedRow() {
-  return { type: BED_TYPES[0], count: '1' };
 }
 
 export default function BookableUnitForm({
@@ -231,13 +263,8 @@ export default function BookableUnitForm({
   const [maxGuests, setMaxGuests] = useState(
     initialValues.maxGuests != null ? String(initialValues.maxGuests) : '',
   );
-  const [bedRows, setBedRows] = useState(
-    initialValues.bedConfiguration?.length > 0
-      ? initialValues.bedConfiguration.map((row) => ({
-          type: row.type,
-          count: String(row.count),
-        }))
-      : [],
+  const [bedCounts, setBedCounts] = useState(() =>
+    initialBedCounts(initialValues.bedConfiguration),
   );
   const [basePriceAmount, setBasePriceAmount] = useState(
     initialValues.basePriceAmount != null
@@ -251,7 +278,7 @@ export default function BookableUnitForm({
   // violated.
   const [fieldErrors, setFieldErrors] = useState({});
   const { fieldError, clearFieldError } = useApiFieldErrors(serverError);
-  const [bedRowErrors, setBedRowErrors] = useState([]);
+  const [bedCountErrors, setBedCountErrors] = useState({});
   const [basePriceCurrency, setBasePriceCurrency] = useState(
     initialValues.basePriceCurrency ?? null,
   );
@@ -260,45 +287,36 @@ export default function BookableUnitForm({
     initialValues.roomSizeSqm != null ? String(initialValues.roomSizeSqm) : '',
   );
   const [bathroomType, setBathroomType] = useState(
-    initialValues.bathroomType ?? null,
+    initialValues.bathroomType ?? NOT_SPECIFIED,
   );
-  const [viewType, setViewType] = useState(initialValues.viewType ?? null);
+  const [viewType, setViewType] = useState(
+    initialValues.viewType ?? NOT_SPECIFIED,
+  );
   const [smokingPolicy, setSmokingPolicy] = useState(
-    initialValues.smokingPolicy ?? null,
+    initialValues.smokingPolicy ?? NOT_SPECIFIED,
+  );
+  const [mealPlan, setMealPlan] = useState(
+    initialValues.mealPlan ?? NOT_SPECIFIED,
   );
 
   const usesRoomFields = unitTypeUsesField(bookableUnitType, 'roomSizeSqm');
+  const usesMealPlan = unitTypeUsesField(bookableUnitType, 'mealPlan');
   const hasRoomDetails = supportsRoomDetails(bookableUnitType);
 
-  function addBedRow() {
-    setBedRows((rows) =>
-      rows.length >= BED_ROWS_MAX ? rows : [...rows, emptyBedRow()],
-    );
-  }
+  // Step L6.3A — a blank optional field means "nothing stated": omitted
+  // when registering, an explicit `null` (clear) when editing, so removing
+  // a value really removes it instead of silently keeping the old one.
+  const blankValue = isCreating ? undefined : null;
+  const selectValue = (value) => (value === NOT_SPECIFIED ? blankValue : value);
+  const notSpecifiedOption = {
+    value: NOT_SPECIFIED,
+    label: t('partner.listingWizard.availability.notSpecified'),
+  };
 
-  function updateBedRow(index, patch) {
-    setBedRows((rows) =>
-      rows.map((row, i) => (i === index ? { ...row, ...patch } : row)),
-    );
-    if ('count' in patch) {
-      setBedRowErrors((errors) =>
-        errors.map((error, i) => (i === index ? undefined : error)),
-      );
-    }
-    Object.keys(patch).forEach((key) =>
-      clearFieldError(`bedConfiguration.${index}.${key}`),
-    );
-  }
-
-  function removeBedRow(index) {
-    setBedRows((rows) => rows.filter((_, i) => i !== index));
-    setBedRowErrors((errors) => errors.filter((_, i) => i !== index));
-    // Server bed errors are index-based; after a removal they would point
-    // at the wrong row, so they are all dismissed.
-    bedRows.forEach((_, i) => {
-      clearFieldError(`bedConfiguration.${i}.count`);
-      clearFieldError(`bedConfiguration.${i}.type`);
-    });
+  function updateBedCount(type, rawValue) {
+    setBedCounts((counts) => ({ ...counts, [type]: rawValue }));
+    setBedCountErrors((errors) => ({ ...errors, [type]: undefined }));
+    clearFieldError('bedConfiguration');
   }
 
   // Step L4.1 (brief §5-7, §10-13) — validates every numeric field this
@@ -329,9 +347,14 @@ export default function BookableUnitForm({
           t,
         )
       : notUsed;
-    const bedRowResults = usesBeds
-      ? bedRows.map((row) => validateBedCount(row.count, t))
-      : [];
+    const bedResults = usesBeds
+      ? Object.fromEntries(
+          ALL_BED_TYPES.map((type) => [
+            type,
+            validateBedCount(bedCounts[type], t),
+          ]),
+        )
+      : {};
 
     const nextFieldErrors = {
       capacity: capacityResult.error,
@@ -339,15 +362,23 @@ export default function BookableUnitForm({
       basePriceAmount: basePriceResult.error,
       roomSizeSqm: roomSizeResult.error,
     };
-    const nextBedRowErrors = bedRowResults.map((result) => result.error);
+    const nextBedCountErrors = Object.fromEntries(
+      Object.entries(bedResults).map(([type, result]) => [type, result.error]),
+    );
 
     setFieldErrors(nextFieldErrors);
-    setBedRowErrors(nextBedRowErrors);
+    setBedCountErrors(nextBedCountErrors);
 
     const hasErrors =
       Object.values(nextFieldErrors).some(Boolean) ||
-      nextBedRowErrors.some(Boolean);
+      Object.values(nextBedCountErrors).some(Boolean);
     if (hasErrors) return;
+
+    // Present bed types only, in display order; none at all is "no beds
+    // stated" (omitted on create, cleared on edit).
+    const bedConfiguration = ALL_BED_TYPES.filter(
+      (type) => bedResults[type]?.value > 0,
+    ).map((type) => ({ type, count: bedResults[type].value }));
 
     onSubmit({
       ...(isCreating ? { bookableUnitType } : {}),
@@ -359,24 +390,26 @@ export default function BookableUnitForm({
         : {}),
       unitLabel: unitLabel.trim() === '' ? undefined : unitLabel.trim(),
       capacity: capacityResult.value,
-      maxGuests: maxGuestsResult.value,
-      bedConfiguration:
-        usesBeds && bedRows.length > 0
-          ? bedRows.map((row, i) => ({
-              type: row.type,
-              count: bedRowResults[i].value,
-            }))
-          : undefined,
+      ...(usesMaxGuests
+        ? { maxGuests: maxGuestsResult.value ?? blankValue }
+        : {}),
+      ...(usesBeds
+        ? {
+            bedConfiguration:
+              bedConfiguration.length > 0 ? bedConfiguration : blankValue,
+          }
+        : {}),
       basePriceAmount: basePriceResult.value,
       basePriceCurrency: basePriceAmount === '' ? undefined : basePriceCurrency,
       ...(usesRoomFields
         ? {
-            roomSizeSqm: roomSizeResult.value,
-            bathroomType: bathroomType ?? undefined,
-            viewType: viewType ?? undefined,
-            smokingPolicy: smokingPolicy ?? undefined,
+            roomSizeSqm: roomSizeResult.value ?? blankValue,
+            bathroomType: selectValue(bathroomType),
+            viewType: selectValue(viewType),
+            smokingPolicy: selectValue(smokingPolicy),
           }
         : {}),
+      ...(usesMealPlan ? { mealPlan: selectValue(mealPlan) } : {}),
     });
   }
 
@@ -390,176 +423,178 @@ export default function BookableUnitForm({
     timeSlotStart !== '' && timeSlotEnd !== '' && timeSlotEnd <= timeSlotStart;
 
   return (
-    <Stack gap="4">
-      {usesRoomFields && (
-        <p>{t('partner.listingWizard.availability.roomBasicsHeading')}</p>
-      )}
-      <Input
-        label={t('partner.listingWizard.availability.unitLabel')}
-        placeholder={terms('labelPlaceholder')}
-        value={unitLabel}
-        maxLength={UNIT_LABEL_MAX_LENGTH}
-        error={fieldError('unitLabel')}
-        onChange={(event) => {
-          setUnitLabel(event.target.value);
-          clearFieldError('unitLabel');
-        }}
-      />
-      {usesTimeSlot && (
-        <Inline gap="4" wrap align="flex-end">
-          <Input
-            type="time"
-            label={t('partner.listingWizard.availability.timeSlotStart')}
-            helperText={t('partner.listingWizard.availability.timeSlotHint')}
-            value={timeSlotStart}
-            error={fieldError('timeSlotStart')}
-            onChange={(event) => {
-              setTimeSlotStart(event.target.value);
-              clearFieldError('timeSlotStart');
-            }}
-          />
-          <Input
-            type="time"
-            label={t('partner.listingWizard.availability.timeSlotEnd')}
-            value={timeSlotEnd}
-            onChange={(event) => {
-              setTimeSlotEnd(event.target.value);
-              clearFieldError('timeSlotEnd');
-            }}
-            error={
-              timeSlotOutOfOrder
-                ? t('partner.listingWizard.availability.timeSlotOutOfOrder')
-                : fieldError('timeSlotEnd')
-            }
-          />
-        </Inline>
-      )}
-      {usesTimeSlot && timeSlotIncomplete && (
-        <p>{t('partner.listingWizard.availability.timeSlotIncomplete')}</p>
-      )}
-      <Inline gap="4" wrap>
+    <Stack gap="6">
+      <fieldset className={styles.section}>
+        {usesRoomFields && (
+          <legend className={styles.legend}>
+            {t('partner.listingWizard.availability.roomBasicsHeading')}
+          </legend>
+        )}
         <Input
-          type="number"
-          min={1}
-          max={INT_UNSIGNED_MAX}
-          step={1}
-          label={terms('capacity')}
-          helperText={terms('capacityHint')}
-          value={capacity}
-          error={fieldErrors.capacity ?? fieldError('capacity')}
+          label={t('partner.listingWizard.availability.unitLabel')}
+          placeholder={terms('labelPlaceholder')}
+          value={unitLabel}
+          maxLength={UNIT_LABEL_MAX_LENGTH}
+          error={fieldError('unitLabel')}
           onChange={(event) => {
-            setCapacity(event.target.value);
-            clearFieldError('capacity');
-            setFieldErrors((current) => ({ ...current, capacity: undefined }));
+            setUnitLabel(event.target.value);
+            clearFieldError('unitLabel');
           }}
         />
-        {usesMaxGuests && (
+        {usesTimeSlot && (
+          <Inline gap="4" wrap align="flex-end">
+            <Input
+              type="time"
+              label={t('partner.listingWizard.availability.timeSlotStart')}
+              helperText={t('partner.listingWizard.availability.timeSlotHint')}
+              value={timeSlotStart}
+              error={fieldError('timeSlotStart')}
+              onChange={(event) => {
+                setTimeSlotStart(event.target.value);
+                clearFieldError('timeSlotStart');
+              }}
+            />
+            <Input
+              type="time"
+              label={t('partner.listingWizard.availability.timeSlotEnd')}
+              value={timeSlotEnd}
+              onChange={(event) => {
+                setTimeSlotEnd(event.target.value);
+                clearFieldError('timeSlotEnd');
+              }}
+              error={
+                timeSlotOutOfOrder
+                  ? t('partner.listingWizard.availability.timeSlotOutOfOrder')
+                  : fieldError('timeSlotEnd')
+              }
+            />
+          </Inline>
+        )}
+        {usesTimeSlot && timeSlotIncomplete && (
+          <p>{t('partner.listingWizard.availability.timeSlotIncomplete')}</p>
+        )}
+        <Inline gap="4" wrap>
           <Input
             type="number"
             min={1}
-            max={MAX_GUESTS_MAX}
+            max={INT_UNSIGNED_MAX}
             step={1}
-            label={terms('maxGuests')}
-            helperText={terms('maxGuestsHint')}
-            value={maxGuests}
-            error={fieldErrors.maxGuests ?? fieldError('maxGuests')}
+            label={terms('capacity')}
+            helperText={terms('capacityHint')}
+            value={capacity}
+            error={fieldErrors.capacity ?? fieldError('capacity')}
             onChange={(event) => {
-              setMaxGuests(event.target.value);
-              clearFieldError('maxGuests');
+              setCapacity(event.target.value);
+              clearFieldError('capacity');
               setFieldErrors((current) => ({
                 ...current,
-                maxGuests: undefined,
+                capacity: undefined,
               }));
             }}
           />
-        )}
-        {usesRoomFields && (
-          <Input
-            type="number"
-            label={t('partner.listingWizard.availability.roomSizeSqm')}
-            helperText={t('partner.listingWizard.availability.roomSizeSqmHint')}
-            min={0.01}
-            max={ROOM_SIZE_SQM_MAX}
-            step={0.01}
-            value={roomSizeSqm}
-            error={fieldErrors.roomSizeSqm ?? fieldError('roomSizeSqm')}
-            onChange={(event) => {
-              setRoomSizeSqm(event.target.value);
-              clearFieldError('roomSizeSqm');
-              setFieldErrors((current) => ({
-                ...current,
-                roomSizeSqm: undefined,
-              }));
-            }}
-          />
-        )}
-      </Inline>
+          {usesMaxGuests && (
+            <Input
+              type="number"
+              min={1}
+              max={MAX_GUESTS_MAX}
+              step={1}
+              label={terms('maxGuests')}
+              helperText={terms('maxGuestsHint')}
+              value={maxGuests}
+              error={fieldErrors.maxGuests ?? fieldError('maxGuests')}
+              onChange={(event) => {
+                setMaxGuests(event.target.value);
+                clearFieldError('maxGuests');
+                setFieldErrors((current) => ({
+                  ...current,
+                  maxGuests: undefined,
+                }));
+              }}
+            />
+          )}
+        </Inline>
+      </fieldset>
 
-      {usesRoomFields && (
-        <p>{t('partner.listingWizard.availability.roomSleepingHeading')}</p>
-      )}
       {usesBeds && (
-        <Stack gap="2">
-          <p>{t('partner.listingWizard.availability.bedConfiguration')}</p>
-          {bedRows.map((row, index) => (
-            // eslint-disable-next-line react/no-array-index-key -- rows have no stable identity of their own until saved
-            <Inline key={index} gap="2" align="flex-end">
-              <Select
-                label={t('partner.listingWizard.availability.bedType')}
-                options={BED_TYPES.map((code) => ({
-                  value: code,
-                  label: t(`partner.listingWizard.bedTypes.${code}`, code),
-                }))}
-                value={row.type}
-                error={fieldError(`bedConfiguration.${index}.type`)}
-                onChange={(value) => updateBedRow(index, { type: value })}
-              />
-              <Input
-                type="number"
-                min={1}
-                max={BED_COUNT_MAX}
-                step={1}
-                label={t('partner.listingWizard.availability.bedCount')}
-                value={row.count}
-                error={
-                  bedRowErrors[index] ??
-                  fieldError(`bedConfiguration.${index}.count`)
-                }
-                onChange={(event) =>
-                  updateBedRow(index, { count: event.target.value })
-                }
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => removeBedRow(index)}
-              >
-                {t('partner.listingWizard.availability.removeBed')}
-              </Button>
-            </Inline>
+        <fieldset className={styles.section}>
+          <legend className={styles.legend}>
+            {t('partner.listingWizard.availability.roomSleepingHeading')}
+          </legend>
+          <p className={styles.hint}>
+            {t('partner.listingWizard.availability.bedsHint')}
+          </p>
+          {fieldError('bedConfiguration') && (
+            <p className={styles.error} role="alert">
+              {fieldError('bedConfiguration')}
+            </p>
+          )}
+          {BED_TYPE_GROUPS.map((group) => (
+            <fieldset key={group.key} className={styles.bedGroup}>
+              <legend className={styles.groupHeading}>
+                {t(`partner.listingWizard.availability.${group.labelKey}`)}
+              </legend>
+              {group.hintKey && (
+                <p className={styles.hint}>
+                  {t(`partner.listingWizard.availability.${group.hintKey}`)}
+                </p>
+              )}
+              <div className={styles.bedGrid}>
+                {group.types.map((type) => (
+                  <Input
+                    key={type}
+                    type="number"
+                    min={0}
+                    max={BED_COUNT_MAX}
+                    step={1}
+                    label={t(`partner.listingWizard.bedTypes.${type}`)}
+                    value={bedCounts[type]}
+                    error={bedCountErrors[type]}
+                    onChange={(event) =>
+                      updateBedCount(type, event.target.value)
+                    }
+                  />
+                ))}
+              </div>
+            </fieldset>
           ))}
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={bedRows.length >= BED_ROWS_MAX}
-            onClick={() => addBedRow()}
-          >
-            {t('partner.listingWizard.availability.addBed')}
-          </Button>
-        </Stack>
+        </fieldset>
       )}
 
       {usesRoomFields && (
-        <Stack gap="3">
-          <p>{t('partner.listingWizard.availability.roomFeaturesHeading')}</p>
+        <fieldset className={styles.section}>
+          <legend className={styles.legend}>
+            {t('partner.listingWizard.availability.roomFeaturesHeading')}
+          </legend>
           <Inline gap="4" wrap>
+            <Input
+              type="number"
+              label={t('partner.listingWizard.availability.roomSizeSqm')}
+              helperText={t(
+                'partner.listingWizard.availability.roomSizeSqmHint',
+              )}
+              min={0.01}
+              max={ROOM_SIZE_SQM_MAX}
+              step={0.01}
+              value={roomSizeSqm}
+              error={fieldErrors.roomSizeSqm ?? fieldError('roomSizeSqm')}
+              onChange={(event) => {
+                setRoomSizeSqm(event.target.value);
+                clearFieldError('roomSizeSqm');
+                setFieldErrors((current) => ({
+                  ...current,
+                  roomSizeSqm: undefined,
+                }));
+              }}
+            />
             <Select
               label={t('partner.listingWizard.availability.bathroomType')}
-              placeholder={t('partner.listingWizard.selectPlaceholder')}
-              options={BATHROOM_TYPES.map((code) => ({
-                value: code,
-                label: t(`partner.listingWizard.bathroomTypes.${code}`, code),
-              }))}
+              options={[
+                notSpecifiedOption,
+                ...BATHROOM_TYPES.map((code) => ({
+                  value: code,
+                  label: t(`partner.listingWizard.bathroomTypes.${code}`),
+                })),
+              ]}
               value={bathroomType}
               error={fieldError('bathroomType')}
               onChange={(value) => {
@@ -569,11 +604,13 @@ export default function BookableUnitForm({
             />
             <Select
               label={t('partner.listingWizard.availability.viewType')}
-              placeholder={t('partner.listingWizard.selectPlaceholder')}
-              options={VIEW_TYPES.map((code) => ({
-                value: code,
-                label: t(`partner.listingWizard.viewTypes.${code}`, code),
-              }))}
+              options={[
+                notSpecifiedOption,
+                ...VIEW_TYPES.map((code) => ({
+                  value: code,
+                  label: t(`partner.listingWizard.viewTypes.${code}`),
+                })),
+              ]}
               value={viewType}
               error={fieldError('viewType')}
               onChange={(value) => {
@@ -583,11 +620,13 @@ export default function BookableUnitForm({
             />
             <Select
               label={t('partner.listingWizard.availability.smokingPolicy')}
-              placeholder={t('partner.listingWizard.selectPlaceholder')}
-              options={SMOKING_POLICIES.map((code) => ({
-                value: code,
-                label: t(`partner.listingWizard.smokingPolicies.${code}`, code),
-              }))}
+              options={[
+                notSpecifiedOption,
+                ...SMOKING_POLICIES.map((code) => ({
+                  value: code,
+                  label: t(`partner.listingWizard.smokingPolicies.${code}`),
+                })),
+              ]}
               value={smokingPolicy}
               error={fieldError('smokingPolicy')}
               onChange={(value) => {
@@ -596,47 +635,81 @@ export default function BookableUnitForm({
               }}
             />
           </Inline>
-        </Stack>
+        </fieldset>
       )}
 
-      {usesRoomFields && (
-        <p>{t('partner.listingWizard.availability.roomPricingHeading')}</p>
+      {usesMealPlan && (
+        <fieldset className={styles.section}>
+          <legend className={styles.legend}>
+            {t('partner.listingWizard.availability.roomMealsHeading')}
+          </legend>
+          <Select
+            label={t('partner.listingWizard.availability.mealPlan')}
+            options={[
+              notSpecifiedOption,
+              ...MEAL_PLANS.map((code) => ({
+                value: code,
+                label: t(`partner.listingWizard.mealPlans.${code}`),
+              })),
+            ]}
+            value={mealPlan}
+            error={fieldError('mealPlan')}
+            onChange={(value) => {
+              setMealPlan(value);
+              clearFieldError('mealPlan');
+            }}
+          />
+          <p className={styles.hint}>
+            {t('partner.listingWizard.availability.mealPlanHint')}
+          </p>
+        </fieldset>
       )}
-      <Inline gap="4" wrap>
-        <Input
-          type="number"
-          min={0.01}
-          step={0.01}
-          // Step L6.2B: the basis follows the listing's own pricing model,
-          // and stays neutral wherever a basis would promise more than
-          // booking charges today (see `resolveBookableUnitProfile`).
-          label={t(`partner.listingWizard.unitPrice.${profile.priceBasis}`)}
-          value={basePriceAmount}
-          error={fieldErrors.basePriceAmount ?? fieldError('basePriceAmount')}
-          onChange={(event) => {
-            setBasePriceAmount(event.target.value);
-            clearFieldError('basePriceAmount');
-            setFieldErrors((current) => ({
-              ...current,
-              basePriceAmount: undefined,
-            }));
-          }}
-        />
-        <Select
-          label={t('partner.listingWizard.availability.basePriceCurrency')}
-          placeholder={t('partner.listingWizard.selectPlaceholder')}
-          options={CURRENCY_CODES.map((code) => ({ value: code, label: code }))}
-          value={basePriceCurrency}
-          error={fieldError('basePriceCurrency')}
-          onChange={(value) => {
-            setBasePriceCurrency(value);
-            clearFieldError('basePriceCurrency');
-          }}
-        />
-      </Inline>
-      {priceIncomplete && (
-        <p>{t('partner.listingWizard.availability.basePriceIncomplete')}</p>
-      )}
+
+      <fieldset className={styles.section}>
+        {usesRoomFields && (
+          <legend className={styles.legend}>
+            {t('partner.listingWizard.availability.roomPricingHeading')}
+          </legend>
+        )}
+        <Inline gap="4" wrap>
+          <Input
+            type="number"
+            min={0.01}
+            step={0.01}
+            // Step L6.2B: the basis follows the listing's own pricing model,
+            // and stays neutral wherever a basis would promise more than
+            // booking charges today (see `resolveBookableUnitProfile`).
+            label={t(`partner.listingWizard.unitPrice.${profile.priceBasis}`)}
+            value={basePriceAmount}
+            error={fieldErrors.basePriceAmount ?? fieldError('basePriceAmount')}
+            onChange={(event) => {
+              setBasePriceAmount(event.target.value);
+              clearFieldError('basePriceAmount');
+              setFieldErrors((current) => ({
+                ...current,
+                basePriceAmount: undefined,
+              }));
+            }}
+          />
+          <Select
+            label={t('partner.listingWizard.availability.basePriceCurrency')}
+            placeholder={t('partner.listingWizard.selectPlaceholder')}
+            options={CURRENCY_CODES.map((code) => ({
+              value: code,
+              label: code,
+            }))}
+            value={basePriceCurrency}
+            error={fieldError('basePriceCurrency')}
+            onChange={(value) => {
+              setBasePriceCurrency(value);
+              clearFieldError('basePriceCurrency');
+            }}
+          />
+        </Inline>
+        {priceIncomplete && (
+          <p>{t('partner.listingWizard.availability.basePriceIncomplete')}</p>
+        )}
+      </fieldset>
 
       {/* Sprint C-1: description/amenities/photos need a real, already-
           created unit — never shown while registering a brand-new room
@@ -660,16 +733,7 @@ export default function BookableUnitForm({
         <RoomMediaGallery unitId={unitId} listingId={listingId} media={media} />
       )}
 
-      <ApiErrorAlert
-        error={serverError}
-        inlinePaths={[
-          ...INLINE_API_PATHS,
-          ...bedRows.flatMap((_, i) => [
-            `bedConfiguration.${i}.type`,
-            `bedConfiguration.${i}.count`,
-          ]),
-        ]}
-      />
+      <ApiErrorAlert error={serverError} inlinePaths={INLINE_API_PATHS} />
 
       <Inline gap="2">
         <Button
@@ -710,6 +774,7 @@ BookableUnitForm.propTypes = {
     bathroomType: PropTypes.string,
     viewType: PropTypes.string,
     smokingPolicy: PropTypes.string,
+    mealPlan: PropTypes.string,
   }),
   profile: bookableUnitProfileShape.isRequired,
   isCreating: PropTypes.bool,

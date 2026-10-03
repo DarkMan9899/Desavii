@@ -15,6 +15,10 @@
  * listing description) — no new resolution logic invented for data that
  * already has one.
  *
+ * Step L6.3A: the room's meal basis is its own line, beds read naturally
+ * ("1 double bed, 2 single beds"), and every price renders in its own
+ * currency (`PriceInCurrency`) — a Partner's USD room is never shown as AMD.
+ *
  * Sprint C-3 (Date-Range Room Availability): once the customer has picked
  * a check-in/check-out range, `unit` additionally carries
  * `availability_status_for_stay`/`remaining_count_for_stay`/
@@ -31,16 +35,20 @@
 
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { Check, Maximize2, Users } from 'lucide-react';
+import { Check, Maximize2, Users, Utensils } from 'lucide-react';
 import { Card, Button, Badge } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import DestinationArt from '../../../../../components/DestinationArt/DestinationArt.jsx';
-import Money from '../../../../../components/Money/Money.jsx';
+import PriceInCurrency from '../../../../../components/Money/PriceInCurrency.jsx';
 import getLocalizedTranslation from '../../../utils/getLocalizedTranslation.js';
 import { resolveUnitDisplayLabel } from '../../../utils/resolveUnitDisplayLabel.js';
 import { formatBedConfiguration } from '../../../utils/bedConfigurationDisplay.js';
 import { resolveAmenityFeatureGroups } from '../../../utils/resolveAmenityFeatureGroups.js';
-import { formatBathroomType, formatViewType } from './roomAttributeLabels.js';
+import {
+  formatBathroomType,
+  formatViewType,
+  formatMealPlan,
+} from './roomAttributeLabels.js';
 import styles from './RoomCard.module.scss';
 
 const CARD_AMENITY_LIMIT = 5;
@@ -69,6 +77,7 @@ export default function RoomCard({
   const bedsSummary = formatBedConfiguration(t, unit.bed_configuration);
   const bathroomLabel = formatBathroomType(t, unit.bathroom_type);
   const viewLabel = formatViewType(t, unit.view_type);
+  const mealLabel = formatMealPlan(t, unit.meal_plan);
   const amenityItems = resolveAmenityFeatureGroups(
     amenityGroups,
     unit.amenity_ids,
@@ -142,6 +151,13 @@ export default function RoomCard({
           )}
         </Inline>
 
+        {mealLabel && (
+          <p className={styles.meal}>
+            <Utensils size={14} aria-hidden="true" />
+            {mealLabel}
+          </p>
+        )}
+
         {(bedsSummary || bathroomLabel || viewLabel) && (
           <p className={styles.subFacts}>
             {[bedsSummary, bathroomLabel, viewLabel]
@@ -170,8 +186,9 @@ export default function RoomCard({
 
         {hasStayInfo && unit.stay_total_amount != null ? (
           <Stack gap="2">
-            <Money
-              amountAmd={unit.stay_total_amount}
+            <PriceInCurrency
+              amount={unit.stay_total_amount}
+              currency={unit.stay_total_currency}
               locale={locale}
               suffix={t('pages.listingDetail.rooms.stayTotalSuffix', {
                 count: unit.night_count_for_stay,
@@ -194,8 +211,9 @@ export default function RoomCard({
           </Stack>
         ) : (
           unit.base_price_amount != null && (
-            <Money
-              amountAmd={unit.base_price_amount}
+            <PriceInCurrency
+              amount={unit.base_price_amount}
+              currency={unit.base_price_currency}
               locale={locale}
               suffix={pricingModelLabel}
               size="md"

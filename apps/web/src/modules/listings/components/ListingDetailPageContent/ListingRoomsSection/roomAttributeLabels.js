@@ -31,4 +31,20 @@ export function formatSmokingPolicy(t, code) {
   });
 }
 
-export default { formatBathroomType, formatViewType, formatSmokingPolicy };
+/**
+ * Step L6.3A — a room's meal / board basis as a guest reads it ("Breakfast
+ * included", "Half board included"), never the internal code.
+ */
+export function formatMealPlan(t, code) {
+  if (!code) return null;
+  return t(`pages.listingDetail.rooms.mealPlans.${code}`, {
+    defaultValue: code,
+  });
+}
+
+export default {
+  formatBathroomType,
+  formatViewType,
+  formatSmokingPolicy,
+  formatMealPlan,
+};

@@ -97,6 +97,20 @@
   color: tokens.$color-gray-600;
   font-size: tokens.$font-size-small;
   margin: 0;
+  overflow-wrap: anywhere;
+}
+
+// Step L6.3A: what the rate includes — the one room fact a guest most often
+// compares rooms by after price, so it reads stronger than the sub-facts.
+.meal {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-1;
+  margin: 0;
+  color: tokens.$color-navy;
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .amenityChip {

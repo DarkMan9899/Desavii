@@ -18,4 +18,14 @@ export const VIEW_TYPES = [
 
 export const SMOKING_POLICIES = ['NON_SMOKING', 'SMOKING_ALLOWED'];
 
-export default { BATHROOM_TYPES, VIEW_TYPES, SMOKING_POLICIES };
+// Step L6.3A — a room's meal / board basis (display only, never priced).
+export const MEAL_PLANS = [
+  'NO_MEALS',
+  'BREAKFAST_INCLUDED',
+  'BREAKFAST_AVAILABLE_EXTRA',
+  'HALF_BOARD',
+  'FULL_BOARD',
+  'ALL_INCLUSIVE',
+];
+
+export default { BATHROOM_TYPES, VIEW_TYPES, SMOKING_POLICIES, MEAL_PLANS };

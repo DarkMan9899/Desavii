@@ -11,7 +11,7 @@
  *   scheduled departure/session (TOUR_DEPARTURE). A restaurant's
  *   reservation time and a vehicle's pickup/return time are chosen by the
  *   customer when booking, never fixed on the unit.
- * - Rich room details (size/bathroom/view/smoking, and the separate room
+ * - Rich room details (size/bathroom/view/smoking/meal basis, and the separate room
  *   description/amenities/photos endpoints) stay HOTEL_ROOM-only for now:
  *   extending them to PROPERTY_UNIT is a deliberately deferred decision.
  *
@@ -30,14 +30,19 @@ export const TYPE_SPECIFIC_UNIT_FIELDS = Object.freeze([
   'bathroomType',
   'viewType',
   'smokingPolicy',
+  'mealPlan',
 ]);
 
 const LODGING_FIELDS = ['maxGuests', 'bedConfiguration'];
+// Step L6.3A: the meal basis is a hotel room's board — a whole-property
+// rental (PROPERTY_UNIT) is self-catering unless a later product decision
+// says otherwise, so it stays HOTEL_ROOM-only like the other room details.
 const HOTEL_ROOM_DETAIL_FIELDS = [
   'roomSizeSqm',
   'bathroomType',
   'viewType',
   'smokingPolicy',
+  'mealPlan',
 ];
 
 export const UNIT_FIELDS_BY_BOOKABLE_UNIT_TYPE = Object.freeze({

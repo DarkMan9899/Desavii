@@ -20,7 +20,7 @@ export {
   unitTypeUsesField,
   supportsRoomDetails,
 } from './constants/bookableUnitFieldApplicability.js';
-export { default as BED_TYPES } from './constants/bedTypes.js';
+export { default as BED_TYPES, BED_COUNT_MAX } from './constants/bedTypes.js';
 export {
   INT_UNSIGNED_MAX,
   SMALLINT_UNSIGNED_MAX,
@@ -30,6 +30,7 @@ export {
   BATHROOM_TYPES,
   VIEW_TYPES,
   SMOKING_POLICIES,
+  MEAL_PLANS,
 } from './constants/roomAttributes.js';
 export { default as useBookableUnitsQuery } from './queries/useBookableUnitsQuery.js';
 export { default as useBlackoutsQuery } from './queries/useBlackoutsQuery.js';

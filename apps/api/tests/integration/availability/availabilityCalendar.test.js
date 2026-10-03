@@ -247,6 +247,8 @@ describe('GET /availability/:listingId/units — public bookable units view (Pha
       bathroom_type: null,
       view_type: null,
       smoking_policy: null,
+      // Step L6.3A: the meal basis, null when never stated.
+      meal_plan: null,
       translations: [],
       amenity_ids: [],
       media: [],

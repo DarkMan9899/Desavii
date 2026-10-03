@@ -480,6 +480,7 @@ export class AvailabilityService {
           bathroomType: input.bathroomType,
           viewType: input.viewType,
           smokingPolicy: input.smokingPolicy,
+          mealPlan: input.mealPlan,
           createdBy: principal.userId,
         },
         connection,
@@ -525,6 +526,7 @@ export class AvailabilityService {
       bathroomType: fields.bathroomType,
       viewType: fields.viewType,
       smokingPolicy: fields.smokingPolicy,
+      mealPlan: fields.mealPlan,
       updatedBy: principal.userId,
     });
     await this.#auditLogger.record({

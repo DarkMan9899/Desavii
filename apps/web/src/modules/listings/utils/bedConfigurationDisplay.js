@@ -1,24 +1,30 @@
 /**
- * P2.2B — compact, read-only bed-configuration summary for the customer-
- * facing `ListingReservationWidget` unit selector. Reuses the exact same
- * `partner.listingWizard.availability.bedSummaryItem` /
- * `partner.listingWizard.bedTypes.*` translation keys the partner-side
- * `BookableUnitsManager` already uses to render this same
- * `bed_configuration` shape (`[{type, count}]`) — no new frontend-only
- * copy invented for data that already has a real, translated
- * representation.
+ * The one human-readable rendering of a room's sleeping setup
+ * (`bed_configuration`: `[{type, count}]`), used wherever beds are shown —
+ * the public room card/detail, the reservation widget's room picker, the
+ * Partner's room list and admin listing detail.
+ *
+ * Step L6.3A: natural, pluralized phrases per bed type
+ * (`pages.listingDetail.rooms.bedCounts.<TYPE>` — "1 double bed",
+ * "2 single beds", "1 child bed available"), never "2 × Single". A zero or
+ * missing count is never shown; an absent setup renders nothing.
  */
 
-export function formatBedConfiguration(t, bedConfiguration) {
-  if (!bedConfiguration || bedConfiguration.length === 0) return null;
-  return bedConfiguration
+/** @returns {string[]} one phrase per bed type present, in stored order. */
+export function describeBedConfiguration(t, bedConfiguration) {
+  return (bedConfiguration ?? [])
+    .filter((row) => row.count > 0)
     .map((row) =>
-      t('partner.listingWizard.availability.bedSummaryItem', {
+      t(`pages.listingDetail.rooms.bedCounts.${row.type}`, {
         count: row.count,
-        type: t(`partner.listingWizard.bedTypes.${row.type}`, row.type),
       }),
-    )
-    .join(', ');
+    );
 }
 
-export default { formatBedConfiguration };
+/** @returns {string|null} the whole setup on one line, or `null` when none is stated. */
+export function formatBedConfiguration(t, bedConfiguration) {
+  const phrases = describeBedConfiguration(t, bedConfiguration);
+  return phrases.length > 0 ? phrases.join(', ') : null;
+}
+
+export default { describeBedConfiguration, formatBedConfiguration };

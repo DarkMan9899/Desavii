@@ -34,20 +34,26 @@ import {
   Bath,
   Eye,
   Cigarette,
+  Baby,
+  Utensils,
 } from 'lucide-react';
 import ListingGallery from '../ListingGallery/ListingGallery.jsx';
 import DestinationArt from '../../../../../components/DestinationArt/DestinationArt.jsx';
-import Money from '../../../../../components/Money/Money.jsx';
+import PriceInCurrency from '../../../../../components/Money/PriceInCurrency.jsx';
 import getLocalizedTranslation from '../../../utils/getLocalizedTranslation.js';
 import { resolveUnitDisplayLabel } from '../../../utils/resolveUnitDisplayLabel.js';
-import { formatBedConfiguration } from '../../../utils/bedConfigurationDisplay.js';
+import { describeBedConfiguration } from '../../../utils/bedConfigurationDisplay.js';
 import { resolveAmenityFeatureGroups } from '../../../utils/resolveAmenityFeatureGroups.js';
 import {
   formatBathroomType,
   formatViewType,
   formatSmokingPolicy,
+  formatMealPlan,
 } from './roomAttributeLabels.js';
 import styles from './RoomDetailModal.module.scss';
+
+// Sleeping options for children, marked with their own icon.
+const CHILD_SLEEPING_TYPES = new Set(['CHILD_BED', 'CRIB']);
 
 export default function RoomDetailModal({
   unit,
@@ -66,7 +72,15 @@ export default function RoomDetailModal({
     unit.translations,
     locale,
   )?.description;
-  const bedsSummary = formatBedConfiguration(t, unit.bed_configuration);
+  // Step L6.3A: one line per bed type, children's options marked apart.
+  const bedLines = (unit.bed_configuration ?? [])
+    .filter((row) => row.count > 0)
+    .map((row, index) => ({
+      type: row.type,
+      label: describeBedConfiguration(t, [row])[0],
+      key: `${row.type}-${index}`,
+    }));
+  const mealLabel = formatMealPlan(t, unit.meal_plan);
   const bathroomLabel = formatBathroomType(t, unit.bathroom_type);
   const viewLabel = formatViewType(t, unit.view_type);
   const smokingLabel = formatSmokingPolicy(t, unit.smoking_policy);
@@ -91,8 +105,9 @@ export default function RoomDetailModal({
         <Inline gap="3" justify="flex-end" wrap className={styles.footer}>
           {hasStayInfo && unit.stay_total_amount != null ? (
             <Stack gap="1">
-              <Money
-                amountAmd={unit.stay_total_amount}
+              <PriceInCurrency
+                amount={unit.stay_total_amount}
+                currency={unit.stay_total_currency}
                 locale={locale}
                 suffix={t('pages.listingDetail.rooms.stayTotalSuffix', {
                   count: unit.night_count_for_stay,
@@ -115,8 +130,9 @@ export default function RoomDetailModal({
             </Stack>
           ) : (
             unit.base_price_amount != null && (
-              <Money
-                amountAmd={unit.base_price_amount}
+              <PriceInCurrency
+                amount={unit.base_price_amount}
+                currency={unit.base_price_currency}
                 locale={locale}
                 suffix={pricingModelLabel}
                 size="md"
@@ -159,12 +175,6 @@ export default function RoomDetailModal({
               })}
             </span>
           )}
-          {bedsSummary && (
-            <span className={styles.keyFact}>
-              <BedDouble size={18} aria-hidden="true" />
-              {bedsSummary}
-            </span>
-          )}
           {unit.room_size_sqm != null && (
             <span className={styles.keyFact}>
               <Maximize2 size={18} aria-hidden="true" />
@@ -176,27 +186,65 @@ export default function RoomDetailModal({
           )}
         </Inline>
 
+        {bedLines.length > 0 && (
+          <Stack gap="2">
+            <h3 className={styles.amenitiesHeading}>
+              {t('pages.listingDetail.rooms.sleepingHeading')}
+            </h3>
+            <ul className={styles.bedList}>
+              {bedLines.map((line) => {
+                const Icon = CHILD_SLEEPING_TYPES.has(line.type)
+                  ? Baby
+                  : BedDouble;
+                return (
+                  <li key={line.key} className={styles.keyFact}>
+                    <Icon size={18} aria-hidden="true" />
+                    {line.label}
+                  </li>
+                );
+              })}
+            </ul>
+          </Stack>
+        )}
+
+        {mealLabel && (
+          <Stack gap="2">
+            <h3 className={styles.amenitiesHeading}>
+              {t('pages.listingDetail.rooms.mealsHeading')}
+            </h3>
+            <p className={styles.meal}>
+              <Utensils size={18} aria-hidden="true" />
+              {mealLabel}
+            </p>
+          </Stack>
+        )}
+
         {(bathroomLabel || viewLabel || smokingLabel) && (
-          <Inline gap="6" wrap className={styles.keyFacts}>
-            {bathroomLabel && (
-              <span className={styles.keyFact}>
-                <Bath size={18} aria-hidden="true" />
-                {bathroomLabel}
-              </span>
-            )}
-            {viewLabel && (
-              <span className={styles.keyFact}>
-                <Eye size={18} aria-hidden="true" />
-                {viewLabel}
-              </span>
-            )}
-            {smokingLabel && (
-              <span className={styles.keyFact}>
-                <Cigarette size={18} aria-hidden="true" />
-                {smokingLabel}
-              </span>
-            )}
-          </Inline>
+          <Stack gap="2">
+            <h3 className={styles.amenitiesHeading}>
+              {t('pages.listingDetail.rooms.roomDetailsHeading')}
+            </h3>
+            <Inline gap="6" wrap className={styles.keyFacts}>
+              {bathroomLabel && (
+                <span className={styles.keyFact}>
+                  <Bath size={18} aria-hidden="true" />
+                  {bathroomLabel}
+                </span>
+              )}
+              {viewLabel && (
+                <span className={styles.keyFact}>
+                  <Eye size={18} aria-hidden="true" />
+                  {viewLabel}
+                </span>
+              )}
+              {smokingLabel && (
+                <span className={styles.keyFact}>
+                  <Cigarette size={18} aria-hidden="true" />
+                  {smokingLabel}
+                </span>
+              )}
+            </Inline>
+          </Stack>
         )}
 
         {amenityGroupsResolved.length > 0 && (

@@ -1859,11 +1859,7 @@
         "capacityTooLarge": "Առավելագույնը 4 294 967 295 է։",
         "maxGuestsInvalid": "Մուտքագրեք ամբողջ թիվ՝ 1-ից 100-ի միջակայքում։",
         "bedConfiguration": "Մահճակալների կազմաձևում",
-        "bedType": "Մահճակալի տեսակ",
-        "bedCount": "Քանակ",
-        "bedCountInvalid": "Մուտքագրեք մահճակալների ամբողջ թիվ՝ 1-ից 20-ի միջակայքում։",
-        "removeBed": "Հեռացնել",
-        "addBed": "Ավելացնել մահճակալ",
+        "bedCountInvalid": "Մուտքագրեք ամբողջ թիվ՝ 0-ից 20։",
         "basePriceCurrency": "Արժույթ",
         "basePriceIncomplete": "Նշեք և՛ գումարը, և՛ արժույթը, կամ թողեք երկուսն էլ դատարկ։",
         "basePriceAmountInvalid": "Մուտքագրեք վավեր գին։",
@@ -1875,7 +1871,6 @@
         "editUnit": "Խմբագրել",
         "capacitySummary": "{{count}} հասանելի",
         "maxGuestsSummary": "Ընդունում է {{count}} հյուր",
-        "bedSummaryItem": "{{count}} × {{type}}",
         "saveUnit": "Պահպանել փոփոխությունները",
         "roomBasicsHeading": "Սենյակի հիմնական տվյալներ",
         "roomSizeSqm": "Սենյակի մակերես (մ²)",
@@ -1909,7 +1904,15 @@
           "departure": "Որքան նախապես եք ցանկանում, որ հյուրերն ամրագրեն՝ մեկնումից առաջ, ժամերով։",
           "reservation": "Որքան նախապես եք ցանկանում, որ հյուրերն ամրագրեն՝ ամրագրման ժամից առաջ, ժամերով։",
           "visit": "Որքան նախապես եք ցանկանում, որ այցելուներն ամրագրեն՝ սեանսից կամ այցից առաջ, ժամերով։"
-        }
+        },
+        "bedsHint": "Նշեք, թե յուրաքանչյուր տեսակի քանի մահճակալ կա այս սենյակում։ 0՝ եթե չկա։",
+        "bedsMainGroup": "Մահճակալներ",
+        "bedsExtraGroup": "Լրացուցիչ և մանկական տեղեր",
+        "bedsExtraHint": "Լրացուցիչ հյուրերի և երեխաների համար ընտրովի տեղեր։ Տարիքային կանոններն ու վճարները նշեք հյուրանոցի կանոններում։",
+        "roomMealsHeading": "Սնունդ",
+        "mealPlan": "Սննդի տարբերակ",
+        "mealPlanHint": "Ինչ է ներառված այս սենյակի գնի մեջ։ Գիշերվա գինը չի փոխվում։",
+        "notSpecified": "Նշված չէ"
       },
       "bookableUnitTypes": {
         "HOTEL_ROOM": "Հյուրանոցի սենյակ",
@@ -2014,13 +2017,16 @@
         "dayCount": "{{count}} օր"
       },
       "bedTypes": {
-        "SINGLE": "Մեկտեղանոց",
-        "DOUBLE": "Երկտեղանոց",
-        "QUEEN": "Քուին",
-        "KING": "Քինգ",
-        "TWIN": "Երկու առանձին մահճակալ",
+        "SINGLE": "Մեկտեղանոց մահճակալ",
+        "DOUBLE": "Երկտեղանոց մահճակալ",
+        "QUEEN": "Queen չափի մահճակալ",
+        "KING": "King չափի մահճակալ",
+        "TWIN": "Առանձին մեկտեղանոց մահճակալ (twin)",
         "SOFA_BED": "Բազմոց-մահճակալ",
-        "BUNK": "Երկհարկանի մահճակալ"
+        "BUNK": "Երկհարկանի մահճակալ",
+        "EXTRA_BED": "Լրացուցիչ մահճակալ",
+        "CHILD_BED": "Մանկական մահճակալ",
+        "CRIB": "Մանկական օրորոց"
       },
       "bathroomTypes": {
         "PRIVATE": "Սեփական լոգարան",
@@ -2134,6 +2140,14 @@
         "perDay": "{{amount}} {{currency}} / օր",
         "perPerson": "{{amount}} {{currency}} / անձ",
         "neutral": "{{amount}} {{currency}}"
+      },
+      "mealPlans": {
+        "NO_MEALS": "Առանց սննդի",
+        "BREAKFAST_INCLUDED": "Նախաճաշը ներառված է",
+        "BREAKFAST_AVAILABLE_EXTRA": "Նախաճաշը հասանելի է լրացուցիչ վճարով",
+        "HALF_BOARD": "Կիսապանսիոն (նախաճաշ և ընթրիք)",
+        "FULL_BOARD": "Լրիվ պանսիոն (նախաճաշ, ճաշ և ընթրիք)",
+        "ALL_INCLUSIVE": "Ամեն ինչ ներառված է"
       }
     },
     "listingRooms": {
@@ -3765,7 +3779,40 @@
         "selectDatesHint": "Ընտրեք ձեր ամսաթվերը ամրագրման վահանակում՝ յուրաքանչյուր սենյակի իրական հասանելիությունն ու գինը տեսնելու համար։",
         "stayTotalSuffix": "ընդամենը {{count}} գիշերվա համար",
         "soldOutForDates": "Սպառված է այս ամսաթվերի համար",
-        "fewRoomsLeftForStay": "Այս ամսաթվերի համար մնացել է ընդամենը {{count}}"
+        "fewRoomsLeftForStay": "Այս ամսաթվերի համար մնացել է ընդամենը {{count}}",
+        "bedCounts": {
+          "SINGLE_one": "{{count}} մեկտեղանոց մահճակալ",
+          "SINGLE_other": "{{count}} մեկտեղանոց մահճակալ",
+          "DOUBLE_one": "{{count}} երկտեղանոց մահճակալ",
+          "DOUBLE_other": "{{count}} երկտեղանոց մահճակալ",
+          "QUEEN_one": "{{count}} queen չափի մահճակալ",
+          "QUEEN_other": "{{count}} queen չափի մահճակալ",
+          "KING_one": "{{count}} king չափի մահճակալ",
+          "KING_other": "{{count}} king չափի մահճակալ",
+          "TWIN_one": "{{count}} առանձին մեկտեղանոց մահճակալ",
+          "TWIN_other": "{{count}} առանձին մեկտեղանոց մահճակալ",
+          "SOFA_BED_one": "{{count}} բազմոց-մահճակալ",
+          "SOFA_BED_other": "{{count}} բազմոց-մահճակալ",
+          "BUNK_one": "{{count}} երկհարկանի մահճակալ",
+          "BUNK_other": "{{count}} երկհարկանի մահճակալ",
+          "EXTRA_BED_one": "Հասանելի է {{count}} լրացուցիչ մահճակալ",
+          "EXTRA_BED_other": "Հասանելի է {{count}} լրացուցիչ մահճակալ",
+          "CHILD_BED_one": "Հասանելի է {{count}} մանկական մահճակալ",
+          "CHILD_BED_other": "Հասանելի է {{count}} մանկական մահճակալ",
+          "CRIB_one": "Հասանելի է {{count}} մանկական օրորոց",
+          "CRIB_other": "Հասանելի է {{count}} մանկական օրորոց"
+        },
+        "mealPlans": {
+          "NO_MEALS": "Սնունդը ներառված չէ",
+          "BREAKFAST_INCLUDED": "Նախաճաշը ներառված է",
+          "BREAKFAST_AVAILABLE_EXTRA": "Նախաճաշը հասանելի է լրացուցիչ վճարով",
+          "HALF_BOARD": "Կիսապանսիոնը ներառված է",
+          "FULL_BOARD": "Լրիվ պանսիոնը ներառված է",
+          "ALL_INCLUSIVE": "Ամեն ինչ ներառված է"
+        },
+        "sleepingHeading": "Քնելու տեղեր",
+        "mealsHeading": "Սնունդ",
+        "roomDetailsHeading": "Սենյակի մանրամասներ"
       },
       "relatedListings": {
         "heading": "Ձեզ նաև կարող է հետաքրքրել"

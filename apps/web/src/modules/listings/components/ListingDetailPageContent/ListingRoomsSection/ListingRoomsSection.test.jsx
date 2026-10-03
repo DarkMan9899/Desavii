@@ -242,7 +242,7 @@ describe('ListingRoomsSection (Sprint C-2)', () => {
     expect(
       within(dialog).queryByText('A spacious deluxe suite.'),
     ).not.toBeInTheDocument();
-    expect(within(dialog).getByText(/1 × Queen/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/1 queen bed/)).toBeInTheDocument();
     expect(within(dialog).getByText('18 m²')).toBeInTheDocument();
     expect(within(dialog).getByText('Private bathroom')).toBeInTheDocument();
     expect(within(dialog).getByText('Garden view')).toBeInTheDocument();
@@ -413,5 +413,140 @@ describe('ListingRoomsSection (Sprint C-2)', () => {
     expect(within(dialog).getByText('Այգու տեսարան')).toBeInTheDocument();
     expect(within(dialog).queryByText('PRIVATE')).not.toBeInTheDocument();
     expect(within(dialog).queryByText('GARDEN')).not.toBeInTheDocument();
+  });
+});
+
+// Step L6.3A — the room details a guest decides by: the full sleeping
+// setup, the meal basis and prices in their own currency.
+describe('ListingRoomsSection — room decision information (Step L6.3A)', () => {
+  const FAMILY_ROOM = {
+    ...STANDARD_ROOM,
+    id: 103,
+    unit_label: 'Family Room',
+    bed_configuration: [
+      { type: 'DOUBLE', count: 1 },
+      { type: 'SINGLE', count: 2 },
+      { type: 'CHILD_BED', count: 1 },
+      { type: 'CRIB', count: 1 },
+    ],
+    meal_plan: 'BREAKFAST_INCLUDED',
+  };
+
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+    useListingBookableUnitsQuery.mockReset();
+  });
+
+  test('the card shows the meal basis and the natural bed setup', () => {
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: [FAMILY_ROOM],
+      isPending: false,
+    });
+    renderSection();
+
+    expect(screen.getByText('Breakfast included')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /1 double bed, 2 single beds, 1 child bed available, 1 baby cot available/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  test('the room detail lists each bed type and the meals on their own lines', async () => {
+    const user = userEvent.setup();
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: [FAMILY_ROOM],
+      isPending: false,
+    });
+    renderSection();
+
+    await user.click(screen.getByRole('button', { name: /View Family Room/ }));
+    const dialog = screen.getByRole('dialog');
+    const sleeping = within(dialog).getByRole('heading', {
+      name: 'Sleeping arrangements',
+    }).parentElement;
+    const beds = within(sleeping).getAllByRole('listitem');
+    expect(beds.map((item) => item.textContent)).toEqual([
+      '1 double bed',
+      '2 single beds',
+      '1 child bed available',
+      '1 baby cot available',
+    ]);
+    expect(
+      within(dialog).getByRole('heading', { name: 'Meals' }),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText('Breakfast included')).toBeInTheDocument();
+  });
+
+  test('a room with no stated beds or meals simply omits them — no empty headings', async () => {
+    const user = userEvent.setup();
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: [
+        {
+          ...STANDARD_ROOM,
+          bed_configuration: null,
+          meal_plan: null,
+          bathroom_type: null,
+          view_type: null,
+          smoking_policy: null,
+          room_size_sqm: null,
+        },
+      ],
+      isPending: false,
+    });
+    renderSection();
+
+    await user.click(
+      screen.getByRole('button', { name: /View Standard Room/ }),
+    );
+    const dialog = screen.getByRole('dialog');
+    ['Sleeping arrangements', 'Meals', 'Room details'].forEach((heading) =>
+      expect(
+        within(dialog).queryByRole('heading', { name: heading }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  test('a non-AMD room price is shown in its own currency, never as AMD', () => {
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: [
+        {
+          ...STANDARD_ROOM,
+          base_price_amount: '120.00',
+          base_price_currency: 'USD',
+        },
+      ],
+      isPending: false,
+    });
+    renderSection();
+
+    expect(screen.getByText(/\$120\.00/)).toBeInTheDocument();
+    expect(screen.queryByText(/֏/)).not.toBeInTheDocument();
+  });
+
+  test.each([
+    [
+      'hy',
+      'Նախաճաշը ներառված է',
+      /1 երկտեղանոց մահճակալ, 2 մեկտեղանոց մահճակալ, Հասանելի է 1 մանկական մահճակալ/,
+    ],
+    [
+      'ru',
+      'Завтрак включён',
+      /1 двуспальная кровать, 2 односпальные кровати, Доступна 1 детская кровать/,
+    ],
+  ])('%s renders natural bed and meal wording', async (lng, meal, beds) => {
+    await i18n.changeLanguage(lng);
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: [FAMILY_ROOM],
+      isPending: false,
+    });
+    renderSection({ locale: lng });
+
+    expect(screen.getByText(meal)).toBeInTheDocument();
+    expect(screen.getByText(beds)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/BREAKFAST_INCLUDED|CHILD_BED/),
+    ).not.toBeInTheDocument();
   });
 });

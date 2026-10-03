@@ -24,4 +24,16 @@ export const SMOKING_POLICIES = Object.freeze([
   'SMOKING_ALLOWED',
 ]);
 
-export default { BATHROOM_TYPES, VIEW_TYPES, SMOKING_POLICIES };
+// Step L6.3A — a room's meal / board basis (migration 0053). Display
+// information only: it never changes the booking charge, which stays the
+// room's nightly price.
+export const MEAL_PLANS = Object.freeze([
+  'NO_MEALS',
+  'BREAKFAST_INCLUDED',
+  'BREAKFAST_AVAILABLE_EXTRA',
+  'HALF_BOARD',
+  'FULL_BOARD',
+  'ALL_INCLUSIVE',
+]);
+
+export default { BATHROOM_TYPES, VIEW_TYPES, SMOKING_POLICIES, MEAL_PLANS };

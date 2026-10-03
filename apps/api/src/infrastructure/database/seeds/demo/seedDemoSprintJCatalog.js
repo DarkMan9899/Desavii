@@ -219,6 +219,7 @@ const LISTINGS = [
         maxGuests: 2,
         basePriceAmount: 16000,
         bedConfiguration: [{ type: 'QUEEN', count: 1 }],
+        mealPlan: 'NO_MEALS',
         roomSizeSqm: 20,
         bathroomType: 'PRIVATE',
         viewType: 'CITY',
@@ -241,6 +242,7 @@ const LISTINGS = [
           { type: 'QUEEN', count: 1 },
           { type: 'SOFA_BED', count: 1 },
         ],
+        mealPlan: 'BREAKFAST_INCLUDED',
         roomSizeSqm: 30,
         bathroomType: 'ENSUITE',
         viewType: 'COURTYARD',
@@ -2137,6 +2139,7 @@ async function createFullListing(connection, ctx, spec) {
       bathroomType: unit.bathroomType ?? null,
       viewType: unit.viewType ?? null,
       smokingPolicy: unit.smokingPolicy ?? null,
+      mealPlan: unit.mealPlan ?? null,
     });
     // eslint-disable-next-line no-await-in-loop -- sequential by design
     await seedCalendarWindow(connection, {

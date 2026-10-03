@@ -11,11 +11,12 @@
 import { z } from 'zod';
 import { CALENDAR_DAY_STATUSES } from '../../../core/domain/calendarExpansion.js';
 import { BOOKABLE_UNIT_TYPES } from '../../../core/domain/bookableUnitTypes.js';
-import { BED_TYPES } from '../../../core/domain/bedTypes.js';
+import { BED_TYPES, BED_COUNT_MAX } from '../../../core/domain/bedTypes.js';
 import {
   BATHROOM_TYPES,
   VIEW_TYPES,
   SMOKING_POLICIES,
+  MEAL_PLANS,
 } from '../../../core/domain/roomAttributes.js';
 import { isoDateSchema } from '../../../validation/isoDate.js';
 import {
@@ -54,19 +55,39 @@ const paginationShape = {
 // availabilityService.js's header comment: unit creation is always an
 // explicit call, never a side effect of a calendar write) ---
 
-// P2.2A — a room/unit type's occupancy structure: e.g. `[{type: 'KING',
-// count: 1}, {type: 'TWIN', count: 2}]`. Optional and unbounded-but-small
-// (a real room has a handful of beds, not hundreds) — `max(12)` is a
-// sanity ceiling, not a real product constraint.
+// P2.2A — a room/unit type's sleeping setup: e.g. `[{type: 'DOUBLE',
+// count: 1}, {type: 'SINGLE', count: 2}, {type: 'CHILD_BED', count: 1}]`.
+//
+// Step L6.3A: one entry per bed type (a repeated type is rejected, never
+// summed), each a JSON integer quantity 0..BED_COUNT_MAX — strings and
+// fractions are rejected, never coerced. Zero means "not present": zero
+// entries are dropped, and a setup with no beds left is stored as `null`
+// (the same "nothing stated" a legacy room has).
 const bedConfigurationSchema = z
   .array(
     z.object({
       type: z.enum(BED_TYPES),
-      count: z.coerce.number().int().positive().max(20),
+      count: z.number().int().min(0).max(BED_COUNT_MAX),
     }),
   )
-  .max(12)
-  .optional();
+  .max(BED_TYPES.length)
+  .superRefine((rows, ctx) => {
+    const seen = new Set();
+    rows.forEach((row, index) => {
+      if (seen.has(row.type)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Each bed type may appear only once.',
+          path: [index, 'type'],
+        });
+      }
+      seen.add(row.type);
+    });
+  })
+  .transform((rows) => {
+    const present = rows.filter((row) => row.count > 0);
+    return present.length > 0 ? present : null;
+  });
 
 // Integer quantities/capacities are all `INT UNSIGNED` columns
 // (`bookable_units.capacity`, `inventory_blocks.quantity`,
@@ -124,7 +145,7 @@ export const registerUnitSchema = z.object({
       // P2.2A: guest occupancy — deliberately separate from `capacity`
       // (inventory quantity of this room/unit TYPE, unchanged meaning).
       maxGuests: z.coerce.number().int().positive().max(100).optional(),
-      bedConfiguration: bedConfigurationSchema,
+      bedConfiguration: bedConfigurationSchema.optional(),
       basePriceAmount: positiveDecimalMoneyAmountSchema.optional(),
       basePriceCurrency: z.string().trim().length(3).toUpperCase().optional(),
       // Sprint C-1 (Accommodation room-level product data) — structured,
@@ -135,6 +156,8 @@ export const registerUnitSchema = z.object({
       bathroomType: z.enum(BATHROOM_TYPES).optional(),
       viewType: z.enum(VIEW_TYPES).optional(),
       smokingPolicy: z.enum(SMOKING_POLICIES).optional(),
+      // Step L6.3A: the room's meal / board basis (display only).
+      mealPlan: z.enum(MEAL_PLANS).optional(),
     })
     .superRefine(refineBasePricePair),
 });
@@ -148,6 +171,10 @@ export const unitIdParamsSchema = z.object({
 // P2.2A — partial edit of an already-registered unit. `bookableUnitType`
 // is intentionally not editable here (see `bookableUnitService.updateUnit`'s
 // own comment: booking-history implications are out of this slice's scope).
+//
+// Step L6.3A: an omitted field keeps its value; an explicit `null` clears
+// an optional room detail (occupancy, beds, size, bathroom, view, smoking,
+// meal basis) — the only way to remove one once stated.
 export const updateUnitSchema = z.object({
   params: idParams,
   query: passthroughQuery,
@@ -155,14 +182,21 @@ export const updateUnitSchema = z.object({
     .object({
       unitLabel: z.string().trim().min(1).max(120).optional(),
       capacity: unsignedIntQuantity.positive().optional(),
-      maxGuests: z.coerce.number().int().positive().max(100).optional(),
-      bedConfiguration: bedConfigurationSchema,
+      maxGuests: z.coerce
+        .number()
+        .int()
+        .positive()
+        .max(100)
+        .nullable()
+        .optional(),
+      bedConfiguration: bedConfigurationSchema.nullable().optional(),
       basePriceAmount: positiveDecimalMoneyAmountSchema.optional(),
       basePriceCurrency: z.string().trim().length(3).toUpperCase().optional(),
-      roomSizeSqm: roomSizeSqmSchema.optional(),
-      bathroomType: z.enum(BATHROOM_TYPES).optional(),
-      viewType: z.enum(VIEW_TYPES).optional(),
-      smokingPolicy: z.enum(SMOKING_POLICIES).optional(),
+      roomSizeSqm: roomSizeSqmSchema.nullable().optional(),
+      bathroomType: z.enum(BATHROOM_TYPES).nullable().optional(),
+      viewType: z.enum(VIEW_TYPES).nullable().optional(),
+      smokingPolicy: z.enum(SMOKING_POLICIES).nullable().optional(),
+      mealPlan: z.enum(MEAL_PLANS).nullable().optional(),
     })
     .refine((data) => Object.keys(data).length > 0, {
       message: 'At least one field must be provided.',

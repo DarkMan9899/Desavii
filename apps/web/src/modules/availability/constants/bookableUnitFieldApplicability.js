@@ -11,6 +11,7 @@ const HOTEL_ROOM_DETAIL_FIELDS = [
   'bathroomType',
   'viewType',
   'smokingPolicy',
+  'mealPlan',
 ];
 
 export const UNIT_FIELDS_BY_BOOKABLE_UNIT_TYPE = Object.freeze({

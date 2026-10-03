@@ -87,6 +87,8 @@ export async function insertBookableUnit(
     bathroomType = null,
     viewType = null,
     smokingPolicy = null,
+    // Step L6.3A: the room's meal / board basis code.
+    mealPlan = null,
   },
 ) {
   const [result] = await connection.query(
@@ -94,9 +96,9 @@ export async function insertBookableUnit(
       (listing_id, bookable_unit_type_id, source_table, source_id, capacity,
        time_slot_start, time_slot_end, unit_label,
        max_guests, bed_configuration, base_price_amount, base_price_currency_id,
-       room_size_sqm, bathroom_type, view_type, smoking_policy,
+       room_size_sqm, bathroom_type, view_type, smoking_policy, meal_plan,
        created_by, updated_by)
-     VALUES (?, ?, 'listings', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, 'listings', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       listingId,
       bookableUnitTypeId,
@@ -113,6 +115,7 @@ export async function insertBookableUnit(
       bathroomType,
       viewType,
       smokingPolicy,
+      mealPlan,
       ownerUserId,
       ownerUserId,
     ],
@@ -506,6 +509,7 @@ export default async function seedDemoInventoryScenarios(connection) {
     ownerUserId,
     maxGuests: 2,
     bedConfiguration: [{ type: 'DOUBLE', count: 1 }],
+    mealPlan: 'BREAKFAST_AVAILABLE_EXTRA',
     basePriceAmount: 18000,
     basePriceCurrencyId: amdCurrencyId,
     roomSizeSqm: 18,
@@ -523,7 +527,9 @@ export default async function seedDemoInventoryScenarios(connection) {
     bedConfiguration: [
       { type: 'QUEEN', count: 1 },
       { type: 'SOFA_BED', count: 1 },
+      { type: 'CRIB', count: 1 },
     ],
+    mealPlan: 'BREAKFAST_INCLUDED',
     basePriceAmount: 32000,
     basePriceCurrencyId: amdCurrencyId,
     roomSizeSqm: 28,
@@ -540,8 +546,10 @@ export default async function seedDemoInventoryScenarios(connection) {
     maxGuests: 4,
     bedConfiguration: [
       { type: 'KING', count: 1 },
-      { type: 'TWIN', count: 2 },
+      { type: 'SINGLE', count: 2 },
+      { type: 'CHILD_BED', count: 1 },
     ],
+    mealPlan: 'HALF_BOARD',
     basePriceAmount: 45000,
     basePriceCurrencyId: amdCurrencyId,
     roomSizeSqm: 42,

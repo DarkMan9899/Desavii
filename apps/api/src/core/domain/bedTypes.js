@@ -15,6 +15,17 @@ export const BED_TYPES = Object.freeze([
   'TWIN',
   'SOFA_BED',
   'BUNK',
+  // Step L6.3A — the physical sleeping options beyond the room's own beds,
+  // kept as three distinct things: an extra (adult) bed, a child-size bed,
+  // and a baby crib/cot. Age rules and charges are hotel policy, never
+  // implied by these.
+  'EXTRA_BED',
+  'CHILD_BED',
+  'CRIB',
 ]);
 
-export default { BED_TYPES };
+// Step L6.3A — a sanity ceiling for one bed type's quantity in one room
+// (a real room has a handful of beds), not a product rule.
+export const BED_COUNT_MAX = 20;
+
+export default { BED_TYPES, BED_COUNT_MAX };

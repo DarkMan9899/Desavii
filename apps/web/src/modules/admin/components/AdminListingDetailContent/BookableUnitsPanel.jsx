@@ -9,8 +9,8 @@
  *
  * Reuses the exact bed/unit-type i18n vocabulary and summary wording the
  * Partner-side `BookableUnitsManager.jsx` already established
- * (`partner.listingWizard.bedTypes.*` / `bookableUnitTypes.*` /
- * `availability.{capacitySummary,maxGuestsSummary,bedSummaryItem}`) —
+ * (`bookableUnitTypes.*` / `availability.{capacitySummary,maxGuestsSummary}`,
+ * and the shared `formatBedConfiguration` bed wording) —
  * the same real enum values read the same way in both places, not a
  * parallel admin-only vocabulary. Base price uses the shared `PriceTag`
  * primitive instead of the partner view's own "{{amount}} {{currency}} /
@@ -32,21 +32,10 @@ import { Card, Badge } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import { PriceTag } from '@desavii/ui/components/data-display';
 import { Skeleton, EmptyState } from '@desavii/ui/components/feedback-overlays';
-import { useListingBookableUnitsQuery } from '../../../listings/index.js';
-
-function formatBedConfiguration(t, bedConfiguration) {
-  if (!bedConfiguration || bedConfiguration.length === 0) return null;
-  return bedConfiguration
-    .map((row) =>
-      t('partner.listingWizard.availability.bedSummaryItem', {
-        count: row.count,
-        type: t(`partner.listingWizard.bedTypes.${row.type}`, {
-          defaultValue: row.type,
-        }),
-      }),
-    )
-    .join(', ');
-}
+import {
+  useListingBookableUnitsQuery,
+  formatBedConfiguration,
+} from '../../../listings/index.js';
 
 function BookableUnitRow({ unit }) {
   const { t, i18n } = useTranslation();

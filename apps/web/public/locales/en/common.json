@@ -1867,11 +1867,7 @@
         "capacityTooLarge": "Maximum is 4,294,967,295.",
         "maxGuestsInvalid": "Enter a whole number between 1 and 100.",
         "bedConfiguration": "Bed configuration",
-        "bedType": "Bed type",
-        "bedCount": "Count",
-        "bedCountInvalid": "Enter a whole number of beds between 1 and 20.",
-        "removeBed": "Remove",
-        "addBed": "Add bed",
+        "bedCountInvalid": "Enter a whole number from 0 to 20.",
         "basePriceCurrency": "Currency",
         "basePriceIncomplete": "Enter both an amount and a currency, or leave both blank.",
         "basePriceAmountInvalid": "Enter a valid price.",
@@ -1883,7 +1879,6 @@
         "editUnit": "Edit",
         "capacitySummary": "{{count}} available",
         "maxGuestsSummary": "Sleeps {{count}}",
-        "bedSummaryItem": "{{count}} × {{type}}",
         "saveUnit": "Save changes",
         "roomBasicsHeading": "Room basics",
         "roomSizeSqm": "Room size (m²)",
@@ -1917,7 +1912,15 @@
           "departure": "How much notice you'd like guests to give before departure, in hours.",
           "reservation": "How much notice you'd like guests to give before the reservation time, in hours.",
           "visit": "How much notice you'd like visitors to give before the session or visit, in hours."
-        }
+        },
+        "bedsHint": "How many of each bed this room has. Leave 0 for none.",
+        "bedsMainGroup": "Beds",
+        "bedsExtraGroup": "Extra and children’s sleeping",
+        "bedsExtraHint": "Optional sleeping for extra guests and children. Age rules and charges belong in your hotel policies.",
+        "roomMealsHeading": "Meals",
+        "mealPlan": "Meal plan",
+        "mealPlanHint": "What this room’s rate includes. It doesn’t change the nightly price.",
+        "notSpecified": "Not specified"
       },
       "bookableUnitTypes": {
         "HOTEL_ROOM": "Hotel room",
@@ -2022,13 +2025,16 @@
         "dayCount": "{{count}} days"
       },
       "bedTypes": {
-        "SINGLE": "Single",
-        "DOUBLE": "Double",
-        "QUEEN": "Queen",
-        "KING": "King",
-        "TWIN": "Twin",
+        "SINGLE": "Single bed",
+        "DOUBLE": "Double bed",
+        "QUEEN": "Queen bed",
+        "KING": "King bed",
+        "TWIN": "Twin bed",
         "SOFA_BED": "Sofa bed",
-        "BUNK": "Bunk bed"
+        "BUNK": "Bunk bed",
+        "EXTRA_BED": "Extra bed",
+        "CHILD_BED": "Child bed",
+        "CRIB": "Baby cot / crib"
       },
       "bathroomTypes": {
         "PRIVATE": "Private bathroom",
@@ -2142,6 +2148,14 @@
         "perDay": "{{amount}} {{currency}} / day",
         "perPerson": "{{amount}} {{currency}} / person",
         "neutral": "{{amount}} {{currency}}"
+      },
+      "mealPlans": {
+        "NO_MEALS": "No meals",
+        "BREAKFAST_INCLUDED": "Breakfast included",
+        "BREAKFAST_AVAILABLE_EXTRA": "Breakfast available for an extra charge",
+        "HALF_BOARD": "Half board (breakfast and dinner)",
+        "FULL_BOARD": "Full board (breakfast, lunch and dinner)",
+        "ALL_INCLUSIVE": "All inclusive"
       }
     },
     "listingRooms": {
@@ -3773,7 +3787,40 @@
         "selectDatesHint": "Select your dates in the reservation panel to see live availability and pricing for each room.",
         "stayTotalSuffix": "{{count}}-night stay total",
         "soldOutForDates": "Sold out for these dates",
-        "fewRoomsLeftForStay": "Only {{count}} left for these dates"
+        "fewRoomsLeftForStay": "Only {{count}} left for these dates",
+        "bedCounts": {
+          "SINGLE_one": "{{count}} single bed",
+          "SINGLE_other": "{{count}} single beds",
+          "DOUBLE_one": "{{count}} double bed",
+          "DOUBLE_other": "{{count}} double beds",
+          "QUEEN_one": "{{count}} queen bed",
+          "QUEEN_other": "{{count}} queen beds",
+          "KING_one": "{{count}} king bed",
+          "KING_other": "{{count}} king beds",
+          "TWIN_one": "{{count}} twin bed",
+          "TWIN_other": "{{count}} twin beds",
+          "SOFA_BED_one": "{{count}} sofa bed",
+          "SOFA_BED_other": "{{count}} sofa beds",
+          "BUNK_one": "{{count}} bunk bed",
+          "BUNK_other": "{{count}} bunk beds",
+          "EXTRA_BED_one": "{{count}} extra bed available",
+          "EXTRA_BED_other": "{{count}} extra beds available",
+          "CHILD_BED_one": "{{count}} child bed available",
+          "CHILD_BED_other": "{{count}} child beds available",
+          "CRIB_one": "{{count}} baby cot available",
+          "CRIB_other": "{{count}} baby cots available"
+        },
+        "mealPlans": {
+          "NO_MEALS": "No meals included",
+          "BREAKFAST_INCLUDED": "Breakfast included",
+          "BREAKFAST_AVAILABLE_EXTRA": "Breakfast available for an extra charge",
+          "HALF_BOARD": "Half board included",
+          "FULL_BOARD": "Full board included",
+          "ALL_INCLUSIVE": "All inclusive"
+        },
+        "sleepingHeading": "Sleeping arrangements",
+        "mealsHeading": "Meals",
+        "roomDetailsHeading": "Room details"
       },
       "relatedListings": {
         "heading": "You might also like"
