@@ -28,6 +28,7 @@
     "db:reset:dev": "node src/infrastructure/database/cli/resetDev.js",
     "db:seed:demo": "node src/infrastructure/database/cli/seedDemo.js",
     "db:seed:demo:dev": "node src/infrastructure/database/cli/seedDemoDev.js",
+    "db:seed:qa": "node src/infrastructure/database/cli/seedQaDev.js",
     "db:reencrypt-connector-configs": "node src/infrastructure/database/cli/reencryptInventoryConnectorConfigs.js",
     "db:backup": "node src/infrastructure/database/cli/backupDatabase.js",
     "db:backup:verify": "node src/infrastructure/database/cli/verifyBackup.js"

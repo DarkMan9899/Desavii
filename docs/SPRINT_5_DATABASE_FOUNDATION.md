@@ -294,6 +294,60 @@ The vendor account owns a seeded sample partner, "Yerevan Boutique
 Hospitality" (`slug: yerevan-boutique-hospitality`), pre-approved
 (`verification_status`/`moderation_status` = `APPROVED`).
 
+### Local QA marketplace (`db:seed:qa`)
+
+```bash
+npm run db:seed:qa -- --confirm   # LOCAL DEV ONLY: rebuilds DATABASE_NAME
+```
+
+Drops and recreates the **local development** database (`DATABASE_NAME`),
+applies every migration, runs `seedAll()`, then the Sprint J catalog and the
+QA environment (`seeds/demo/seedDemoQaEnvironment.js`). It refuses to run
+without `--confirm`, under `NODE_ENV=test` or `production`, or against a
+database whose name looks like a test database
+(`cli/runDevDatabaseSeed.js`, shared with `db:seed:demo:dev`). The test
+database (`travelhub_test`) is never touched — it stays the Playwright
+fixture built by `npm run db:seed:demo`.
+
+The result is reproducible:
+
+- exactly **5 published listings in each of the 9 public categories** (3
+  Sprint J + 2 owned by the QA Partner), tri-lingual EN/HY/RU, with local
+  `/assets/images/demo/...` media, coordinates, amenities, policies,
+  booking rules and category-valid units. One listing per category holds
+  an active CATEGORY_TOP promotion, so a category page shows it in the TOP
+  section and the other 4 in the grid;
+- 4 non-public lifecycle fixtures (`qa-fixture-*`: DRAFT, PENDING_REVIEW,
+  REJECTED with a reason, ARCHIVED) — never returned by search;
+- calendar scenarios (price overrides, a limited date, a sold-out date,
+  maintenance and owner-use blocks, closed weekdays) and 13 bookings
+  covering every reachable status, each capacity change recorded in
+  `inventory_ledger`; no active reservation holds;
+- a pending review, a pending promotion request and a pending partner
+  application for the moderation queues.
+
+Pending booking requests are stamped a few hours before the seed runs and
+follow the real `BOOKING_PENDING_VENDOR_SLA_HOURS` expiry; re-run the
+command for fresh pending requests and calendar dates.
+
+**QA accounts — local only, synthetic `.local` addresses.** Every account
+signs in at `/{locale}/auth/login` with the repository's documented demo
+password `DemoPass!2024` (the same disposable password the demo seeds use;
+never valid outside a local database).
+
+| Account | Role | Lands on |
+|---|---|---|
+| `qa.customer@desavii.local` | Customer | `/account` |
+| `qa.partner@desavii.local` | Customer + OWNER of "Desavii QA Hospitality Group" | `/partner` |
+| `qa.partner.bookings@desavii.local` | Customer + BOOKING_MANAGER of the QA company | `/partner` |
+| `qa.moderator@desavii.local` | Moderator | `/admin` |
+| `qa.admin@desavii.local` | Admin | `/admin` |
+| `qa.superadmin@desavii.local` | Super Admin | `/admin` |
+| `qa.support@desavii.local` | Support | `/admin` |
+| `qa.manager@desavii.local` | Manager (assigned to the QA company) | `/account` (workspace at `/manager`) |
+| `qa.marketing@desavii.local` | Marketing | `/account` (workspace at `/marketing`) |
+| `qa.applicant@desavii.local` | Customer with a pending partner application | `/account` |
+
 ## 8. Environment Variables
 
 New in Sprint 5 (see `apps/api/.env.example` for the full, current list):

@@ -63,7 +63,7 @@ import {
 
 // Shared by every Sprint J partner-owner account — same disposable-DB-only
 // convention as `seedDemoMarketplace.js`'s own `DEMO_PASSWORD`.
-const DEMO_PASSWORD = 'DemoPass!2024';
+export const DEMO_PASSWORD = 'DemoPass!2024';
 
 // ---------------------------------------------------------------------
 // Partners — one per vertical, except Villas+Guest Houses (both PROPERTY,
@@ -1890,7 +1890,18 @@ async function resolveAmenityIds(connection, names) {
   return rows.map((row) => row.id);
 }
 
-async function createUser(connection, ctx, { email, fullName }) {
+/**
+ * One verified, ACTIVE demo account signing in with `DEMO_PASSWORD`.
+ * Exported (local QA environment, `seedDemoQaEnvironment.js`) so its
+ * synthetic QA accounts are created exactly like every Sprint J account;
+ * `roleIds` defaults to the CUSTOMER role every partner owner holds, and a
+ * QA staff account passes its own platform role instead.
+ */
+export async function createUser(
+  connection,
+  ctx,
+  { email, fullName, roleIds = [ctx.customerRoleId] },
+) {
   const [firstName, ...rest] = fullName.split(' ');
   const lastName = rest.join(' ') || firstName;
   const passwordHash = await argon2.hash(DEMO_PASSWORD);
@@ -1913,28 +1924,49 @@ async function createUser(connection, ctx, { email, fullName }) {
   );
   const userId = result.insertId;
   await connection.query(
-    'INSERT IGNORE INTO role_user (role_id, user_id) VALUES (?, ?)',
-    [ctx.customerRoleId, userId],
+    'INSERT IGNORE INTO role_user (role_id, user_id) VALUES ?',
+    [roleIds.map((roleId) => [roleId, userId])],
   );
   return userId;
 }
 
-async function createPartner(connection, ctx, spec) {
-  const ownerUserId = await createUser(connection, ctx, {
-    email: spec.email,
-    fullName: spec.displayName,
-  });
+/**
+ * One partner company with its OWNER membership. Exported for the local QA
+ * environment, which passes an already-created `ownerUserId` (its QA
+ * Partner login) and, for its pending partner application, a non-approved
+ * verification/moderation status. Every Sprint J partner keeps the
+ * defaults: a fresh owner account and an approved company.
+ */
+export async function createPartner(
+  connection,
+  ctx,
+  spec,
+  {
+    ownerUserId: existingOwnerUserId,
+    verificationStatusId = ctx.approvedStatusId,
+    moderationStatusId = ctx.approvedStatusId,
+  } = {},
+) {
+  const ownerUserId =
+    existingOwnerUserId ??
+    (await createUser(connection, ctx, {
+      email: spec.email,
+      fullName: spec.displayName,
+    }));
   const [result] = await connection.query(
     `INSERT INTO partners
-      (legal_name, display_name, slug, email, verification_status_id, moderation_status_id, owner_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      (legal_name, display_name, slug, email, phone, website,
+       verification_status_id, moderation_status_id, owner_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       spec.legalName,
       spec.displayName,
       spec.slug,
       spec.email,
-      ctx.approvedStatusId,
-      ctx.approvedStatusId,
+      spec.phone ?? null,
+      spec.website ?? null,
+      verificationStatusId,
+      moderationStatusId,
       ownerUserId,
     ],
   );
@@ -2008,7 +2040,12 @@ async function insertRestaurantMenu(
   }
 }
 
-async function createFullListing(connection, ctx, spec) {
+/**
+ * One complete, PUBLISHED listing from a spec in this file's `LISTINGS`
+ * shape. Exported so the local QA environment builds its own listings
+ * through exactly the same path (never a second listing writer).
+ */
+export async function createFullListing(connection, ctx, spec) {
   const partner = ctx.partnersByKey.get(spec.partner);
   const listingId = await insertListing(connection, {
     partnerId: partner.partnerId,
@@ -2124,6 +2161,10 @@ async function createFullListing(connection, ctx, spec) {
       listingId,
       bookableUnitTypeId: ctx.unitTypeIds.get(unit.type),
       capacity: unit.capacity,
+      // A departure's fixed daily start/end time (TOUR_DEPARTURE only);
+      // unset for every other unit type.
+      timeSlotStart: unit.timeSlotStart ?? null,
+      timeSlotEnd: unit.timeSlotEnd ?? null,
       unitLabel: unit.label ?? null,
       ownerUserId: partner.ownerUserId,
       maxGuests: unit.maxGuests ?? null,
@@ -2233,7 +2274,12 @@ async function createTopPromotion(
   return result.insertId;
 }
 
-export default async function seedDemoSprintJCatalog(connection) {
+/**
+ * Resolves every lookup id `createFullListing`/`createPartner`/`createUser`
+ * need from the plain `seedAll()` baseline. Exported so the local QA
+ * environment builds on the same context instead of re-resolving it.
+ */
+export async function loadCatalogContext(connection) {
   const [
     activeStatusId,
     approvedStatusId,
@@ -2265,9 +2311,10 @@ export default async function seedDemoSprintJCatalog(connection) {
   const enLanguageId = languageIds.get('en');
 
   // The fixed dev-admin account (`005_dev_accounts.js`, part of the plain
-  // `seedAll()` baseline) is the actor of record for the 2 TOP promotions
-  // below — mirrors an Admin actually approving/marking-paid a promotion
-  // through the real `POST /advertising/admin` flow.
+  // `seedAll()` baseline) is the actor of record for the TOP promotions
+  // `seedDemoSprintJCatalog` creates — mirrors an Admin actually
+  // approving/marking-paid a promotion through the real
+  // `POST /advertising/admin` flow.
   const [[adminUser]] = await connection.query(
     "SELECT id FROM users WHERE normalized_email = 'admin@travelhub.dev'",
   );
@@ -2326,7 +2373,7 @@ export default async function seedDemoSprintJCatalog(connection) {
     categoryIdBySlug.set(slug, row.id);
   }
 
-  const ctx = {
+  return {
     activeStatusId,
     approvedStatusId,
     customerRoleId,
@@ -2346,6 +2393,10 @@ export default async function seedDemoSprintJCatalog(connection) {
     categoryIdBySlug,
     now: new Date(),
   };
+}
+
+export default async function seedDemoSprintJCatalog(connection) {
+  const ctx = await loadCatalogContext(connection);
 
   const partnersByKey = new Map();
   // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order
