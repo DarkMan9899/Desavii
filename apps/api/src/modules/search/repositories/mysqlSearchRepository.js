@@ -561,6 +561,22 @@ export function buildSearchListingsQuery(
             AND (
               COALESCE(ast.code, 'AVAILABLE') = 'BLOCKED'
               OR COALESCE(ac.quantity_available, bu.capacity)
+                 -- Step L6.3B: rooms held by hourly stays that date are
+                 -- not free for the night either — the busiest hour, the
+                 -- same peak a nightly hold subtracts. Half-open
+                 -- intervals peak at some reservation's own start time.
+                 - (
+                   SELECT COALESCE(MAX((
+                     SELECT SUM(hs.quantity) FROM hourly_inventory_reservations hs
+                     WHERE hs.bookable_unit_id = hr.bookable_unit_id
+                       AND hs.date = hr.date AND hs.released_at IS NULL
+                       AND hs.start_time <= hr.start_time
+                       AND hs.end_time > hr.start_time
+                   )), 0)
+                   FROM hourly_inventory_reservations hr
+                   WHERE hr.bookable_unit_id = bu.id AND hr.date = sd.d
+                     AND hr.released_at IS NULL
+                 )
                  < IF(but.code IN (${INVENTORY_QUANTITY_TYPE_PLACEHOLDERS}), ?, ?)
             )
         )

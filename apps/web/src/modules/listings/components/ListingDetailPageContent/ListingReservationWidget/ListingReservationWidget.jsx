@@ -108,6 +108,15 @@ import {
   DEPARTURE_BOOKABLE_UNIT_TYPE,
   resolveDeparturePeopleKey,
 } from '../../../../../utils/departurePeople.js';
+import {
+  BOOKING_MODES,
+  formatHour,
+  isHourlyRoom,
+  remainingForInterval,
+} from '../../../utils/hourlyStay.js';
+import { useListingHourlyAvailabilityQuery } from '../../../queries/useListingHourlyAvailabilityQuery.js';
+import StayModeSelector from './StayModeSelector.jsx';
+import HourlyStayFields from './HourlyStayFields.jsx';
 import styles from './ListingReservationWidget.module.scss';
 
 const CALENDAR_WINDOW_DAYS = 180;
@@ -120,6 +129,14 @@ const BOOKING_CONTRACT_ISSUES = new Set([
   'INCOMPLETE_RENTAL_INTERVAL',
   'RETURN_NOT_AFTER_PICKUP',
   'RESERVATION_TIME_REQUIRED',
+  // Step L6.3B: the hourly-stay contract.
+  'HOURLY_BOOKING_NOT_SUPPORTED',
+  'HOURLY_TIME_INVALID',
+  'HOURLY_CROSS_MIDNIGHT_NOT_SUPPORTED',
+  'HOURLY_DURATION_OUT_OF_RANGE',
+  'HOURLY_TIME_OUTSIDE_WINDOW',
+  'BOOKING_TOO_SOON',
+  'BOOKING_TOO_FAR_AHEAD',
 ]);
 
 export default function ListingReservationWidget({
@@ -203,6 +220,12 @@ export default function ListingReservationWidget({
   // unit-level default the way a Tour departure's `time_slot_start`
   // provides one, and no "return" leg the way a vehicle rental has.
   const [reservationTime, setReservationTime] = useState('');
+  // Step L6.3B: an hourly-enabled room can also be booked by the hour.
+  // Overnight stays stay the default; these never feed a nightly request.
+  const [bookingMode, setBookingMode] = useState(BOOKING_MODES.NIGHTLY);
+  const [hourlyDate, setHourlyDate] = useState(null);
+  const [hourlyStartHour, setHourlyStartHour] = useState(null);
+  const [hourlyEndHour, setHourlyEndHour] = useState(null);
 
   const {
     data: units,
@@ -277,6 +300,43 @@ export default function ListingReservationWidget({
     [units],
   );
 
+  // Step L6.3B: hourly stays exist only for a room its Partner opened to
+  // them — never inferred from the hotel or category.
+  const canBookHourly = isAccommodationListing && isHourlyRoom(selectedUnit);
+  const isHourlyMode = canBookHourly && bookingMode === BOOKING_MODES.HOURLY;
+  const {
+    data: hourlyAvailability,
+    isPending: isHourlySlotsPending,
+    refetch: refetchHourlySlots,
+  } = useListingHourlyAvailabilityQuery(
+    listingId,
+    isHourlyMode ? effectiveUnitId : null,
+    isHourlyMode ? hourlyDate : null,
+  );
+  const hourlyHours =
+    isHourlyMode && hourlyStartHour !== null && hourlyEndHour !== null
+      ? hourlyEndHour - hourlyStartHour
+      : null;
+  const hourlyRemaining =
+    hourlyHours !== null
+      ? remainingForInterval(
+          hourlyAvailability?.slots,
+          hourlyStartHour,
+          hourlyEndHour,
+        )
+      : null;
+  function resetHourlySelection() {
+    setHourlyStartHour(null);
+    setHourlyEndHour(null);
+  }
+  // A different room starts over in overnight mode.
+  useEffect(() => {
+    setBookingMode(BOOKING_MODES.NIGHTLY);
+    setHourlyDate(null);
+    setHourlyStartHour(null);
+    setHourlyEndHour(null);
+  }, [effectiveUnitId]);
+
   // `listing_locations` is UNIQUE(listing_id) — there is no multi-location
   // model, so pickup and return are always the SAME listing-registered
   // location (same-location-return-only; see `bookingService.js`'s
@@ -338,6 +398,7 @@ export default function ListingReservationWidget({
   // range is zero nights (the server rejects it as ZERO_NIGHT_STAY), for a
   // hotel room or a property unit alike.
   const isZeroNightStay =
+    !isHourlyMode &&
     (isAccommodationListing ||
       isAccommodationUnitType(selectedUnit?.bookable_unit_type)) &&
     Boolean(dateRange.start) &&
@@ -346,14 +407,15 @@ export default function ListingReservationWidget({
   // (days), same semantics as the server; blocks submit with the same
   // translated message the server would return. A zero-night range is
   // already explained above.
-  const stayRuleIssue = isZeroNightStay
-    ? null
-    : evaluateStayRules({
-        listingType,
-        dateFrom: dateRange.start,
-        dateTo: dateRange.end,
-        bookingRules,
-      });
+  const stayRuleIssue =
+    isZeroNightStay || isHourlyMode
+      ? null
+      : evaluateStayRules({
+          listingType,
+          dateFrom: dateRange.start,
+          dateTo: dateRange.end,
+          bookingRules,
+        });
   // The advance-maximum horizon: the last selectable start date
   // (Asia/Yerevan calendar days; 0 = today only).
   const maxBookableDate = latestBookableDate(
@@ -487,6 +549,18 @@ export default function ListingReservationWidget({
   // Step L6.2H2B: a restaurant reservation is free — never an estimated
   // total (the listing price is average spend, not a charge).
   if (isRestaurantListing) estimatedTotal = null;
+  // Step L6.3B: an hourly estimate is the room's hourly rate × hours × rooms
+  // (guests never multiply it); the hold returns the authoritative quote.
+  if (isHourlyMode) {
+    estimatedTotal =
+      hourlyHours !== null
+        ? {
+            amount:
+              Number(selectedUnit.hourly_price_amount) * hourlyHours * quantity,
+            currency: selectedUnit.hourly_price_currency,
+          }
+        : null;
+  }
 
   const pricingModelLabel = resolvePricingModelLabel(t, pricing, listingType);
 
@@ -531,7 +605,12 @@ export default function ListingReservationWidget({
     ? unitsForDateById.get(effectiveUnitId)?.remaining_count_for_date
     : null;
   let quantityMax = selectedUnit?.capacity;
-  if (
+  if (isHourlyMode) {
+    quantityMax =
+      hourlyRemaining !== null && hourlyRemaining > 0
+        ? Math.min(selectedUnit?.capacity ?? hourlyRemaining, hourlyRemaining)
+        : selectedUnit?.capacity;
+  } else if (
     hasValidStayRange &&
     selectedUnitStayInfo?.remaining_count_for_stay != null
   ) {
@@ -587,7 +666,7 @@ export default function ListingReservationWidget({
   // `reserveCapacity` at hold-creation time; see `handleRequestToBook`'s
   // own `AVAILABILITY_CONFLICT` handling below for when this client-side
   // read has gone stale).
-  const canSubmit =
+  const canSubmitNightly =
     Boolean(effectiveUnitId) &&
     Boolean(dateRange.start) &&
     Boolean(dateRange.end) &&
@@ -596,6 +675,18 @@ export default function ListingReservationWidget({
     !isZeroNightStay &&
     !stayRuleIssue &&
     (!isRestaurantListing || Boolean(reservationTime));
+  const canSubmitHourly =
+    Boolean(effectiveUnitId) &&
+    Boolean(hourlyDate) &&
+    hourlyHours !== null &&
+    hourlyRemaining !== 0;
+  const canSubmit = isHourlyMode ? canSubmitHourly : canSubmitNightly;
+
+  function handleChangeBookingMode(nextMode) {
+    setBookingMode(nextMode);
+    setHourlyDate(null);
+    resetHourlySelection();
+  }
 
   function handleSelectUnit(value) {
     // P2.2D: a multi-unit listing never auto-selects (see
@@ -696,8 +787,21 @@ export default function ListingReservationWidget({
       return;
     }
     try {
+      // Step L6.3B: an hourly request carries only the hourly stay — never
+      // a hidden check-in/check-out from the overnight picker.
+      const holdItem = isHourlyMode
+        ? {
+            bookableUnitId: effectiveUnitId,
+            dateFrom: hourlyDate,
+            dateTo: hourlyDate,
+            startTime: formatHour(hourlyStartHour),
+            endTime: formatHour(hourlyEndHour),
+            quantity,
+            bookingMode: BOOKING_MODES.HOURLY,
+          }
+        : null;
       const { data } = await createHoldMutation.mutateAsync([
-        {
+        holdItem ?? {
           bookableUnitId: effectiveUnitId,
           dateFrom: dateRange.start,
           dateTo: dateRange.end,
@@ -732,6 +836,11 @@ export default function ListingReservationWidget({
           // noun (Room type / Table / Departure / Vehicle) and show a
           // Nights row only for lodging.
           bookableUnitType: selectedUnit?.bookable_unit_type ?? null,
+          // Step L6.3B: checkout labels an hourly stay by its date, hours and
+          // duration (never nights); its values come from the hold itself.
+          bookingMode: isHourlyMode
+            ? BOOKING_MODES.HOURLY
+            : BOOKING_MODES.NIGHTLY,
           // Step L6.2H3B: a departure's people count is its held quantity —
           // never a second, separate guest count.
           guestCount: isDepartureListing ? null : guestCount,
@@ -788,6 +897,11 @@ export default function ListingReservationWidget({
         message = t('pages.listingDetail.reservation.availabilityConflict');
       }
       showToast(message, { variant: 'danger' });
+      if (isConflict && isHourlyMode) {
+        resetHourlySelection();
+        refetchHourlySlots();
+        return;
+      }
       if (isConflict) {
         setDateRange({ start: null, end: null });
         refetchCalendar();
@@ -974,7 +1088,7 @@ export default function ListingReservationWidget({
           </>
         ) : (
           <>
-            {isAccommodationListing && dateRangePicker}
+            {isAccommodationListing && !isHourlyMode && dateRangePicker}
 
             {units.length > 1 && (
               <Select
@@ -990,21 +1104,58 @@ export default function ListingReservationWidget({
 
             {bedConfigurationSummary && <p>{bedConfigurationSummary}</p>}
 
-            {isAccommodationListing && hasValidStayRange && selectedUnit && (
-              <p
-                role={isStaySoldOut ? 'status' : undefined}
-                className={
-                  isStaySoldOut ? styles.staySoldOut : styles.stayNights
-                }
-              >
-                {isStaySoldOut
-                  ? t('pages.listingDetail.reservation.staySoldOut')
-                  : selectedUnitStayInfo?.night_count_for_stay != null &&
-                    t('pages.listingDetail.reservation.nightsCount', {
-                      count: selectedUnitStayInfo.night_count_for_stay,
-                    })}
+            {canBookHourly && (
+              <StayModeSelector
+                value={bookingMode}
+                onChange={(mode) => handleChangeBookingMode(mode)}
+              />
+            )}
+            {isHourlyMode && (
+              <HourlyStayFields
+                unit={selectedUnit}
+                slots={hourlyAvailability?.slots ?? null}
+                isLoadingSlots={Boolean(hourlyDate) && isHourlySlotsPending}
+                date={hourlyDate}
+                startHour={hourlyStartHour}
+                endHour={hourlyEndHour}
+                today={today}
+                maxDate={maxBookableDate}
+                locale={i18n.language}
+                onChangeDate={(date) => {
+                  setHourlyDate(date);
+                  resetHourlySelection();
+                }}
+                onChangeStart={(hour) => {
+                  setHourlyStartHour(hour);
+                  setHourlyEndHour(null);
+                }}
+                onChangeEnd={setHourlyEndHour}
+              />
+            )}
+            {isHourlyMode && hourlyRemaining === 0 && (
+              <p role="status" className={styles.staySoldOut}>
+                {t('pages.listingDetail.reservation.hourlySoldOut')}
               </p>
             )}
+
+            {!isHourlyMode &&
+              isAccommodationListing &&
+              hasValidStayRange &&
+              selectedUnit && (
+                <p
+                  role={isStaySoldOut ? 'status' : undefined}
+                  className={
+                    isStaySoldOut ? styles.staySoldOut : styles.stayNights
+                  }
+                >
+                  {isStaySoldOut
+                    ? t('pages.listingDetail.reservation.staySoldOut')
+                    : selectedUnitStayInfo?.night_count_for_stay != null &&
+                      t('pages.listingDetail.reservation.nightsCount', {
+                        count: selectedUnitStayInfo.night_count_for_stay,
+                      })}
+                </p>
+              )}
 
             {isRestaurantListing ? (
               <>

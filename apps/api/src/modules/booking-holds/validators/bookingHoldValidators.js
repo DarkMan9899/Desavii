@@ -8,6 +8,7 @@
 
 import { z } from 'zod';
 import { isoDateSchema } from '../../../validation/isoDate.js';
+import { BOOKING_MODES } from '../../../core/domain/hourlyStay.js';
 
 const passthroughQuery = z.object({}).passthrough();
 const passthroughParams = z.object({}).passthrough();
@@ -31,6 +32,10 @@ const holdItemSchema = z
     startTime: holdTimeSchema,
     endTime: holdTimeSchema,
     quantity: z.coerce.number().int().positive().default(1),
+    // Step L6.3B: HOURLY asks for an hourly stay on an hourly-enabled hotel
+    // room (same date, whole-hour startTime/endTime). Omitted = the unit's
+    // standard date-based booking, exactly as before.
+    bookingMode: z.enum(Object.values(BOOKING_MODES)).optional(),
   })
   .refine((data) => data.dateTo >= data.dateFrom, {
     message: 'dateTo must not be before dateFrom.',

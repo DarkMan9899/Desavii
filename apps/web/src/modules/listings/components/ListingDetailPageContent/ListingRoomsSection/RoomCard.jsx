@@ -35,11 +35,12 @@
 
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { Check, Maximize2, Users, Utensils } from 'lucide-react';
+import { Check, Clock, Maximize2, Users, Utensils } from 'lucide-react';
 import { Card, Button, Badge } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import DestinationArt from '../../../../../components/DestinationArt/DestinationArt.jsx';
 import PriceInCurrency from '../../../../../components/Money/PriceInCurrency.jsx';
+import { isHourlyRoom } from '../../../utils/hourlyStay.js';
 import getLocalizedTranslation from '../../../utils/getLocalizedTranslation.js';
 import { resolveUnitDisplayLabel } from '../../../utils/resolveUnitDisplayLabel.js';
 import { formatBedConfiguration } from '../../../utils/bedConfigurationDisplay.js';
@@ -156,6 +157,22 @@ export default function RoomCard({
             <Utensils size={14} aria-hidden="true" />
             {mealLabel}
           </p>
+        )}
+
+        {/* Step L6.3B: a restrained note for a room that can also be booked
+            by the hour — never replacing its nightly price below. */}
+        {isHourlyRoom(unit) && (
+          <div className={styles.hourly}>
+            <Clock size={14} aria-hidden="true" />
+            <span>{t('pages.listingDetail.rooms.hourlyAvailable')}</span>
+            <PriceInCurrency
+              amount={unit.hourly_price_amount}
+              currency={unit.hourly_price_currency}
+              locale={locale}
+              suffix={t('pages.listingDetail.rooms.perHour')}
+              size="sm"
+            />
+          </div>
         )}
 
         {(bedsSummary || bathroomLabel || viewLabel) && (

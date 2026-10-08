@@ -76,9 +76,12 @@
 
 // Position (fixed/top/left/visibility) is computed in JS from the
 // trigger's real bounding rect and applied inline - the panel is
-// portaled to document.body (see DatePicker.jsx), so it's no longer a
+// portaled to document.body, or into the enclosing Modal/Drawer dialog
+// (see DatePicker.jsx / usePortalContainer.js), so it's no longer a
 // positioned descendant of `.wrapper` at all, and no ancestor's
-// `overflow: hidden` can clip it.
+// `overflow: hidden` can clip it. `$z-dropdown` is relative to that
+// container's stacking context: inside an overlay it ranks among the
+// overlay's own content, never against the overlay layer itself.
 .panel {
   z-index: z.$z-dropdown;
   width: max-content;

@@ -43,6 +43,7 @@ import PriceInCurrency from '../../../../../components/Money/PriceInCurrency.jsx
 import getLocalizedTranslation from '../../../utils/getLocalizedTranslation.js';
 import { resolveUnitDisplayLabel } from '../../../utils/resolveUnitDisplayLabel.js';
 import { describeBedConfiguration } from '../../../utils/bedConfigurationDisplay.js';
+import { isHourlyRoom } from '../../../utils/hourlyStay.js';
 import { resolveAmenityFeatureGroups } from '../../../utils/resolveAmenityFeatureGroups.js';
 import {
   formatBathroomType,
@@ -216,6 +217,43 @@ export default function RoomDetailModal({
               <Utensils size={18} aria-hidden="true" />
               {mealLabel}
             </p>
+          </Stack>
+        )}
+
+        {/* Step L6.3B: a room that can also be booked by the hour shows both
+            options before the traveler starts booking. */}
+        {isHourlyRoom(unit) && (
+          <Stack gap="2">
+            <h3 className={styles.amenitiesHeading}>
+              {t('pages.listingDetail.rooms.hourlyHeading')}
+            </h3>
+            <p className={styles.description}>
+              {t('pages.listingDetail.rooms.hourlyIntro')}
+            </p>
+            <ul className={styles.bedList}>
+              <li className={styles.keyFact}>
+                <PriceInCurrency
+                  amount={unit.hourly_price_amount}
+                  currency={unit.hourly_price_currency}
+                  locale={locale}
+                  suffix={t('pages.listingDetail.rooms.perHour')}
+                  size="sm"
+                />
+              </li>
+              <li className={styles.keyFact}>
+                {t('pages.listingDetail.rooms.hourlyWindow', {
+                  from: unit.hourly_available_from,
+                  until: unit.hourly_available_until,
+                })}
+              </li>
+              <li className={styles.keyFact}>
+                {t('pages.listingDetail.rooms.hourlyDurationRange', {
+                  minimum: unit.hourly_min_duration_hours,
+                  maximum: unit.hourly_max_duration_hours,
+                  count: unit.hourly_max_duration_hours,
+                })}
+              </li>
+            </ul>
           </Stack>
         )}
 

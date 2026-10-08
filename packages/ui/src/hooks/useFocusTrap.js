@@ -9,7 +9,9 @@ import { useEffect, useRef } from 'react';
  *
  *  - Traps `Tab`/`Shift+Tab` cycling within `containerRef`'s focusable
  *    descendants while `isOpen`.
- *  - Closes on `Escape` unless `preventClose`.
+ *  - Closes on `Escape` unless `preventClose`, or unless a nested popup
+ *    already handled that Escape (`event.defaultPrevented`), and marks
+ *    the Escape it consumes with `preventDefault()` in turn.
  *  - Moves focus into the container on open, restores it to whatever
  *    was focused before on close (COMPONENT_LIBRARY.md Modal
  *    Accessibility: "focus returns to the triggering element on close").
@@ -47,7 +49,16 @@ export default function useFocusTrap({
     (firstFocusable || container).focus();
 
     function handleKeyDown(event) {
-      if (event.key === 'Escape' && !preventClose) {
+      if (event.key === 'Escape') {
+        // Nested-dismiss contract: a popup nested inside the trap
+        // (Select's listbox, DatePicker's calendar, Popover's panel)
+        // closes itself on Escape and calls `preventDefault()`. React
+        // dispatches those handlers from its root/portal container,
+        // which sits below `document`, so they always run before this
+        // listener — an already-handled Escape must only close the
+        // nested popup, never the whole Modal/Drawer behind it.
+        if (event.defaultPrevented || preventClose) return;
+        event.preventDefault();
         onClose?.();
         return;
       }

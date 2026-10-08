@@ -53,6 +53,8 @@ export class BookableUnitService {
       smokingPolicy,
       mealPlan,
       createdBy,
+      // Step L6.3B: the optional hourly configuration (`hourly*` fields).
+      ...hourlyFields
     },
     connection = undefined,
   ) {
@@ -101,6 +103,7 @@ export class BookableUnitService {
         smokingPolicy,
         mealPlan,
         createdBy,
+        ...hourlyFields,
       },
       connection,
     );

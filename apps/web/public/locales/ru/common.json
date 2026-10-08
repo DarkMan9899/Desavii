@@ -387,6 +387,20 @@
       "visitors": "Посетители",
       "participants": "Участники",
       "people": "Люди"
+    },
+    "hourly": {
+      "bookingType": "Тип бронирования",
+      "hourlyStay": "Почасовое проживание",
+      "date": "Дата",
+      "start": "Начало",
+      "end": "Окончание",
+      "duration": "Длительность",
+      "hoursCount_one": "{{count}} час",
+      "hoursCount_few": "{{count}} часа",
+      "hoursCount_many": "{{count}} часов",
+      "hoursCount_other": "{{count}} часа",
+      "rooms": "Номера",
+      "guests": "Гости"
     }
   },
   "payments": {
@@ -671,7 +685,15 @@
       "unsupportedPricingModelForBooking": "Это объявление сейчас нельзя забронировать онлайн — владелец обновляет цены.",
       "partySizeRequired": "Укажите количество гостей.",
       "reservationQuantityNotSupported": "Бронирование всегда закрепляет один стол для вашей компании.",
-      "travelerCountMismatch": "Количество людей не совпадает с удержанными местами. Вернитесь к объявлению и выберите места заново."
+      "travelerCountMismatch": "Количество людей не совпадает с удержанными местами. Вернитесь к объявлению и выберите места заново.",
+      "hourlyNotSupported": "Этот номер нельзя забронировать по часам.",
+      "hourlyTimeInvalid": "Выберите начало и окончание ровно в начале часа, окончание — позже начала.",
+      "hourlyCrossMidnight": "Почасовое проживание должно закончиться в тот же день. Для ночёвки бронируйте по ночам.",
+      "hourlyDurationOutOfRange": "Выберите от {{minimum}} до {{maximum}} ч.",
+      "hourlyOutsideWindow": "Эти часы вне времени почасового бронирования номера.",
+      "hourlyConfigIncomplete": "Обязательно для почасового бронирования.",
+      "hourlyDurationRangeInvalid": "Максимум не может быть меньше минимума.",
+      "hourlyWindowInvalid": "«Доступно до» должно быть позже «Доступно с» и вмещать минимальную длительность."
     },
     "codes": {
       "PARTNER_NOT_VERIFIED": "Ваша компания должна пройти проверку, прежде чем создавать объявления.",
@@ -1954,7 +1976,28 @@
         "roomMealsHeading": "Питание",
         "mealPlan": "Тип питания",
         "mealPlanHint": "Что входит в стоимость этого номера. Цена за ночь не меняется.",
-        "notSpecified": "Не указано"
+        "notSpecified": "Не указано",
+        "hourlyHeading": "Почасовое бронирование",
+        "hourlyEnabled": "Доступно почасовое бронирование",
+        "hourlyEnabledHint": "Гости смогут бронировать этот номер также по часам. Бронирование на ночь остаётся доступным, другие номера не меняются.",
+        "hourlyPriceAmount": "Цена за час",
+        "hourlyPriceCurrency": "Валюта",
+        "hourlyMinDuration": "Минимальная длительность",
+        "hourlyMaxDuration": "Максимальная длительность",
+        "hourlyAvailableFrom": "Доступно с",
+        "hourlyAvailableUntil": "Доступно до",
+        "hourlyWindowHint": "Почасовое проживание начинается и заканчивается ровно в начале часа в пределах одного дня (по времени Армении). Для ночёвки гости бронируют по ночам.",
+        "hourlyRequired": "Обязательно для почасового бронирования.",
+        "hourlyPriceInvalid": "Укажите цену от 0.",
+        "hourlyPriceTooLarge": "Слишком большая цена.",
+        "hourlyPricePrecision": "Не более 2 знаков после запятой.",
+        "hourlyDurationRangeInvalid": "Максимум не может быть меньше минимума.",
+        "hourlyWindowInvalid": "«Доступно до» должно быть позже «Доступно с» и вмещать минимальную длительность.",
+        "hourlySummary": "По часам: {{amount}} {{currency}} в час · {{from}}–{{until}}",
+        "hoursCount_one": "{{count}} час",
+        "hoursCount_few": "{{count}} часа",
+        "hoursCount_many": "{{count}} часов",
+        "hoursCount_other": "{{count}} часа"
       },
       "bookableUnitTypes": {
         "HOTEL_ROOM": "Номер отеля",
@@ -3809,7 +3852,19 @@
         "staySoldOut": "Этот номер распродан на выбранные даты.",
         "nightsCount": "{{count}} ноч. проживания",
         "pricingUnavailable": "Онлайн-бронирование этого объявления сейчас недоступно — владелец обновляет цены.",
-        "averageSpendPerPerson": "Средний чек на человека"
+        "averageSpendPerPerson": "Средний чек на человека",
+        "stayModeLabel": "Как вы хотите остановиться?",
+        "stayOvernight": "С ночёвкой",
+        "bookByHour": "Забронировать по часам",
+        "startTimeLabel": "Начало",
+        "endTimeLabel": "Окончание",
+        "hourlyDuration_one": "Длительность: {{count}} час",
+        "hourlyDuration_few": "Длительность: {{count}} часа",
+        "hourlyDuration_many": "Длительность: {{count}} часов",
+        "hourlyDuration_other": "Длительность: {{count}} часа",
+        "hourlyHint": "Проживание в течение дня с {{from}} до {{until}}, по целым часам (время Армении).",
+        "noHourlyTimesForDate": "На эту дату свободных часов не осталось. Выберите другую дату.",
+        "hourlySoldOut": "На эти часы недостаточно свободных номеров. Выберите другое время или меньше номеров."
       },
       "rooms": {
         "heading": "Номера",
@@ -3884,7 +3939,16 @@
         },
         "sleepingHeading": "Спальные места",
         "mealsHeading": "Питание",
-        "roomDetailsHeading": "О номере"
+        "roomDetailsHeading": "О номере",
+        "hourlyAvailable": "Доступно почасовое бронирование",
+        "perHour": "в час",
+        "hourlyHeading": "Почасовое проживание",
+        "hourlyIntro": "Этот номер можно забронировать и по часам — на один день. Бронирование на ночь остаётся доступным.",
+        "hourlyWindow": "Доступно с {{from}} до {{until}}",
+        "hourlyDurationRange_one": "От {{minimum}} до {{maximum}} часа",
+        "hourlyDurationRange_few": "От {{minimum}} до {{maximum}} часов",
+        "hourlyDurationRange_many": "От {{minimum}} до {{maximum}} часов",
+        "hourlyDurationRange_other": "От {{minimum}} до {{maximum}} часа"
       },
       "relatedListings": {
         "heading": "Вам также может понравиться"

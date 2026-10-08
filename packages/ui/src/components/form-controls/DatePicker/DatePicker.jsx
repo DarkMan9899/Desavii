@@ -24,6 +24,7 @@ import {
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import Label from '../Label/Label.jsx';
+import usePortalContainer from '../../../hooks/usePortalContainer.js';
 import styles from './DatePicker.module.scss';
 
 const PANEL_GAP = 8;
@@ -33,10 +34,11 @@ const VIEWPORT_MARGIN = 8;
 // of the trigger, so any ancestor with `overflow: hidden` between it and
 // the viewport (the reservation widget's own decorative gold-sheen
 // accent clips exactly this way - see ListingReservationWidget.module
-// .scss) silently clipped or hid the calendar. Portaling to
-// `document.body` and computing `position: fixed` coordinates from the
-// trigger's own `getBoundingClientRect()` removes it from every
-// ancestor's box entirely; flipping above the trigger (or right-
+// .scss) silently clipped or hid the calendar. Portaling it out (to
+// `document.body`, or into the enclosing Modal/Drawer dialog - see
+// `usePortalContainer`) and computing `position: fixed` coordinates
+// from the trigger's own `getBoundingClientRect()` takes it out of
+// every clipping ancestor's box; flipping above the trigger (or right-
 // aligning) when the panel would overflow the viewport is real collision
 // detection, not a fixed direction that could push it off-screen.
 function computePanelPosition(triggerEl, panelEl) {
@@ -201,6 +203,7 @@ export default function DatePicker({
   const triggerRef = useRef(null);
   const panelRef = useRef(null);
   const [panelPosition, setPanelPosition] = useState(null);
+  const portalContainer = usePortalContainer();
   const generatedId = useId();
   const fieldId = id || generatedId;
   const labelId = `${fieldId}-label`;
@@ -254,7 +257,7 @@ export default function DatePicker({
   useEffect(() => {
     if (!open) return undefined;
     function handleClickOutside(event) {
-      // The panel is portaled to document.body (see the positioning
+      // The panel is portaled out of this subtree (see the positioning
       // effect below), so it's no longer a real DOM descendant of
       // containerRef even though it's still a React-tree child -
       // panelRef must be checked separately, or every click inside the
@@ -380,13 +383,21 @@ export default function DatePicker({
         event.preventDefault();
         commitDay(focusedDate);
         break;
-      case 'Escape':
-        event.preventDefault();
-        closePanel();
-        break;
       default:
         break;
     }
+  }
+
+  // Bound to both the trigger and the whole panel (not just the grid),
+  // so Escape closes the calendar wherever focus is while it's open: the
+  // month-navigation buttons, or the trigger itself when the focused day
+  // is disabled and couldn't take focus. `preventDefault()` is the
+  // nested-dismiss signal `useFocusTrap` checks, so a DatePicker inside a
+  // Modal/Drawer closes only the calendar, not the overlay around it.
+  function handleEscapeKeyDown(event) {
+    if (event.key !== 'Escape' || !open) return;
+    event.preventDefault();
+    closePanel();
   }
 
   const today = startOfDay(new Date());
@@ -425,6 +436,7 @@ export default function DatePicker({
           onClick={() =>
             open ? closePanel({ refocusTrigger: false }) : openPanel()
           }
+          onKeyDown={handleEscapeKeyDown}
         >
           <span
             className={single || rangeStart ? styles.value : styles.placeholder}
@@ -435,12 +447,17 @@ export default function DatePicker({
 
         {open &&
           createPortal(
+            // Escape-to-close on the dialog itself is the WAI-ARIA dialog
+            // pattern — the same exception Overlay.jsx makes for its own
+            // role="dialog" container.
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
             <div
               ref={panelRef}
               className={styles.panel}
               role="dialog"
               aria-modal="false"
               aria-labelledby={labelId}
+              onKeyDown={handleEscapeKeyDown}
               style={
                 panelPosition
                   ? {
@@ -591,7 +608,7 @@ export default function DatePicker({
                 ))}
               </div>
             </div>,
-            document.body,
+            portalContainer,
           )}
       </div>
       {error && (

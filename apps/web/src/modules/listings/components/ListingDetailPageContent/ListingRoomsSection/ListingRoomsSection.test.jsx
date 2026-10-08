@@ -550,3 +550,75 @@ describe('ListingRoomsSection — room decision information (Step L6.3A)', () =>
     ).not.toBeInTheDocument();
   });
 });
+
+describe('ListingRoomsSection — optional hourly stays (Step L6.3B)', () => {
+  const DAY_ROOM = {
+    ...STANDARD_ROOM,
+    id: 104,
+    unit_label: 'Day Room',
+    hourly_enabled: true,
+    hourly_price_amount: '8000.00',
+    hourly_price_currency: 'AMD',
+    hourly_min_duration_hours: 2,
+    hourly_max_duration_hours: 6,
+    hourly_available_from: '10:00',
+    hourly_available_until: '20:00',
+  };
+
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+    useListingBookableUnitsQuery.mockReset();
+  });
+
+  test('a nightly-only room says nothing about hourly booking', async () => {
+    const user = userEvent.setup();
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: [{ ...STANDARD_ROOM, hourly_enabled: false }],
+      isPending: false,
+    });
+    renderSection();
+
+    expect(
+      screen.queryByText('Hourly booking available'),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: /View Standard Room/ }),
+    );
+    expect(
+      within(screen.getByRole('dialog')).queryByRole('heading', {
+        name: 'Hourly stays',
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  test('an hourly room keeps its nightly price and adds its hourly rate', () => {
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: [DAY_ROOM],
+      isPending: false,
+    });
+    renderSection();
+
+    expect(screen.getByText('Hourly booking available')).toBeInTheDocument();
+    expect(screen.getByText(/8,000/)).toBeInTheDocument();
+    expect(screen.getByText(/25,000/)).toBeInTheDocument();
+  });
+
+  test('the room detail explains the hourly window and duration range', async () => {
+    const user = userEvent.setup();
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: [DAY_ROOM],
+      isPending: false,
+    });
+    renderSection();
+
+    await user.click(screen.getByRole('button', { name: /View Day Room/ }));
+    const dialog = screen.getByRole('dialog');
+    expect(
+      within(dialog).getByRole('heading', { name: 'Hourly stays' }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('Available from 10:00 to 20:00'),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText('From 2 to 6 hours')).toBeInTheDocument();
+  });
+});

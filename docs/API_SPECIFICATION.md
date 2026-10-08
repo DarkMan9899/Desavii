@@ -1281,6 +1281,13 @@ a booking racing on one hold serialize, so capacity is never both booked and
 restored; the expiry sweep skips (`SKIP LOCKED`) a hold another operation is
 acting on.
 
+**Hourly hotel stay (Step L6.3B):** an item with `bookingMode: "HOURLY"` on a
+room that offers hourly stays holds whole hours on one date
+(`dateFrom === dateTo`, `startTime`, `endTime`, `quantity` = rooms), priced as
+the hourly rate × hours × rooms. Its own contract — validation issues,
+time-overlap inventory and release semantics — is §49.3. Every item without
+it is the unchanged nightly stay; the response echoes `booking_mode`.
+
 **Request (POST /booking-holds/{id}/confirm):** `payment_method_id` (or
 `payment_token` for a not-yet-saved method), `coupon_code?`,
 `wallet_amount?` (Section 8.3).
@@ -1399,6 +1406,119 @@ With an active hold, booking, manual block or external/connector reservation it
 is `409 CALENDAR_ENTRY_IN_USE` and nothing changes — sold or held places are
 never restored. Change such a date's status or price instead.
 
+### 49.3 Optional hourly hotel room booking (Step L6.3B)
+
+Every `HOTEL_ROOM` is **nightly-only by default**. A Partner may additionally
+enable same-day **hourly stays on one room** — that room then offers both
+modes, `NIGHTLY` (unchanged) and `HOURLY`; there are no hourly-only rooms. No
+other unit type can offer hourly stays. This is unrelated to the listing-level
+`PER_HOUR` pricing model, which stays unsupported (§51.1): an hourly room's
+listing keeps `PER_NIGHT`, and its nightly prices never change.
+
+**Partner configuration** (`POST /availability/units`,
+`PATCH /availability/units/{id}`; returned by the owner DTO as
+`hourly_enabled`, `hourly_price_amount`, `hourly_price_currency`,
+`hourly_min_duration_hours`, `hourly_max_duration_hours`,
+`hourly_available_from`, `hourly_available_until`):
+
+| Field | Contract |
+|---|---|
+| `hourlyEnabled` | JSON boolean, default `false` |
+| `hourlyPriceAmount` + `hourlyPriceCurrency` | the rate per room per hour: a decimal ≥ 0 with at most 2 decimals, and an active currency code (`UNKNOWN_CURRENCY` otherwise). Sent together or not at all |
+| `hourlyMinDurationHours` / `hourlyMaxDurationHours` | JSON integers 1–24; the maximum is never below the minimum |
+| `hourlyAvailableFrom` / `hourlyAvailableUntil` | the daily window `[from, until)`: whole hours `HH:00`, from `00:00`–`23:00`, until up to `24:00` (end of day), after `from` and at least the minimum duration long |
+
+The service validates the **effective** configuration — stored values merged
+with the update — before any write (`422 VALIDATION_FAILED`):
+
+| `details[].field` | `details[].issue` | When |
+|---|---|---|
+| each missing field | `HOURLY_CONFIG_INCOMPLETE` | enabled without a rate, currency, both durations and both window ends |
+| `hourlyMaxDurationHours` | `HOURLY_DURATION_RANGE_INVALID` | maximum below minimum |
+| `hourlyAvailableUntil` | `HOURLY_WINDOW_INVALID` | the window is empty, reversed, or shorter than the minimum duration |
+| the field sent | `NOT_APPLICABLE_FOR_UNIT_TYPE` | any hourly field (even `false`/`null`) on a non-`HOTEL_ROOM` unit |
+
+A database `CHECK` (`chk_bookable_units_hourly_config`, migration `0054`) backs
+this up: an enabled room can never be stored incomplete.
+
+**Disabling** (`{ "hourlyEnabled": false }`) keeps the stored settings, so
+re-enabling restores them. From then on the public DTO and room page show the
+room as nightly-only, and new hourly holds and availability reads are
+`422 HOURLY_BOOKING_NOT_SUPPORTED`. An **active** hourly hold still converts to
+a booking (re-quoted from the stored rate — `PRICE_CHANGED`, §48, if it
+differs), and confirmed hourly bookings are never changed. Window and duration
+edits apply to new holds only.
+
+**Public read.** The public unit DTO carries the same seven `hourly_*` fields
+only for an enabled room (otherwise `hourly_enabled: false` and the rest
+`null`). One date's hourly slots:
+
+| Method | URL | Auth |
+|---|---|---|
+| GET | `/availability/{listing_id}/units/{unit_id}/hourly-availability?date=YYYY-MM-DD` | Public |
+
+Response: `bookable_unit_id`, `date`, and `slots[]` — one per window hour —
+`{ start_time, end_time, status, remaining_count }`, `status` one of
+`AVAILABLE`, `LOW` (with `remaining_count`; otherwise `null`, never the raw
+capacity), `SOLD_OUT` (also every hour of a blocked/blacked-out date) and
+`PAST` (started, Asia/Yerevan). Advisory only: the hold re-checks everything
+under lock. A room that does not offer hourly stays is a `422`
+`HOURLY_BOOKING_NOT_SUPPORTED`.
+
+**Hourly hold** (`POST /booking-holds`, §48): an item with
+`bookingMode: "HOURLY"`, `dateFrom === dateTo`, `startTime`, `endTime` and
+`quantity` (rooms). Omitting `bookingMode` (or `"NIGHTLY"`) is the unchanged
+nightly stay. Checked before anything is reserved (`422`, field `items`):
+
+| `issue` | When |
+|---|---|
+| `HOURLY_BOOKING_NOT_SUPPORTED` | the unit is not a `HOTEL_ROOM`, or the room's hourly booking is off |
+| `HOURLY_CROSS_MIDNIGHT_NOT_SUPPORTED` | `dateTo` differs from `dateFrom` — a stay ends on its own date (`24:00` at the latest) |
+| `HOURLY_TIME_INVALID` | a start/end that is not a whole hour (`HH:00`; `24:00` only as an end), or an end not after the start |
+| `HOURLY_DURATION_OUT_OF_RANGE` | fewer or more hours than the room allows (metadata `minimum`, `maximum`) |
+| `HOURLY_TIME_OUTSIDE_WINDOW` | the stay starts before `availableFrom` or ends after `availableUntil` |
+| `BOOKING_IN_PAST` | the start hour has begun (`<=` now, Asia/Yerevan business time on the DB clock) |
+| `BOOKING_TOO_SOON` / `BOOKING_TOO_FAR_AHEAD` | the listing's advance rules (§48), measured to the exact start time. The nightly minimum/maximum stay never applies to an hourly stay — the room's own duration range does |
+
+Then `409 BLACKOUT_DATE` for a blacked-out or `BLOCKED` date and
+`409 AVAILABILITY_CONFLICT` when the rooms are not free for the whole interval.
+
+**Inventory.** Hourly stays are half-open intervals `[start, end)`: 14:00–16:00
+and 16:00–18:00 can use the same room; 14:00–16:00 and 15:00–17:00 cannot.
+Each held or booked hourly room is one row in `hourly_inventory_reservations`
+(the date's `quantity_available` is never changed by an hourly stay). The
+rooms free for a request are the date's remaining nightly capacity minus the
+**busiest hour** of the overlapping timed rows. Every write for the date
+serializes on its `availability_calendar` row lock and then locks the active
+timed rows (`SELECT … FOR UPDATE`), so concurrent hourly holds, nightly holds,
+manual blocks and external reservations can never oversell. A nightly stay,
+block or external reservation subtracts the date's hourly peak before taking
+rooms, so an hourly stay's rooms are never sold twice. The public reads that
+promise nightly availability count it the same way: search's date filter
+(`GET /search?dateFrom&dateTo`), the availability summary badge, the room stay
+preview and the day-status calendar never offer a night whose rooms hourly
+stays already hold. Search remains a nightly filter; it has no hourly query.
+
+| Event | Timed rows |
+|---|---|
+| hold created | one row per held room (`TRAVELHUB_HOLD`) |
+| hold released / expired | released with the hold (`released_at`, `release_reason`) |
+| booking created | transferred to the booking item (`TRAVELHUB_BOOKING`); a hold whose rows are gone is `HOLD_EXPIRED` |
+| booking rejected / cancelled | released for that booking item |
+
+**Price and persistence.** One room's price is the hourly rate × hours, and
+the item total is that × rooms; guests never multiply it. The hold quote and
+the booking use the same calculation (`AvailabilityService#quoteItem`), with
+the H4 accepted-quote check (`expectedTotalAmount`/`expectedCurrency`,
+`PRICE_CHANGED`, §51.4). The mode is stored as `reservation_holds.booking_mode`
+and `booking_items.booking_mode` (`NIGHTLY`/`HOURLY` for lodging, `null`
+otherwise; lodging items created before `0054` are backfilled `NIGHTLY`) and
+returned as `items[].booking_mode`. An hourly booking item stores its date as
+`date_from = date_to`, its hours as `start_time`/`end_time`, its rooms as
+`quantity` and the optional `items[].guestCount` as `guest_count` (still
+limited to `max_guests` × rooms, `GUEST_CAPACITY_EXCEEDED`). Booking views read
+these stored values, never the room's current settings.
+
 ## 50. Calendar
 
 Base path: `/api/v1/calendar`. Maps to `blackout_dates`, plus the iCal/Google
@@ -1471,6 +1591,10 @@ is never rewritten: it stays readable, its `pricing.is_model_supported` is
 | `POST /booking-holds` / `POST /bookings` | `422` `pricingModel` / `UNSUPPORTED_PRICING_MODEL_FOR_BOOKING`, raised before any capacity, ledger or hold write; a multi-item request is rejected whole |
 | Publish / republish | `422` `pricing.modelCode` / `UNSUPPORTED_PRICING_MODEL`; the completeness check lists `pricingModel` as required |
 | Public listing page | shows booking as unavailable instead of an hourly price |
+
+This is the **listing-level** model only. A hotel's individual rooms may
+additionally offer same-day hourly stays priced by the room's own hourly rate
+(§49.3) — the listing stays `PER_NIGHT`, and `PER_HOUR` stays unsupported.
 
 Listing detail exposes `pricing.is_model_supported`; search, favorites and
 company-profile cards expose `pricing_model`, so cards label their price by

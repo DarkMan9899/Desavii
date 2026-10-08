@@ -16,6 +16,7 @@ import {
   toCalendarDayResponse,
   toPublicAvailabilitySummaryResponse,
   toPublicDailyAvailabilityResponse,
+  toPublicHourlyAvailabilityResponse,
   toInventoryBlockResponse,
   toExternalReservationResponse,
   toLedgerEntryResponse,
@@ -418,6 +419,28 @@ export function createAvailabilityController(availabilityService) {
         res.status(200).json({
           success: true,
           data: summaries.map(toPublicAvailabilitySummaryResponse),
+          meta: null,
+          error: null,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    /** Step L6.3B — public hourly slot availability of one room on one date. */
+    async getPublicHourlyAvailability(req, res, next) {
+      try {
+        const { listingId, unitId } = req.validated.params;
+        const { date } = req.validated.query;
+        const availability =
+          await availabilityService.getPublicHourlyAvailability(
+            req.principal,
+            listingId,
+            { unitId, date },
+          );
+        res.status(200).json({
+          success: true,
+          data: toPublicHourlyAvailabilityResponse(availability),
           meta: null,
           error: null,
         });

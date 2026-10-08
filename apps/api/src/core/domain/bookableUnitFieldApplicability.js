@@ -14,12 +14,25 @@
  * - Rich room details (size/bathroom/view/smoking/meal basis, and the separate room
  *   description/amenities/photos endpoints) stay HOTEL_ROOM-only for now:
  *   extending them to PROPERTY_UNIT is a deliberately deferred decision.
+ * - Step L6.3B: the optional hourly configuration (`hourly*`) is a
+ *   HOTEL_ROOM opt-in only — see `hourlyStay.js`.
  *
  * Mirrored by `apps/web/src/modules/availability/constants/
  * bookableUnitFieldApplicability.js`, locked to this file by that file's test.
  *
  * Domain layer (`core` may depend only on `core`) — no database access.
  */
+
+// Step L6.3B: the optional hourly configuration of a hotel room.
+export const HOURLY_ROOM_FIELDS = Object.freeze([
+  'hourlyEnabled',
+  'hourlyPriceAmount',
+  'hourlyPriceCurrency',
+  'hourlyMinDurationHours',
+  'hourlyMaxDurationHours',
+  'hourlyAvailableFrom',
+  'hourlyAvailableUntil',
+]);
 
 export const TYPE_SPECIFIC_UNIT_FIELDS = Object.freeze([
   'maxGuests',
@@ -31,6 +44,7 @@ export const TYPE_SPECIFIC_UNIT_FIELDS = Object.freeze([
   'viewType',
   'smokingPolicy',
   'mealPlan',
+  ...HOURLY_ROOM_FIELDS,
 ]);
 
 const LODGING_FIELDS = ['maxGuests', 'bedConfiguration'];
@@ -46,7 +60,11 @@ const HOTEL_ROOM_DETAIL_FIELDS = [
 ];
 
 export const UNIT_FIELDS_BY_BOOKABLE_UNIT_TYPE = Object.freeze({
-  HOTEL_ROOM: Object.freeze([...LODGING_FIELDS, ...HOTEL_ROOM_DETAIL_FIELDS]),
+  HOTEL_ROOM: Object.freeze([
+    ...LODGING_FIELDS,
+    ...HOTEL_ROOM_DETAIL_FIELDS,
+    ...HOURLY_ROOM_FIELDS,
+  ]),
   PROPERTY_UNIT: Object.freeze([...LODGING_FIELDS]),
   RESTAURANT_TABLE: Object.freeze([]),
   TOUR_DEPARTURE: Object.freeze(['timeSlotStart', 'timeSlotEnd']),

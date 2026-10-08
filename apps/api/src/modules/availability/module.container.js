@@ -22,6 +22,7 @@ import { MySqlInventoryLedgerRepository } from './repositories/mysqlInventoryLed
 import { MySqlInventoryBlockRepository } from './repositories/mysqlInventoryBlockRepository.js';
 import { MySqlExternalReservationRepository } from './repositories/mysqlExternalReservationRepository.js';
 import { MySqlInventoryConnectionRepository } from './repositories/mysqlInventoryConnectionRepository.js';
+import { MySqlHourlyInventoryRepository } from './repositories/mysqlHourlyInventoryRepository.js';
 import { BookableUnitService } from './services/bookableUnitService.js';
 import { BlackoutService } from './services/blackoutService.js';
 import { AvailabilityService } from './services/availabilityService.js';
@@ -50,6 +51,8 @@ export default function createAvailabilityContainer({
     new MySqlExternalReservationRepository();
   const inventoryConnectionRepository =
     new MySqlInventoryConnectionRepository();
+  // Step L6.3B: hourly hotel stays' timed inventory (migration 0054).
+  const hourlyInventoryRepository = new MySqlHourlyInventoryRepository();
   // Sprint C-1: room photo uploads — same StorageProvider abstraction the
   // Listings module's own `attachMedia` already uses, its own instance
   // here (cheap to construct, matching that module's own precedent of not
@@ -71,6 +74,7 @@ export default function createAvailabilityContainer({
     inventoryLedgerRepository,
     inventoryBlockRepository,
     externalReservationRepository,
+    hourlyInventoryRepository,
     eventBus,
     storageProvider,
   });
@@ -101,6 +105,7 @@ export default function createAvailabilityContainer({
     inventoryBlockRepository,
     externalReservationRepository,
     inventoryConnectionRepository,
+    hourlyInventoryRepository,
     bookableUnitService,
     blackoutService,
     availabilityService,

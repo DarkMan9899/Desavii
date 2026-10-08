@@ -11,6 +11,11 @@
  * plan, private/shared/en-suite bathrooms, view variety, a smoking room,
  * accessible rooms and different sizes and guest counts — the room detail
  * surface a QA pass needs to see. Every price is nightly (PER_NIGHT).
+ *
+ * Step L6.3B — optional hourly booking: Ararat View Grand Hotel MIXES
+ * nightly-only rooms with one hourly-enabled room (its 5-room Superior
+ * Double, `hourly`), which also carries the overlapping hourly bookings the
+ * QA environment seeds; Goris Cliffside Resort stays entirely nightly-only.
  */
 
 export const QA_ACCOMMODATION_LISTINGS = [
@@ -181,6 +186,15 @@ export const QA_ACCOMMODATION_LISTINGS = [
         capacity: 5,
         maxGuests: 2,
         basePriceAmount: 42000,
+        // Step L6.3B: also bookable by the hour for a daytime rest.
+        hourly: {
+          priceAmount: 8000,
+          currency: 'AMD',
+          minHours: 2,
+          maxHours: 6,
+          availableFrom: '10:00',
+          availableUntil: '20:00',
+        },
         bedConfiguration: [
           { type: 'DOUBLE', count: 1 },
           { type: 'CRIB', count: 1 },

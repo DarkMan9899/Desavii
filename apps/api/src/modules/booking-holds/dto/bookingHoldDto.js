@@ -42,6 +42,8 @@ export function toHoldBatchResponse({ items, expiresAt }) {
       start_time: item.startTime ?? null,
       end_time: item.endTime ?? null,
       quantity: item.quantity,
+      // Step L6.3B: NIGHTLY / HOURLY for a lodging hold, null otherwise.
+      booking_mode: item.bookingMode ?? null,
       hold_ids: item.holdIds,
       quote: toItemQuoteResponse(item.quote),
     })),

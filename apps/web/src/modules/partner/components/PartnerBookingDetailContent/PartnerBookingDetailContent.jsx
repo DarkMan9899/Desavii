@@ -49,6 +49,10 @@ import { useCreateConversationMutation } from '../../../messaging/index.js';
 import { BookingPaymentSection } from '../../../payments/index.js';
 import { computeNights } from '../../../bookings/utils/computeNights.js';
 import {
+  isHourlyItem,
+  hourlyStayRows,
+} from '../../../bookings/utils/hourlyStayRows.js';
+import {
   resolveDeparturePeopleKey,
   resolveDeparturePeopleCount,
 } from '../../../../utils/departurePeople.js';
@@ -323,40 +327,52 @@ export default function PartnerBookingDetailContent({
                         removes that ambiguity; every other vertical (a
                         single-day stay or same-day timed session) keeps
                         the original combined rendering below. */}
-                    {item.pickup_location || item.return_location ? (
-                      <>
-                        <p>
-                          {t('bookings.detail.pickupLocation')}:{' '}
-                          {dateFormatter.format(new Date(item.date_from))}
-                          {item.start_time ? ` · ${item.start_time}` : ''}
-                          {item.pickup_location
-                            ? ` · ${item.pickup_location}`
-                            : ''}
+                    {/* Step L6.3B: an hourly stay reads as its date, hours,
+                        duration, rooms and guests — never nights. */}
+                    {isHourlyItem(item) &&
+                      hourlyStayRows(t, item, {
+                        formatDate: (date) =>
+                          dateFormatter.format(new Date(date)),
+                      }).map((row) => (
+                        <p key={row.key}>
+                          {row.label}: {row.value}
                         </p>
-                        <p>
-                          {t('bookings.detail.returnLocation')}:{' '}
-                          {dateFormatter.format(new Date(item.date_to))}
-                          {item.end_time ? ` · ${item.end_time}` : ''}
-                          {item.return_location
-                            ? ` · ${item.return_location}`
-                            : ''}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p>
-                          {t('bookings.detail.dates')}:{' '}
-                          {dateFormatter.format(new Date(item.date_from))} –{' '}
-                          {dateFormatter.format(new Date(item.date_to))}
-                        </p>
-                        {formatTimeRange(item.start_time, item.end_time) && (
+                      ))}
+                    {!isHourlyItem(item) &&
+                      (item.pickup_location || item.return_location ? (
+                        <>
                           <p>
-                            {t('bookings.detail.time')}:{' '}
-                            {formatTimeRange(item.start_time, item.end_time)}
+                            {t('bookings.detail.pickupLocation')}:{' '}
+                            {dateFormatter.format(new Date(item.date_from))}
+                            {item.start_time ? ` · ${item.start_time}` : ''}
+                            {item.pickup_location
+                              ? ` · ${item.pickup_location}`
+                              : ''}
                           </p>
-                        )}
-                      </>
-                    )}
+                          <p>
+                            {t('bookings.detail.returnLocation')}:{' '}
+                            {dateFormatter.format(new Date(item.date_to))}
+                            {item.end_time ? ` · ${item.end_time}` : ''}
+                            {item.return_location
+                              ? ` · ${item.return_location}`
+                              : ''}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p>
+                            {t('bookings.detail.dates')}:{' '}
+                            {dateFormatter.format(new Date(item.date_from))} –{' '}
+                            {dateFormatter.format(new Date(item.date_to))}
+                          </p>
+                          {formatTimeRange(item.start_time, item.end_time) && (
+                            <p>
+                              {t('bookings.detail.time')}:{' '}
+                              {formatTimeRange(item.start_time, item.end_time)}
+                            </p>
+                          )}
+                        </>
+                      ))}
                     {/* Step L6.2H2B: a restaurant reservation's party size —
                         never derived from named guest rows; hidden when not
                         recorded (older bookings, other booking types). */}
@@ -374,23 +390,25 @@ export default function PartnerBookingDetailContent({
                     {/* Step L6.2H3B: a departure's people count is its
                         quantity (Travelers / Visitors / Participants) —
                         never named guest rows. */}
-                    {resolveDeparturePeopleCount(item) !== null ? (
-                      <p>
-                        {t(`bookings.departurePeople.${peopleKey}`)}:{' '}
-                        {resolveDeparturePeopleCount(item)}
-                      </p>
-                    ) : (
-                      <>
+                    {!isHourlyItem(item) &&
+                      (resolveDeparturePeopleCount(item) !== null ? (
                         <p>
-                          {t('bookings.detail.quantity')}: {item.quantity}
+                          {t(`bookings.departurePeople.${peopleKey}`)}:{' '}
+                          {resolveDeparturePeopleCount(item)}
                         </p>
-                        {item.guests.length > 0 && (
+                      ) : (
+                        <>
                           <p>
-                            {t('bookings.detail.guests')}: {item.guests.length}
+                            {t('bookings.detail.quantity')}: {item.quantity}
                           </p>
-                        )}
-                      </>
-                    )}
+                          {item.guests.length > 0 && (
+                            <p>
+                              {t('bookings.detail.guests')}:{' '}
+                              {item.guests.length}
+                            </p>
+                          )}
+                        </>
+                      ))}
                   </div>
                 );
               })}

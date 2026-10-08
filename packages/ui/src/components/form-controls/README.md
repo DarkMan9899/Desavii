@@ -92,3 +92,7 @@ Home/End, Page Up/Down) per `COMPONENT_LIBRARY.md`'s DatePicker entry;
 see `DatePicker.jsx`'s file header for its two documented
 simplifications (single-month grid at every breakpoint; English-only
 month/weekday labels, since this package takes no i18n dependency).
+The calendar panel is portaled (so no `overflow: hidden` ancestor can
+clip it) to `document.body`, or — inside a `Modal`/`Drawer` — into that
+overlay's own dialog via `hooks/usePortalContainer.js`, so it always
+paints above the overlay instead of beneath it.

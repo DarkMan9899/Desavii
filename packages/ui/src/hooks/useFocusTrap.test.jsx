@@ -20,6 +20,14 @@ function Harness({ initialOpen = true, preventClose = false }) {
       {isOpen && (
         <div ref={containerRef} data-testid="trapped">
           <button type="button">First</button>
+          {/* Stands in for a nested popup (Select, DatePicker) that
+              handles Escape itself and marks it with preventDefault(). */}
+          <input
+            aria-label="Nested popup"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') event.preventDefault();
+            }}
+          />
           <button type="button">Last</button>
         </div>
       )}
@@ -60,6 +68,20 @@ describe('useFocusTrap', () => {
     render(<Harness />);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByTestId('trapped')).not.toBeInTheDocument();
+  });
+
+  test('an Escape a nested control already handled (defaultPrevented) does not close the trap', () => {
+    render(<Harness />);
+    fireEvent.keyDown(screen.getByLabelText('Nested popup'), {
+      key: 'Escape',
+    });
+    expect(screen.getByTestId('trapped')).toBeInTheDocument();
+  });
+
+  test('the Escape that closes the trap is itself marked handled', () => {
+    render(<Harness />);
+    const notCancelled = fireEvent.keyDown(document, { key: 'Escape' });
+    expect(notCancelled).toBe(false);
   });
 
   test('preventClose blocks Escape from closing', () => {

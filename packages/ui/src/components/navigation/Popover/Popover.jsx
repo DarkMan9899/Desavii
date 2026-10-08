@@ -4,6 +4,14 @@
  * (typically toggled from the trigger's own `onClick`, since `trigger`
  * is a rendered node here, not a render-prop) — this component only
  * owns positioning and the click-outside/Escape-to-close behaviour.
+ *
+ * Escape follows the same nested-dismiss contract as `useFocusTrap`: an
+ * Escape a nested control (a Select or DatePicker inside the panel)
+ * already handled — `event.defaultPrevented` — is left alone, and the
+ * Escape this component consumes is marked with `preventDefault()`.
+ * Both listen on `document`, so when a Popover sits inside a Modal or
+ * Drawer the one registered first (the outer overlay) still runs first;
+ * that nesting needs a shared dismissable-layer stack before it is used.
  */
 
 import { useEffect, useRef } from 'react';
@@ -34,7 +42,9 @@ export default function Popover({
       }
     }
     function handleKeyDown(event) {
-      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      event.preventDefault();
+      onClose();
     }
 
     document.addEventListener('mousedown', handleClickOutside);

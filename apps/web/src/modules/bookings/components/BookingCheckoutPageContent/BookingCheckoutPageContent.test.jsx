@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -741,6 +741,58 @@ describe('BookingCheckoutPageContent (apps/web/src/modules/bookings)', () => {
         expectedTotalAmount: '60000.00',
         expectedCurrency: 'AMD',
       });
+    });
+  });
+
+  // Step L6.3B — an hourly hotel stay reads as one date and its hours,
+  // never as nights; the total is still the hold's server quote.
+  describe('hourly hotel stay (Step L6.3B)', () => {
+    const HOURLY_STATE = {
+      ...HOLD_STATE,
+      unitLabel: 'Day Room',
+      bookableUnitType: 'HOTEL_ROOM',
+      bookingMode: 'HOURLY',
+      holdBatch: {
+        ...HOLD_STATE.holdBatch,
+        items: [
+          {
+            ...HOLD_STATE.holdBatch.items[0],
+            booking_mode: 'HOURLY',
+            date_from: '2026-08-01',
+            date_to: '2026-08-01',
+            start_time: '14:00',
+            end_time: '18:00',
+            quantity: 2,
+            quote: {
+              unit_price_amount: '32000.00',
+              total_amount: '64000.00',
+              currency: 'AMD',
+            },
+          },
+        ],
+      },
+    };
+
+    test('shows type, date, start, end, duration and rooms — and no nights', () => {
+      renderPage(HOURLY_STATE);
+      [
+        ['Ամրագրման տեսակ', 'Ժամային կեցություն'],
+        ['Սկիզբ', '14:00'],
+        ['Ավարտ', '18:00'],
+        ['Տևողություն', '4 ժամ'],
+        ['Քանակ', '2'],
+      ].forEach(([label, value]) => {
+        const row = screen.getByText(label).parentElement;
+        expect(within(row).getByText(value)).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Գիշերներ')).not.toBeInTheDocument();
+      expect(screen.queryByText('Ամսաթվեր')).not.toBeInTheDocument();
+    });
+
+    test('the total is the hourly server quote for every room', async () => {
+      renderPage(HOURLY_STATE);
+      // 64,000 AMD at the fixture's 400 AMD/USD.
+      expect(await screen.findByText(/\$160\.00/)).toBeInTheDocument();
     });
   });
 });

@@ -29,6 +29,18 @@ bathroom, view and smoking — are `HOTEL_ROOM`-only and enforced server-side
 explicit `null` clears it. Room comforts are catalog amenities. See
 `API_SPECIFICATION.md` §49.1.
 
+**Step L6.3B:** a `HOTEL_ROOM` may opt in to same-day hourly stays (rate,
+currency, whole-hour duration range and daily window — migration 0054,
+validated on the effective configuration and backed by a DB `CHECK`). Rules
+live in `core/domain/hourlyStay.js`. Hourly holds and bookings never change a
+date's `quantity_available`: each room is a timed row in
+`hourly_inventory_reservations` (`repositories/mysqlHourlyInventoryRepository.js`),
+reserved under the date's calendar row lock plus a locking read of the active
+rows, released with its hold, transferred to its booking item on conversion
+and released on reject/cancel. Every date-level capacity write for a hotel
+room (nightly holds, blocks, external reservations, calendar edits) subtracts
+the date's busiest hourly hour. See `API_SPECIFICATION.md` §49.3.
+
 ## Folder contents (per BACKEND_ARCHITECTURE.md §2)
 
 - `controllers/` — HTTP-to-Service translation only (Ch. 5)

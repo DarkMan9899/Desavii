@@ -63,6 +63,16 @@ function UnitSummaryRow({ unit, profile, onEdit }) {
         )}
         {bedSummary && <span>{bedSummary}</span>}
         {mealLabel && <span>{mealLabel}</span>}
+        {unit.hourly_enabled && (
+          <span>
+            {t('partner.listingWizard.availability.hourlySummary', {
+              amount: unit.hourly_price_amount,
+              currency: unit.hourly_price_currency,
+              from: unit.hourly_available_from,
+              until: unit.hourly_available_until,
+            })}
+          </span>
+        )}
         {unit.base_price_amount != null && (
           <span>
             {t(`partner.listingWizard.unitPriceSummary.${profile.priceBasis}`, {
@@ -90,6 +100,11 @@ UnitSummaryRow.propTypes = {
       }),
     ),
     meal_plan: PropTypes.string,
+    hourly_enabled: PropTypes.bool,
+    hourly_price_amount: PropTypes.string,
+    hourly_price_currency: PropTypes.string,
+    hourly_available_from: PropTypes.string,
+    hourly_available_until: PropTypes.string,
     base_price_amount: PropTypes.string,
     base_price_currency: PropTypes.string,
   }).isRequired,
@@ -188,6 +203,18 @@ export default function BookableUnitsManager({
                     viewType: unit.view_type ?? undefined,
                     smokingPolicy: unit.smoking_policy ?? undefined,
                     mealPlan: unit.meal_plan ?? undefined,
+                    hourlyEnabled: unit.hourly_enabled ?? false,
+                    hourlyPriceAmount: unit.hourly_price_amount ?? undefined,
+                    hourlyPriceCurrency:
+                      unit.hourly_price_currency ?? undefined,
+                    hourlyMinDurationHours:
+                      unit.hourly_min_duration_hours ?? undefined,
+                    hourlyMaxDurationHours:
+                      unit.hourly_max_duration_hours ?? undefined,
+                    hourlyAvailableFrom:
+                      unit.hourly_available_from ?? undefined,
+                    hourlyAvailableUntil:
+                      unit.hourly_available_until ?? undefined,
                   }}
                   isSubmitting={updateMutation.isPending}
                   submitLabel={t('partner.listingWizard.availability.saveUnit')}

@@ -11,6 +11,7 @@ import {
   toPublicBookableUnitResponse,
   toCalendarDayResponse,
   toPublicAvailabilitySummaryResponse,
+  toPublicHourlyAvailabilityResponse,
 } from '../../../../src/modules/availability/dto/availabilityDto.js';
 
 describe('toPublicBookableUnitResponse', () => {
@@ -42,6 +43,14 @@ describe('toPublicBookableUnitResponse', () => {
       view_type: null,
       smoking_policy: null,
       meal_plan: null,
+      // Step L6.3B: a nightly-only room exposes no hourly settings.
+      hourly_enabled: false,
+      hourly_price_amount: null,
+      hourly_price_currency: null,
+      hourly_min_duration_hours: null,
+      hourly_max_duration_hours: null,
+      hourly_available_from: null,
+      hourly_available_until: null,
     });
   });
 
@@ -218,6 +227,108 @@ describe('toPublicAvailabilitySummaryResponse', () => {
       bookable_unit_type: 'HOTEL_ROOM',
       availability_status: 'SOLD_OUT',
       remaining_count: 0,
+    });
+  });
+});
+
+describe('Step L6.3B — hourly room settings and availability', () => {
+  const hourlyRoom = {
+    id: 9,
+    bookableUnitTypeCode: 'HOTEL_ROOM',
+    capacity: 3,
+    hourlyEnabled: true,
+    hourlyPriceAmount: '8000.00',
+    hourlyPriceCurrencyCode: 'AMD',
+    hourlyMinDurationHours: 2,
+    hourlyMaxDurationHours: 6,
+    hourlyAvailableFrom: '10:00',
+    hourlyAvailableUntil: '20:00',
+  };
+
+  test('an hourly-enabled room exposes its public hourly settings', () => {
+    expect(toPublicBookableUnitResponse(hourlyRoom)).toMatchObject({
+      hourly_enabled: true,
+      hourly_price_amount: '8000.00',
+      hourly_price_currency: 'AMD',
+      hourly_min_duration_hours: 2,
+      hourly_max_duration_hours: 6,
+      hourly_available_from: '10:00',
+      hourly_available_until: '20:00',
+    });
+  });
+
+  test('a disabled room never exposes its stored hourly settings publicly', () => {
+    expect(
+      toPublicBookableUnitResponse({ ...hourlyRoom, hourlyEnabled: false }),
+    ).toMatchObject({
+      hourly_enabled: false,
+      hourly_price_amount: null,
+      hourly_price_currency: null,
+      hourly_available_from: null,
+    });
+  });
+
+  test('hourly slots are bucketed like every public availability count', () => {
+    expect(
+      toPublicHourlyAvailabilityResponse({
+        unitId: 9,
+        date: '2026-10-20',
+        slots: [
+          {
+            startTime: '10:00',
+            endTime: '11:00',
+            remaining: 8,
+            hasStarted: false,
+          },
+          {
+            startTime: '11:00',
+            endTime: '12:00',
+            remaining: 2,
+            hasStarted: false,
+          },
+          {
+            startTime: '12:00',
+            endTime: '13:00',
+            remaining: 0,
+            hasStarted: false,
+          },
+          {
+            startTime: '13:00',
+            endTime: '14:00',
+            remaining: 3,
+            hasStarted: true,
+          },
+        ],
+      }),
+    ).toEqual({
+      bookable_unit_id: 9,
+      date: '2026-10-20',
+      slots: [
+        {
+          start_time: '10:00',
+          end_time: '11:00',
+          status: 'AVAILABLE',
+          remaining_count: null,
+        },
+        {
+          start_time: '11:00',
+          end_time: '12:00',
+          status: 'LOW',
+          remaining_count: 2,
+        },
+        {
+          start_time: '12:00',
+          end_time: '13:00',
+          status: 'SOLD_OUT',
+          remaining_count: null,
+        },
+        {
+          start_time: '13:00',
+          end_time: '14:00',
+          status: 'PAST',
+          remaining_count: null,
+        },
+      ],
     });
   });
 });

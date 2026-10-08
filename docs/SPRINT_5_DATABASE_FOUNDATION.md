@@ -320,9 +320,15 @@ The result is reproducible:
 - 4 non-public lifecycle fixtures (`qa-fixture-*`: DRAFT, PENDING_REVIEW,
   REJECTED with a reason, ARCHIVED) — never returned by search;
 - calendar scenarios (price overrides, a limited date, a sold-out date,
-  maintenance and owner-use blocks, closed weekdays) and 13 bookings
+  maintenance and owner-use blocks, closed weekdays) and 15 bookings
   covering every reachable status, each capacity change recorded in
   `inventory_ledger`; no active reservation holds;
+- optional hourly hotel rooms (Step L6.3B): the Goris hotel stays
+  nightly-only, while the Ararat View hotel's "Superior Double with Ararat
+  View" also offers hourly stays (8,000 AMD per hour, 2–6 hours, 10:00–20:00).
+  Two hourly bookings on that room five days ahead — 14:00–17:00 confirmed
+  and 15:00–18:00 pending, two rooms each — show the overlap: those hours
+  have one of the five rooms left;
 - a pending review, a pending promotion request and a pending partner
   application for the moderation queues.
 

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
-import { describe, test, expect, vi } from 'vitest';
+import { describe, test, expect, vi, onTestFinished } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DatePicker from './DatePicker.jsx';
+import { PortalContainerContext } from '../../../hooks/usePortalContainer.js';
 
 function ControlledDatePicker({ initialValue = null, ...rest }) {
   const [value, setValue] = useState(initialValue);
@@ -197,6 +198,29 @@ describe('DatePicker (COMPONENT_LIBRARY.md Part II §2)', () => {
     expect(document.body.contains(panel)).toBe(true);
   });
 
+  // Inside a Modal/Drawer the overlay publishes its dialog element as the
+  // portal target — a body-level panel at `$z-dropdown` painted beneath
+  // the overlay (`$z-drawer`/`$z-modal`) and could not be clicked.
+  test('portals the panel into the PortalContainerContext node when one is provided', async () => {
+    const user = userEvent.setup();
+    const overlayContainer = document.createElement('div');
+    document.body.appendChild(overlayContainer);
+
+    render(
+      <PortalContainerContext.Provider value={overlayContainer}>
+        <div style={{ overflow: 'hidden', height: '40px' }}>
+          <ControlledDatePicker label="Check-in" />
+        </div>
+      </PortalContainerContext.Provider>,
+    );
+
+    await user.click(screen.getByLabelText('Check-in'));
+
+    const panel = screen.getByRole('grid').closest('[role="dialog"]');
+    expect(panel.parentElement).toBe(overlayContainer);
+    overlayContainer.remove();
+  });
+
   test('flips the panel above the trigger when it would overflow the bottom of the viewport', async () => {
     const user = userEvent.setup();
     render(<ControlledDatePicker label="Check-in" />);
@@ -239,6 +263,77 @@ describe('DatePicker (COMPONENT_LIBRARY.md Part II §2)', () => {
       // panel 400px tall in an 800px-tall viewport - opening upward
       // means the panel's top must land above the trigger's own top.
       expect(top).toBeLessThan(700);
+    });
+  });
+
+  // Nested-dismiss contract (useFocusTrap): every Escape that closes the
+  // panel is marked with preventDefault(), wherever focus is inside it,
+  // so a Modal/Drawer around the DatePicker stays open.
+  describe('Escape', () => {
+    function recordEscapeHandling() {
+      const handled = [];
+      function record(event) {
+        if (event.key === 'Escape') handled.push(event.defaultPrevented);
+      }
+      document.addEventListener('keydown', record);
+      onTestFinished(() => document.removeEventListener('keydown', record));
+      return handled;
+    }
+
+    test('from the day grid closes the panel and returns focus to the trigger', async () => {
+      const user = userEvent.setup();
+      const handled = recordEscapeHandling();
+      render(<ControlledDatePicker label="Travel date" />);
+
+      await user.click(screen.getByLabelText('Travel date'));
+      expect(screen.getByRole('grid')).toContainElement(document.activeElement);
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Travel date')).toHaveFocus();
+      expect(handled).toEqual([true]);
+    });
+
+    test('from the month-navigation buttons closes the panel', async () => {
+      const user = userEvent.setup();
+      const handled = recordEscapeHandling();
+      render(<ControlledDatePicker label="Travel date" />);
+
+      await user.click(screen.getByLabelText('Travel date'));
+      await user.click(screen.getByRole('button', { name: 'Next month' }));
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+      expect(handled).toEqual([true]);
+    });
+
+    // In a real browser focus stays on the trigger whenever the focused
+    // day is disabled (e.g. today, before a check-in minDate) — a disabled
+    // button can't take focus. jsdom lets it, so focus is moved back to
+    // the trigger explicitly here.
+    test('on the trigger while the panel is open closes the panel', async () => {
+      const user = userEvent.setup();
+      const handled = recordEscapeHandling();
+      render(<ControlledDatePicker label="Check-in" />);
+
+      const trigger = screen.getByRole('button', { name: 'Check-in' });
+      await user.click(trigger);
+      act(() => trigger.focus());
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+      expect(handled).toEqual([true]);
+    });
+
+    test('on the closed trigger is left unhandled for an enclosing overlay', async () => {
+      const user = userEvent.setup();
+      const handled = recordEscapeHandling();
+      render(<ControlledDatePicker label="Travel date" />);
+
+      screen.getByLabelText('Travel date').focus();
+      await user.keyboard('{Escape}');
+
+      expect(handled).toEqual([false]);
     });
   });
 });

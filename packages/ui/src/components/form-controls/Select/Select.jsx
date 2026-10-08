@@ -360,10 +360,16 @@ const Select = forwardRef(function Select(
                 aria-label={searchPlaceholder}
               />
             )}
+            {/* The listbox is focusable, so a pointer press on an option
+                moves focus here — and in multi-select mode the panel stays
+                open afterwards. It shares the trigger's key handling so
+                Escape still closes the panel (and calls preventDefault(),
+                keeping an enclosing Modal/Drawer open) from this focus. */}
             <ul
               id={listboxId}
               role="listbox"
               tabIndex={0}
+              onKeyDown={handleTriggerKeyDown}
               aria-multiselectable={multiple || undefined}
               aria-labelledby={label ? labelId : undefined}
               aria-label={!label ? ariaLabel : undefined}

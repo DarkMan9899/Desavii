@@ -649,4 +649,40 @@ describe('AdminBookingDetailContent (apps/web/src/modules/admin)', () => {
       expect(screen.queryByText(/Վերադարձի վայրը/)).not.toBeInTheDocument();
     });
   });
+
+  // Step L6.3B: an hourly hotel stay reads as its date and hours — the
+  // stored item's own values — never as nights or a quantity.
+  test('Step L6.3B: an hourly stay shows its date, hours, duration, rooms and guests — no nights (admin)', () => {
+    useAdminBookingDetailQuery.mockReturnValue({
+      data: {
+        ...BASE_BOOKING,
+        items: BASE_BOOKING.items.map((item) => ({
+          ...item,
+          bookable_unit_type: 'HOTEL_ROOM',
+          booking_mode: 'HOURLY',
+          date_from: '2026-08-01',
+          date_to: '2026-08-01',
+          start_time: '14:00',
+          end_time: '18:00',
+          quantity: 2,
+          guest_count: 3,
+        })),
+      },
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    renderPage();
+    [
+      /Ամրագրման տեսակ: Ժամային կեցություն/,
+      /Սկիզբ: 14:00/,
+      /Ավարտ: 18:00/,
+      /Տևողություն: 4 ժամ/,
+      /Սենյակներ: 2/,
+      /Հյուրեր: 3/,
+    ].forEach((line) => expect(screen.getByText(line)).toBeInTheDocument());
+    expect(screen.queryByText(/Գիշերներ:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Քանակ:/)).not.toBeInTheDocument();
+  });
 });

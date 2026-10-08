@@ -64,6 +64,7 @@ import { useToast } from '../../../../contexts/ToastContext.jsx';
 import { useCurrency } from '../../../../contexts/CurrencyContext.jsx';
 import useNoIndex from '../../../../seo/useNoIndex.js';
 import { formatTimeRange } from '../../../../utils/formatTimeRange.js';
+import { isHourlyItem, hourlyStayRows } from '../../utils/hourlyStayRows.js';
 import { useListingQuery } from '../../../listings/queries/useListingQuery.js';
 import getLocalizedTranslation from '../../../listings/utils/getLocalizedTranslation.js';
 import { isAccommodationUnitType } from '../../../listings/utils/accommodationDateSemantics.js';
@@ -158,7 +159,11 @@ export default function BookingCheckoutPageContent() {
     holdState?.pickupTime && holdState?.returnTime,
   );
   const rentalLocationLabel = holdState?.rentalLocationLabel;
+  // Step L6.3B: an hourly stay is read from the hold itself (its mode,
+  // date and hours) — it has no nights.
+  const isHourlyStay = isHourlyItem(holdItem);
   const nights =
+    !isHourlyStay &&
     isAccommodationUnitType(bookableUnitType) &&
     holdItem?.date_from &&
     holdItem?.date_to
@@ -561,7 +566,16 @@ export default function BookingCheckoutPageContent() {
                     <dd>{unitLabel}</dd>
                   </div>
                 )}
-                {isVehicleRental ? (
+                {isHourlyStay &&
+                  hourlyStayRows(t, holdItem, {
+                    includeRoomsAndGuests: false,
+                  }).map((row) => (
+                    <div key={row.key} className={styles.summaryRow}>
+                      <dt>{row.label}</dt>
+                      <dd>{row.value}</dd>
+                    </div>
+                  ))}
+                {!isHourlyStay && isVehicleRental && (
                   <>
                     <div className={styles.summaryRow}>
                       <dt>{t('bookings.checkout.summary.pickup')}</dt>
@@ -588,7 +602,8 @@ export default function BookingCheckoutPageContent() {
                       </dd>
                     </div>
                   </>
-                ) : (
+                )}
+                {!isHourlyStay && !isVehicleRental && (
                   <>
                     <div className={styles.summaryRow}>
                       <dt>{t('bookings.checkout.summary.dates')}</dt>
@@ -623,12 +638,13 @@ export default function BookingCheckoutPageContent() {
                     <dd>{holdItem.quantity}</dd>
                   </div>
                 )}
-                {!departurePeopleKey && holdItem.quantity > 1 && (
-                  <div className={styles.summaryRow}>
-                    <dt>{t('bookings.checkout.summary.quantity')}</dt>
-                    <dd>{holdItem.quantity}</dd>
-                  </div>
-                )}
+                {!departurePeopleKey &&
+                  (holdItem.quantity > 1 || isHourlyStay) && (
+                    <div className={styles.summaryRow}>
+                      <dt>{t('bookings.checkout.summary.quantity')}</dt>
+                      <dd>{holdItem.quantity}</dd>
+                    </div>
+                  )}
                 {summaryGuestCount && (
                   <div className={styles.summaryRow}>
                     <dt>

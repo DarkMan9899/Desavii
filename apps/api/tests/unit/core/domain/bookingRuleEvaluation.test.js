@@ -234,3 +234,64 @@ describe('null rules and non-applicable stay rules', () => {
     },
   );
 });
+
+describe('Step L6.3B — an hourly hotel stay', () => {
+  const rules = {
+    minimumStayNights: 2,
+    maximumStayNights: 7,
+    advanceBookingMinHours: 4,
+    advanceBookingMaxDays: 30,
+  };
+
+  test('is never judged by the nightly minimum/maximum stay', () => {
+    expect(
+      evaluateBookingRules({
+        listingTypeCode: 'HOTEL',
+        dateFrom: '2026-10-10',
+        dateTo: '2026-10-10',
+        start: { date: '2026-10-10', time: '14:00' },
+        rules,
+        now: NOW,
+        isHourlyStay: true,
+      }),
+    ).toEqual([]);
+  });
+
+  test('still respects the advance minimum hours at its exact start time', () => {
+    // NOW is 10:00 in Yerevan; 4 hours ahead is 14:00.
+    const evaluateAt = (time) =>
+      evaluateBookingRules({
+        listingTypeCode: 'HOTEL',
+        dateFrom: '2026-10-01',
+        dateTo: '2026-10-01',
+        start: { date: '2026-10-01', time },
+        rules,
+        now: NOW,
+        isHourlyStay: true,
+      });
+    expect(evaluateAt('13:00')).toEqual([
+      { issue: 'BOOKING_TOO_SOON', minimumHours: 4 },
+    ]);
+    expect(evaluateAt('14:00')).toEqual([]);
+  });
+
+  test('still respects the advance maximum days on its date', () => {
+    expect(
+      evaluateBookingRules({
+        listingTypeCode: 'HOTEL',
+        dateFrom: '2026-11-01',
+        dateTo: '2026-11-01',
+        start: { date: '2026-11-01', time: '12:00' },
+        rules,
+        now: NOW,
+        isHourlyStay: true,
+      }),
+    ).toEqual([{ issue: 'BOOKING_TOO_FAR_AHEAD', maximumDays: 30 }]);
+  });
+
+  test('a same-date nightly request still fails the minimum nights', () => {
+    expect(
+      evaluate({ dateFrom: '2026-10-10', dateTo: '2026-10-10', rules }),
+    ).toEqual([{ issue: 'MINIMUM_STAY_NOT_MET', minimum: 2, unit: 'nights' }]);
+  });
+});

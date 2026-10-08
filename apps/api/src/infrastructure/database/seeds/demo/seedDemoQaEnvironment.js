@@ -31,6 +31,11 @@ import {
 } from './seedDemoInventoryScenarios.js';
 import { insertLocalizedRows } from './seedDemoListingRichContent.js';
 import {
+  BOOKING_MODES,
+  parseWholeHour,
+  resolveBookingMode,
+} from '../../../../core/domain/hourlyStay.js';
+import {
   DEMO_PASSWORD,
   createUser,
   createPartner,
@@ -365,6 +370,34 @@ const QA_BOOKINGS = [
     quantity: 1,
     status: 'COMPLETED',
   },
+  // Step L6.3B — two overlapping hourly stays in the hourly-enabled Superior
+  // Double (5 rooms): 15:00–17:00 has 4 rooms taken, so only 1 is left then.
+  {
+    ref: 'QA000014',
+    listing: 'qa-ararat-view-grand-hotel',
+    unit: 'Superior Double with Ararat View',
+    from: 5,
+    to: 5,
+    startTime: '14:00:00',
+    endTime: '17:00:00',
+    mode: 'HOURLY',
+    quantity: 2,
+    guestCount: 3,
+    status: 'CONFIRMED',
+  },
+  {
+    ref: 'QA000015',
+    listing: 'qa-ararat-view-grand-hotel',
+    unit: 'Superior Double with Ararat View',
+    from: 5,
+    to: 5,
+    startTime: '15:00:00',
+    endTime: '18:00:00',
+    mode: 'HOURLY',
+    quantity: 2,
+    guestCount: 2,
+    status: 'PENDING_VENDOR',
+  },
 ];
 
 /** Reviews on completed stays — two published, one waiting in the review moderation queue. */
@@ -557,8 +590,44 @@ async function blockClosedWeekdays(connection, ctx, listingId, closedWeekdays) {
   );
 }
 
+/**
+ * Step L6.3B — switches hourly booking on for the units whose spec carries
+ * an `hourly` configuration (every other room stays nightly-only).
+ */
+async function applyHourlyConfigs(connection, ctx, listingId, spec) {
+  // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order
+  for (const unit of spec.units.filter((candidate) => candidate.hourly)) {
+    const { hourly } = unit;
+    // eslint-disable-next-line no-await-in-loop -- sequential by design
+    const currencyId = await getIdByCode(
+      connection,
+      'currencies',
+      hourly.currency,
+    );
+    // eslint-disable-next-line no-await-in-loop -- sequential by design
+    await connection.query(
+      `UPDATE bookable_units
+       SET hourly_enabled = 1, hourly_price_amount = ?, hourly_price_currency_id = ?,
+           hourly_min_duration_hours = ?, hourly_max_duration_hours = ?,
+           hourly_available_from = ?, hourly_available_until = ?
+       WHERE listing_id = ? AND unit_label = ?`,
+      [
+        hourly.priceAmount,
+        currencyId,
+        hourly.minHours,
+        hourly.maxHours,
+        hourly.availableFrom,
+        hourly.availableUntil,
+        listingId,
+        unit.label,
+      ],
+    );
+  }
+}
+
 async function createQaListing(connection, ctx, spec) {
   const listingId = await createFullListing(connection, ctx, spec);
+  await applyHourlyConfigs(connection, ctx, listingId, spec);
   await connection.query(
     'UPDATE listing_locations SET latitude = ?, longitude = ? WHERE listing_id = ?',
     [...spec.coordinates, listingId],
@@ -621,7 +690,8 @@ async function applyFixtureLifecycle(
 async function loadUnits(connection, listingIdBySlug) {
   const [rows] = await connection.query(
     `SELECT bu.id, bu.listing_id, bu.unit_label, bu.capacity, bu.base_price_amount, but.code AS unit_type_code,
-            bu.time_slot_start, bu.time_slot_end, lp.amount AS listing_amount
+            bu.time_slot_start, bu.time_slot_end, lp.amount AS listing_amount,
+            bu.hourly_price_amount
      FROM bookable_units bu
      JOIN bookable_unit_types but ON but.id = bu.bookable_unit_type_id
      JOIN listing_pricing lp ON lp.listing_id = bu.listing_id
@@ -900,21 +970,23 @@ async function insertBookingRow(connection, ctx, refs, spec, unit, totals) {
     ],
   );
   const bookingId = result.insertId;
+  const isHourly = spec.mode === BOOKING_MODES.HOURLY;
   const [itemResult] = await connection.query(
     `INSERT INTO booking_items
-      (booking_id, bookable_unit_id, unit_label_snapshot, date_from, date_to, start_time, end_time,
-       quantity, guest_count, unit_price_amount)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (booking_id, bookable_unit_id, booking_mode, unit_label_snapshot, date_from, date_to,
+       start_time, end_time, quantity, guest_count, unit_price_amount)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       bookingId,
       unit.id,
+      resolveBookingMode(unit.unit_type_code, spec.mode ?? null),
       unit.unit_label,
       totals.dateFrom,
       totals.dateTo,
       spec.startTime ?? unit.time_slot_start ?? null,
-      unit.time_slot_end ?? null,
+      spec.endTime ?? unit.time_slot_end ?? null,
       spec.quantity,
-      isRestaurant ? spec.guestCount : null,
+      isRestaurant || isHourly ? spec.guestCount : null,
       totals.unitPrice.toFixed(2),
     ],
   );
@@ -941,7 +1013,7 @@ async function insertBookingRow(connection, ctx, refs, spec, unit, totals) {
       ],
     );
   }
-  return bookingId;
+  return { bookingId, bookingItemId: itemResult.insertId };
 }
 
 /**
@@ -958,7 +1030,54 @@ function operatingOffset(ctx, spec) {
   return offset;
 }
 
+/**
+ * Step L6.3B — an hourly stay: rate × hours per room, one timed row per
+ * room on its booking item (exactly what booking conversion leaves), never
+ * the date's `quantity_available`.
+ */
+async function createQaHourlyBooking(connection, ctx, units, refs, spec) {
+  const unit = unitFor(units, spec.listing, spec.unit);
+  const date = dateAt(ctx, spec.from);
+  const hours = parseWholeHour(spec.endTime) - parseWholeHour(spec.startTime);
+  const unitPrice = Number(unit.hourly_price_amount) * hours;
+  const { bookingId, bookingItemId } = await insertBookingRow(
+    connection,
+    ctx,
+    refs,
+    spec,
+    unit,
+    {
+      dateFrom: date,
+      dateTo: date,
+      unitPrice,
+      total: unitPrice * spec.quantity,
+    },
+  );
+  await connection.query(
+    `INSERT INTO hourly_inventory_reservations
+      (bookable_unit_id, date, start_time, end_time, quantity, source_type,
+       booking_item_id, actor_user_id)
+     VALUES ?`,
+    [
+      Array.from({ length: spec.quantity }, () => [
+        unit.id,
+        date,
+        spec.startTime,
+        spec.endTime,
+        1,
+        LEDGER.BOOKING,
+        bookingItemId,
+        refs.customerUserId,
+      ]),
+    ],
+  );
+  return { bookingId, ref: spec.ref, listingId: unit.listing_id };
+}
+
 async function createQaBooking(connection, ctx, units, refs, spec) {
+  if (spec.mode === BOOKING_MODES.HOURLY) {
+    return createQaHourlyBooking(connection, ctx, units, refs, spec);
+  }
   const unit = unitFor(units, spec.listing, spec.unit);
   const shift = operatingOffset(ctx, spec) - spec.from;
   const dateFrom = dateAt(ctx, spec.from + shift);
@@ -974,7 +1093,7 @@ async function createQaBooking(connection, ctx, units, refs, spec) {
     unitPrice,
     total: unitPrice * spec.quantity,
   };
-  const bookingId = await insertBookingRow(
+  const { bookingId } = await insertBookingRow(
     connection,
     ctx,
     refs,

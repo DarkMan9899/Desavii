@@ -2,6 +2,13 @@ import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Modal from './Modal.jsx';
+import DatePicker from '../../form-controls/DatePicker/DatePicker.jsx';
+import Select from '../../form-controls/Select/Select.jsx';
+
+const AMENITY_OPTIONS = [
+  { value: 'pool', label: 'Pool' },
+  { value: 'spa', label: 'Spa' },
+];
 
 describe('Modal (COMPONENT_LIBRARY.md Part II §4)', () => {
   test('renders nothing when closed', () => {
@@ -45,6 +52,36 @@ describe('Modal (COMPONENT_LIBRARY.md Part II §4)', () => {
         Are you sure?
       </Modal>,
     );
+
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Nested-dismiss contract (useFocusTrap). A multi-select keeps its
+  // panel open after an option click, with focus on the listbox itself —
+  // the path where Escape used to reach the Modal unhandled.
+  test('Escape inside an open multi-select closes only its listbox, then a second Escape closes the modal', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <Modal isOpen onClose={onClose} title="Filters">
+        <Select
+          label="Amenities"
+          options={AMENITY_OPTIONS}
+          value={[]}
+          onChange={() => {}}
+          multiple
+        />
+      </Modal>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Amenities' }));
+    await user.click(screen.getByRole('option', { name: 'Pool' }));
+    expect(screen.getByRole('listbox')).toHaveFocus();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
 
     await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -138,6 +175,31 @@ describe('Modal (COMPONENT_LIBRARY.md Part II §4)', () => {
     );
     expect(propTypeWarning).toBe(false);
     consoleError.mockRestore();
+  });
+
+  // Same contract as Drawer (shared `internal/Overlay`): a body-level
+  // calendar at `$z-dropdown` would paint beneath `$z-modal`.
+  test('a DatePicker opened inside the modal renders its calendar within the modal dialog and selects a day', async () => {
+    const onClose = vi.fn();
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <Modal isOpen onClose={onClose} title="Filter logs">
+        <DatePicker
+          label="From"
+          value={new Date(2026, 5, 15)}
+          onChange={onChange}
+        />
+      </Modal>,
+    );
+
+    await user.click(screen.getByLabelText('From'));
+    const modal = screen.getByRole('dialog', { name: 'Filter logs' });
+    expect(modal).toContainElement(screen.getByRole('grid'));
+
+    await user.click(screen.getByRole('gridcell', { name: /^Jun 20,/ }));
+    expect(onChange).toHaveBeenCalledWith('2026-06-20');
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   test('supports every documented size without throwing', () => {

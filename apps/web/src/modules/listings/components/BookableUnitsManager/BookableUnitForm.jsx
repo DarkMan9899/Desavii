@@ -41,6 +41,11 @@ import { bookableUnitProfileShape } from '../../utils/resolveBookableUnitProfile
 import RoomDescriptionEditor from './RoomDescriptionEditor.jsx';
 import RoomAmenitiesEditor from './RoomAmenitiesEditor.jsx';
 import RoomMediaGallery from './RoomMediaGallery.jsx';
+import HourlyBookingFields from './HourlyBookingFields.jsx';
+import {
+  initialHourlySettings,
+  validateHourlySettings,
+} from './hourlyBookingSettings.js';
 import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import apiErrorPropType from '../../../../components/ApiErrorAlert/apiErrorPropType.js';
 import useApiFieldErrors from '../../../../hooks/useApiFieldErrors.js';
@@ -102,6 +107,14 @@ const INLINE_API_PATHS = [
   'mealPlan',
   'basePriceAmount',
   'basePriceCurrency',
+  // Step L6.3B: the optional hourly settings show their own server issue.
+  'hourlyEnabled',
+  'hourlyPriceAmount',
+  'hourlyPriceCurrency',
+  'hourlyMinDurationHours',
+  'hourlyMaxDurationHours',
+  'hourlyAvailableFrom',
+  'hourlyAvailableUntil',
 ];
 
 const BASE_PRICE_MESSAGES = {
@@ -299,6 +312,13 @@ export default function BookableUnitForm({
     initialValues.mealPlan ?? NOT_SPECIFIED,
   );
 
+  // Step L6.3B: optional hourly booking — this room's own opt-in.
+  const [hourlySettings, setHourlySettings] = useState(() =>
+    initialHourlySettings(initialValues),
+  );
+  const [hourlyErrors, setHourlyErrors] = useState({});
+  const usesHourly = unitTypeUsesField(bookableUnitType, 'hourlyEnabled');
+
   const usesRoomFields = unitTypeUsesField(bookableUnitType, 'roomSizeSqm');
   const usesMealPlan = unitTypeUsesField(bookableUnitType, 'mealPlan');
   const hasRoomDetails = supportsRoomDetails(bookableUnitType);
@@ -366,12 +386,20 @@ export default function BookableUnitForm({
       Object.entries(bedResults).map(([type, result]) => [type, result.error]),
     );
 
+    const hourlyResult = usesHourly
+      ? validateHourlySettings(hourlySettings, {
+          wasEnabled: Boolean(initialValues.hourlyEnabled),
+        })
+      : { errors: {}, payload: {} };
+
     setFieldErrors(nextFieldErrors);
     setBedCountErrors(nextBedCountErrors);
+    setHourlyErrors(hourlyResult.errors);
 
     const hasErrors =
       Object.values(nextFieldErrors).some(Boolean) ||
-      Object.values(nextBedCountErrors).some(Boolean);
+      Object.values(nextBedCountErrors).some(Boolean) ||
+      Object.keys(hourlyResult.errors).length > 0;
     if (hasErrors) return;
 
     // Present bed types only, in display order; none at all is "no beds
@@ -410,6 +438,7 @@ export default function BookableUnitForm({
           }
         : {}),
       ...(usesMealPlan ? { mealPlan: selectValue(mealPlan) } : {}),
+      ...hourlyResult.payload,
     });
   }
 
@@ -665,6 +694,18 @@ export default function BookableUnitForm({
         </fieldset>
       )}
 
+      {usesHourly && (
+        <HourlyBookingFields
+          settings={hourlySettings}
+          errors={hourlyErrors}
+          serverFieldError={fieldError}
+          onChange={(next) => {
+            setHourlySettings(next);
+            setHourlyErrors({});
+          }}
+        />
+      )}
+
       <fieldset className={styles.section}>
         {usesRoomFields && (
           <legend className={styles.legend}>
@@ -775,6 +816,16 @@ BookableUnitForm.propTypes = {
     viewType: PropTypes.string,
     smokingPolicy: PropTypes.string,
     mealPlan: PropTypes.string,
+    hourlyEnabled: PropTypes.bool,
+    hourlyPriceAmount: PropTypes.oneOfType([
+      PropTypes.number,
+      PropTypes.string,
+    ]),
+    hourlyPriceCurrency: PropTypes.string,
+    hourlyMinDurationHours: PropTypes.number,
+    hourlyMaxDurationHours: PropTypes.number,
+    hourlyAvailableFrom: PropTypes.string,
+    hourlyAvailableUntil: PropTypes.string,
   }),
   profile: bookableUnitProfileShape.isRequired,
   isCreating: PropTypes.bool,

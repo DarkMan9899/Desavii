@@ -63,6 +63,10 @@ import { formatTimeRange } from '../../../../utils/formatTimeRange.js';
 import { BookingPaymentSection } from '../../../payments/index.js';
 import { computeNights } from '../../../bookings/utils/computeNights.js';
 import {
+  isHourlyItem,
+  hourlyStayRows,
+} from '../../../bookings/utils/hourlyStayRows.js';
+import {
   resolveDeparturePeopleKey,
   resolveDeparturePeopleCount,
 } from '../../../../utils/departurePeople.js';
@@ -390,33 +394,48 @@ export default function AdminBookingDetailContent() {
                         : {item.unit_label}
                       </p>
                     )}
-                    <p>
-                      {t(
-                        `admin.bookingDetail.dateRangeLabel.${dateRangeLabelKey}`,
-                      )}
-                      : {dateFormatter.format(new Date(item.date_from))} –{' '}
-                      {dateFormatter.format(new Date(item.date_to))}
-                    </p>
-                    {formatTimeRange(item.start_time, item.end_time) && (
-                      <p>
-                        {t('bookings.detail.time')}:{' '}
-                        {formatTimeRange(item.start_time, item.end_time)}
-                      </p>
-                    )}
-                    {/* Sprint B (Car Rental Pickup/Return Interval): only
+                    {/* Step L6.3B: an hourly stay reads as its date, hours,
+                        duration, rooms and guests — never nights. */}
+                    {isHourlyItem(item) &&
+                      hourlyStayRows(t, item, {
+                        formatDate: (date) =>
+                          dateFormatter.format(new Date(date)),
+                      }).map((row) => (
+                        <p key={row.key}>
+                          {row.label}: {row.value}
+                        </p>
+                      ))}
+                    {!isHourlyItem(item) && (
+                      <>
+                        <p>
+                          {t(
+                            `admin.bookingDetail.dateRangeLabel.${dateRangeLabelKey}`,
+                          )}
+                          : {dateFormatter.format(new Date(item.date_from))} –{' '}
+                          {dateFormatter.format(new Date(item.date_to))}
+                        </p>
+                        {formatTimeRange(item.start_time, item.end_time) && (
+                          <p>
+                            {t('bookings.detail.time')}:{' '}
+                            {formatTimeRange(item.start_time, item.end_time)}
+                          </p>
+                        )}
+                        {/* Sprint B (Car Rental Pickup/Return Interval): only
                         ever populated for a VEHICLE item — every
                         Hotel/Tour booking view here is unaffected. */}
-                    {item.pickup_location && (
-                      <p>
-                        {t('bookings.detail.pickupLocation')}:{' '}
-                        {item.pickup_location}
-                      </p>
-                    )}
-                    {item.return_location && (
-                      <p>
-                        {t('bookings.detail.returnLocation')}:{' '}
-                        {item.return_location}
-                      </p>
+                        {item.pickup_location && (
+                          <p>
+                            {t('bookings.detail.pickupLocation')}:{' '}
+                            {item.pickup_location}
+                          </p>
+                        )}
+                        {item.return_location && (
+                          <p>
+                            {t('bookings.detail.returnLocation')}:{' '}
+                            {item.return_location}
+                          </p>
+                        )}
+                      </>
                     )}
                     {/* Step L6.2H2B: a restaurant reservation's party size —
                         never derived from named guest rows; hidden when not
@@ -435,23 +454,25 @@ export default function AdminBookingDetailContent() {
                     {/* Step L6.2H3B: a departure's people count is its
                         quantity (Travelers / Visitors / Participants) —
                         never named guest rows. */}
-                    {resolveDeparturePeopleCount(item) !== null ? (
-                      <p>
-                        {t(`bookings.departurePeople.${peopleKey}`)}:{' '}
-                        {resolveDeparturePeopleCount(item)}
-                      </p>
-                    ) : (
-                      <>
+                    {!isHourlyItem(item) &&
+                      (resolveDeparturePeopleCount(item) !== null ? (
                         <p>
-                          {t('bookings.detail.quantity')}: {item.quantity}
+                          {t(`bookings.departurePeople.${peopleKey}`)}:{' '}
+                          {resolveDeparturePeopleCount(item)}
                         </p>
-                        {item.guests.length > 0 && (
+                      ) : (
+                        <>
                           <p>
-                            {t('bookings.detail.guests')}: {item.guests.length}
+                            {t('bookings.detail.quantity')}: {item.quantity}
                           </p>
-                        )}
-                      </>
-                    )}
+                          {item.guests.length > 0 && (
+                            <p>
+                              {t('bookings.detail.guests')}:{' '}
+                              {item.guests.length}
+                            </p>
+                          )}
+                        </>
+                      ))}
                   </div>
                 );
               })}

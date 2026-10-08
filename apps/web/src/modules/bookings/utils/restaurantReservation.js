@@ -18,5 +18,8 @@ export function isFreeReservation(booking) {
 
 /** A restaurant item's recorded party size, or `null` when none was stored. */
 export function resolvePartySize(item) {
+  // Step L6.3B: an hourly hotel stay records guests too — they are guests,
+  // not a restaurant party (its own detail rows show them).
+  if (item?.booking_mode === 'HOURLY') return null;
   return Number.isInteger(item?.guest_count) ? item.guest_count : null;
 }

@@ -253,6 +253,18 @@ export function listInventoryBlocks(listingId) {
     .then((response) => response.data);
 }
 
+/**
+ * Step L6.3B — `GET /availability/:listingId/units/:unitId/hourly-availability?date`:
+ * one hourly-enabled room's free rooms per whole-hour slot on one date.
+ */
+export function getListingHourlyAvailability(listingId, unitId, date) {
+  return apiClient
+    .get(`/availability/${listingId}/units/${unitId}/hourly-availability`, {
+      params: { date },
+    })
+    .then((response) => response.data);
+}
+
 /** `DELETE /availability/blocks/:id`. */
 export function releaseInventoryBlock(id) {
   return apiClient

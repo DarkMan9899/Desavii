@@ -2,6 +2,13 @@ import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Drawer from './Drawer.jsx';
+import DatePicker from '../../form-controls/DatePicker/DatePicker.jsx';
+import Select from '../../form-controls/Select/Select.jsx';
+
+const UNIT_OPTIONS = [
+  { value: 'standard', label: 'Standard room' },
+  { value: 'suite', label: 'Suite' },
+];
 
 describe('Drawer (COMPONENT_LIBRARY.md Part II §4)', () => {
   test('renders nothing when closed', () => {
@@ -104,6 +111,80 @@ describe('Drawer (COMPONENT_LIBRARY.md Part II §4)', () => {
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Փակել' }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Regression: the mobile booking Drawer's date pickers painted their
+  // calendar on `document.body` at `$z-dropdown`, beneath this drawer's
+  // `$z-drawer` layer — no day could be tapped on a phone. The calendar
+  // must mount inside the drawer's own aria-modal dialog.
+  test('a DatePicker opened inside the drawer renders its calendar within the drawer dialog and selects a day', async () => {
+    const onClose = vi.fn();
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <Drawer isOpen onClose={onClose} title="Reserve">
+        <DatePicker
+          label="Check-in"
+          value={new Date(2026, 5, 15)}
+          onChange={onChange}
+        />
+      </Drawer>,
+    );
+
+    await user.click(screen.getByLabelText('Check-in'));
+    const drawer = screen.getByRole('dialog', { name: 'Reserve' });
+    expect(drawer).toContainElement(screen.getByRole('grid'));
+
+    await user.click(screen.getByRole('gridcell', { name: /^Jun 20,/ }));
+    expect(onChange).toHaveBeenCalledWith('2026-06-20');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  // Nested-dismiss contract (useFocusTrap): the mobile booking Drawer
+  // holds a DatePicker and a Select, and Escape inside either used to
+  // close the calendar/listbox and the whole Drawer with it.
+  describe('Escape inside a nested popup', () => {
+    test('closes only an open DatePicker, then a second Escape closes the drawer', async () => {
+      const onClose = vi.fn();
+      const user = userEvent.setup();
+      render(
+        <Drawer isOpen onClose={onClose} title="Book">
+          <DatePicker label="Dates" mode="range" onChange={() => {}} />
+        </Drawer>,
+      );
+
+      await user.click(screen.getByLabelText('Dates'));
+      expect(screen.getByRole('grid')).toBeInTheDocument();
+
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getByLabelText('Dates')).toHaveFocus();
+
+      await user.keyboard('{Escape}');
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    test('closes only an open Select, then a second Escape closes the drawer', async () => {
+      const onClose = vi.fn();
+      const user = userEvent.setup();
+      render(
+        <Drawer isOpen onClose={onClose} title="Book">
+          <Select label="Unit" options={UNIT_OPTIONS} onChange={() => {}} />
+        </Drawer>,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Unit' }));
+      expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Unit' })).toHaveFocus();
+
+      await user.keyboard('{Escape}');
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
   });
 
   test('supports every documented anchor without throwing', () => {

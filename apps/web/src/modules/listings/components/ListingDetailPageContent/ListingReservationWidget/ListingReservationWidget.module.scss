@@ -74,3 +74,31 @@
   font-size: tokens.$font-size-small;
   color: tokens.$color-success-strong;
 }
+
+// Step L6.3B — "Stay overnight / Book by hour" for an hourly-enabled room:
+// a plain fieldset (no browser border) with the radios stacked, and the
+// hourly window hint in the muted secondary text style.
+.modeSelector {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.modeLegend {
+  margin-bottom: tokens.$space-1;
+  padding: 0;
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
+.hourlyHint {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+  overflow-wrap: anywhere;
+}

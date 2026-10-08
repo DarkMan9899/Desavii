@@ -45,6 +45,9 @@ function toDomain(row) {
     // unit itself instead of the hold (Tour departures, see Sprint A).
     startTime: toTimeString(row.start_time),
     endTime: toTimeString(row.end_time),
+    // Step L6.3B: NIGHTLY / HOURLY for a lodging hold, `null` otherwise
+    // (and for a hold created before migration 0054 — always date-based).
+    bookingMode: row.booking_mode ?? null,
     // Step L6.2E: `expires_at` is written as UTC (`readHoldClock`).
     expiresAt: toUtcInstant(row.expires_at),
     createdAt: row.created_at,
@@ -115,6 +118,7 @@ export class MySqlReservationHoldRepository {
       dateTo,
       startTime,
       endTime,
+      bookingMode,
       expiresAtUtc,
       count,
     },
@@ -126,8 +130,8 @@ export class MySqlReservationHoldRepository {
         // eslint-disable-next-line no-await-in-loop -- each insert must observe the previous one under the same transaction/connection.
         const [result] = await connection.query(
           `INSERT INTO reservation_holds
-            (bookable_unit_id, user_id, start_date, end_date, start_time, end_time, expires_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            (bookable_unit_id, user_id, start_date, end_date, start_time, end_time, booking_mode, expires_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             bookableUnitId,
             userId,
@@ -135,6 +139,7 @@ export class MySqlReservationHoldRepository {
             dateTo,
             startTime ?? null,
             endTime ?? null,
+            bookingMode ?? null,
             expiresAtUtc,
           ],
         );

@@ -1,6 +1,6 @@
 import { createRef, forwardRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { describe, test, expect, vi } from 'vitest';
+import { describe, test, expect, vi, onTestFinished } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Select from './Select.jsx';
@@ -116,6 +116,36 @@ describe('Select / Dropdown (COMPONENT_LIBRARY.md Part II §2)', () => {
     expect(
       within(trigger).queryByText('Standard room'),
     ).not.toBeInTheDocument();
+  });
+
+  test('Escape with focus on the listbox (after a multi-select option click) closes the panel and is marked handled', async () => {
+    const user = userEvent.setup();
+    const handled = [];
+    function record(event) {
+      if (event.key === 'Escape') handled.push(event.defaultPrevented);
+    }
+    document.addEventListener('keydown', record);
+    onTestFinished(() => document.removeEventListener('keydown', record));
+    render(
+      <ControlledSelect
+        options={ROOM_OPTIONS}
+        label="Amenities"
+        multiple
+        initialValue={[]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Amenities' }));
+    await user.click(screen.getByRole('option', { name: 'Suite' }));
+    expect(screen.getByRole('listbox')).toHaveFocus();
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.getByTestId('select-trigger')).toHaveFocus();
+    // preventDefault() is what keeps an enclosing Modal/Drawer open
+    // (useFocusTrap's nested-dismiss contract).
+    expect(handled).toEqual([true]);
   });
 
   test('searchable mode filters the option list as the user types', async () => {

@@ -387,6 +387,18 @@
       "visitors": "Visitors",
       "participants": "Participants",
       "people": "People"
+    },
+    "hourly": {
+      "bookingType": "Booking type",
+      "hourlyStay": "Hourly stay",
+      "date": "Date",
+      "start": "Start",
+      "end": "End",
+      "duration": "Duration",
+      "hoursCount_one": "{{count}} hour",
+      "hoursCount_other": "{{count}} hours",
+      "rooms": "Rooms",
+      "guests": "Guests"
     }
   },
   "payments": {
@@ -661,7 +673,15 @@
       "unsupportedPricingModelForBooking": "This listing can't be booked online right now — its host is updating how it's priced.",
       "partySizeRequired": "Enter your party size.",
       "reservationQuantityNotSupported": "A reservation always books one table for your party.",
-      "travelerCountMismatch": "The number of people doesn't match the places you held. Go back to the listing and choose your places again."
+      "travelerCountMismatch": "The number of people doesn't match the places you held. Go back to the listing and choose your places again.",
+      "hourlyNotSupported": "This room can’t be booked by the hour.",
+      "hourlyTimeInvalid": "Choose a start and an end time on the hour, with the end after the start.",
+      "hourlyCrossMidnight": "An hourly stay must end on the same day. For an overnight stay, book by the night.",
+      "hourlyDurationOutOfRange": "Choose between {{minimum}} and {{maximum}} hours.",
+      "hourlyOutsideWindow": "These hours are outside the room’s hourly booking times.",
+      "hourlyConfigIncomplete": "Required for hourly booking.",
+      "hourlyDurationRangeInvalid": "The maximum can't be shorter than the minimum.",
+      "hourlyWindowInvalid": "\"Available until\" must be later than \"Available from\" and leave room for the minimum duration."
     },
     "codes": {
       "PARTNER_NOT_VERIFIED": "Your company must be verified before it can create listings.",
@@ -1920,7 +1940,26 @@
         "roomMealsHeading": "Meals",
         "mealPlan": "Meal plan",
         "mealPlanHint": "What this room’s rate includes. It doesn’t change the nightly price.",
-        "notSpecified": "Not specified"
+        "notSpecified": "Not specified",
+        "hourlyHeading": "Hourly booking",
+        "hourlyEnabled": "Hourly booking available",
+        "hourlyEnabledHint": "Guests can also reserve this room by the hour. Overnight bookings remain available, and your other rooms are not affected.",
+        "hourlyPriceAmount": "Hourly rate",
+        "hourlyPriceCurrency": "Currency",
+        "hourlyMinDuration": "Minimum duration",
+        "hourlyMaxDuration": "Maximum duration",
+        "hourlyAvailableFrom": "Available from",
+        "hourlyAvailableUntil": "Available until",
+        "hourlyWindowHint": "Hourly stays start and end on the hour within one day (Armenia time). For an overnight stay, guests book by the night.",
+        "hourlyRequired": "Required for hourly booking.",
+        "hourlyPriceInvalid": "Enter a rate of 0 or more.",
+        "hourlyPriceTooLarge": "This rate is too large.",
+        "hourlyPricePrecision": "Use at most 2 decimal places.",
+        "hourlyDurationRangeInvalid": "The maximum can't be shorter than the minimum.",
+        "hourlyWindowInvalid": "\"Available until\" must be later than \"Available from\" and leave room for the minimum duration.",
+        "hourlySummary": "Hourly: {{amount}} {{currency}} per hour · {{from}}–{{until}}",
+        "hoursCount_one": "{{count}} hour",
+        "hoursCount_other": "{{count}} hours"
       },
       "bookableUnitTypes": {
         "HOTEL_ROOM": "Hotel room",
@@ -3765,7 +3804,17 @@
         "staySoldOut": "This room is sold out for the selected dates.",
         "nightsCount": "{{count}}-night stay",
         "pricingUnavailable": "Online booking isn't available for this listing right now — the host is updating its pricing.",
-        "averageSpendPerPerson": "Average spend per person"
+        "averageSpendPerPerson": "Average spend per person",
+        "stayModeLabel": "How would you like to stay?",
+        "stayOvernight": "Stay overnight",
+        "bookByHour": "Book by hour",
+        "startTimeLabel": "Start time",
+        "endTimeLabel": "End time",
+        "hourlyDuration_one": "Duration: {{count}} hour",
+        "hourlyDuration_other": "Duration: {{count}} hours",
+        "hourlyHint": "Same-day stay between {{from}} and {{until}}, on the hour (Armenia time).",
+        "noHourlyTimesForDate": "No hourly times are left on this date. Choose another date.",
+        "hourlySoldOut": "Not enough rooms are free for these hours. Choose other times or fewer rooms."
       },
       "rooms": {
         "heading": "Rooms",
@@ -3820,7 +3869,14 @@
         },
         "sleepingHeading": "Sleeping arrangements",
         "mealsHeading": "Meals",
-        "roomDetailsHeading": "Room details"
+        "roomDetailsHeading": "Room details",
+        "hourlyAvailable": "Hourly booking available",
+        "perHour": "per hour",
+        "hourlyHeading": "Hourly stays",
+        "hourlyIntro": "This room can also be booked by the hour for a same-day stay. Overnight stays remain available.",
+        "hourlyWindow": "Available from {{from}} to {{until}}",
+        "hourlyDurationRange_one": "From {{minimum}} to {{maximum}} hour",
+        "hourlyDurationRange_other": "From {{minimum}} to {{maximum}} hours"
       },
       "relatedListings": {
         "heading": "You might also like"

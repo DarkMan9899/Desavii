@@ -20,9 +20,11 @@ import {
 } from '../../../core/domain/roomAttributes.js';
 import { isoDateSchema } from '../../../validation/isoDate.js';
 import {
+  decimalMoneyAmountSchema,
   positiveDecimalMoneyAmountSchema,
   hasAtMostTwoDecimals,
 } from '../../../validation/decimalMoneyAmount.js';
+import { HOURS_PER_DAY } from '../../../core/domain/hourlyStay.js';
 import { INT_UNSIGNED_MAX } from '../../../validation/sqlIntegerBounds.js';
 import {
   BLOCK_REASON_CODES,
@@ -105,6 +107,72 @@ const roomSizeSqmSchema = z.coerce
     message: 'roomSizeSqm must have at most 2 decimal places.',
   });
 
+// Step L6.3B — a room's optional hourly configuration. Whole hours only: a
+// window starts on an `HH:00` hour and ends on one, `24:00` being the end
+// of the day; durations are JSON integers 1..24 (never coerced strings).
+// Completeness and coherence of the EFFECTIVE configuration (stored values
+// merged with an update) are checked by the Service — see `hourlyStay.js`.
+const HOURLY_WINDOW_START_PATTERN = /^([01]\d|2[0-3]):00$/;
+const HOURLY_WINDOW_END_PATTERN = /^(([01]\d|2[0-3]):00|24:00)$/;
+const hourlyDurationHoursSchema = z.number().int().min(1).max(HOURS_PER_DAY);
+const hourlyRegisterShape = {
+  hourlyEnabled: z.boolean().optional(),
+  hourlyPriceAmount: decimalMoneyAmountSchema.optional(),
+  hourlyPriceCurrency: z.string().trim().length(3).toUpperCase().optional(),
+  hourlyMinDurationHours: hourlyDurationHoursSchema.optional(),
+  hourlyMaxDurationHours: hourlyDurationHoursSchema.optional(),
+  hourlyAvailableFrom: z
+    .string()
+    .regex(HOURLY_WINDOW_START_PATTERN, 'Use a whole hour, e.g. 10:00.')
+    .optional(),
+  hourlyAvailableUntil: z
+    .string()
+    .regex(HOURLY_WINDOW_END_PATTERN, 'Use a whole hour, e.g. 20:00.')
+    .optional(),
+};
+// An update may clear any hourly value with `null` (except the switch).
+const hourlyUpdateShape = {
+  hourlyEnabled: z.boolean().optional(),
+  hourlyPriceAmount: decimalMoneyAmountSchema.nullable().optional(),
+  hourlyPriceCurrency: z
+    .string()
+    .trim()
+    .length(3)
+    .toUpperCase()
+    .nullable()
+    .optional(),
+  hourlyMinDurationHours: hourlyDurationHoursSchema.nullable().optional(),
+  hourlyMaxDurationHours: hourlyDurationHoursSchema.nullable().optional(),
+  hourlyAvailableFrom: z
+    .string()
+    .regex(HOURLY_WINDOW_START_PATTERN, 'Use a whole hour, e.g. 10:00.')
+    .nullable()
+    .optional(),
+  hourlyAvailableUntil: z
+    .string()
+    .regex(HOURLY_WINDOW_END_PATTERN, 'Use a whole hour, e.g. 20:00.')
+    .nullable()
+    .optional(),
+};
+
+/** Both-or-neither: an hourly rate is meaningless without its currency. */
+function refineHourlyPricePair(data, ctx) {
+  const hasAmount = data.hourlyPriceAmount !== undefined;
+  const hasCurrency = data.hourlyPriceCurrency !== undefined;
+  if (
+    hasAmount !== hasCurrency ||
+    (hasAmount &&
+      (data.hourlyPriceAmount === null) !== (data.hourlyPriceCurrency === null))
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        'hourlyPriceAmount and hourlyPriceCurrency must be provided together.',
+      path: ['hourlyPriceCurrency'],
+    });
+  }
+}
+
 /** Both-or-neither: a base price is meaningless without its currency — mirrors `refinePriceOverridePair` below. */
 function refineBasePricePair(data, ctx) {
   const hasAmount = data.basePriceAmount !== undefined;
@@ -158,8 +226,10 @@ export const registerUnitSchema = z.object({
       smokingPolicy: z.enum(SMOKING_POLICIES).optional(),
       // Step L6.3A: the room's meal / board basis (display only).
       mealPlan: z.enum(MEAL_PLANS).optional(),
+      ...hourlyRegisterShape,
     })
-    .superRefine(refineBasePricePair),
+    .superRefine(refineBasePricePair)
+    .superRefine(refineHourlyPricePair),
 });
 
 export const unitIdParamsSchema = z.object({
@@ -197,11 +267,13 @@ export const updateUnitSchema = z.object({
       viewType: z.enum(VIEW_TYPES).nullable().optional(),
       smokingPolicy: z.enum(SMOKING_POLICIES).nullable().optional(),
       mealPlan: z.enum(MEAL_PLANS).nullable().optional(),
+      ...hourlyUpdateShape,
     })
     .refine((data) => Object.keys(data).length > 0, {
       message: 'At least one field must be provided.',
     })
-    .superRefine(refineBasePricePair),
+    .superRefine(refineBasePricePair)
+    .superRefine(refineHourlyPricePair),
 });
 
 export const listUnitsQuerySchema = z.object({
@@ -612,3 +684,13 @@ export const unitLedgerQuerySchema = z.object({
 });
 
 export const unitBreakdownQuerySchema = unitLedgerQuerySchema;
+
+// Step L6.3B — GET /availability/:listingId/units/:unitId/hourly-availability
+export const publicHourlyAvailabilityQuerySchema = z.object({
+  params: z.object({
+    listingId: z.coerce.number().int().positive(),
+    unitId: z.coerce.number().int().positive(),
+  }),
+  query: z.object({ date: isoDateSchema }),
+  body: z.any(),
+});

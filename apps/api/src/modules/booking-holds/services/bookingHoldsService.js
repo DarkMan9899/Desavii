@@ -65,6 +65,7 @@ export class BookingHoldsService {
             startTime: item.startTime,
             endTime: item.endTime,
             quantity: item.quantity,
+            bookingMode: item.bookingMode,
             expiresAtUtc: clock.expiresAtUtc,
             now: clock.now,
             userId: principal.userId,

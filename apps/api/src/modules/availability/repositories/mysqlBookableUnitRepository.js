@@ -24,13 +24,35 @@ const SELECT_COLUMNS = `
   bu.max_guests, bu.bed_configuration,
   bu.base_price_amount, bu.base_price_currency_id, cur.code AS base_price_currency_code,
   bu.room_size_sqm, bu.bathroom_type, bu.view_type, bu.smoking_policy, bu.meal_plan,
+  bu.hourly_enabled, bu.hourly_price_amount, bu.hourly_price_currency_id,
+  hcur.code AS hourly_price_currency_code,
+  bu.hourly_min_duration_hours, bu.hourly_max_duration_hours,
+  bu.hourly_available_from, bu.hourly_available_until,
   bu.created_at, bu.updated_at
 `;
 const FROM_JOINED = `
   FROM bookable_units bu
   JOIN bookable_unit_types but ON but.id = bu.bookable_unit_type_id
   LEFT JOIN currencies cur ON cur.id = bu.base_price_currency_id
+  LEFT JOIN currencies hcur ON hcur.id = bu.hourly_price_currency_id
 `;
+
+// Step L6.3B — the optional hourly configuration: camelCase field -> column.
+// Written only when present in a create/update payload, like every field.
+const HOURLY_COLUMNS = Object.freeze({
+  hourlyEnabled: 'hourly_enabled',
+  hourlyPriceAmount: 'hourly_price_amount',
+  hourlyPriceCurrencyId: 'hourly_price_currency_id',
+  hourlyMinDurationHours: 'hourly_min_duration_hours',
+  hourlyMaxDurationHours: 'hourly_max_duration_hours',
+  hourlyAvailableFrom: 'hourly_available_from',
+  hourlyAvailableUntil: 'hourly_available_until',
+});
+
+function toHourlyColumnValue(field, value) {
+  if (field === 'hourlyEnabled') return value ? 1 : 0;
+  return value ?? null;
+}
 
 /**
  * `mysql2` returns a JSON column already parsed into a JS value for a
@@ -71,6 +93,14 @@ function toDomain(row) {
     viewType: row.view_type,
     smokingPolicy: row.smoking_policy,
     mealPlan: row.meal_plan,
+    hourlyEnabled: Boolean(row.hourly_enabled),
+    hourlyPriceAmount: row.hourly_price_amount ?? null,
+    hourlyPriceCurrencyId: row.hourly_price_currency_id ?? null,
+    hourlyPriceCurrencyCode: row.hourly_price_currency_code ?? null,
+    hourlyMinDurationHours: row.hourly_min_duration_hours ?? null,
+    hourlyMaxDurationHours: row.hourly_max_duration_hours ?? null,
+    hourlyAvailableFrom: toTimeString(row.hourly_available_from),
+    hourlyAvailableUntil: toTimeString(row.hourly_available_until),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -193,9 +223,11 @@ export class MySqlBookableUnitRepository {
       smokingPolicy,
       mealPlan,
       createdBy,
+      ...hourlyFields
     },
     connection = this.#pool,
   ) {
+    const hourlyEntries = Object.entries(HOURLY_COLUMNS);
     try {
       const [result] = await connection.query(
         `INSERT INTO bookable_units
@@ -203,8 +235,10 @@ export class MySqlBookableUnitRepository {
            time_slot_start, time_slot_end, unit_label, max_guests, bed_configuration,
            base_price_amount, base_price_currency_id,
            room_size_sqm, bathroom_type, view_type, smoking_policy, meal_plan,
+           ${hourlyEntries.map(([, column]) => column).join(', ')},
            created_by, updated_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+           ${hourlyEntries.map(() => '?').join(', ')}, ?, ?)`,
         [
           listingId,
           bookableUnitTypeId,
@@ -223,6 +257,9 @@ export class MySqlBookableUnitRepository {
           viewType ?? null,
           smokingPolicy ?? null,
           mealPlan ?? null,
+          ...hourlyEntries.map(([field]) =>
+            toHourlyColumnValue(field, hourlyFields[field]),
+          ),
           createdBy,
           createdBy,
         ],
@@ -291,6 +328,11 @@ export class MySqlBookableUnitRepository {
       assignments.push('meal_plan = ?');
       params.push(fields.mealPlan);
     }
+    Object.entries(HOURLY_COLUMNS).forEach(([field, column]) => {
+      if (fields[field] === undefined) return;
+      assignments.push(`${column} = ?`);
+      params.push(toHourlyColumnValue(field, fields[field]));
+    });
 
     if (assignments.length === 0) return this.findById(id, connection);
 

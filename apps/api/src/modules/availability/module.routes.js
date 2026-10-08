@@ -56,6 +56,7 @@ import {
   listPublicUnitsQuerySchema,
   calendarQuerySchema,
   publicAvailabilitySummaryQuerySchema,
+  publicHourlyAvailabilityQuerySchema,
   createManualBlockSchema,
   blockIdParamsSchema,
   listBlocksQuerySchema,
@@ -290,6 +291,12 @@ export default function createAvailabilityRoutes({
   // Phase 18 — same query shape as `/availability-summary` (from/to/
   // unitId, span-capped); reused directly rather than duplicated, since
   // the only difference is the service method / response shape behind it.
+  // Step L6.3B — one hourly-enabled room's free rooms per hour on a date.
+  router.get(
+    '/:listingId/units/:unitId/hourly-availability',
+    validate(publicHourlyAvailabilityQuerySchema),
+    availabilityController.getPublicHourlyAvailability,
+  );
   router.get(
     '/:listingId/day-status',
     validate(publicAvailabilitySummaryQuerySchema),

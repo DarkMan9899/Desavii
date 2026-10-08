@@ -67,6 +67,12 @@ import {
 } from '../../../core/domain/bookingTimebase.js';
 import { generateBookingReference } from '../../../core/domain/bookingReference.js';
 import {
+  BOOKING_MODES,
+  parseWholeHour,
+  hasHourlyStayStarted,
+  resolveBookingMode,
+} from '../../../core/domain/hourlyStay.js';
+import {
   CANCELLATION_REFUND_ACTIONS,
   resolveCancellationRefundAction,
 } from '../../../core/domain/cancellationRefundPolicy.js';
@@ -286,7 +292,10 @@ export class BookingService {
       (hold) =>
         hold.bookableUnitId === firstHold.bookableUnitId &&
         hold.dateFrom === firstHold.dateFrom &&
-        hold.dateTo === firstHold.dateTo,
+        hold.dateTo === firstHold.dateTo &&
+        hold.startTime === firstHold.startTime &&
+        hold.endTime === firstHold.endTime &&
+        hold.bookingMode === firstHold.bookingMode,
     );
     if (!consistent) {
       throw new ValidationError(
@@ -304,6 +313,14 @@ export class BookingService {
     // just for a single reservation time rather than a pickup/return
     // interval — see `AvailabilityService#reserveCapacity`'s own comment.
     const isRestaurant = isRestaurantUnitType(unit.bookableUnitTypeCode);
+    // Step L6.3B: the mode the hold was granted in — an hourly hold stays an
+    // hourly stay (its timed rooms, hourly price and times), whatever the
+    // room's hourly settings are now.
+    const bookingMode = resolveBookingMode(
+      unit.bookableUnitTypeCode,
+      firstHold.bookingMode,
+    );
+    const isHourly = bookingMode === BOOKING_MODES.HOURLY;
 
     // Step L6.2F — defense in depth, NOT a Partner-rule re-check: an active
     // hold keeps the booking rules it was granted under, but a booking can
@@ -317,7 +334,16 @@ export class BookingService {
       requestedStartTime: firstHold.startTime,
       unitTimeSlotStart: unit.timeSlotStart,
     });
-    if (isBookingStartInPast(bookingStart, now)) {
+    const hasStarted = isHourly
+      ? hasHourlyStayStarted(
+          {
+            date: firstHold.dateFrom,
+            startHour: parseWholeHour(firstHold.startTime),
+          },
+          now,
+        )
+      : isBookingStartInPast(bookingStart, now);
+    if (hasStarted) {
       throw new ValidationError('This booking would start in the past.', [
         { field: 'items', issue: 'BOOKING_IN_PAST' },
       ]);
@@ -380,12 +406,16 @@ export class BookingService {
     const listing = isRestaurant
       ? null
       : await this.#listingService.getListing(principal, unit.listingId);
-    const quote = await this.#availabilityService.quoteUnitRange(
+    // Step L6.3B: an hourly stay prices by the room's hourly rate × hours.
+    const quote = await this.#availabilityService.quoteItem(
       {
         unit,
         listingPricing: listing?.pricing,
         dateFrom: firstHold.dateFrom,
         dateTo: firstHold.dateTo,
+        startTime: firstHold.startTime,
+        endTime: firstHold.endTime,
+        bookingMode,
         quantity,
       },
       connection,
@@ -421,8 +451,12 @@ export class BookingService {
       // the consumed hold, never re-trusted from fresh client input at
       // booking-creation time (`item` is never read for this).
       timeSlotStart:
-        isVehicle || isRestaurant ? firstHold.startTime : unit.timeSlotStart,
-      timeSlotEnd: isVehicle ? firstHold.endTime : unit.timeSlotEnd,
+        isVehicle || isRestaurant || isHourly
+          ? firstHold.startTime
+          : unit.timeSlotStart,
+      timeSlotEnd: isVehicle || isHourly ? firstHold.endTime : unit.timeSlotEnd,
+      bookingMode,
+      holdIds: item.holdIds,
       // Same-location-return-only model (see `formatListingLocationLabel`)
       // — both snapshots are the listing's own location today, never
       // client-supplied, so there is nothing here for a client to tamper.
@@ -441,9 +475,10 @@ export class BookingService {
       listingId: unit.listingId,
       bookableUnitTypeCode: unit.bookableUnitTypeCode,
       guests: item.guests ?? [],
-      // Step L6.2H2B: persisted for restaurant reservations only; every other
-      // unit type keeps its current (unpersisted) guest-count semantics.
-      guestCount: isRestaurant ? item.guestCount : null,
+      // Step L6.2H2B: persisted for restaurant reservations; Step L6.3B: and
+      // for hourly hotel stays (their detail shows the guests). Every other
+      // item keeps its current (unpersisted) guest-count semantics.
+      guestCount: isRestaurant || isHourly ? (item.guestCount ?? null) : null,
     };
   }
 
@@ -730,9 +765,18 @@ export class BookingService {
             quantity: resolved.quantity,
             guestCount: resolved.guestCount,
             unitPriceAmount: resolved.unitPrice.toDecimalString(),
+            bookingMode: resolved.bookingMode,
           },
           connection,
         );
+        // Step L6.3B: the hourly hold's timed rooms now belong to this item.
+        if (resolved.bookingMode === BOOKING_MODES.HOURLY) {
+          // eslint-disable-next-line no-await-in-loop
+          await this.#availabilityService.transferHourlyHoldsToBookingItem(
+            { holdIds: resolved.holdIds, bookingItemId },
+            connection,
+          );
+        }
         for (const guest of resolved.guests) {
           // eslint-disable-next-line no-await-in-loop
           await this.#bookingRepository.createBookingGuest(
@@ -1011,7 +1055,13 @@ export class BookingService {
         connection,
       );
       const today = todayDateString();
-      for (const item of items) {
+      // Step L6.3B: nightly items (calendar rows) before hourly items (timed
+      // rows) — the lock order every capacity write uses.
+      const releaseOrder = [
+        ...items.filter((item) => item.bookingMode !== BOOKING_MODES.HOURLY),
+        ...items.filter((item) => item.bookingMode === BOOKING_MODES.HOURLY),
+      ];
+      for (const item of releaseOrder) {
         if (item.dateTo >= today) {
           // eslint-disable-next-line no-await-in-loop
           await this.#availabilityService.releaseBookedCapacity(
@@ -1022,6 +1072,8 @@ export class BookingService {
               quantity: item.quantity,
               bookingId: booking.id,
               actorUserId: changedBy,
+              bookingMode: item.bookingMode,
+              bookingItemId: item.id,
             },
             connection,
           );

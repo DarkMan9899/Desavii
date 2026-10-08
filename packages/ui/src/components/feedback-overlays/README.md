@@ -16,7 +16,10 @@ Toast).
 the private `internal/Overlay` component and the `useFocusTrap` hook
 (`../../hooks/useFocusTrap.js`) — neither re-implements it, per
 COMPONENT_LIBRARY.md's own note that Drawer's behaviour is "identical"
-to Modal's.
+to Modal's. `Overlay` also provides its dialog element through
+`PortalContainerContext` (`../../hooks/usePortalContainer.js`), so a
+floating panel opened inside a Modal/Drawer (DatePicker's calendar)
+portals into the dialog rather than beneath it on `document.body`.
 
 Each component, when implemented, follows the full specification in
 `COMPONENT_LIBRARY.md` (Purpose, Props, States, Variants, Accessibility,
@@ -64,7 +67,10 @@ import {
 ```
 
 `Modal`/`Drawer` both: full focus trap, close on `Escape` (unless
-`preventClose`), close on backdrop click (unless `closeOnBackdropClick=
+`preventClose`, or unless a nested popup already handled that Escape —
+an open `Select` list or `DatePicker` calendar closes itself and calls
+`preventDefault()`, so the first Escape closes only the popup and the
+second closes the overlay), close on backdrop click (unless `closeOnBackdropClick=
 {false}` or `preventClose`), restore focus to the triggering element on
 close, and mark background `document.body` content `aria-hidden` while
 open. `Drawer`'s `anchor="auto"` (default) renders as a bottom sheet

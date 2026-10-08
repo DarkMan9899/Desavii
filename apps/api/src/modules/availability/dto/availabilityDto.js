@@ -11,6 +11,30 @@
  * `toCalendarDayResponse` is the public, merged day-by-day view.
  */
 
+/**
+ * Step L6.3B — a room's optional hourly configuration. The owner sees every
+ * stored value (a disabled room may keep its last settings); the public
+ * shape below exposes them only while hourly booking is enabled.
+ */
+function toHourlyConfigResponse(unit) {
+  return {
+    hourly_enabled: Boolean(unit.hourlyEnabled),
+    hourly_price_amount: unit.hourlyPriceAmount ?? null,
+    hourly_price_currency: unit.hourlyPriceCurrencyCode ?? null,
+    hourly_min_duration_hours: unit.hourlyMinDurationHours ?? null,
+    hourly_max_duration_hours: unit.hourlyMaxDurationHours ?? null,
+    hourly_available_from: unit.hourlyAvailableFrom ?? null,
+    hourly_available_until: unit.hourlyAvailableUntil ?? null,
+  };
+}
+
+function toPublicHourlyConfigResponse(unit) {
+  if (!unit.hourlyEnabled) {
+    return { ...toHourlyConfigResponse({}), hourly_enabled: false };
+  }
+  return toHourlyConfigResponse(unit);
+}
+
 /** Owner/Partner-authoring media shape — mirrors `listingDto.js`'s own `toMediaResponse` minus alt-text/caption (not an authored field for room media in this sprint). */
 export function toUnitMediaResponse(media) {
   return {
@@ -50,6 +74,7 @@ export function toBookableUnitResponse(unit) {
     smoking_policy: unit.smokingPolicy ?? null,
     // Step L6.3A: the room's meal / board basis code (null when unstated).
     meal_plan: unit.mealPlan ?? null,
+    ...toHourlyConfigResponse(unit),
     // Present only when the caller went through `AvailabilityService`'s
     // `#enrichUnit` (every owner-facing register/update/list path) — a
     // bare `BookableUnitService` read (e.g. Sprint 10's internal
@@ -130,6 +155,7 @@ export function toPublicBookableUnitResponse(unit) {
     smoking_policy: unit.smokingPolicy ?? null,
     // Step L6.3A: the room's meal / board basis code (null when unstated).
     meal_plan: unit.mealPlan ?? null,
+    ...toPublicHourlyConfigResponse(unit),
     ...(unit.translations !== undefined && {
       translations: unit.translations.map((t) => ({
         language_code: t.languageCode,
@@ -328,5 +354,29 @@ export function toReservationHoldResponse(hold) {
     date_to: hold.dateTo,
     expires_at: hold.expiresAt,
     created_at: hold.createdAt,
+  };
+}
+
+/**
+ * Step L6.3B — public hourly availability of one room on one date: one entry
+ * per whole-hour slot of its window. Same customer-safe bucketing as every
+ * other public availability field (exact count only when LOW); a slot whose
+ * start has already passed (Asia/Yerevan) is PAST.
+ */
+export function toPublicHourlyAvailabilityResponse({ unitId, date, slots }) {
+  return {
+    bookable_unit_id: unitId,
+    date,
+    slots: slots.map((slot) => {
+      const status = slot.hasStarted
+        ? 'PAST'
+        : resolveAvailabilityStatus(slot.remaining);
+      return {
+        start_time: slot.startTime,
+        end_time: slot.endTime,
+        status,
+        remaining_count: status === 'LOW' ? slot.remaining : null,
+      };
+    }),
   };
 }

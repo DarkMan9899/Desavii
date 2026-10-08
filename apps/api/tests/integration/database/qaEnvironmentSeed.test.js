@@ -304,7 +304,8 @@ describe('QA environment — bookings and calendar', () => {
   beforeAll(async () => {
     [items] = await pool.query(
       `SELECT b.total_amount, bs.code AS status, bt.code AS booking_type,
-         bi.quantity, bi.guest_count, bi.unit_price_amount, bi.start_time
+         bi.quantity, bi.guest_count, bi.unit_price_amount, bi.start_time,
+         bi.booking_mode
        FROM bookings b
        JOIN booking_items bi ON bi.booking_id = b.id
        JOIN booking_statuses bs ON bs.id = b.status_id
@@ -368,8 +369,13 @@ describe('QA environment — bookings and calendar', () => {
       expect(item.guest_count).toBeGreaterThan(1);
       expect(item.start_time).toEqual(expect.any(String));
     });
+    // Step L6.3B: an hourly hotel stay also records its guests.
     items
-      .filter((item) => item.booking_type !== 'RESTAURANT_RESERVATION')
+      .filter(
+        (item) =>
+          item.booking_type !== 'RESTAURANT_RESERVATION' &&
+          item.booking_mode !== 'HOURLY',
+      )
       .forEach((item) => expect(item.guest_count).toBeNull());
   });
 
@@ -428,5 +434,87 @@ describe('QA environment — bookings and calendar', () => {
             JOIN listings l ON l.id = a.listing_id WHERE ${QA_SCOPE} AND s.code = 'REQUEST_SUBMITTED') AS promotions`,
     );
     expect(queues).toEqual({ reviews: 1, promotions: 1 });
+  });
+});
+
+describe('QA environment — optional hourly hotel rooms (Step L6.3B)', () => {
+  test('one hotel mixes nightly-only rooms with one hourly-enabled room; the other stays nightly-only', async () => {
+    const [rooms] = await pool.query(
+      `SELECT l.slug, bu.unit_label, bu.hourly_enabled
+       FROM bookable_units bu
+       JOIN bookable_unit_types but ON but.id = bu.bookable_unit_type_id
+       JOIN listings l ON l.id = bu.listing_id
+       WHERE ${PUBLIC_QA_SCOPE} AND but.code = 'HOTEL_ROOM'`,
+    );
+    const hourly = rooms.filter((room) => room.hourly_enabled === 1);
+    expect(hourly.map((room) => [room.slug, room.unit_label])).toEqual([
+      ['qa-ararat-view-grand-hotel', 'Superior Double with Ararat View'],
+    ]);
+    expect(
+      rooms.filter(
+        (room) =>
+          room.slug === 'qa-ararat-view-grand-hotel' &&
+          room.hourly_enabled === 0,
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      rooms
+        .filter((room) => room.slug === 'qa-goris-cliffside-resort')
+        .every((room) => room.hourly_enabled === 0),
+    ).toBe(true);
+  });
+
+  test('hourly stays are priced by the hour and hold timed rooms that overlap within capacity', async () => {
+    const [items] = await pool.query(
+      `SELECT bi.id, bi.quantity, bi.unit_price_amount, bi.start_time, bi.end_time,
+              bi.date_from, bu.capacity, bu.hourly_price_amount
+       FROM booking_items bi
+       JOIN bookable_units bu ON bu.id = bi.bookable_unit_id
+       JOIN listings l ON l.id = bu.listing_id
+       WHERE ${QA_SCOPE} AND bi.booking_mode = 'HOURLY'`,
+    );
+    expect(items).toHaveLength(2);
+    items.forEach((item) => {
+      const hours =
+        Number(item.end_time.slice(0, 2)) - Number(item.start_time.slice(0, 2));
+      expect(Number(item.unit_price_amount)).toBe(
+        Number(item.hourly_price_amount) * hours,
+      );
+    });
+
+    const [rows] = await pool.query(
+      `SELECT booking_item_id, start_time, end_time, quantity
+       FROM hourly_inventory_reservations
+       WHERE booking_item_id IN (?) AND released_at IS NULL`,
+      [items.map((item) => item.id)],
+    );
+    items.forEach((item) => {
+      const own = rows.filter((row) => row.booking_item_id === item.id);
+      expect(own.reduce((sum, row) => sum + row.quantity, 0)).toBe(
+        item.quantity,
+      );
+    });
+    const occupiedAt = (hour) =>
+      rows
+        .filter(
+          (row) =>
+            Number(row.start_time.slice(0, 2)) <= hour &&
+            Number(row.end_time.slice(0, 2)) > hour,
+        )
+        .reduce((sum, row) => sum + row.quantity, 0);
+    expect(occupiedAt(15)).toBe(4);
+    expect(occupiedAt(15)).toBeLessThanOrEqual(items[0].capacity);
+  });
+
+  test('every lodging item records an explicit booking mode', async () => {
+    const [[unmoded]] = await pool.query(
+      `SELECT COUNT(*) AS n FROM booking_items bi
+       JOIN bookable_units bu ON bu.id = bi.bookable_unit_id
+       JOIN bookable_unit_types but ON but.id = bu.bookable_unit_type_id
+       JOIN listings l ON l.id = bu.listing_id
+       WHERE ${QA_SCOPE} AND but.code IN ('HOTEL_ROOM', 'PROPERTY_UNIT')
+         AND bi.booking_mode IS NULL`,
+    );
+    expect(unmoded.n).toBe(0);
   });
 });

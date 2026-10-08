@@ -55,6 +55,7 @@ import getLocalizedTranslation from '../../../listings/utils/getLocalizedTransla
 import { resolveUnitNounKey } from '../../utils/resolveUnitNounKey.js';
 import { resolveBookingDisplayAmount } from '../../../../utils/resolveBookingDisplayAmount.js';
 import { computeNights } from '../../utils/computeNights.js';
+import { isHourlyItem, hourlyStayRows } from '../../utils/hourlyStayRows.js';
 import StatusStepper from '../StatusStepper/StatusStepper.jsx';
 import styles from './BookingDetailPageContent.module.scss';
 
@@ -289,50 +290,68 @@ export default function BookingDetailPageContent() {
                         vertical's booking (a single-day stay or a
                         same-day timed session) keeps the original combined
                         rendering below, unchanged. */}
-                    {item.pickup_location || item.return_location ? (
-                      <>
-                        <p className={styles.metaLine}>
-                          <Calendar aria-hidden="true" focusable="false" />
+                    {/* Step L6.3B: an hourly stay reads as its date, hours,
+                        duration, rooms and guests — never nights. */}
+                    {isHourlyItem(item) &&
+                      hourlyStayRows(t, item, {
+                        formatDate: (date) =>
+                          dateFormatter.format(new Date(date)),
+                      }).map((row) => (
+                        <p key={row.key} className={styles.metaLine}>
+                          <Clock aria-hidden="true" focusable="false" />
                           <span>
-                            {t('bookings.detail.pickupLocation')}:{' '}
-                            {dateFormatter.format(new Date(item.date_from))}
-                            {item.start_time ? ` · ${item.start_time}` : ''}
-                            {item.pickup_location
-                              ? ` · ${item.pickup_location}`
-                              : ''}
+                            {row.label}: {row.value}
                           </span>
                         </p>
-                        <p className={styles.metaLine}>
-                          <Calendar aria-hidden="true" focusable="false" />
-                          <span>
-                            {t('bookings.detail.returnLocation')}:{' '}
-                            {dateFormatter.format(new Date(item.date_to))}
-                            {item.end_time ? ` · ${item.end_time}` : ''}
-                            {item.return_location
-                              ? ` · ${item.return_location}`
-                              : ''}
-                          </span>
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className={styles.metaLine}>
-                          <Calendar aria-hidden="true" focusable="false" />
-                          <span>
-                            {dateFormatter.format(new Date(item.date_from))} –{' '}
-                            {dateFormatter.format(new Date(item.date_to))}
-                          </span>
-                        </p>
-                        {formatTimeRange(item.start_time, item.end_time) && (
+                      ))}
+                    {!isHourlyItem(item) &&
+                      (item.pickup_location || item.return_location ? (
+                        <>
                           <p className={styles.metaLine}>
-                            <Clock aria-hidden="true" focusable="false" />
+                            <Calendar aria-hidden="true" focusable="false" />
                             <span>
-                              {formatTimeRange(item.start_time, item.end_time)}
+                              {t('bookings.detail.pickupLocation')}:{' '}
+                              {dateFormatter.format(new Date(item.date_from))}
+                              {item.start_time ? ` · ${item.start_time}` : ''}
+                              {item.pickup_location
+                                ? ` · ${item.pickup_location}`
+                                : ''}
                             </span>
                           </p>
-                        )}
-                      </>
-                    )}
+                          <p className={styles.metaLine}>
+                            <Calendar aria-hidden="true" focusable="false" />
+                            <span>
+                              {t('bookings.detail.returnLocation')}:{' '}
+                              {dateFormatter.format(new Date(item.date_to))}
+                              {item.end_time ? ` · ${item.end_time}` : ''}
+                              {item.return_location
+                                ? ` · ${item.return_location}`
+                                : ''}
+                            </span>
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className={styles.metaLine}>
+                            <Calendar aria-hidden="true" focusable="false" />
+                            <span>
+                              {dateFormatter.format(new Date(item.date_from))} –{' '}
+                              {dateFormatter.format(new Date(item.date_to))}
+                            </span>
+                          </p>
+                          {formatTimeRange(item.start_time, item.end_time) && (
+                            <p className={styles.metaLine}>
+                              <Clock aria-hidden="true" focusable="false" />
+                              <span>
+                                {formatTimeRange(
+                                  item.start_time,
+                                  item.end_time,
+                                )}
+                              </span>
+                            </p>
+                          )}
+                        </>
+                      ))}
                     {/* Step L6.2H2B: a restaurant reservation's party size —
                         hidden when not recorded (older bookings). */}
                     {resolvePartySize(item) !== null && (
@@ -364,7 +383,8 @@ export default function BookingDetailPageContent() {
                         </span>
                       </p>
                     )}
-                    {resolveDeparturePeopleCount(item) === null &&
+                    {!isHourlyItem(item) &&
+                      resolveDeparturePeopleCount(item) === null &&
                       item.guests.length > 0 && (
                         <p className={styles.metaLine}>
                           <Users2 aria-hidden="true" focusable="false" />

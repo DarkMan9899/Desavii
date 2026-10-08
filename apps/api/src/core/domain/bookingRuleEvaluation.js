@@ -12,6 +12,10 @@
  *   count). Every other listing type ignores them, even when legacy hidden
  *   values are stored.
  * - advance minimum hours / maximum days apply to every listing type.
+ * - Step L6.3B: an hourly hotel stay (`isHourlyStay`) is measured in hours,
+ *   never nights — the nightly minimum/maximum stay does not apply to it
+ *   (the room's own hourly minimum/maximum duration does, see
+ *   `hourlyStay.js`); the advance rules apply to its exact start time.
  *
  * Semantics:
  * - `null` = no restriction; a stay value is never 0.
@@ -77,6 +81,7 @@ function toWallClock(start) {
  *   rules: {minimumStayNights?: number|null, maximumStayNights?: number|null,
  *           advanceBookingMinHours?: number|null, advanceBookingMaxDays?: number|null}|null,
  *   now: Date,
+ *   isHourlyStay?: boolean,
  * }} input
  * @returns {Array<object>} violations as validation details (`issue` plus its
  *   safe metadata), empty when the booking satisfies every applicable rule
@@ -88,11 +93,12 @@ export function evaluateBookingRules({
   start,
   rules,
   now,
+  isHourlyStay = false,
 }) {
   if (!rules) return [];
   const violations = [];
 
-  const stayUnit = getStayRuleUnit(listingTypeCode);
+  const stayUnit = isHourlyStay ? null : getStayRuleUnit(listingTypeCode);
   if (stayUnit) {
     const length = computeStayLength(stayUnit, dateFrom, dateTo);
     const { minimumStayNights: minimum, maximumStayNights: maximum } = rules;

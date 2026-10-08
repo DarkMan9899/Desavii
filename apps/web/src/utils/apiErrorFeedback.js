@@ -131,6 +131,16 @@ const DOMAIN_ISSUE_KEYS = {
   INCOMPLETE_RENTAL_INTERVAL: 'rentalTimesRequired',
   RETURN_NOT_AFTER_PICKUP: 'returnNotAfterPickup',
   RESERVATION_TIME_REQUIRED: 'reservationTimeRequired',
+  // Step L6.3B: optional hourly hotel stays — the customer request and the
+  // Partner's hourly room configuration.
+  HOURLY_BOOKING_NOT_SUPPORTED: 'hourlyNotSupported',
+  HOURLY_TIME_INVALID: 'hourlyTimeInvalid',
+  HOURLY_CROSS_MIDNIGHT_NOT_SUPPORTED: 'hourlyCrossMidnight',
+  HOURLY_DURATION_OUT_OF_RANGE: 'hourlyDurationOutOfRange',
+  HOURLY_TIME_OUTSIDE_WINDOW: 'hourlyOutsideWindow',
+  HOURLY_CONFIG_INCOMPLETE: 'hourlyConfigIncomplete',
+  HOURLY_DURATION_RANGE_INVALID: 'hourlyDurationRangeInvalid',
+  HOURLY_WINDOW_INVALID: 'hourlyWindowInvalid',
   MIN_STAY_EXCEEDS_MAX: 'minExceedsMax',
   DUPLICATE_OPTION_CODE: 'duplicateOption',
   BELOW_MINIMUM: 'tooSmall',

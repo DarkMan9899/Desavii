@@ -113,6 +113,18 @@
   overflow-wrap: anywhere;
 }
 
+// Step L6.3B — the hourly-booking note; wraps on narrow cards.
+.hourly {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: tokens.$space-1 tokens.$space-2;
+  color: tokens.$color-navy;
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .amenityChip {
   display: inline-flex;
   align-items: center;

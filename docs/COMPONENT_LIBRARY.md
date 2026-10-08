@@ -120,6 +120,13 @@ for drag/swipe gestures only; every duration halves to near-zero under
 | Toast | 500 |
 | Tooltip | 600 |
 
+A dropdown/popover opened from inside a Modal or Drawer does not compete
+with the overlay layers above it: the overlay publishes its dialog
+element as the portal target (`packages/ui` `hooks/usePortalContainer.js`),
+so the popover mounts inside that dialog and its 200 ranks within the
+overlay's own stacking context — above the overlay's content, and inside
+its `aria-modal` boundary and focus trap. No extra layer is needed.
+
 ### Breakpoints
 
 Mobile `<480px` · Mobile Large `480–767px` · Tablet `768–1023px` ·
@@ -552,7 +559,9 @@ destructive-confirmation and active-hold-adjacent contexts) ·
 **Variants:** confirmation (sm/md, single action pair), form (lg).
 **Accessibility:** full focus trap (`FRONTEND_ARCHITECTURE.md` §30);
 `role="dialog"` + `aria-modal="true"`; closes on `Escape` unless
-`preventClose`; focus returns to the triggering element on close;
+`preventClose` or a nested popup (an open Select list or DatePicker
+calendar) already handled it — the first Escape closes only that popup,
+the second closes the overlay; focus returns to the triggering element on close;
 background content marked `inert`/`aria-hidden` while open.
 **Animation:** backdrop 200ms fade; panel 250ms fade + scale-from-0.98.
 **Responsive Behaviour:** becomes a full-screen takeover (`full` size)

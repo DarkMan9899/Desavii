@@ -3,6 +3,7 @@
  */
 
 import { isBookingPaymentRequired } from '../../../core/domain/bookingPaymentRequirement.js';
+import { resolveBookingMode } from '../../../core/domain/hourlyStay.js';
 
 function toBookingItemResponse(item) {
   return {
@@ -37,6 +38,13 @@ function toBookingItemResponse(item) {
     // customer, Partner and admin views). `null` when not recorded — every
     // non-restaurant item and every booking from before it was stored.
     guest_count: item.guestCount ?? null,
+    // Step L6.3B: NIGHTLY / HOURLY for a lodging item, null otherwise. An
+    // HOURLY item's date_from = date_to (the stay date) and start_time/
+    // end_time are its booked hours.
+    booking_mode: resolveBookingMode(
+      item.bookableUnitTypeCode,
+      item.bookingMode,
+    ),
     unit_price_amount: item.unitPriceAmount,
     guests: (item.guests ?? []).map((guest) => ({
       id: guest.id,

@@ -111,6 +111,21 @@ import {
   findInapplicableUnitFields,
   supportsRoomDetails,
 } from '../../../core/domain/bookableUnitFieldApplicability.js';
+import {
+  BOOKING_MODES,
+  HOURLY_BOOKING_UNIT_TYPE,
+  HOURS_PER_DAY,
+  HOURLY_STAY_ISSUES,
+  parseWholeHour,
+  formatHour,
+  peakOccupiedQuantity,
+  validateHourlyConfig,
+  validateHourlyStay,
+  hasHourlyStayStarted,
+  hourlyStayUnitPrice,
+  resolveBookingMode,
+} from '../../../core/domain/hourlyStay.js';
+import { Money } from '../../../core/domain/money.js';
 
 // Step L6.2B — a unit-type-specific field supplied for a unit type that
 // doesn't use it is rejected field by field (never silently stored as
@@ -137,6 +152,81 @@ function assertRoomDetailsSupported(unit) {
       { field: 'bookableUnitType', issue: 'ROOM_DETAILS_NOT_APPLICABLE' },
     ]);
   }
+}
+
+// Step L6.3B — a room's effective hourly configuration: its stored values
+// overlaid with whatever an update supplies (`undefined` keeps the stored
+// value, `null` clears it).
+function mergeHourlyConfig(stored, input) {
+  const pick = (field, storedValue) =>
+    input[field] !== undefined ? input[field] : storedValue;
+  return {
+    enabled: pick('hourlyEnabled', stored?.hourlyEnabled ?? false),
+    priceAmount: pick('hourlyPriceAmount', stored?.hourlyPriceAmount ?? null),
+    priceCurrency: pick(
+      'hourlyPriceCurrency',
+      stored?.hourlyPriceCurrencyCode ?? null,
+    ),
+    minHours: pick(
+      'hourlyMinDurationHours',
+      stored?.hourlyMinDurationHours ?? null,
+    ),
+    maxHours: pick(
+      'hourlyMaxDurationHours',
+      stored?.hourlyMaxDurationHours ?? null,
+    ),
+    availableFrom: pick(
+      'hourlyAvailableFrom',
+      stored?.hourlyAvailableFrom ?? null,
+    ),
+    availableUntil: pick(
+      'hourlyAvailableUntil',
+      stored?.hourlyAvailableUntil ?? null,
+    ),
+  };
+}
+
+function assertHourlyConfigValid(config) {
+  const issues = validateHourlyConfig(config);
+  if (issues.length > 0) {
+    throw new ValidationError(
+      'The hourly booking settings are incomplete or inconsistent.',
+      issues,
+    );
+  }
+}
+
+/** The hourly fields a register/update payload writes (`undefined` = untouched). */
+function toHourlyWriteFields(input, hourlyPriceCurrencyId) {
+  return {
+    hourlyEnabled: input.hourlyEnabled,
+    hourlyPriceAmount: input.hourlyPriceAmount,
+    hourlyPriceCurrencyId,
+    hourlyMinDurationHours: input.hourlyMinDurationHours,
+    hourlyMaxDurationHours: input.hourlyMaxDurationHours,
+    hourlyAvailableFrom: input.hourlyAvailableFrom,
+    hourlyAvailableUntil: input.hourlyAvailableUntil,
+  };
+}
+
+function isHourlyUnit(unit) {
+  return unit.bookableUnitTypeCode === HOURLY_BOOKING_UNIT_TYPE;
+}
+
+/** Peak hourly occupancy per date, from a range of timed reservations. */
+function hourlyPeaksByDate(reservations) {
+  const byDate = new Map();
+  reservations.forEach((reservation) => {
+    const list = byDate.get(reservation.date) ?? [];
+    list.push(reservation);
+    byDate.set(reservation.date, list);
+  });
+  return new Map(
+    [...byDate].map(([date, list]) => [
+      date,
+      peakOccupiedQuantity(list, 0, HOURS_PER_DAY),
+    ]),
+  );
 }
 
 const MANAGE_PERMISSION = 'listing.update';
@@ -230,6 +320,8 @@ export class AvailabilityService {
 
   #externalReservationRepository;
 
+  #hourlyInventoryRepository;
+
   #eventBus;
 
   #storageProvider;
@@ -245,6 +337,7 @@ export class AvailabilityService {
     inventoryLedgerRepository,
     inventoryBlockRepository,
     externalReservationRepository,
+    hourlyInventoryRepository,
     eventBus = createNoOpEventBus(),
     storageProvider,
   }) {
@@ -258,6 +351,7 @@ export class AvailabilityService {
     this.#inventoryLedgerRepository = inventoryLedgerRepository;
     this.#inventoryBlockRepository = inventoryBlockRepository;
     this.#externalReservationRepository = externalReservationRepository;
+    this.#hourlyInventoryRepository = hourlyInventoryRepository;
     this.#eventBus = eventBus;
     this.#storageProvider = storageProvider;
   }
@@ -432,9 +526,15 @@ export class AvailabilityService {
       );
     }
     assertUnitFieldsApplicable(input.bookableUnitType, input);
+    // Step L6.3B: an hourly-enabled room must be fully configured.
+    assertHourlyConfigValid(mergeHourlyConfig(null, input));
 
     const basePriceCurrencyId = await this.#resolveCurrencyId(
       input.basePriceCurrency,
+    );
+    const hourlyPriceCurrencyId = await this.#resolveCurrencyId(
+      input.hourlyPriceCurrency,
+      'hourlyPriceCurrency',
     );
     const unit = await withTransaction(async (connection) => {
       // A Car Rental listing is one vehicle model: its single VEHICLE unit
@@ -481,6 +581,7 @@ export class AvailabilityService {
           viewType: input.viewType,
           smokingPolicy: input.smokingPolicy,
           mealPlan: input.mealPlan,
+          ...toHourlyWriteFields(input, hourlyPriceCurrencyId),
           createdBy: principal.userId,
         },
         connection,
@@ -510,9 +611,18 @@ export class AvailabilityService {
     // Step L6.2B — judged by the unit's own (immutable) stored type, so a
     // legacy unit stays editable for every field its type uses.
     assertUnitFieldsApplicable(unit.bookableUnitTypeCode, fields);
+    // Step L6.3B: judged on the EFFECTIVE configuration — stored values
+    // merged with this update. Disabling keeps the stored settings (so the
+    // Partner can switch hourly sales back on); existing hourly holds and
+    // bookings are never touched by a configuration change.
+    assertHourlyConfigValid(mergeHourlyConfig(unit, fields));
 
     const basePriceCurrencyId = await this.#resolveCurrencyId(
       fields.basePriceCurrency,
+    );
+    const hourlyPriceCurrencyId = await this.#resolveCurrencyId(
+      fields.hourlyPriceCurrency,
+      'hourlyPriceCurrency',
     );
 
     const updated = await this.#bookableUnitService.updateUnit(id, {
@@ -527,6 +637,7 @@ export class AvailabilityService {
       viewType: fields.viewType,
       smokingPolicy: fields.smokingPolicy,
       mealPlan: fields.mealPlan,
+      ...toHourlyWriteFields(fields, hourlyPriceCurrencyId),
       updatedBy: principal.userId,
     });
     await this.#auditLogger.record({
@@ -885,14 +996,14 @@ export class AvailabilityService {
    * none was supplied (keep the current value), `null` for an explicit
    * clear.
    */
-  async #resolveCurrencyId(currencyCode) {
+  async #resolveCurrencyId(currencyCode, field = 'priceOverrideCurrency') {
     if (currencyCode === undefined || currencyCode === null) {
       return currencyCode;
     }
     const currency = await findCurrencyByCode(currencyCode);
     if (!currency) {
       throw new ValidationError('Unknown currency code.', [
-        { field: 'priceOverrideCurrency', issue: 'UNKNOWN_CURRENCY' },
+        { field, issue: 'UNKNOWN_CURRENCY' },
       ]);
     }
     return currency.id;
@@ -943,7 +1054,13 @@ export class AvailabilityService {
     if (quantityAvailable !== undefined) {
       const consumedSoFar = unit.capacity - row.quantityAvailable;
       const newRemaining = quantityAvailable - consumedSoFar;
-      if (newRemaining < 0) {
+      // Step L6.3B: rooms committed to hourly stays that day are consumed too.
+      const hourlyPeak = await this.#lockHourlyPeakForDate(
+        unit,
+        date,
+        connection,
+      );
+      if (newRemaining - hourlyPeak < 0) {
         throw new ConflictError(
           'The requested capacity is below the amount already consumed for one or more requested dates.',
           'CAPACITY_BELOW_CONSUMED',
@@ -1302,30 +1419,40 @@ export class AvailabilityService {
     const dates = enumerateDates(consumedRange.dateFrom, consumedRange.dateTo);
     const nightCountForStay = dates.length;
 
-    const [calendarRows, blockedRanges, stayPrice] = await Promise.all([
-      this.#availabilityCalendarRepository.listForUnit(unit.id, {
-        from: consumedRange.dateFrom,
-        to: consumedRange.dateTo,
-      }),
-      this.#blackoutService.getActiveRangesForListing(unit.listingId, {
-        from: consumedRange.dateFrom,
-        to: consumedRange.dateTo,
-      }),
-      this.priceUnitRange({
-        unit,
-        listingPricing: listing.pricing,
-        dateFrom: checkIn,
-        dateTo: checkOut,
-      }),
-    ]);
+    const [calendarRows, blockedRanges, stayPrice, hourlyPeaks] =
+      await Promise.all([
+        this.#availabilityCalendarRepository.listForUnit(unit.id, {
+          from: consumedRange.dateFrom,
+          to: consumedRange.dateTo,
+        }),
+        this.#blackoutService.getActiveRangesForListing(unit.listingId, {
+          from: consumedRange.dateFrom,
+          to: consumedRange.dateTo,
+        }),
+        this.priceUnitRange({
+          unit,
+          listingPricing: listing.pricing,
+          dateFrom: checkIn,
+          dateTo: checkOut,
+        }),
+        this.#hourlyPeaksForRange(unit, {
+          from: consumedRange.dateFrom,
+          to: consumedRange.dateTo,
+        }),
+      ]);
 
     const availableByDate = Object.fromEntries(
       calendarRows.map((row) => [row.date, row.quantityAvailable]),
     );
+    // Step L6.3B: rooms committed to hourly stays that night are not free.
     const perNightRemaining = dates.map((date) =>
       isVetoedByBlackout(date, blockedRanges)
         ? 0
-        : Math.max(0, availableByDate[date] ?? unit.capacity),
+        : Math.max(
+            0,
+            (availableByDate[date] ?? unit.capacity) -
+              (hourlyPeaks.get(date) ?? 0),
+          ),
     );
     const remainingForStay =
       perNightRemaining.length === 0 ? 0 : Math.min(...perNightRemaining);
@@ -1491,18 +1618,25 @@ export class AvailabilityService {
 
     const summaries = await Promise.all(
       units.map(async (unit) => {
-        const calendarRows =
-          await this.#availabilityCalendarRepository.listForUnit(unit.id, {
+        const [calendarRows, hourlyPeaks] = await Promise.all([
+          this.#availabilityCalendarRepository.listForUnit(unit.id, {
             from,
             to,
-          });
+          }),
+          // Step L6.3B: rooms held by hourly stays that day aren't free.
+          this.#hourlyPeaksForRange(unit, { from, to }),
+        ]);
         const availableByDate = Object.fromEntries(
           calendarRows.map((row) => [row.date, row.quantityAvailable]),
         );
         const perDayRemaining = dates.map((date) =>
           isVetoedByBlackout(date, blockedRanges)
             ? 0
-            : Math.max(0, availableByDate[date] ?? unit.capacity),
+            : Math.max(
+                0,
+                (availableByDate[date] ?? unit.capacity) -
+                  (hourlyPeaks.get(date) ?? 0),
+              ),
         );
         const bookableDays = perDayRemaining.filter(
           (dayRemaining) => dayRemaining > 0,
@@ -1545,9 +1679,8 @@ export class AvailabilityService {
   ) {
     await this.#listingService.getListing(principal, listingId);
 
-    let resolvedUnitId = unitId;
-    let capacity;
-    if (resolvedUnitId === undefined) {
+    let resolvedUnit;
+    if (unitId === undefined) {
       const units =
         await this.#bookableUnitService.listUnitsForListing(listingId);
       if (units.length > 1) {
@@ -1556,22 +1689,22 @@ export class AvailabilityService {
           [{ field: 'unitId', issue: 'AMBIGUOUS_UNIT' }],
         );
       }
-      resolvedUnitId = units[0]?.id;
-      capacity = units[0]?.capacity ?? 1;
+      [resolvedUnit] = units;
     } else {
-      const unit = await this.#bookableUnitService.findById(resolvedUnitId);
-      if (!unit || unit.listingId !== listingId) {
+      resolvedUnit = await this.#bookableUnitService.findById(unitId);
+      if (!resolvedUnit || resolvedUnit.listingId !== listingId) {
         throw new NotFoundError('Bookable unit not found for this listing.');
       }
-      capacity = unit.capacity;
     }
+    const resolvedUnitId = resolvedUnit?.id;
+    const capacity = resolvedUnit?.capacity ?? 1;
 
     const dates = enumerateDates(from, to);
     if (resolvedUnitId === undefined) {
       return dates.map((date) => ({ date, remaining: 1 }));
     }
 
-    const [calendarRows, blockedRanges] = await Promise.all([
+    const [calendarRows, blockedRanges, hourlyPeaks] = await Promise.all([
       this.#availabilityCalendarRepository.listForUnit(resolvedUnitId, {
         from,
         to,
@@ -1580,17 +1713,78 @@ export class AvailabilityService {
         from,
         to,
       }),
+      this.#hourlyPeaksForRange(resolvedUnit, { from, to }),
     ]);
     const availableByDate = Object.fromEntries(
       calendarRows.map((row) => [row.date, row.quantityAvailable]),
     );
 
+    // Step L6.3B: a nightly stay needs a room free all day — rooms committed
+    // to hourly stays that date are subtracted.
     return dates.map((date) => {
       const remaining = isVetoedByBlackout(date, blockedRanges)
         ? 0
-        : (availableByDate[date] ?? capacity);
+        : (availableByDate[date] ?? capacity) - (hourlyPeaks.get(date) ?? 0);
       return { date, remaining: Math.max(0, remaining) };
     });
+  }
+
+  /**
+   * Step L6.3B — public: one hourly-enabled room's free rooms per whole-hour
+   * slot of its window on one business date. Each slot's remaining count is
+   * the date's free rooms (nightly stays, blocks, external reservations
+   * already subtracted) minus the timed reservations overlapping that hour;
+   * a blocked/blacked-out date has none. A preview only — the hold itself
+   * re-checks everything under lock.
+   */
+  async getPublicHourlyAvailability(principal, listingId, { unitId, date }) {
+    await this.#listingService.getListing(principal, listingId);
+    const unit = await this.#bookableUnitService.findById(unitId);
+    if (!unit || unit.listingId !== listingId) {
+      throw new NotFoundError('Bookable unit not found for this listing.');
+    }
+    if (!isHourlyUnit(unit) || !unit.hourlyEnabled) {
+      throw new ValidationError(
+        'Hourly booking is not available for this room.',
+        [{ field: 'unitId', issue: HOURLY_STAY_ISSUES.NOT_SUPPORTED }],
+      );
+    }
+    const [calendarRows, blockedRanges, reservations, now] = await Promise.all([
+      this.#availabilityCalendarRepository.listForUnit(unit.id, {
+        from: date,
+        to: date,
+      }),
+      this.#blackoutService.getActiveRangesForListing(listingId, {
+        from: date,
+        to: date,
+      }),
+      this.#hourlyInventoryRepository.listActiveForUnitRange(unit.id, {
+        from: date,
+        to: date,
+      }),
+      this.readCurrentInstant(),
+    ]);
+    const [row] = calendarRows;
+    const isDayClosed =
+      isVetoedByBlackout(date, blockedRanges) || row?.statusCode === 'BLOCKED';
+    const freeForDay = row?.quantityAvailable ?? unit.capacity;
+    const fromHour = parseWholeHour(unit.hourlyAvailableFrom);
+    const untilHour = parseWholeHour(unit.hourlyAvailableUntil);
+    const slots = [];
+    for (let hour = fromHour; hour < untilHour; hour += 1) {
+      slots.push({
+        startTime: formatHour(hour),
+        endTime: formatHour(hour + 1),
+        hasStarted: hasHourlyStayStarted({ date, startHour: hour }, now),
+        remaining: isDayClosed
+          ? 0
+          : Math.max(
+              0,
+              freeForDay - peakOccupiedQuantity(reservations, hour, hour + 1),
+            ),
+      });
+    }
+    return { unitId: unit.id, date, slots };
   }
 
   // --- Sprint 10: capacity reservation (reservation_holds +
@@ -1705,6 +1899,7 @@ export class AvailabilityService {
       expiresAtUtc,
       now,
       userId,
+      bookingMode: requestedBookingMode,
     },
     connection,
   ) {
@@ -1725,6 +1920,27 @@ export class AvailabilityService {
     // return value below, rather than `BookingHoldsService` issuing a
     // second, purely analytics-motivated listing lookup.
     const listing = await this.#listingService.assertBookable(unit.listingId);
+
+    // Step L6.3B: an hourly stay is its own contract — never a nightly stay
+    // with times attached, and never silently converted into one.
+    if (requestedBookingMode === BOOKING_MODES.HOURLY) {
+      return this.#reserveHourlyCapacity(
+        {
+          unit,
+          listing,
+          dateFrom,
+          dateTo,
+          startTime,
+          endTime,
+          quantity,
+          expiresAtUtc,
+          now,
+          userId,
+        },
+        connection,
+      );
+    }
+    const bookingMode = resolveBookingMode(unit.bookableUnitTypeCode, null);
 
     const isVehicle = isVehicleUnitType(unit.bookableUnitTypeCode);
     const isRestaurant = isRestaurantUnitType(unit.bookableUnitTypeCode);
@@ -1845,7 +2061,14 @@ export class AvailabilityService {
           'BLACKOUT_DATE',
         );
       }
-      if (row.quantityAvailable < quantity) {
+      // Step L6.3B: rooms committed to hourly stays that date are taken.
+      // eslint-disable-next-line no-await-in-loop -- within the same per-date lock
+      const hourlyPeak = await this.#lockHourlyPeakForDate(
+        unit,
+        date,
+        connection,
+      );
+      if (row.quantityAvailable - hourlyPeak < quantity) {
         throw new ConflictError(
           'The requested quantity is not available for one or more requested dates.',
           'AVAILABILITY_CONFLICT',
@@ -1883,6 +2106,7 @@ export class AvailabilityService {
         dateTo,
         startTime: resolvedStartTime,
         endTime: resolvedEndTime,
+        bookingMode,
         expiresAtUtc,
         count: quantity,
       },
@@ -1918,7 +2142,311 @@ export class AvailabilityService {
       startTime: resolvedStartTime,
       endTime: resolvedEndTime,
       quantity,
+      bookingMode,
     };
+  }
+
+  /**
+   * Step L6.3B — grants an hourly hold on an hourly-enabled HOTEL_ROOM:
+   * validates the stay against the room's own hourly contract, then, under
+   * the date's `availability_calendar` row lock (the same lock every nightly
+   * write for that unit/date takes), checks the half-open interval against
+   * the rooms still free that date (nightly stays, blocks and external
+   * reservations already subtracted from `quantity_available`) minus the
+   * busiest overlapping hour of existing timed reservations. The date's
+   * `quantity_available` itself is never touched — so back-to-back hourly
+   * stays reuse the same room — and one timed row is written per held room.
+   */
+  async #reserveHourlyCapacity(
+    {
+      unit,
+      listing,
+      dateFrom,
+      dateTo,
+      startTime,
+      endTime,
+      quantity,
+      expiresAtUtc,
+      now,
+      userId,
+    },
+    connection,
+  ) {
+    if (!isHourlyUnit(unit) || !unit.hourlyEnabled) {
+      throw new ValidationError(
+        'Hourly booking is not available for this room.',
+        [{ field: 'items', issue: HOURLY_STAY_ISSUES.NOT_SUPPORTED }],
+      );
+    }
+    const stay = validateHourlyStay(
+      { dateFrom, dateTo, startTime, endTime },
+      {
+        minHours: unit.hourlyMinDurationHours,
+        maxHours: unit.hourlyMaxDurationHours,
+        availableFrom: unit.hourlyAvailableFrom,
+        availableUntil: unit.hourlyAvailableUntil,
+      },
+    );
+    if (!stay.valid) {
+      throw new ValidationError(
+        'This hourly stay is not available as requested.',
+        [
+          {
+            field: 'items',
+            issue: stay.issue,
+            minimum: unit.hourlyMinDurationHours,
+            maximum: unit.hourlyMaxDurationHours,
+            availableFrom: unit.hourlyAvailableFrom,
+            availableUntil: unit.hourlyAvailableUntil,
+          },
+        ],
+      );
+    }
+    if (
+      hasHourlyStayStarted({ date: dateFrom, startHour: stay.startHour }, now)
+    ) {
+      throw new ValidationError('This booking would start in the past.', [
+        { field: 'items', issue: 'BOOKING_IN_PAST' },
+      ]);
+    }
+    const resolvedStartTime = formatHour(stay.startHour);
+    const resolvedEndTime = formatHour(stay.endHour);
+    const ruleViolations = evaluateBookingRules({
+      listingTypeCode: listing.listingTypeCode,
+      dateFrom,
+      dateTo,
+      start: { date: dateFrom, time: resolvedStartTime },
+      rules: listing.bookingRules,
+      now,
+      isHourlyStay: true,
+    });
+    if (ruleViolations.length > 0) {
+      throw new ValidationError(
+        "This booking doesn't meet the listing's booking rules.",
+        ruleViolations.map((violation) => ({ field: 'items', ...violation })),
+      );
+    }
+
+    const blockedRanges = await this.#blackoutService.getActiveRangesForListing(
+      unit.listingId,
+      { from: dateFrom, to: dateFrom },
+      connection,
+    );
+    if (isVetoedByBlackout(dateFrom, blockedRanges)) {
+      throw new ConflictError(
+        'One or more requested dates are blocked for this listing.',
+        'BLACKOUT_DATE',
+      );
+    }
+    const availableStatusId =
+      await this.#availabilityCalendarRepository.findStatusIdByCode(
+        'AVAILABLE',
+        connection,
+      );
+    const row = await this.#availabilityCalendarRepository.lockForCapacity(
+      {
+        bookableUnitId: unit.id,
+        date: dateFrom,
+        availableStatusId,
+        defaultCapacity: unit.capacity,
+      },
+      connection,
+    );
+    if (row.statusCode === 'BLOCKED') {
+      throw new ConflictError(
+        'One or more requested dates are blocked for this listing.',
+        'BLACKOUT_DATE',
+      );
+    }
+    const reservations =
+      await this.#hourlyInventoryRepository.lockActiveForUnitDate(
+        unit.id,
+        dateFrom,
+        connection,
+      );
+    const peak = peakOccupiedQuantity(
+      reservations,
+      stay.startHour,
+      stay.endHour,
+    );
+    if (row.quantityAvailable - peak < quantity) {
+      throw new ConflictError(
+        'The requested quantity is not available for the requested time.',
+        'AVAILABILITY_CONFLICT',
+      );
+    }
+
+    const holdIds = await this.#reservationHoldRepository.createMany(
+      {
+        bookableUnitId: unit.id,
+        userId,
+        dateFrom,
+        dateTo,
+        startTime: resolvedStartTime,
+        endTime: resolvedEndTime,
+        bookingMode: BOOKING_MODES.HOURLY,
+        expiresAtUtc,
+        count: quantity,
+      },
+      connection,
+    );
+    await this.#hourlyInventoryRepository.reserveForHolds(
+      {
+        bookableUnitId: unit.id,
+        date: dateFrom,
+        startTime: resolvedStartTime,
+        endTime: resolvedEndTime,
+        holdIds,
+        actorUserId: userId,
+      },
+      connection,
+    );
+    const quote = this.quoteHourlyStay({ unit, hours: stay.hours, quantity });
+    return {
+      holdIds,
+      quote: quote.issue
+        ? null
+        : { unitPrice: quote.unitPrice, total: quote.total },
+      unitId: unit.id,
+      listingId: unit.listingId,
+      partnerId: listing.partnerId,
+      dateFrom,
+      dateTo,
+      startTime: resolvedStartTime,
+      endTime: resolvedEndTime,
+      quantity,
+      bookingMode: BOOKING_MODES.HOURLY,
+    };
+  }
+
+  /**
+   * Step L6.3B — the rooms committed to hourly stays on one date (its
+   * busiest hour), read under the caller's locks. Every date-level capacity
+   * write for a HOTEL_ROOM subtracts it, so a nightly stay, block or
+   * external reservation can never take rooms an hourly stay already holds.
+   * Zero for every other unit type (they never have timed reservations).
+   */
+  async #lockHourlyPeakForDate(unit, date, connection) {
+    if (!isHourlyUnit(unit)) return 0;
+    const reservations =
+      await this.#hourlyInventoryRepository.lockActiveForUnitDate(
+        unit.id,
+        date,
+        connection,
+      );
+    return peakOccupiedQuantity(reservations, 0, HOURS_PER_DAY);
+  }
+
+  /** Step L6.3B — read-only per-date hourly peaks for availability displays. */
+  async #hourlyPeaksForRange(unit, { from, to }) {
+    if (!isHourlyUnit(unit)) return new Map();
+    const reservations =
+      await this.#hourlyInventoryRepository.listActiveForUnitRange(unit.id, {
+        from,
+        to,
+      });
+    return hourlyPeaksByDate(reservations);
+  }
+
+  /**
+   * Step L6.3B — releases the timed rows of hourly holds being released or
+   * expired. Their date-level capacity was never taken, so nothing else is
+   * restored.
+   */
+  async #releaseHourlyHolds(holds, reason, connection) {
+    const hourlyHoldIds = holds
+      .filter((hold) => hold.bookingMode === BOOKING_MODES.HOURLY)
+      .map((hold) => hold.id);
+    await this.#hourlyInventoryRepository.releaseForHolds(
+      hourlyHoldIds,
+      reason,
+      connection,
+    );
+  }
+
+  /**
+   * Step L6.3B — moves the timed rows of consumed hourly holds onto the
+   * booking item they became, inside the booking transaction. Every held
+   * room must still be reserved; anything less rolls the booking back.
+   */
+  async transferHourlyHoldsToBookingItem(
+    { holdIds, bookingItemId },
+    connection,
+  ) {
+    const transferred =
+      await this.#hourlyInventoryRepository.transferHoldsToBookingItem(
+        { holdIds, bookingItemId },
+        connection,
+      );
+    if (transferred !== holdIds.length) {
+      throw new ConflictError(
+        'One or more holds are already expired, consumed, or do not belong to you.',
+        'HOLD_EXPIRED',
+      );
+    }
+  }
+
+  /**
+   * Step L6.3B — one room's hourly price for `hours` × `quantity` rooms: the
+   * room's own hourly rate (never its nightly price). Hold quote and booking
+   * conversion both price through here.
+   */
+  quoteHourlyStay({ unit, hours, quantity }) {
+    if (
+      unit.hourlyPriceAmount === null ||
+      unit.hourlyPriceAmount === undefined ||
+      !unit.hourlyPriceCurrencyCode
+    ) {
+      return { unitPrice: null, total: null, issue: 'PRICING_INCOMPLETE' };
+    }
+    const rate = Money.fromDecimalString(
+      String(unit.hourlyPriceAmount),
+      unit.hourlyPriceCurrencyCode,
+    );
+    const unitPrice = hourlyStayUnitPrice(rate, hours);
+    return {
+      unitPrice,
+      total: quoteItemTotal(unitPrice, quantity),
+      issue: null,
+    };
+  }
+
+  /**
+   * Step L6.3B — the canonical quote of one held item, whatever its mode:
+   * an hourly stay prices by the hour, everything else by the date range.
+   */
+  async quoteItem(
+    {
+      unit,
+      listingPricing,
+      dateFrom,
+      dateTo,
+      startTime,
+      endTime,
+      bookingMode,
+      quantity,
+    },
+    connection,
+  ) {
+    if (bookingMode === BOOKING_MODES.HOURLY) {
+      const stay = validateHourlyStay(
+        { dateFrom, dateTo, startTime, endTime },
+        {
+          minHours: 1,
+          maxHours: HOURS_PER_DAY,
+          availableFrom: '00:00',
+          availableUntil: '24:00',
+        },
+      );
+      if (!stay.valid) {
+        return { unitPrice: null, total: null, issue: 'PRICING_INCOMPLETE' };
+      }
+      return this.quoteHourlyStay({ unit, hours: stay.hours, quantity });
+    }
+    return this.quoteUnitRange(
+      { unit, listingPricing, dateFrom, dateTo, quantity },
+      connection,
+    );
   }
 
   /**
@@ -1981,7 +2509,9 @@ export class AvailabilityService {
    */
   async releaseHold({ holdIds, userId }, connection) {
     const holds = await this.#lockOwnedActiveHolds(holdIds, userId, connection);
-    const groups = groupHoldsByRange(holds);
+    const groups = groupHoldsByRange(
+      holds.filter((hold) => hold.bookingMode !== BOOKING_MODES.HOURLY),
+    );
     for (const group of groups) {
       // eslint-disable-next-line no-await-in-loop
       await this.#restoreCapacityForRange(
@@ -1995,6 +2525,13 @@ export class AvailabilityService {
         connection,
       );
     }
+    // Step L6.3B: timed rows after calendar rows — the lock order every
+    // capacity write uses — so a concurrent hold can never deadlock this.
+    await this.#releaseHourlyHolds(
+      holds,
+      'Reservation hold released by customer',
+      connection,
+    );
     await this.#deleteLockedHolds(holdIds, connection);
   }
 
@@ -2031,9 +2568,20 @@ export class AvailabilityService {
       quantity,
       bookingId = null,
       actorUserId = null,
+      bookingMode = null,
+      bookingItemId = null,
     },
     connection,
   ) {
+    // Step L6.3B: an hourly stay held timed rows, never the date's quantity.
+    if (bookingMode === BOOKING_MODES.HOURLY) {
+      await this.#hourlyInventoryRepository.releaseForBookingItem(
+        bookingItemId,
+        'Booking cancelled/rejected — capacity released',
+        connection,
+      );
+      return;
+    }
     await this.#restoreCapacityForRange(
       {
         bookableUnitId: unitId,
@@ -2073,7 +2621,9 @@ export class AvailabilityService {
       );
       if (expired.length === 0) return 0;
 
-      const groups = groupHoldsByRange(expired);
+      const groups = groupHoldsByRange(
+        expired.filter((hold) => hold.bookingMode !== BOOKING_MODES.HOURLY),
+      );
       for (const group of groups) {
         // eslint-disable-next-line no-await-in-loop
         await this.#restoreCapacityForRange(
@@ -2086,6 +2636,12 @@ export class AvailabilityService {
           connection,
         );
       }
+      // Step L6.3B: timed rows after calendar rows (see `releaseHold`).
+      await this.#releaseHourlyHolds(
+        expired,
+        'Reservation hold expired',
+        connection,
+      );
       await this.#deleteLockedHolds(
         expired.map((hold) => hold.id),
         connection,
@@ -2202,7 +2758,14 @@ export class AvailabilityService {
         },
         connection,
       );
-      if (row.quantityAvailable < quantity) {
+      // Step L6.3B: rooms committed to hourly stays that date are taken.
+      // eslint-disable-next-line no-await-in-loop -- within the same per-date lock
+      const hourlyPeak = await this.#lockHourlyPeakForDate(
+        unit,
+        date,
+        connection,
+      );
+      if (row.quantityAvailable - hourlyPeak < quantity) {
         throw new ConflictError(
           'The requested quantity is not available for one or more requested dates.',
           'AVAILABILITY_CONFLICT',

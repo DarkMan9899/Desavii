@@ -69,6 +69,13 @@ const listingKeys = {
     'dayStatus',
     { unitId, from, to },
   ],
+  // Step L6.3B: one hourly-enabled room's per-hour availability on a date.
+  hourlyAvailability: (listingId, unitId, date) => [
+    ...listingKeys.details(),
+    listingId,
+    'hourlyAvailability',
+    { unitId, date },
+  ],
   // Phase 9 (Partner Dashboard): a partner's own listings across every
   // status (draft/published/unpublished/archived) — distinct from
   // `lists()`/`list()` above, which are the *public* browse endpoint's

@@ -338,6 +338,102 @@ describe('Fresh migration from an empty database (Sprint 5 Quality Gate #4)', ()
     await up(undefined, { databaseName: MIGRATION_CHECK_DATABASE });
   });
 
+  // Step L6.3B: 0054 adds the optional hourly room configuration (legacy
+  // rooms default to nightly-only, no guessed values), the hold/item booking
+  // mode (existing lodging items recorded as NIGHTLY) and the timed
+  // inventory table; its down.sql removes exactly those.
+  test('migration 0054 adds hourly room settings, booking modes and timed inventory, and its down.sql removes only those', async () => {
+    const connection = await mysql.createConnection({
+      host: config.database.host,
+      port: config.database.port,
+      database: MIGRATION_CHECK_DATABASE,
+      user: config.database.user,
+      password: config.database.password,
+      multipleStatements: true,
+    });
+    const columnsOf = async (table) => {
+      const [columns] = await connection.query(
+        `SELECT column_name, column_type, is_nullable, column_default
+         FROM information_schema.columns
+         WHERE table_schema = ? AND table_name = ?`,
+        [MIGRATION_CHECK_DATABASE, table],
+      );
+      return new Map(
+        columns.map((row) => [row.column_name ?? row.COLUMN_NAME, row]),
+      );
+    };
+    const tableExists = async (table) => {
+      const [rows] = await connection.query(
+        `SELECT COUNT(*) AS n FROM information_schema.tables
+         WHERE table_schema = ? AND table_name = ?`,
+        [MIGRATION_CHECK_DATABASE, table],
+      );
+      return rows[0].n === 1;
+    };
+    try {
+      const unitColumns = await columnsOf('bookable_units');
+      const enabled = unitColumns.get('hourly_enabled');
+      expect(enabled.is_nullable ?? enabled.IS_NULLABLE).toBe('NO');
+      expect(String(enabled.column_default ?? enabled.COLUMN_DEFAULT)).toBe(
+        '0',
+      );
+      [
+        'hourly_price_amount',
+        'hourly_price_currency_id',
+        'hourly_min_duration_hours',
+        'hourly_max_duration_hours',
+        'hourly_available_from',
+        'hourly_available_until',
+      ].forEach((column) => {
+        const row = unitColumns.get(column);
+        expect(row).toBeDefined();
+        expect(row.is_nullable ?? row.IS_NULLABLE).toBe('YES');
+      });
+      expect((await columnsOf('reservation_holds')).has('booking_mode')).toBe(
+        true,
+      );
+      expect((await columnsOf('booking_items')).has('booking_mode')).toBe(true);
+      expect(await tableExists('hourly_inventory_reservations')).toBe(true);
+
+      // An enabled room without a complete configuration is refused by the
+      // database itself, not only by the application.
+      await expect(
+        connection.query(
+          `INSERT INTO bookable_units
+            (listing_id, bookable_unit_type_id, source_table, source_id, hourly_enabled)
+           VALUES (1, 1, 'listings', 1, 1)`,
+        ),
+      ).rejects.toMatchObject({ code: 'ER_CHECK_CONSTRAINT_VIOLATED' });
+
+      const downSql = readFileSync(
+        path.join(MIGRATIONS_DIR, '0054_hourly_hotel_rooms.down.sql'),
+        'utf8',
+      );
+      await expect(connection.query(downSql)).resolves.not.toThrow();
+
+      const after = await columnsOf('bookable_units');
+      expect([...after.keys()].some((name) => name.startsWith('hourly_'))).toBe(
+        false,
+      );
+      expect(after.has('meal_plan')).toBe(true);
+      expect((await columnsOf('reservation_holds')).has('booking_mode')).toBe(
+        false,
+      );
+      expect((await columnsOf('booking_items')).has('booking_mode')).toBe(
+        false,
+      );
+      expect((await columnsOf('booking_items')).has('guest_count')).toBe(true);
+      expect(await tableExists('hourly_inventory_reservations')).toBe(false);
+
+      await connection.query(
+        `DELETE FROM schema_migrations WHERE version = '0054'`,
+      );
+    } finally {
+      await connection.end();
+    }
+    await up(undefined, { databaseName: MIGRATION_CHECK_DATABASE });
+  });
+
   // Listing Lifetime / Renewal, Step B2: same pattern as the 0034/0035
   // proofs above, now for the current most-recent migration. Also proves
   // the specific real bug this migration's own down.sql was written

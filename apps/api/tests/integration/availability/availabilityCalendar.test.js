@@ -249,6 +249,15 @@ describe('GET /availability/:listingId/units — public bookable units view (Pha
       smoking_policy: null,
       // Step L6.3A: the meal basis, null when never stated.
       meal_plan: null,
+      // Step L6.3B: a room that doesn't offer hourly stays says so and
+      // exposes no hourly settings.
+      hourly_enabled: false,
+      hourly_price_amount: null,
+      hourly_price_currency: null,
+      hourly_min_duration_hours: null,
+      hourly_max_duration_hours: null,
+      hourly_available_from: null,
+      hourly_available_until: null,
       translations: [],
       amenity_ids: [],
       media: [],

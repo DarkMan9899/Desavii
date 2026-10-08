@@ -9,12 +9,22 @@
  * `role="dialog"` + `aria-modal="true"` (COMPONENT_LIBRARY.md Modal
  * Accessibility). Visual shape (centered card vs. edge-anchored panel)
  * is each consumer's own `.module.scss`, passed in via `className`.
+ *
+ * The dialog element is also published through `PortalContainerContext`
+ * (see `hooks/usePortalContainer.js`), so floating panels opened from
+ * inside this overlay (DatePicker's calendar) portal into the dialog
+ * rather than behind it at the end of `document.body`. Those panels
+ * position themselves with `position: fixed`, so the dialog element
+ * must never hold a persistent `transform`/`filter` (either would make
+ * it their containing block) — the consumers' enter animations end at
+ * `transform` none and declare no `animation-fill-mode`.
  */
 
-import { useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import useFocusTrap from '../../../hooks/useFocusTrap.js';
+import { PortalContainerContext } from '../../../hooks/usePortalContainer.js';
 import styles from './Overlay.module.scss';
 
 export default function Overlay({
@@ -29,6 +39,13 @@ export default function Overlay({
   children,
 }) {
   const containerRef = useRef(null);
+  // `useFocusTrap` reads the node imperatively via `containerRef`; the
+  // context needs it as state so descendants re-render once it exists.
+  const [portalContainer, setPortalContainer] = useState(null);
+  const attachContainer = useCallback((node) => {
+    containerRef.current = node;
+    setPortalContainer(node);
+  }, []);
 
   useFocusTrap({ containerRef, isOpen, onClose, preventClose });
 
@@ -47,7 +64,7 @@ export default function Overlay({
           closing the dialog — not an interactive affordance of its own. */}
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
       <div
-        ref={containerRef}
+        ref={attachContainer}
         role="dialog"
         aria-modal="true"
         aria-label={labelledBy ? undefined : ariaLabel}
@@ -56,7 +73,9 @@ export default function Overlay({
         className={className}
         onClick={(event) => event.stopPropagation()}
       >
-        {children}
+        <PortalContainerContext.Provider value={portalContainer}>
+          {children}
+        </PortalContainerContext.Provider>
       </div>
     </div>,
     document.body,

@@ -387,6 +387,18 @@
       "visitors": "Այցելուներ",
       "participants": "Մասնակիցներ",
       "people": "Մարդիկ"
+    },
+    "hourly": {
+      "bookingType": "Ամրագրման տեսակ",
+      "hourlyStay": "Ժամային կեցություն",
+      "date": "Ամսաթիվ",
+      "start": "Սկիզբ",
+      "end": "Ավարտ",
+      "duration": "Տևողություն",
+      "hoursCount_one": "{{count}} ժամ",
+      "hoursCount_other": "{{count}} ժամ",
+      "rooms": "Սենյակներ",
+      "guests": "Հյուրեր"
     }
   },
   "payments": {
@@ -653,7 +665,15 @@
       "unsupportedPricingModelForBooking": "Այս հայտարարությունը հիմա հնարավոր չէ ամրագրել առցանց․ տանտերը թարմացնում է դրա գնագոյացումը։",
       "partySizeRequired": "Նշեք հյուրերի քանակը։",
       "reservationQuantityNotSupported": "Ամրագրումը միշտ մեկ սեղան է ամրագրում ձեր խմբի համար։",
-      "travelerCountMismatch": "Մարդկանց քանակը չի համապատասխանում ձեր պահած տեղերին։ Վերադարձեք հայտարարությանը և կրկին ընտրեք տեղերը։"
+      "travelerCountMismatch": "Մարդկանց քանակը չի համապատասխանում ձեր պահած տեղերին։ Վերադարձեք հայտարարությանը և կրկին ընտրեք տեղերը։",
+      "hourlyNotSupported": "Այս սենյակը հնարավոր չէ ամրագրել ժամերով։",
+      "hourlyTimeInvalid": "Ընտրեք ամբողջ ժամին սկիզբ և ավարտ, որտեղ ավարտը սկզբից հետո է։",
+      "hourlyCrossMidnight": "Ժամային կեցությունը պետք է ավարտվի նույն օրը։ Գիշերակացի համար ամրագրեք ըստ գիշերների։",
+      "hourlyDurationOutOfRange": "Ընտրեք {{minimum}}-ից {{maximum}} ժամ։",
+      "hourlyOutsideWindow": "Այս ժամերը դուրս են սենյակի ժամային ամրագրման ժամերից։",
+      "hourlyConfigIncomplete": "Պարտադիր է ժամավճարով ամրագրման համար։",
+      "hourlyDurationRangeInvalid": "Առավելագույնը չի կարող նվազագույնից կարճ լինել։",
+      "hourlyWindowInvalid": "«Հասանելի է մինչև»-ը պետք է ուշ լինի «Հասանելի է սկսած»-ից և բավարարի նվազագույն տևողությանը։"
     },
     "codes": {
       "PARTNER_NOT_VERIFIED": "Ձեր ընկերությունը պետք է հաստատված լինի՝ հայտարարություններ ստեղծելու համար։",
@@ -1912,7 +1932,26 @@
         "roomMealsHeading": "Սնունդ",
         "mealPlan": "Սննդի տարբերակ",
         "mealPlanHint": "Ինչ է ներառված այս սենյակի գնի մեջ։ Գիշերվա գինը չի փոխվում։",
-        "notSpecified": "Նշված չէ"
+        "notSpecified": "Նշված չէ",
+        "hourlyHeading": "Ժամավճարով ամրագրում",
+        "hourlyEnabled": "Հասանելի է ժամավճարով ամրագրում",
+        "hourlyEnabledHint": "Հյուրերը կարող են այս սենյակն ամրագրել նաև ժամերով։ Գիշերակացով ամրագրումը մնում է հասանելի, իսկ մյուս սենյակները չեն փոխվում։",
+        "hourlyPriceAmount": "Ժամավճար",
+        "hourlyPriceCurrency": "Արժույթ",
+        "hourlyMinDuration": "Նվազագույն տևողություն",
+        "hourlyMaxDuration": "Առավելագույն տևողություն",
+        "hourlyAvailableFrom": "Հասանելի է սկսած",
+        "hourlyAvailableUntil": "Հասանելի է մինչև",
+        "hourlyWindowHint": "Ժամային կեցությունը սկսվում և ավարտվում է ամբողջ ժամին՝ նույն օրվա ընթացքում (Հայաստանի ժամանակով)։ Գիշերակացի համար հյուրերն ամրագրում են ըստ գիշերների։",
+        "hourlyRequired": "Պարտադիր է ժամավճարով ամրագրման համար։",
+        "hourlyPriceInvalid": "Մուտքագրեք 0 կամ ավելի գին։",
+        "hourlyPriceTooLarge": "Այս գինը չափազանց մեծ է։",
+        "hourlyPricePrecision": "Օգտագործեք առավելագույնը 2 տասնորդական նիշ։",
+        "hourlyDurationRangeInvalid": "Առավելագույնը չի կարող նվազագույնից կարճ լինել։",
+        "hourlyWindowInvalid": "«Հասանելի է մինչև»-ը պետք է ուշ լինի «Հասանելի է սկսած»-ից և բավարարի նվազագույն տևողությանը։",
+        "hourlySummary": "Ժամային՝ {{amount}} {{currency}} ժամը · {{from}}–{{until}}",
+        "hoursCount_one": "{{count}} ժամ",
+        "hoursCount_other": "{{count}} ժամ"
       },
       "bookableUnitTypes": {
         "HOTEL_ROOM": "Հյուրանոցի սենյակ",
@@ -3757,7 +3796,17 @@
         "staySoldOut": "Այս սենյակը սպառված է ընտրված ամսաթվերի համար։",
         "nightsCount": "{{count}} գիշերվա կեցություն",
         "pricingUnavailable": "Այս հայտարարության առցանց ամրագրումը հիմա հասանելի չէ․ տանտերը թարմացնում է գնագոյացումը։",
-        "averageSpendPerPerson": "Միջին ծախսը մեկ անձի համար"
+        "averageSpendPerPerson": "Միջին ծախսը մեկ անձի համար",
+        "stayModeLabel": "Ինչպե՞ս եք ցանկանում մնալ",
+        "stayOvernight": "Գիշերակաց",
+        "bookByHour": "Ամրագրել ժամերով",
+        "startTimeLabel": "Սկիզբ",
+        "endTimeLabel": "Ավարտ",
+        "hourlyDuration_one": "Տևողությունը՝ {{count}} ժամ",
+        "hourlyDuration_other": "Տևողությունը՝ {{count}} ժամ",
+        "hourlyHint": "Նույն օրվա կեցություն {{from}}-ից մինչև {{until}}՝ ամբողջ ժամերով (Հայաստանի ժամանակով)։",
+        "noHourlyTimesForDate": "Այս օրը ժամային ազատ ժամեր չեն մնացել։ Ընտրեք այլ օր։",
+        "hourlySoldOut": "Այս ժամերին բավարար ազատ սենյակներ չկան։ Ընտրեք այլ ժամեր կամ ավելի քիչ սենյակ։"
       },
       "rooms": {
         "heading": "Սենյակներ",
@@ -3812,7 +3861,14 @@
         },
         "sleepingHeading": "Քնելու տեղեր",
         "mealsHeading": "Սնունդ",
-        "roomDetailsHeading": "Սենյակի մանրամասներ"
+        "roomDetailsHeading": "Սենյակի մանրամասներ",
+        "hourlyAvailable": "Հասանելի է ժամավճարով ամրագրում",
+        "perHour": "ժամը",
+        "hourlyHeading": "Ժամային կեցություն",
+        "hourlyIntro": "Այս սենյակը կարելի է ամրագրել նաև ժամերով՝ նույն օրվա կեցության համար։ Գիշերակացով ամրագրումը մնում է հասանելի։",
+        "hourlyWindow": "Հասանելի է {{from}}-ից մինչև {{until}}",
+        "hourlyDurationRange_one": "{{minimum}}-ից {{maximum}} ժամ",
+        "hourlyDurationRange_other": "{{minimum}}-ից {{maximum}} ժամ"
       },
       "relatedListings": {
         "heading": "Ձեզ նաև կարող է հետաքրքրել"
