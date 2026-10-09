@@ -300,6 +300,15 @@ Hospitality" (`slug: yerevan-boutique-hospitality`), pre-approved
 npm run db:seed:qa -- --confirm   # LOCAL DEV ONLY: rebuilds DATABASE_NAME
 ```
 
+Local databases: `desavii` (`DATABASE_NAME`) is the one canonical local
+development and manual-QA database; `travelhub_test`
+(`DATABASE_NAME_TEST`) is the disposable database every automated suite
+(integration, migration checks, Playwright) resets. Automated tests never
+target `desavii` — `NODE_ENV=test` switches the app to
+`DATABASE_NAME_TEST`, and the test-reset commands (`db:reset:test`,
+`db:seed:demo`) refuse a database whose name doesn't look like a test
+database.
+
 Drops and recreates the **local development** database (`DATABASE_NAME`),
 applies every migration, runs `seedAll()`, then the Sprint J catalog and the
 QA environment (`seeds/demo/seedDemoQaEnvironment.js`). It refuses to run

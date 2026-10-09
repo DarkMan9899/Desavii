@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DATABASE_ROOT_PASSWORD:-root_dev_only}
-      MYSQL_DATABASE: ${DATABASE_NAME:-travelhub_dev}
+      MYSQL_DATABASE: ${DATABASE_NAME:-desavii}
       MYSQL_USER: ${DATABASE_USER:-travelhub}
       MYSQL_PASSWORD: ${DATABASE_PASSWORD:-travelhub_dev_only}
     ports:

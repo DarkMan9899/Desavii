@@ -46,9 +46,10 @@ specs above leave no cross-run residue — there's nothing to clean up
 because nothing persists past the next reset.
 
 **Do not** run this suite against an already-running dev-mode
-(`NODE_ENV=development`, `travelhub_dev`) API server for anything beyond
-one-off manual/local debugging — `travelhub_dev` is not reset between
-runs, so every such run permanently accumulates `e2e-*@example.com` users
+(`NODE_ENV=development`, `desavii` — the canonical local manual-QA
+database) API server for anything beyond one-off manual/local
+debugging — the development database is not reset between runs, so
+every such run permanently accumulates `e2e-*@example.com` users
 and `E2E *` partners with no automated way to remove them (2026-09-04:
 root-caused and one-time-cleaned 38 stale users / 19 stale partners that
 had accumulated in `travelhub_dev` this way).

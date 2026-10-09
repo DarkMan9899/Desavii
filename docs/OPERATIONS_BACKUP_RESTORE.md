@@ -18,7 +18,7 @@ step, not a rewrite.
 
 ### What gets backed up
 
-The entire application database (`config.database.name` — `travelhub_dev`
+The entire application database (`config.database.name` — `desavii`
 locally, whatever `DATABASE_NAME` resolves to in a real environment) via
 `mysqldump --single-transaction`. Every table in this schema is InnoDB
 (every migration in `apps/api/src/infrastructure/database/migrations/`
