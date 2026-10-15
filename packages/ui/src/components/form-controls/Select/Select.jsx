@@ -25,21 +25,71 @@
  * internal `triggerRef` (the div it moves focus back to on close/Escape)
  * — `setTriggerRef` below writes to both that ref and whatever the
  * caller forwarded, so neither loses the DOM node.
+ *
+ * Structured options: an option may carry `content` (a React node shown
+ * in the list instead of its `label`, e.g. a name plus secondary facts)
+ * and `triggerLabel` (the short text shown in the closed trigger). `label`
+ * stays the option's plain text for search and type-ahead, so plain
+ * `{ value, label }` options behave exactly as before.
+ *
+ * `portal`: by default the panel is an absolutely positioned sibling of
+ * the trigger, so an `overflow: hidden` ancestor clips it. With `portal`
+ * it is mounted like `DatePicker`'s calendar — into the enclosing
+ * Modal/Drawer dialog, or `document.body` (`usePortalContainer`) — and
+ * placed from the trigger's own rect, opening upward when there is no
+ * room below. Below the Tablet breakpoint the mobile sheet styling still
+ * applies unchanged.
  */
 
-import { forwardRef, useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import Label from '../Label/Label.jsx';
+import usePortalContainer from '../../../hooks/usePortalContainer.js';
 import styles from './Select.module.scss';
 
 const SIZES = ['sm', 'md', 'lg'];
 const SEARCHABLE_THRESHOLD = 8;
+const PANEL_GAP = 4;
+const VIEWPORT_MARGIN = 8;
 
 const optionShape = PropTypes.shape({
   value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
   label: PropTypes.string.isRequired,
   disabled: PropTypes.bool,
+  content: PropTypes.node,
+  triggerLabel: PropTypes.string,
 });
+
+/**
+ * Fixed-position placement for a portaled panel: directly under the
+ * trigger and as wide as it, flipped above the trigger when it would run
+ * past the bottom of the viewport and fits above (`DatePicker`'s rule).
+ */
+function computePanelPlacement(triggerEl, panelEl) {
+  const triggerRect = triggerEl.getBoundingClientRect();
+  const panelHeight = panelEl.getBoundingClientRect().height;
+  const overflowsBottom =
+    triggerRect.bottom + PANEL_GAP + panelHeight >
+    window.innerHeight - VIEWPORT_MARGIN;
+  const fitsAbove = triggerRect.top - PANEL_GAP - panelHeight >= 0;
+  return {
+    top:
+      overflowsBottom && fitsAbove
+        ? triggerRect.top - PANEL_GAP - panelHeight
+        : triggerRect.bottom + PANEL_GAP,
+    left: triggerRect.left,
+    width: triggerRect.width,
+  };
+}
 
 function ChevronIcon({ open }) {
   return (
@@ -102,15 +152,20 @@ const Select = forwardRef(function Select(
     searchPlaceholder = 'Search…',
     noOptionsMessage = 'No results',
     getRemoveChipLabel = (optionLabel) => `Remove ${optionLabel}`,
+    portal = false,
   },
   forwardedRef,
 ) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [query, setQuery] = useState('');
+  const [panelPlacement, setPanelPlacement] = useState(null);
   const containerRef = useRef(null);
   const triggerRef = useRef(null);
+  const panelRef = useRef(null);
   const searchInputRef = useRef(null);
+  const portalContainer = usePortalContainer();
+  const isPortaled = portal && Boolean(portalContainer);
 
   function setTriggerRef(node) {
     triggerRef.current = node;
@@ -145,9 +200,12 @@ const Select = forwardRef(function Select(
     if (!open) return undefined;
 
     function handleClickOutside(event) {
+      // A portaled panel is no DOM descendant of containerRef, so a press
+      // inside it must be checked separately or it would close the list.
       if (
         containerRef.current &&
-        !containerRef.current.contains(event.target)
+        !containerRef.current.contains(event.target) &&
+        !panelRef.current?.contains(event.target)
       ) {
         setOpen(false);
       }
@@ -156,6 +214,26 @@ const Select = forwardRef(function Select(
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open || !isPortaled || !triggerRef.current || !panelRef.current) {
+      return undefined;
+    }
+    function updatePlacement() {
+      if (!triggerRef.current || !panelRef.current) return;
+      setPanelPlacement(
+        computePanelPlacement(triggerRef.current, panelRef.current),
+      );
+    }
+    updatePlacement();
+    window.addEventListener('resize', updatePlacement);
+    window.addEventListener('scroll', updatePlacement, true);
+    return () => {
+      window.removeEventListener('resize', updatePlacement);
+      window.removeEventListener('scroll', updatePlacement, true);
+      setPanelPlacement(null);
+    };
+  }, [open, isPortaled, filteredOptions.length]);
 
   useEffect(() => {
     if (open && isSearchable && searchInputRef.current) {
@@ -265,12 +343,28 @@ const Select = forwardRef(function Select(
   function triggerLabel() {
     if (multiple) return null;
     const selected = options.find((option) => option.value === value);
-    return selected ? selected.label : placeholder;
+    if (!selected) return placeholder;
+    return selected.triggerLabel ?? selected.label;
   }
+
+  // Portaled placement goes through custom properties (see
+  // `.panel--floating`), so the mobile sheet rule can still override it.
+  const floatingStyle = isPortaled
+    ? {
+        '--select-panel-top': `${panelPlacement?.top ?? 0}px`,
+        '--select-panel-left': `${panelPlacement?.left ?? 0}px`,
+        '--select-panel-width': `${panelPlacement?.width ?? 0}px`,
+        visibility: panelPlacement ? 'visible' : 'hidden',
+      }
+    : undefined;
 
   const isPlaceholder = multiple
     ? selectedValues.length === 0
     : value === null || value === undefined;
+
+  function renderPanel(panel) {
+    return isPortaled ? createPortal(panel, portalContainer) : panel;
+  }
 
   return (
     <div className={styles.field} ref={containerRef}>
@@ -346,75 +440,88 @@ const Select = forwardRef(function Select(
           <ChevronIcon open={open} />
         </div>
 
-        {open && (
-          <div className={styles.panel}>
-            {isSearchable && (
-              <input
-                ref={searchInputRef}
-                type="text"
-                className={styles.search}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={handleTriggerKeyDown}
-                placeholder={searchPlaceholder}
-                aria-label={searchPlaceholder}
-              />
-            )}
-            {/* The listbox is focusable, so a pointer press on an option
+        {open &&
+          renderPanel(
+            <div
+              ref={panelRef}
+              className={[styles.panel, isPortaled && styles['panel--floating']]
+                .filter(Boolean)
+                .join(' ')}
+              style={floatingStyle}
+            >
+              {isSearchable && (
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  className={styles.search}
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={handleTriggerKeyDown}
+                  placeholder={searchPlaceholder}
+                  aria-label={searchPlaceholder}
+                />
+              )}
+              {/* The listbox is focusable, so a pointer press on an option
                 moves focus here — and in multi-select mode the panel stays
                 open afterwards. It shares the trigger's key handling so
                 Escape still closes the panel (and calls preventDefault(),
                 keeping an enclosing Modal/Drawer open) from this focus. */}
-            <ul
-              id={listboxId}
-              role="listbox"
-              tabIndex={0}
-              onKeyDown={handleTriggerKeyDown}
-              aria-multiselectable={multiple || undefined}
-              aria-labelledby={label ? labelId : undefined}
-              aria-label={!label ? ariaLabel : undefined}
-              className={styles.list}
-            >
-              {filteredOptions.length === 0 && (
-                <li role="presentation" className={styles.empty}>
-                  {noOptionsMessage}
-                </li>
-              )}
-              {filteredOptions.map((option, index) => {
-                const isSelected = multiple
-                  ? selectedValues.includes(option.value)
-                  : option.value === value;
-                return (
-                  // Keyboard operability is provided at the trigger/container level via
-                  // aria-activedescendant + handleTriggerKeyDown (WAI-ARIA listbox
-                  // pattern); these rows are intentionally never focused directly, so a
-                  // per-row onKeyDown would be dead code. onClick remains for pointer users.
-                  // eslint-disable-next-line jsx-a11y/click-events-have-key-events
-                  <li
-                    key={option.value}
-                    id={`${listboxId}-option-${index}`}
-                    role="option"
-                    aria-selected={isSelected}
-                    aria-disabled={option.disabled || undefined}
-                    className={[
-                      styles.option,
-                      isSelected && styles['option--selected'],
-                      index === activeIndex && styles['option--active'],
-                      option.disabled && styles['option--disabled'],
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    onClick={() => selectOption(option)}
-                  >
-                    <span>{option.label}</span>
-                    {isSelected && <CheckIcon />}
+              <ul
+                id={listboxId}
+                role="listbox"
+                tabIndex={0}
+                onKeyDown={handleTriggerKeyDown}
+                aria-multiselectable={multiple || undefined}
+                aria-labelledby={label ? labelId : undefined}
+                aria-label={!label ? ariaLabel : undefined}
+                className={styles.list}
+              >
+                {filteredOptions.length === 0 && (
+                  <li role="presentation" className={styles.empty}>
+                    {noOptionsMessage}
                   </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
+                )}
+                {filteredOptions.map((option, index) => {
+                  const isSelected = multiple
+                    ? selectedValues.includes(option.value)
+                    : option.value === value;
+                  return (
+                    // Keyboard operability is provided at the trigger/container level via
+                    // aria-activedescendant + handleTriggerKeyDown (WAI-ARIA listbox
+                    // pattern); these rows are intentionally never focused directly, so a
+                    // per-row onKeyDown would be dead code. onClick remains for pointer users.
+                    // eslint-disable-next-line jsx-a11y/click-events-have-key-events
+                    <li
+                      key={option.value}
+                      id={`${listboxId}-option-${index}`}
+                      role="option"
+                      aria-selected={isSelected}
+                      aria-disabled={option.disabled || undefined}
+                      className={[
+                        styles.option,
+                        isSelected && styles['option--selected'],
+                        index === activeIndex && styles['option--active'],
+                        option.disabled && styles['option--disabled'],
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onMouseEnter={() => setActiveIndex(index)}
+                      onClick={() => selectOption(option)}
+                    >
+                      {option.content ? (
+                        <span className={styles.optionContent}>
+                          {option.content}
+                        </span>
+                      ) : (
+                        <span>{option.label}</span>
+                      )}
+                      {isSelected && <CheckIcon />}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>,
+          )}
       </div>
       {error && (
         <p id={errorId} className={styles.errorText} role="alert">
@@ -456,6 +563,10 @@ Select.propTypes = {
   searchPlaceholder: PropTypes.string,
   noOptionsMessage: PropTypes.string,
   getRemoveChipLabel: PropTypes.func,
+  // Mount the panel outside the field (in the enclosing overlay, or
+  // document.body) with viewport-aware placement — for a Select inside an
+  // `overflow: hidden` container that would otherwise clip its list.
+  portal: PropTypes.bool,
 };
 /* eslint-enable react/require-default-props */
 

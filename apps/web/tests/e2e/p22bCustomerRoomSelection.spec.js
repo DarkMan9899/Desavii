@@ -232,15 +232,14 @@ test.describe('P2.2B — HOTEL customer room selection, guest capacity, and chec
     // coverage of that invalidation rule.
     await pickDateRange(page, checkIn, checkOut);
 
-    // Real labels + known max guests, never a generic "Type #N" ordinal.
+    // Real labels + known max guests, never a generic "Type #N" ordinal:
+    // each option leads with the room's name, its guests a separate fact.
     await page.getByLabel('Unit').click();
-    await expect(
-      page.getByRole('option', { name: 'Standard Room — Sleeps 2' }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('option', { name: 'Deluxe Suite — Sleeps 4' }),
-    ).toBeVisible();
-    await page.getByRole('option', { name: 'Deluxe Suite — Sleeps 4' }).click();
+    const standardRoom = page.getByRole('option', { name: /^Standard Room/ });
+    const deluxeSuite = page.getByRole('option', { name: /^Deluxe Suite/ });
+    await expect(standardRoom).toContainText('Sleeps 2');
+    await expect(deluxeSuite).toContainText('Sleeps 4');
+    await deluxeSuite.click();
 
     // The headline price switched to the SELECTED unit's own base price,
     // not a static listing-level number. Scoped to the reservation

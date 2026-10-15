@@ -1,0 +1,36 @@
+// A room/unit row in the reservation widget's unit Select: the name, then
+// a wrapping row of short secondary facts. Tokens only.
+@use 'tokens' as tokens;
+
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-1;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: tokens.$space-1 tokens.$space-3;
+  font-size: tokens.$font-size-small;
+  font-weight: 400;
+  color: tokens.$color-gray-600;
+}
+
+// State is carried by the words themselves; colour only reinforces it.
+.fewLeft {
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
+.soldOut {
+  font-weight: 600;
+  color: tokens.$color-danger;
+}

@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PropTypes from 'prop-types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -219,6 +219,14 @@ function RouteScopedWidget(props) {
   );
 }
 
+/**
+ * A unit option by its room name: each option leads with the name, then
+ * its separate facts (guests, price, availability) — UnitOptionContent.
+ */
+function unitOption(name) {
+  return screen.getByRole('option', { name: new RegExp(`^${name}`) });
+}
+
 function renderWidget(props = {}, initialEntry = '/en/listings/10') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -383,27 +391,32 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     expect(screen.getByText(/220/)).toBeInTheDocument();
   });
 
-  test('P2.2E: the unit selector shows each real unit_label with its known max guests, price, and available quantity, not a generic "Type #N" ordinal', async () => {
+  test('P2.2E: each unit option shows its real name, the guests it sleeps and its own formatted price per night — never its inventory size as availability', async () => {
     useListingBookableUnitsQuery.mockReturnValue({
       data: MULTI_UNIT_LABELED,
       isPending: false,
       isError: false,
     });
     const user = userEvent.setup();
-    renderWidget();
+    // 'hy'/AMD: the fixture amounts are displayed unconverted.
+    renderWidget({}, '/hy/listings/10');
 
     await user.click(screen.getByTestId('select-trigger'));
 
+    const standard = unitOption('Standard Room');
     expect(
-      screen.getByRole('option', {
-        name: 'Standard Room — Ընդունում է 2 հյուր — 50000.00 AMD / գիշեր — 2 հասանելի',
-      }),
+      within(standard).getByText('Ընդունում է 2 հյուր'),
     ).toBeInTheDocument();
+    expect(within(standard).getByText(/50[.,\s]?000/)).toBeInTheDocument();
+    expect(within(standard).getByText(/Գիշերվա համար/)).toBeInTheDocument();
     expect(
-      screen.getByRole('option', {
-        name: 'Deluxe Suite — Ընդունում է 4 հյուր — 90000.00 AMD / գիշեր — 1 հասանելի',
-      }),
+      within(unitOption('Deluxe Suite')).getByText('Ընդունում է 4 հյուր'),
     ).toBeInTheDocument();
+    // `capacity` (how many rooms of this type exist) is inventory, not
+    // availability — no date has been chosen, so nothing is "available".
+    const listbox = screen.getByRole('listbox');
+    expect(within(listbox).queryByText(/հասանելի/)).not.toBeInTheDocument();
+    expect(within(listbox).queryByText(/50000\.00/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Type #1/)).not.toBeInTheDocument();
   });
 
@@ -425,15 +438,16 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       isError: false,
     });
     const user = userEvent.setup();
-    renderWidget();
+    renderWidget({}, '/hy/listings/10');
 
     await user.click(screen.getByTestId('select-trigger'));
 
+    const legacy = unitOption('Legacy Room');
+    expect(within(legacy).getByText('Ընդունում է 2 հյուր')).toBeInTheDocument();
     expect(
-      screen.getByRole('option', {
-        name: 'Legacy Room — Ընդունում է 2 հյուր — 2 հասանելի',
-      }),
-    ).toBeInTheDocument();
+      within(legacy).queryByText(/\d[.,\s]?\d{3}/),
+    ).not.toBeInTheDocument();
+    expect(within(legacy).queryByText(/Գիշերվա համար/)).not.toBeInTheDocument();
   });
 
   test("selecting a different room type switches the headline price to that unit's own resolved price and shows its bed configuration", async () => {
@@ -459,27 +473,21 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
 
     // Before any explicit selection, the static listing price is
     // unchanged (P2.2B: "before explicit selection, preserve existing
-    // behavior").
-    // 'hy' locale's Intl grouping separator is a space, not a comma
-    // (e.g. "85 000 ֏") — the option label text below is a plain
-    // template string with no grouping at all ("90000.00"); this
-    // character class matches either.
+    // behavior"). 'hy' groups thousands with a space ("85 000 ֏"); this
+    // character class matches any grouping.
     expect(screen.getByText(/85[.,\s]?000/)).toBeInTheDocument();
 
     await user.click(screen.getByTestId('select-trigger'));
-    await user.click(
-      screen.getByRole('option', {
-        name: 'Deluxe Suite — Ընդունում է 4 հյուր — 90000.00 AMD / գիշեր — 1 հասանելի',
-      }),
-    );
+    await user.click(unitOption('Deluxe Suite'));
 
     // The headline now reflects the SELECTED unit's own base price, not
-    // the static listing price. Two matches are expected here (up from
-    // one, pre-P2.2E): the headline `PriceTag` AND the select's own
-    // displayed current-option text, which since P2.2E also states this
-    // unit's price — both agree with each other, never diverge.
-    expect(screen.getAllByText(/90[.,\s]?000/)).toHaveLength(2);
+    // the static listing price — and the closed trigger names the room
+    // only, never repeating its price or facts.
+    expect(screen.getAllByText(/90[.,\s]?000/)).toHaveLength(1);
     expect(screen.queryByText(/85[.,\s]?000/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('select-trigger')).toHaveTextContent(
+      /^Deluxe Suite$/,
+    );
     expect(screen.getByText('1 king չափի մահճակալ')).toBeInTheDocument();
   });
 
@@ -647,35 +655,43 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     );
   });
 
-  test.each([
-    ['PER_HOUR', '50000.00 AMD'],
-    ['PER_DAY', '50000.00 AMD / օր'],
-  ])(
-    'Step L6.2B: a %s listing never labels a unit price "per night"',
-    async (pricingModel, priceText) => {
-      useListingBookableUnitsQuery.mockReturnValue({
-        data: MULTI_UNIT_LABELED,
-        isPending: false,
-        isError: false,
-      });
-      const user = userEvent.setup();
-      renderWidget({
+  // Step L6.2B: a unit price carries the basis it is billed on — a day for
+  // PER_DAY, and none at all for a model not billed per unit (PER_HOUR).
+  async function openStandardRoomOption(pricingModel) {
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: MULTI_UNIT_LABELED,
+      isPending: false,
+      isError: false,
+    });
+    const user = userEvent.setup();
+    renderWidget(
+      {
         pricing: {
           amount: '85000.00',
           currency: 'AMD',
           pricing_model: pricingModel,
         },
-      });
+      },
+      '/hy/listings/10',
+    );
+    await user.click(screen.getByTestId('select-trigger'));
+    return unitOption('Standard Room');
+  }
 
-      await user.click(screen.getByTestId('select-trigger'));
+  test('Step L6.2B: a PER_DAY listing prices a unit per day, never "per night"', async () => {
+    const standard = await openStandardRoomOption('PER_DAY');
+    expect(within(standard).getByText(/50[.,\s]?000/)).toBeInTheDocument();
+    expect(within(standard).getByText(/Օրվա համար/)).toBeInTheDocument();
+    expect(
+      within(standard).queryByText(/Գիշերվա համար/),
+    ).not.toBeInTheDocument();
+  });
 
-      expect(
-        screen.getByRole('option', {
-          name: `Standard Room — Ընդունում է 2 հյուր — ${priceText} — 2 հասանելի`,
-        }),
-      ).toBeInTheDocument();
-    },
-  );
+  test('Step L6.2B: a PER_HOUR listing shows a unit price with no basis at all, never "per night"', async () => {
+    const standard = await openStandardRoomOption('PER_HOUR');
+    expect(within(standard).getByText(/50[.,\s]?000/)).toBeInTheDocument();
+    expect(within(standard).queryByText(/համար/)).not.toBeInTheDocument();
+  });
 
   // Step L6.2H1: a legacy pricing model the server refuses to book shows a
   // translated explanation instead of a price or any booking control.
@@ -1175,22 +1191,14 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       );
 
       await user.click(screen.getByTestId('select-trigger'));
-      await user.click(
-        screen.getByRole('option', {
-          name: 'Standard Room — Ընդունում է 2 հյուր — 50000.00 AMD / գիշեր — 2 հասանելի',
-        }),
-      );
+      await user.click(unitOption('Standard Room'));
       expect(
         screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
       ).toBeEnabled();
       expect(screen.getByLabelText('Հյուրեր')).toHaveValue(2);
 
       await user.click(screen.getByTestId('select-trigger'));
-      await user.click(
-        screen.getByRole('option', {
-          name: 'Deluxe Suite — Ընդունում է 4 հյուր — 90000.00 AMD / գիշեր — 1 հասանելի',
-        }),
-      );
+      await user.click(unitOption('Deluxe Suite'));
       expect(
         screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
       ).toBeDisabled();
@@ -1651,11 +1659,7 @@ describe('ListingReservationWidget — Sprint C-3 (Date-Range Room Availability)
     // below), which is the correct, deliberate invalidation rule.
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
     await user.click(screen.getByTestId('select-trigger'));
-    await user.click(
-      screen.getByRole('option', {
-        name: 'Standard Room — Sleeps 2 — 50000.00 AMD / night — 2 available',
-      }),
-    );
+    await user.click(unitOption('Standard Room'));
 
     // The server total (142,500.00), never the client's own per-day sum
     // (which would compute 100 + 120 = 220 from CALENDAR_DAYS) nor a
@@ -1690,11 +1694,7 @@ describe('ListingReservationWidget — Sprint C-3 (Date-Range Room Availability)
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
     await user.click(screen.getByTestId('select-trigger'));
-    await user.click(
-      screen.getByRole('option', {
-        name: 'Standard Room — Sleeps 2 — 50000.00 AMD / night — 2 available',
-      }),
-    );
+    await user.click(unitOption('Standard Room'));
     const rooms = screen.getByLabelText('Quantity');
     await user.clear(rooms);
     await user.type(rooms, '2');
@@ -1729,11 +1729,7 @@ describe('ListingReservationWidget — Sprint C-3 (Date-Range Room Availability)
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
     await user.click(screen.getByTestId('select-trigger'));
-    await user.click(
-      screen.getByRole('option', {
-        name: 'Standard Room — Sleeps 2 — 50000.00 AMD / night — 2 available',
-      }),
-    );
+    await user.click(unitOption('Standard Room'));
 
     expect(
       screen.getByText('This room is sold out for the selected dates.'),
@@ -1753,11 +1749,7 @@ describe('ListingReservationWidget — Sprint C-3 (Date-Range Room Availability)
     renderWidget();
 
     await user.click(screen.getByTestId('select-trigger'));
-    await user.click(
-      screen.getByRole('option', {
-        name: 'Standard Room — Sleeps 2 — 50000.00 AMD / night — 2 available',
-      }),
-    );
+    await user.click(unitOption('Standard Room'));
     expect(screen.getByLabelText('Quantity')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));

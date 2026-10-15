@@ -117,6 +117,7 @@ import {
 import { useListingHourlyAvailabilityQuery } from '../../../queries/useListingHourlyAvailabilityQuery.js';
 import StayModeSelector from './StayModeSelector.jsx';
 import HourlyStayFields from './HourlyStayFields.jsx';
+import UnitOptionContent from './UnitOptionContent.jsx';
 import styles from './ListingReservationWidget.module.scss';
 
 const CALENDAR_WINDOW_DAYS = 180;
@@ -962,34 +963,68 @@ export default function ListingReservationWidget({
   // partner-side BookableUnitsManager already shows for the identical
   // data, rather than inventing new copy for it.
   //
-  // P2.2E: price and available quantity per option, so a customer can
-  // compare units before picking one rather than only after. Both reuse
-  // `BookableUnitsManager.jsx`'s own `unitPriceSummary`/`capacitySummary`
-  // keys verbatim (same field, same audience-neutral wording already
-  // shown to partners) — never fabricated: price is shown only when this
-  // SPECIFIC unit has its own `base_price_amount` (never the listing-
-  // level fallback price mislabeled as this unit's own), matching this
-  // widget's own `headlinePricing` precedence comment above.
+  // P2.2E: each option lets a customer compare units before picking one —
+  // the name, then separate facts (UnitOptionContent): guests it sleeps,
+  // its price in the canonical money display, and, once a stay is chosen,
+  // its server-derived availability for it. Never fabricated: a price only
+  // when this SPECIFIC unit has its own (`base_price_amount`, or its hourly
+  // rate in hourly mode), and availability only from the stay snapshot —
+  // never the unit's inventory size. The closed trigger shows the name only.
   const unitOptions = units.map((unit) => {
-    const baseLabel = resolveUnitDisplayLabel(unit);
-    const guestsSuffix =
-      unit.max_guests !== undefined && unit.max_guests !== null
-        ? ` — ${t('partner.listingWizard.availability.maxGuestsSummary', { count: unit.max_guests })}`
-        : '';
-    // Step L6.2H2B: no per-option price for a (free) restaurant reservation.
-    const priceSuffix =
+    const name = resolveUnitDisplayLabel(unit);
+    const isHourlyOption =
+      bookingMode === BOOKING_MODES.HOURLY && isHourlyRoom(unit);
+    let price = null;
+    if (isHourlyOption) {
+      price = {
+        amount: unit.hourly_price_amount,
+        currency: unit.hourly_price_currency,
+        suffix: t('partner.listingWizard.pricingModels.PER_HOUR'),
+      };
+    } else if (
+      // Step L6.2H2B: no per-option price for a (free) restaurant reservation.
       !isRestaurantListing &&
       unit.base_price_amount !== undefined &&
       unit.base_price_amount !== null
-        ? ` — ${t(`partner.listingWizard.unitPriceSummary.${resolveUnitPriceBasis(pricing?.pricing_model, unit.bookable_unit_type)}`, { amount: unit.base_price_amount, currency: unit.base_price_currency })}`
-        : '';
-    const quantitySuffix =
-      unit.capacity !== undefined && unit.capacity !== null
-        ? ` — ${t('partner.listingWizard.availability.capacitySummary', { count: unit.capacity })}`
-        : '';
+    ) {
+      // Step L6.2B: the basis this unit is actually billed on — none for a
+      // model the server does not bill per unit (e.g. legacy PER_HOUR).
+      const basis = resolveUnitPriceBasis(
+        pricing?.pricing_model,
+        unit.bookable_unit_type,
+      );
+      price = {
+        amount: unit.base_price_amount,
+        currency: unit.base_price_currency,
+        suffix:
+          basis === 'neutral'
+            ? undefined
+            : t(`partner.listingWizard.pricingModels.${pricing.pricing_model}`),
+      };
+    }
+    const stayInfo = isHourlyMode ? null : unitsForStayById.get(unit.id);
+    let availability = null;
+    if (stayInfo?.availability_status_for_stay === 'SOLD_OUT') {
+      availability = { soldOut: true };
+    } else if (stayInfo?.remaining_count_for_stay != null) {
+      availability = {
+        soldOut: false,
+        remaining: stayInfo.remaining_count_for_stay,
+      };
+    }
     return {
       value: unit.id,
-      label: `${baseLabel}${guestsSuffix}${priceSuffix}${quantitySuffix}`,
+      label: name,
+      triggerLabel: name,
+      content: (
+        <UnitOptionContent
+          name={name}
+          maxGuests={unit.max_guests ?? null}
+          price={price}
+          availability={availability}
+          locale={i18n.language}
+        />
+      ),
     };
   });
 
@@ -1096,6 +1131,9 @@ export default function ListingReservationWidget({
                 options={unitOptions}
                 value={selectedUnitId ?? ''}
                 onChange={(value) => handleSelectUnit(value)}
+                // The widget card clips its contents (`overflow: hidden`);
+                // the list must escape it, in the sidebar and the drawer.
+                portal
                 placeholder={t(
                   'pages.listingDetail.reservation.unitPlaceholder',
                 )}

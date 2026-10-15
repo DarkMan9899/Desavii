@@ -101,6 +101,7 @@ export default function HourlyStayFields({
             value={startHour === null ? null : String(startHour)}
             disabled={!hasSlots}
             onChange={(value) => onChangeStart(Number(value))}
+            portal
           />
           <Select
             label={t('pages.listingDetail.reservation.endTimeLabel')}
@@ -109,6 +110,7 @@ export default function HourlyStayFields({
             value={endHour === null ? null : String(endHour)}
             disabled={startHour === null}
             onChange={(value) => onChangeEnd(Number(value))}
+            portal
           />
         </Inline>
       )}

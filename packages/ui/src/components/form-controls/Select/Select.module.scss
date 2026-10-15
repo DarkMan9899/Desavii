@@ -83,9 +83,12 @@
 }
 
 .value {
+  min-width: 0;
   color: colors.$color-gray-900;
   font-size: fn.rem(16px);
   line-height: fn.rem(24px);
+  // A long selected name wraps inside the trigger instead of overflowing.
+  overflow-wrap: anywhere;
 }
 
 .chevron {
@@ -178,6 +181,20 @@
   }
 }
 
+// `portal`: the panel is mounted outside the field (the enclosing overlay,
+// or document.body) and placed by JS from the trigger's own rect through
+// custom properties. Only from the Tablet breakpoint up — below it the
+// mobile sheet rule above still applies unchanged.
+.panel--floating {
+  @media (min-width: bp.$breakpoint-tablet) {
+    position: fixed;
+    top: var(--select-panel-top);
+    left: var(--select-panel-left);
+    right: auto;
+    width: var(--select-panel-width);
+  }
+}
+
 @keyframes select-panel-in {
   from {
     opacity: 0;
@@ -221,6 +238,14 @@
   line-height: fn.rem(24px);
   color: colors.$color-gray-900;
   cursor: pointer;
+}
+
+// A structured option body (`option.content`): takes the row's free
+// width and wraps naturally, so long names never push the check mark out.
+.optionContent {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .option--active {
