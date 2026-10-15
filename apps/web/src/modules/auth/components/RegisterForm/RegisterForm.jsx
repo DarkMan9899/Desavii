@@ -10,8 +10,18 @@
  * visitor here, e.g. a staff-invitation link
  * (`partner/invitations/:token`) opened by someone with no account yet.
  * Falls back to `/account` when absent, unchanged from before.
+ *
+ * Auth entry cleanup: one form, two entry points, never mixed.
+ *  - `variant="customer"` (navbar "Register", `/auth/register`): a
+ *    customer account; a `?redirect=` is honoured only when it is a path
+ *    inside this app (`getSafeRedirectPath`).
+ *  - `variant="partner"` (Partner "Start", `/partner/register`): the same
+ *    personal account, then straight on to the partner application at
+ *    `/partner/apply` — no `?redirect=` involved. Its "Log in" link keeps
+ *    that intent for someone who already has an account.
  */
 
+import PropTypes from 'prop-types';
 import { useForm, Controller } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,15 +34,33 @@ import { Input } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import { Alert } from '@desavii/ui/components/feedback-overlays';
 import { Stack, Inline } from '@desavii/ui/components/layout';
+import PasswordField from '../../../../components/PasswordField/PasswordField.jsx';
 import { useRegisterMutation } from '../../mutations/useRegisterMutation.js';
 import { isStrongPassword } from '../../schemas/passwordPolicy.js';
+import {
+  getSafeRedirectPath,
+  partnerApplicationPath,
+} from '../../../../utils/authDestinations.js';
 
-export default function RegisterForm() {
+const VARIANTS = ['customer', 'partner'];
+
+export default function RegisterForm({ variant = 'customer' }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { locale } = useParams();
   const [searchParams] = useSearchParams();
   const { mutateAsync, isPending, error } = useRegisterMutation();
+  const isPartner = variant === 'partner';
+  const safeRedirect = isPartner
+    ? null
+    : getSafeRedirectPath(searchParams.get('redirect'));
+  const successPath = isPartner
+    ? partnerApplicationPath(locale)
+    : (safeRedirect ?? `/${locale}/account`);
+  const loginReturn = isPartner ? partnerApplicationPath(locale) : safeRedirect;
+  const loginPath = loginReturn
+    ? `/${locale}/auth/login?redirect=${encodeURIComponent(loginReturn)}`
+    : `/${locale}/auth/login`;
 
   const {
     control,
@@ -51,8 +79,7 @@ export default function RegisterForm() {
   async function onSubmit(values) {
     try {
       await mutateAsync({ ...values, phone: values.phone || undefined });
-      const redirect = searchParams.get('redirect');
-      navigate(redirect || `/${locale}/account`, { replace: true });
+      navigate(successPath, { replace: true });
     } catch {
       // Surfaced below via the mutation's `error` state.
     }
@@ -109,6 +136,7 @@ export default function RegisterForm() {
           render={({ field }) => (
             <Input
               type="email"
+              autoComplete="email"
               label={t('auth.register.email')}
               required
               error={errors.email?.message}
@@ -136,8 +164,8 @@ export default function RegisterForm() {
               isStrongPassword(value) || t('auth.validation.passwordWeak'),
           }}
           render={({ field }) => (
-            <Input
-              type="password"
+            <PasswordField
+              autoComplete="new-password"
               label={t('auth.register.password')}
               required
               helperText={
@@ -156,11 +184,16 @@ export default function RegisterForm() {
 
         <p>
           {t('auth.register.haveAccount')}{' '}
-          <Link to={`/${locale}/auth/login`}>
-            {t('auth.register.loginLink')}
-          </Link>
+          <Link to={loginPath}>{t('auth.register.loginLink')}</Link>
         </p>
       </Stack>
     </form>
   );
 }
+
+/* eslint-disable react/require-default-props -- inline ES6 default above */
+RegisterForm.propTypes = {
+  // Which entry point this form serves (see the file header).
+  variant: PropTypes.oneOf(VARIANTS),
+};
+/* eslint-enable react/require-default-props */

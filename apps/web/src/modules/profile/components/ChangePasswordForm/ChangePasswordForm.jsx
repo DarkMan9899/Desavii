@@ -8,11 +8,11 @@
 
 import { useForm, Controller } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Input } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import { Alert } from '@desavii/ui/components/feedback-overlays';
 import { Stack } from '@desavii/ui/components/layout';
 import PropTypes from 'prop-types';
+import PasswordField from '../../../../components/PasswordField/PasswordField.jsx';
 import { isStrongPassword } from '../../../auth/schemas/passwordPolicy.js';
 
 export default function ChangePasswordForm({
@@ -60,8 +60,8 @@ export default function ChangePasswordForm({
           control={control}
           rules={{ required: t('profile.settings.password.currentRequired') }}
           render={({ field }) => (
-            <Input
-              type="password"
+            <PasswordField
+              autoComplete="current-password"
               label={t('profile.settings.password.current')}
               required
               error={errors.currentPassword?.message}
@@ -80,8 +80,8 @@ export default function ChangePasswordForm({
               isStrongPassword(value) || t('auth.validation.passwordWeak'),
           }}
           render={({ field }) => (
-            <Input
-              type="password"
+            <PasswordField
+              autoComplete="new-password"
               label={t('profile.settings.password.new')}
               required
               helperText={
@@ -106,8 +106,8 @@ export default function ChangePasswordForm({
               t('profile.settings.password.confirmMismatch'),
           }}
           render={({ field }) => (
-            <Input
-              type="password"
+            <PasswordField
+              autoComplete="new-password"
               label={t('profile.settings.password.confirm')}
               required
               error={errors.confirmPassword?.message}

@@ -20,7 +20,7 @@ async function loginAsDemoCustomer(
 ) {
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill('DemoPass!2024');
+  await page.getByLabel(/^Password/).fill('DemoPass!2024');
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/account$/);
 }
@@ -28,7 +28,7 @@ async function loginAsDemoCustomer(
 async function loginAsDemoPartner(page) {
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill('partner.hotels@example.com');
-  await page.getByLabel('Password').fill('DemoPass!2024');
+  await page.getByLabel(/^Password/).fill('DemoPass!2024');
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/partner$/);
 }

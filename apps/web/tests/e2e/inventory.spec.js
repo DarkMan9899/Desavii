@@ -227,9 +227,14 @@ async function remainingOn(listingId, iso) {
 
 async function login(page, { email, password }, expectedUrlPattern) {
   await flushRateLimits();
+  // These flows switch accounts on one page (partner, then customer).
+  // `/auth/login` sends a signed-in user on to their workspace, so start
+  // each login signed out: the session lives in the refresh-token and
+  // `session_hint` cookies.
+  await page.context().clearCookies();
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
+  await page.getByLabel(/^Password/).fill(password);
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(expectedUrlPattern);
 }

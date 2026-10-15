@@ -78,7 +78,7 @@ async function loginAndCreateConfirmedBooking(page, request, email) {
       response.status() === 200,
   );
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(DEMO_PASSWORD);
+  await page.getByLabel(/^Password/).fill(DEMO_PASSWORD);
   await page.getByRole('button', { name: 'Log in' }).click();
   const loginResponse = await loginResponsePromise;
   await expect(page).toHaveURL(/\/en\/account$/, { timeout: 10_000 });
@@ -260,7 +260,7 @@ test.describe.serial('Payments', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('partner.hotels@example.com');
-    await page.getByLabel('Password').fill(DEMO_PASSWORD);
+    await page.getByLabel(/^Password/).fill(DEMO_PASSWORD);
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/partner$/, { timeout: 10_000 });
 
@@ -274,7 +274,7 @@ test.describe.serial('Payments', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('admin@travelhub.dev');
-    await page.getByLabel('Password').fill('DevAdmin!2024');
+    await page.getByLabel(/^Password/).fill('DevAdmin!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/admin$/, { timeout: 10_000 });
 

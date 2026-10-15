@@ -19,3 +19,24 @@
   margin: 0 0 tokens.$space-6;
   text-align: center;
 }
+
+// A title with a short explanatory line under it (partner registration:
+// what this step is and what comes next).
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  margin: 0 0 tokens.$space-6;
+  text-align: center;
+
+  .title {
+    margin: 0;
+  }
+}
+
+.lead {
+  margin: 0;
+  font-size: tokens.$font-size-body;
+  line-height: tokens.$line-height-body;
+  color: tokens.$color-gray-600;
+}

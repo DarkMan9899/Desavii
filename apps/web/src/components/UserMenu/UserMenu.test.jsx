@@ -1,7 +1,7 @@
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import UserMenu from './UserMenu.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 
@@ -17,7 +17,33 @@ function renderMenu() {
   );
 }
 
+function GuestDestination() {
+  const { pathname } = useLocation();
+  const where = `at ${pathname}`;
+  return <p>{where}</p>;
+}
+
 describe('UserMenu (apps/web/src/components)', () => {
+  test('signed out, "Register" opens customer registration — never partner onboarding — in the current language', async () => {
+    useAuth.mockReturnValue({ isAuthenticated: false, isBootstrapping: false });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/ru']}>
+        <Routes>
+          <Route path="/:locale" element={<UserMenu />} />
+          <Route path="*" element={<GuestDestination />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('link', { name: 'Մուտք' })).toHaveAttribute(
+      'href',
+      '/ru/auth/login',
+    );
+    await user.click(screen.getByRole('button', { name: 'Գրանցվել' }));
+    expect(screen.getByText('at /ru/auth/register')).toBeInTheDocument();
+  });
+
   test('logged-in menu links to Overview, Profile, and Settings (Phase 8)', async () => {
     useAuth.mockReturnValue({
       isAuthenticated: true,

@@ -31,7 +31,7 @@ test.describe('Registration', () => {
     // element's raw textContent, which does include the hidden "*" —
     // an exact match against "Password" alone spuriously fails. A plain
     // substring match is unambiguous here (only one Password-labeled field).
-    await page.getByLabel('Password').fill('StrongPass!2024');
+    await page.getByLabel(/^Password/).fill('StrongPass!2024');
     await page.getByRole('button', { name: 'Create account' }).click();
 
     await expect(page).toHaveURL(/\/en\/account$/);
@@ -42,7 +42,7 @@ test.describe('Login / logout', () => {
   test('the seeded dev customer can log in and out', async ({ page }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('customer@travelhub.dev');
-    await page.getByLabel('Password').fill('DevCustomer!2024');
+    await page.getByLabel(/^Password/).fill('DevCustomer!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
 
     await expect(page).toHaveURL(/\/en\/account$/);
@@ -67,7 +67,7 @@ test.describe('Login / logout', () => {
     await page.getByLabel('First name').fill('Test');
     await page.getByLabel('Last name').fill('User');
     await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill('StrongPass!2024');
+    await page.getByLabel(/^Password/).fill('StrongPass!2024');
     await page.getByRole('button', { name: 'Create account' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 
@@ -77,7 +77,7 @@ test.describe('Login / logout', () => {
 
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill('WrongPassword!1');
+    await page.getByLabel(/^Password/).fill('WrongPassword!1');
     await page.getByRole('button', { name: 'Log in' }).click();
 
     await expect(page).toHaveURL(/\/en\/auth\/login$/);
@@ -96,7 +96,7 @@ test.describe('Login / logout', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('customer@travelhub.dev');
-    await page.getByLabel('Password').fill('DevCustomer!2024');
+    await page.getByLabel(/^Password/).fill('DevCustomer!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 

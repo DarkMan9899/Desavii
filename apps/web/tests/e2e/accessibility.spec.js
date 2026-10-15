@@ -113,7 +113,7 @@ test('Partner dashboard has no serious/critical accessibility violations', async
 }) => {
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill('partner.hotels@example.com');
-  await page.getByLabel('Password').fill('DemoPass!2024');
+  await page.getByLabel(/^Password/).fill('DemoPass!2024');
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/partner$/);
   const violations = await seriousOrCriticalViolations(page);
@@ -128,7 +128,7 @@ test('Admin dashboard has no serious/critical accessibility violations', async (
 }) => {
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill('admin@travelhub.dev');
-  await page.getByLabel('Password').fill('DevAdmin!2024');
+  await page.getByLabel(/^Password/).fill('DevAdmin!2024');
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/admin$/);
   const violations = await seriousOrCriticalViolations(page);
@@ -143,7 +143,7 @@ test.describe.serial('Admin Sprint 2 pages', () => {
   async function loginAsAdmin(page) {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('admin@travelhub.dev');
-    await page.getByLabel('Password').fill('DevAdmin!2024');
+    await page.getByLabel(/^Password/).fill('DevAdmin!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/admin$/);
   }
@@ -203,7 +203,7 @@ test.describe.serial('Admin Sprint 3 pages', () => {
   async function loginAsAdmin(page) {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('admin@travelhub.dev');
-    await page.getByLabel('Password').fill('DevAdmin!2024');
+    await page.getByLabel(/^Password/).fill('DevAdmin!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/admin$/);
   }
@@ -259,7 +259,7 @@ test.describe.serial('Admin Sprint 4 pages', () => {
   async function loginAsAdmin(page) {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('admin@travelhub.dev');
-    await page.getByLabel('Password').fill('DevAdmin!2024');
+    await page.getByLabel(/^Password/).fill('DevAdmin!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/admin$/);
   }
@@ -321,7 +321,7 @@ test.describe.serial('Admin Sprint 5 pages', () => {
   async function loginAsAdmin(page) {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('admin@travelhub.dev');
-    await page.getByLabel('Password').fill('DevAdmin!2024');
+    await page.getByLabel(/^Password/).fill('DevAdmin!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/admin$/);
   }
@@ -383,7 +383,7 @@ test.describe.serial('Customer account pages (same shared account)', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('anna.harutyunyan@example.com');
-    await page.getByLabel('Password').fill('DemoPass!2024');
+    await page.getByLabel(/^Password/).fill('DemoPass!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 
@@ -400,7 +400,7 @@ test.describe.serial('Customer account pages (same shared account)', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('anna.harutyunyan@example.com');
-    await page.getByLabel('Password').fill('DemoPass!2024');
+    await page.getByLabel(/^Password/).fill('DemoPass!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 
@@ -415,7 +415,7 @@ test.describe.serial('Customer account pages (same shared account)', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('anna.harutyunyan@example.com');
-    await page.getByLabel('Password').fill('DemoPass!2024');
+    await page.getByLabel(/^Password/).fill('DemoPass!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 
@@ -444,7 +444,7 @@ test.describe.serial('Customer account pages (same shared account)', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('anna.harutyunyan@example.com');
-    await page.getByLabel('Password').fill('DemoPass!2024');
+    await page.getByLabel(/^Password/).fill('DemoPass!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 
@@ -464,7 +464,7 @@ test.describe.serial('Customer account pages (same shared account)', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('anna.harutyunyan@example.com');
-    await page.getByLabel('Password').fill('DemoPass!2024');
+    await page.getByLabel(/^Password/).fill('DemoPass!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 
@@ -482,7 +482,7 @@ test.describe.serial('Customer account pages (same shared account)', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('anna.harutyunyan@example.com');
-    await page.getByLabel('Password').fill('DemoPass!2024');
+    await page.getByLabel(/^Password/).fill('DemoPass!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 
@@ -511,7 +511,7 @@ test.describe.serial('Payments accessibility', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('anna.harutyunyan@example.com');
-    await page.getByLabel('Password').fill('DemoPass!2024');
+    await page.getByLabel(/^Password/).fill('DemoPass!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 
@@ -529,7 +529,7 @@ test.describe.serial('Payments accessibility', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('anna.harutyunyan@example.com');
-    await page.getByLabel('Password').fill('DemoPass!2024');
+    await page.getByLabel(/^Password/).fill('DemoPass!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 
@@ -552,7 +552,7 @@ test.describe.serial('Payments accessibility', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('admin@travelhub.dev');
-    await page.getByLabel('Password').fill('DevAdmin!2024');
+    await page.getByLabel(/^Password/).fill('DevAdmin!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/admin$/);
 
@@ -589,7 +589,7 @@ test.describe.serial('Admin Sprint 6 pages', () => {
   async function loginAsAdmin(page) {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('admin@travelhub.dev');
-    await page.getByLabel('Password').fill('DevAdmin!2024');
+    await page.getByLabel(/^Password/).fill('DevAdmin!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/admin$/);
   }
@@ -696,7 +696,7 @@ test.describe('Phase 18 accessibility', () => {
     const tourId = await resolveListingId(PHASE_18_FLAGSHIP_SLUGS.tour);
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('vendor@travelhub.dev');
-    await page.getByLabel('Password').fill('DevVendor!2024');
+    await page.getByLabel(/^Password/).fill('DevVendor!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/partner$/);
 
@@ -812,7 +812,7 @@ test.describe.serial('Admin Sprint 7 pages', () => {
   async function loginAsAdmin(page) {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('admin@travelhub.dev');
-    await page.getByLabel('Password').fill('DevAdmin!2024');
+    await page.getByLabel(/^Password/).fill('DevAdmin!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/admin$/);
   }

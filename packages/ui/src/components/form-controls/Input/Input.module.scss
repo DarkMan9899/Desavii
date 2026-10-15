@@ -96,3 +96,13 @@
     height: 100%;
   }
 }
+
+// `trailingAction`: a full-height slot at the field's inner end. It pulls
+// into the wrapper's end padding so a control inside it can offer a full
+// touch target without the field growing or the text running under it.
+.trailingAction {
+  display: inline-flex;
+  align-self: stretch;
+  flex-shrink: 0;
+  margin-right: calc(-1 * #{spacing.$space-3});
+}

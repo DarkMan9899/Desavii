@@ -24,6 +24,15 @@
  * land on `/admin` unless `?redirect=` says otherwise. `roles` is read
  * from the same resolved `login()` value as `partnerships`, for the
  * identical stale-closure reason.
+ *
+ * Auth entry cleanup: the destination now comes from
+ * `authDestinations.js` (shared with `RedirectIfAuthenticated`), which
+ * also lands a MANAGER on `/manager` and a MARKETING user on `/marketing`
+ * (both previously fell through to `/account`, which links to neither),
+ * and only honours a `?redirect=` that is a path inside this app. The
+ * "Sign up" link keeps the visitor's intent: someone sent here on the
+ * way to the partner application goes to partner registration; any
+ * other return target rides along to customer registration.
  */
 
 import { useForm, Controller } from 'react-hook-form';
@@ -38,10 +47,13 @@ import { Input } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import { Alert } from '@desavii/ui/components/feedback-overlays';
 import { Stack } from '@desavii/ui/components/layout';
+import PasswordField from '../../../../components/PasswordField/PasswordField.jsx';
 import { useLoginMutation } from '../../mutations/useLoginMutation.js';
-import { getLastWorkspace } from '../../../../utils/workspacePreference.js';
-
-const ADMIN_AREA_ROLES = ['ADMIN', 'SUPER_ADMIN', 'MODERATOR', 'SUPPORT'];
+import {
+  getSafeRedirectPath,
+  partnerApplicationPath,
+  resolvePostAuthPath,
+} from '../../../../utils/authDestinations.js';
 
 export default function LoginForm() {
   const { t } = useTranslation();
@@ -49,6 +61,13 @@ export default function LoginForm() {
   const { locale } = useParams();
   const [searchParams] = useSearchParams();
   const { mutateAsync, isPending, error } = useLoginMutation();
+  const safeRedirect = getSafeRedirectPath(searchParams.get('redirect'));
+  let registerPath = `/${locale}/auth/register`;
+  if (safeRedirect === partnerApplicationPath(locale)) {
+    registerPath = `/${locale}/partner/register`;
+  } else if (safeRedirect) {
+    registerPath += `?redirect=${encodeURIComponent(safeRedirect)}`;
+  }
 
   const {
     control,
@@ -59,22 +78,15 @@ export default function LoginForm() {
   async function onSubmit(values) {
     try {
       const { partnerships, roles } = await mutateAsync(values);
-      const redirect = searchParams.get('redirect');
-      const isAdminAreaRole = roles.some((role) =>
-        ADMIN_AREA_ROLES.includes(role),
+      navigate(
+        resolvePostAuthPath({
+          redirect: safeRedirect,
+          roles,
+          partnerships,
+          locale,
+        }),
+        { replace: true },
       );
-      const isPartner = partnerships.length > 0;
-      let destination;
-      if (redirect) {
-        destination = redirect;
-      } else if (isAdminAreaRole) {
-        destination = `/${locale}/admin`;
-      } else if (isPartner && getLastWorkspace() !== 'customer') {
-        destination = `/${locale}/partner`;
-      } else {
-        destination = `/${locale}/account`;
-      }
-      navigate(destination, { replace: true });
     } catch {
       // Surfaced below via the mutation's `error` state — no further
       // action needed here (FRONTEND_ARCHITECTURE.md §15.3's server-error
@@ -105,6 +117,7 @@ export default function LoginForm() {
             // value/onChange/onBlur/name/ref bundle this control needs.
             <Input
               type="email"
+              autoComplete="email"
               label={t('auth.login.email')}
               required
               error={errors.email?.message}
@@ -119,8 +132,8 @@ export default function LoginForm() {
           control={control}
           rules={{ required: t('auth.validation.passwordRequired') }}
           render={({ field }) => (
-            <Input
-              type="password"
+            <PasswordField
+              autoComplete="current-password"
               label={t('auth.login.password')}
               required
               error={errors.password?.message}
@@ -142,9 +155,7 @@ export default function LoginForm() {
 
         <p>
           {t('auth.login.noAccount')}{' '}
-          <Link to={`/${locale}/auth/register`}>
-            {t('auth.login.registerLink')}
-          </Link>
+          <Link to={registerPath}>{t('auth.login.registerLink')}</Link>
         </p>
       </Stack>
     </form>

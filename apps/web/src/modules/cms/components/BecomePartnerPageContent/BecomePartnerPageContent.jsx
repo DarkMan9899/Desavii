@@ -12,10 +12,15 @@
  *
  * P1.2 (Master Roadmap) added the real self-service application flow at
  * `/partner/apply`, wrapped in `RequireAuth` (not `RequirePartner` — an
- * applicant has no partnership yet). The CTA always routes there;
- * `RequireAuth` itself sends an unauthenticated visitor to
- * `/auth/login?redirect=...` first and returns them to `/partner/apply`
- * after login, so this component doesn't need its own auth branching.
+ * applicant has no partnership yet).
+ *
+ * Auth entry cleanup: the "Start" CTA now goes straight into partner
+ * onboarding for every visitor (`resolvePartnerStartPath`): someone
+ * signed out creates their partner account at `/partner/register` (it
+ * used to bounce them to the login page, whose "Sign up" link then
+ * dropped the partner intent and made a plain customer account); a
+ * signed-in customer applies with their existing account at
+ * `/partner/apply`; a signed-in partner member goes to their workspace.
  *
  * P1.6 (Master Roadmap): title/lead now come from the real CMS backend
  * (see `AboutPageContent.jsx`'s identical comment for the fallback
@@ -30,6 +35,8 @@ import { Button } from '@desavii/ui/components/primitives';
 import EditorialPageHero from '../../../../components/EditorialPageHero/EditorialPageHero.jsx';
 import useSeo from '../../../../seo/useSeo.js';
 import { buildBreadcrumbListSchema } from '../../../../seo/structuredData.js';
+import { useAuth } from '../../../../contexts/AuthContext.jsx';
+import { resolvePartnerStartPath } from '../../../../utils/authDestinations.js';
 import { useCmsPageQuery } from '../../queries/useCmsPageQuery.js';
 import styles from './BecomePartnerPageContent.module.scss';
 
@@ -43,6 +50,7 @@ export default function BecomePartnerPageContent() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { locale } = useParams();
+  const { isAuthenticated, partnerships } = useAuth();
   const { data: cmsPage } = useCmsPageQuery('become-a-partner', i18n.language);
   const title = cmsPage?.title ?? t('cms.becomePartner.title');
   const lead = cmsPage?.content ?? t('cms.becomePartner.lead');
@@ -91,7 +99,15 @@ export default function BecomePartnerPageContent() {
         <Button
           variant="primary"
           size="lg"
-          onClick={() => navigate(`/${locale}/partner/apply`)}
+          onClick={() =>
+            navigate(
+              resolvePartnerStartPath({
+                isAuthenticated,
+                partnerships,
+                locale,
+              }),
+            )
+          }
         >
           {t('cms.becomePartner.cta')}
         </Button>

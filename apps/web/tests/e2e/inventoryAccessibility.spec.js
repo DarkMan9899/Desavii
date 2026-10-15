@@ -116,7 +116,7 @@ async function login(page, { email, password }, expectedUrlPattern) {
   await flushRateLimits();
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
+  await page.getByLabel(/^Password/).fill(password);
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(expectedUrlPattern);
 }

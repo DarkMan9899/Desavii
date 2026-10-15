@@ -11,10 +11,10 @@
 import { useForm, Controller } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { Input } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import { Alert } from '@desavii/ui/components/feedback-overlays';
 import { Stack } from '@desavii/ui/components/layout';
+import PasswordField from '../../../../components/PasswordField/PasswordField.jsx';
 import { useResetPasswordMutation } from '../../mutations/useResetPasswordMutation.js';
 import { isStrongPassword } from '../../schemas/passwordPolicy.js';
 
@@ -82,8 +82,8 @@ export default function ResetPasswordForm() {
               isStrongPassword(value) || t('auth.validation.passwordWeak'),
           }}
           render={({ field }) => (
-            <Input
-              type="password"
+            <PasswordField
+              autoComplete="new-password"
               label={t('auth.resetPassword.newPassword')}
               required
               helperText={
@@ -107,8 +107,8 @@ export default function ResetPasswordForm() {
               value === newPassword || t('auth.resetPassword.confirmMismatch'),
           }}
           render={({ field }) => (
-            <Input
-              type="password"
+            <PasswordField
+              autoComplete="new-password"
               label={t('auth.resetPassword.confirmPassword')}
               required
               error={errors.confirmPassword?.message}

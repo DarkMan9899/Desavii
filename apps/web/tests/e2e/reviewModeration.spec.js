@@ -35,7 +35,7 @@ async function registerNewUser(page, prefix) {
   await page.getByLabel('First name').fill('Test');
   await page.getByLabel('Last name').fill('User');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill('StrongPass!2024');
+  await page.getByLabel(/^Password/).fill('StrongPass!2024');
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page).toHaveURL(/\/en\/account$/);
   return email;
@@ -50,7 +50,7 @@ async function logout(page) {
 async function loginAsDevAdmin(page) {
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill('admin@travelhub.dev');
-  await page.getByLabel('Password').fill('DevAdmin!2024');
+  await page.getByLabel(/^Password/).fill('DevAdmin!2024');
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/admin$/);
 }

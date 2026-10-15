@@ -48,7 +48,7 @@ async function resolveListingId(slug) {
 async function loginAsVendor(page) {
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill(VENDOR.email);
-  await page.getByLabel('Password').fill(VENDOR.password);
+  await page.getByLabel(/^Password/).fill(VENDOR.password);
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/partner$/);
 }

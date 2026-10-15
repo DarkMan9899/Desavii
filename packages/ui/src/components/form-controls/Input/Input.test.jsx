@@ -5,6 +5,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Input from './Input.jsx';
 
+const ACTION_LABEL = 'Paste code';
+
 function ControlledInput({ initialValue = '', ...rest }) {
   const [value, setValue] = useState(initialValue);
   return (
@@ -110,5 +112,20 @@ describe('Input (COMPONENT_LIBRARY.md Part II §2)', () => {
 
     expect(screen.getByTestId('icon-left')).toBeInTheDocument();
     expect(screen.getByTestId('icon-right')).toBeInTheDocument();
+  });
+
+  test('a trailingAction stays an interactive control, reached by Tab right after the input', async () => {
+    const user = userEvent.setup();
+    render(
+      <ControlledInput
+        label="Code"
+        trailingAction={<button type="button">{ACTION_LABEL}</button>}
+      />,
+    );
+
+    await user.click(screen.getByLabelText('Code'));
+    await user.tab();
+
+    expect(screen.getByRole('button', { name: ACTION_LABEL })).toHaveFocus();
   });
 });

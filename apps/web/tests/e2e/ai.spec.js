@@ -11,7 +11,7 @@ import { test, expect } from './fixtures.js';
 async function loginAsDemoCustomer(page) {
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill('anna.harutyunyan@example.com');
-  await page.getByLabel('Password').fill('DemoPass!2024');
+  await page.getByLabel(/^Password/).fill('DemoPass!2024');
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/account$/);
 }
@@ -19,7 +19,7 @@ async function loginAsDemoCustomer(page) {
 async function loginAsDemoPartner(page) {
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill('partner.hotels@example.com');
-  await page.getByLabel('Password').fill('DemoPass!2024');
+  await page.getByLabel(/^Password/).fill('DemoPass!2024');
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/partner$/);
 }
@@ -27,7 +27,7 @@ async function loginAsDemoPartner(page) {
 async function loginAsDevAdmin(page) {
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill('admin@travelhub.dev');
-  await page.getByLabel('Password').fill('DevAdmin!2024');
+  await page.getByLabel(/^Password/).fill('DevAdmin!2024');
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/admin$/);
 }

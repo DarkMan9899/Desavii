@@ -41,6 +41,10 @@
       "searchPlaceholder": "Search…",
       "noResults": "No results found",
       "removeOption": "Remove {{label}}"
+    },
+    "password": {
+      "show": "Show password",
+      "hide": "Hide password"
     }
   },
   "discovery": {
@@ -755,6 +759,10 @@
       "passwordWeak": "Use at least 10 characters, with at least 3 of: lowercase, uppercase, digit, symbol.",
       "firstNameRequired": "Enter your first name.",
       "lastNameRequired": "Enter your last name."
+    },
+    "partnerRegister": {
+      "title": "Create your partner account",
+      "subtitle": "Step 1 of 2: your personal sign-in. Next, you’ll tell us about your business and send it for review."
     }
   },
   "account": {

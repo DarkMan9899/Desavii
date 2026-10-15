@@ -75,4 +75,37 @@ describe('ChangePasswordForm (apps/web/src/modules/profile)', () => {
       screen.getByText('Ձեր ընթացիկ գաղտնաբառը սխալ է։'),
     ).toBeInTheDocument();
   });
+
+  test('each password field has its own show/hide control and password-manager hint; revealing one leaves the others hidden, and validation still runs', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ChangePasswordForm isPending={false} error={null} onSave={onSave} />,
+    );
+    const current = screen.getByLabelText(/Ընթացիկ գաղտնաբառ/);
+    const next = screen.getByLabelText(/Նոր գաղտնաբառ/);
+    const confirm = screen.getByLabelText(/Հաստատեք նոր գաղտնաբառը/);
+    const toggles = screen.getAllByRole('button', {
+      name: 'Ցույց տալ գաղտնաբառը',
+    });
+
+    expect(toggles).toHaveLength(3);
+    expect(current).toHaveAttribute('autocomplete', 'current-password');
+    expect(next).toHaveAttribute('autocomplete', 'new-password');
+    expect(confirm).toHaveAttribute('autocomplete', 'new-password');
+
+    await user.click(toggles[2]);
+    expect(confirm).toHaveAttribute('type', 'text');
+    expect(current).toHaveAttribute('type', 'password');
+    expect(next).toHaveAttribute('type', 'password');
+
+    await user.type(current, 'OldPass!2024');
+    await user.type(next, 'NewStrongPass!2024');
+    await user.type(confirm, 'Different!2024');
+    await user.click(screen.getByRole('button', { name: 'Փոխել գաղտնաբառը' }));
+    expect(
+      screen.getByText('Գաղտնաբառերը չեն համընկնում։'),
+    ).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
 });

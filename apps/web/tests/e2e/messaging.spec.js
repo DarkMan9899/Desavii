@@ -50,7 +50,7 @@ async function loginAsDemoCustomer(
   await flushRateLimits();
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill('DemoPass!2024');
+  await page.getByLabel(/^Password/).fill('DemoPass!2024');
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/account$/);
 }
@@ -59,7 +59,7 @@ async function loginAsDemoPartner(page) {
   await flushRateLimits();
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill('partner.hotels@example.com');
-  await page.getByLabel('Password').fill('DemoPass!2024');
+  await page.getByLabel(/^Password/).fill('DemoPass!2024');
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/partner$/);
 }
@@ -68,7 +68,7 @@ async function loginAsAdmin(page) {
   await flushRateLimits();
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill('admin@travelhub.dev');
-  await page.getByLabel('Password').fill('DevAdmin!2024');
+  await page.getByLabel(/^Password/).fill('DevAdmin!2024');
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/admin$/);
 }

@@ -9,6 +9,11 @@ any other generic date-input need). `TimePicker`, `SearchBar`
 (COMPONENT_LIBRARY.md Part II Section 2) remain scaffolded, not
 implemented — out of this phase's scope.
 
+`PasswordInput` is `Input` with an eye / eye-off button that shows or
+hides the typed password (same input element, only its `type` flips, so
+autofill and focus survive). Pass translated `showLabel`/`hideLabel` —
+the web app does this once in its `PasswordField` wrapper.
+
 `Label` is not a separate COMPONENT_LIBRARY.md catalog entry — it is the
 one shared implementation of the "label always visible, associated via
 htmlFor/id" requirement every other control in this group specifies. See
@@ -26,7 +31,7 @@ FRONTEND_ARCHITECTURE.md §8.2).
 ## Usage
 
 ```jsx
-import { Input, Textarea, Checkbox, Radio, Switch, Select } from '@desavii/ui/components/form-controls';
+import { Input, PasswordInput, Textarea, Checkbox, Radio, Switch, Select } from '@desavii/ui/components/form-controls';
 
 <Input
   label="Email address"
@@ -51,6 +56,15 @@ import { Input, Textarea, Checkbox, Radio, Switch, Select } from '@desavii/ui/co
 <Radio name="room" value="deluxe" label="Deluxe room" checked={room === 'deluxe'} onChange={() => setRoom('deluxe')} />
 
 <Switch label="Email notifications" checked={emailsOn} onChange={(e) => setEmailsOn(e.target.checked)} />
+
+<PasswordInput
+  label="Password"
+  autoComplete="current-password"
+  value={password}
+  onChange={(e) => setPassword(e.target.value)}
+  showLabel="Show password"
+  hideLabel="Hide password"
+/>
 
 <Select
   label="Country"

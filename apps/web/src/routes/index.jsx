@@ -44,6 +44,7 @@ import ManagerLayout from '../layouts/ManagerLayout.jsx';
 import MarketingLayout from '../layouts/MarketingLayout.jsx';
 import ErrorLayout from '../layouts/ErrorLayout.jsx';
 import RequireAuth from '../guards/RequireAuth.jsx';
+import RedirectIfAuthenticated from '../guards/RedirectIfAuthenticated.jsx';
 import RequirePartner from '../guards/RequirePartner.jsx';
 import RequireRole from '../guards/RequireRole.jsx';
 import RequireManager from '../guards/RequireManager.jsx';
@@ -76,6 +77,9 @@ const BlogPage = lazy(() => import('../pages/BlogPage.jsx'));
 const BlogPostPage = lazy(() => import('../pages/BlogPostPage.jsx'));
 const LoginPage = lazy(() => import('../pages/auth/LoginPage.jsx'));
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage.jsx'));
+const PartnerRegisterPage = lazy(
+  () => import('../pages/auth/PartnerRegisterPage.jsx'),
+);
 const ForgotPasswordPage = lazy(
   () => import('../pages/auth/ForgotPasswordPage.jsx'),
 );
@@ -425,10 +429,38 @@ export default function AppRoutes() {
               />
             </Route>
 
-            {/* Auth (§4.2/§5.2) */}
+            {/* Auth (§4.2/§5.2). Login and both registrations are
+              anonymous-only (`RedirectIfAuthenticated`): a signed-in user
+              is sent on to their workspace — or, from partner
+              registration, to the partner application with the account
+              they already have — instead of a second account. The navbar's
+              "Register" is `auth/register` (customers only); the Partner
+              "Start" CTA leads to `partner/register`, never the reverse. */}
             <Route element={<AuthLayout />}>
-              <Route path="auth/login" element={<LoginPage />} />
-              <Route path="auth/register" element={<RegisterPage />} />
+              <Route
+                path="auth/login"
+                element={
+                  <RedirectIfAuthenticated>
+                    <LoginPage />
+                  </RedirectIfAuthenticated>
+                }
+              />
+              <Route
+                path="auth/register"
+                element={
+                  <RedirectIfAuthenticated>
+                    <RegisterPage />
+                  </RedirectIfAuthenticated>
+                }
+              />
+              <Route
+                path="partner/register"
+                element={
+                  <RedirectIfAuthenticated destination="partnerStart">
+                    <PartnerRegisterPage />
+                  </RedirectIfAuthenticated>
+                }
+              />
               {/* Password reset (P0/P1 launch-audit remediation) — the
                 token lives in the path, matching the existing
                 `partner/invitations/:token` single-use-link convention;

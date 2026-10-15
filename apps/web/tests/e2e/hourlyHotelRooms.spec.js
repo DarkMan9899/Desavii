@@ -215,7 +215,7 @@ async function login(page, credentials, expectedUrlPattern) {
   );
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill(credentials.email);
-  await page.getByLabel('Password').fill(credentials.password);
+  await page.getByLabel(/^Password/).fill(credentials.password);
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(expectedUrlPattern);
 }

@@ -12,6 +12,12 @@
  * combobox/autocomplete on top of this field without re-implementing its
  * label/error/icon chrome.
  *
+ * `trailingAction` is the one interactive slot inside the field's border
+ * (`iconLeft`/`iconRight` are decorative and hidden from assistive tech):
+ * a real control that acts on this input, such as `PasswordInput`'s
+ * show/hide button. It renders after the native `<input>`, so the input
+ * keeps its place in the tab order and the control follows it.
+ *
  * Wrapped in `forwardRef` so React Hook Form's `Controller` (which passes
  * a `ref` callback down for its own focus-on-error/native-validation
  * integration) attaches to the real `<input>` instead of silently no-op'ing
@@ -50,6 +56,7 @@ const Input = forwardRef(function Input(
     disabled = false,
     iconLeft = undefined,
     iconRight = undefined,
+    trailingAction = undefined,
     type = 'text',
     id = undefined,
     name = undefined,
@@ -119,6 +126,9 @@ const Input = forwardRef(function Input(
               {iconRight}
             </span>
           )}
+          {trailingAction && (
+            <span className={styles.trailingAction}>{trailingAction}</span>
+          )}
         </span>
       )}
     </FieldWrapper>
@@ -143,6 +153,8 @@ Input.propTypes = {
   disabled: PropTypes.bool,
   iconLeft: PropTypes.node,
   iconRight: PropTypes.node,
+  // An interactive control inside the field, after the input (see header).
+  trailingAction: PropTypes.node,
   type: PropTypes.oneOf(TYPES),
   id: PropTypes.string,
   name: PropTypes.string,

@@ -126,7 +126,7 @@ async function loginAsCustomer(page) {
   );
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill(CUSTOMER.email);
-  await page.getByLabel('Password').fill(CUSTOMER.password);
+  await page.getByLabel(/^Password/).fill(CUSTOMER.password);
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/account$/);
 }

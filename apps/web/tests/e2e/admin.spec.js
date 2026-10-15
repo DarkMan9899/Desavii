@@ -12,7 +12,7 @@ import { test, expect } from './fixtures.js';
 async function loginAsDevAdmin(page) {
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill('admin@travelhub.dev');
-  await page.getByLabel('Password').fill('DevAdmin!2024');
+  await page.getByLabel(/^Password/).fill('DevAdmin!2024');
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/en\/admin$/);
 }
@@ -51,7 +51,7 @@ test.describe('Admin RBAC denial', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('customer@travelhub.dev');
-    await page.getByLabel('Password').fill('DevCustomer!2024');
+    await page.getByLabel(/^Password/).fill('DevCustomer!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 
@@ -64,7 +64,7 @@ test.describe('Admin RBAC denial', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('customer@travelhub.dev');
-    await page.getByLabel('Password').fill('DevCustomer!2024');
+    await page.getByLabel(/^Password/).fill('DevCustomer!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 
@@ -414,7 +414,7 @@ test.describe.serial('Admin Marketplace Configuration (Stage 11.5)', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('vendor@travelhub.dev');
-    await page.getByLabel('Password').fill('DevVendor!2024');
+    await page.getByLabel(/^Password/).fill('DevVendor!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/partner$/);
 
@@ -538,7 +538,7 @@ test.describe('Admin Audit Logs (Stage 11.7)', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('customer@travelhub.dev');
-    await page.getByLabel('Password').fill('DevCustomer!2024');
+    await page.getByLabel(/^Password/).fill('DevCustomer!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 
@@ -575,7 +575,7 @@ test.describe('Admin System Health (Stage 11.8)', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('customer@travelhub.dev');
-    await page.getByLabel('Password').fill('DevCustomer!2024');
+    await page.getByLabel(/^Password/).fill('DevCustomer!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 
@@ -647,7 +647,7 @@ test.describe('Admin Settings (Stage 11.9)', () => {
   }) => {
     await page.goto('/en/auth/login');
     await page.getByLabel('Email').fill('customer@travelhub.dev');
-    await page.getByLabel('Password').fill('DevCustomer!2024');
+    await page.getByLabel(/^Password/).fill('DevCustomer!2024');
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
 

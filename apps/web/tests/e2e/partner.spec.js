@@ -10,7 +10,7 @@ import { test, expect } from './fixtures.js';
 async function loginAsDemoPartner(page) {
   await page.goto('/en/auth/login');
   await page.getByLabel('Email').fill('partner.hotels@example.com');
-  await page.getByLabel('Password').fill('DemoPass!2024');
+  await page.getByLabel(/^Password/).fill('DemoPass!2024');
   await page.getByRole('button', { name: 'Log in' }).click();
   // A user with a partnership lands on /partner by default (Phase 10's
   // role-aware redirect), not /account.
