@@ -150,11 +150,11 @@ test.describe('Partner room authoring accessibility (Sprint C-1)', () => {
     // Populate SLEEPING (bed configuration) and ROOM FEATURES so the
     // scan covers real, non-empty custom Select controls.
     await page.getByRole('button', { name: 'Add bed' }).click();
-    await page.getByRole('button', { name: 'Bathroom' }).click();
+    await page.getByRole('combobox', { name: 'Bathroom' }).click();
     await page.getByRole('option', { name: 'Private bathroom' }).click();
-    await page.getByRole('button', { name: 'View' }).click();
+    await page.getByRole('combobox', { name: 'View' }).click();
     await page.getByRole('option', { name: 'Garden view' }).click();
-    await page.getByRole('button', { name: 'Smoking policy' }).click();
+    await page.getByRole('combobox', { name: 'Smoking policy' }).click();
     await page.getByRole('option', { name: 'Non-smoking' }).click();
 
     // Room description — English tab, then save, exercising the

@@ -50,6 +50,7 @@ import {
   useExtendAdvertisementMutation,
   PLACEMENT_CODES,
 } from '../../../advertising/index.js';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 
 const STATUS_BADGE_VARIANT = {
   REQUEST_SUBMITTED: 'neutral',
@@ -102,6 +103,7 @@ const EMPTY_CREATE_FORM = {
 };
 
 export default function AdminPromotionsPageContent() {
+  const selectTexts = useSelectTexts();
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
   const { showToast } = useToast();
@@ -592,6 +594,9 @@ export default function AdminPromotionsPageContent() {
                 onChange={setPlacementFilter}
               />
               <Select
+                placeholder={selectTexts.placeholder}
+                searchPlaceholder={selectTexts.searchPlaceholder}
+                noOptionsMessage={selectTexts.noOptionsMessage}
                 label={t('admin.promotions.filters.statusLabel')}
                 options={statusOptions}
                 value={statusFilter}
@@ -668,6 +673,9 @@ export default function AdminPromotionsPageContent() {
               }
             />
             <Select
+              placeholder={selectTexts.placeholder}
+              searchPlaceholder={selectTexts.searchPlaceholder}
+              noOptionsMessage={selectTexts.noOptionsMessage}
               label={t('admin.promotions.create.placementLabel')}
               options={createPlacementOptions}
               value={createForm.placementCode}
@@ -684,6 +692,9 @@ export default function AdminPromotionsPageContent() {
             {(createForm.placementCode === PLACEMENT_CODES.CATEGORY ||
               isBothPlacements) && (
               <Select
+                placeholder={selectTexts.placeholder}
+                searchPlaceholder={selectTexts.searchPlaceholder}
+                noOptionsMessage={selectTexts.noOptionsMessage}
                 label={t('admin.promotions.create.categoryLabel')}
                 options={categoryOptions}
                 value={createForm.categoryId}
@@ -693,6 +704,9 @@ export default function AdminPromotionsPageContent() {
               />
             )}
             <Select
+              placeholder={selectTexts.placeholder}
+              searchPlaceholder={selectTexts.searchPlaceholder}
+              noOptionsMessage={selectTexts.noOptionsMessage}
               label={
                 isBothPlacements
                   ? t('admin.promotions.create.homeProductLabel')
@@ -706,6 +720,9 @@ export default function AdminPromotionsPageContent() {
             />
             {isBothPlacements && (
               <Select
+                placeholder={selectTexts.placeholder}
+                searchPlaceholder={selectTexts.searchPlaceholder}
+                noOptionsMessage={selectTexts.noOptionsMessage}
                 label={t('admin.promotions.create.categoryProductLabel')}
                 options={categoryProductOptions}
                 value={createForm.categoryProductId}

@@ -75,7 +75,7 @@ describe('Modal (COMPONENT_LIBRARY.md Part II §4)', () => {
       </Modal>,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Amenities' }));
+    await user.click(screen.getByRole('combobox', { name: 'Amenities' }));
     await user.click(screen.getByRole('option', { name: 'Pool' }));
     expect(screen.getByRole('listbox')).toHaveFocus();
 

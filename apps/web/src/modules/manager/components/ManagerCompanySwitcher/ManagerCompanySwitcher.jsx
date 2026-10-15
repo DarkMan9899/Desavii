@@ -10,8 +10,10 @@
 import { useTranslation } from 'react-i18next';
 import { Select } from '@desavii/ui/components/form-controls';
 import { useManagerContext } from '../../../../contexts/ManagerContext.jsx';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 
 export default function ManagerCompanySwitcher() {
+  const selectTexts = useSelectTexts();
   const { t } = useTranslation();
   const { companies, activeCompanyId, setActiveCompanyId } =
     useManagerContext();
@@ -25,6 +27,9 @@ export default function ManagerCompanySwitcher() {
 
   return (
     <Select
+      placeholder={selectTexts.placeholder}
+      searchPlaceholder={selectTexts.searchPlaceholder}
+      noOptionsMessage={selectTexts.noOptionsMessage}
       ariaLabel={t('manager.companySwitcher.label')}
       options={options}
       value={String(activeCompanyId ?? '')}

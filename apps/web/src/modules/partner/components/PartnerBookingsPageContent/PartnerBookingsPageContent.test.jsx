@@ -71,7 +71,7 @@ describe('PartnerBookingsPageContent (apps/web/src/modules/partner)', () => {
     const user = userEvent.setup();
     renderPage();
 
-    const [trigger] = screen.getAllByRole('button');
+    const [trigger] = screen.getAllByRole('combobox');
     await user.click(trigger);
     await user.click(screen.getByText('Հաստատված'));
 

@@ -159,7 +159,7 @@ describe('AdminListingModerationPageContent (apps/web/src/modules/admin)', () =>
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole('button', { name: 'Կենսացիկլ' }));
+    await user.click(screen.getByRole('combobox', { name: 'Կենսացիկլ' }));
     await user.click(
       screen.getByRole('option', { name: 'Ժամկետը մոտենում է' }),
     );

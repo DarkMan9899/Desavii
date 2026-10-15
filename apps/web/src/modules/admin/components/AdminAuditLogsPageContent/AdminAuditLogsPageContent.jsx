@@ -39,6 +39,7 @@ import { Search } from 'lucide-react';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import { useAdminListFilters } from '../../hooks/useAdminListFilters.js';
 import { useAdminAuditLogsQuery } from '../../queries/useAdminAuditLogsQuery.js';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 
 const DEFAULT_FILTERS = {
   targetType: '',
@@ -97,6 +98,7 @@ function humanizeAction(action) {
 }
 
 export default function AdminAuditLogsPageContent() {
+  const selectTexts = useSelectTexts();
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
 
@@ -245,6 +247,9 @@ export default function AdminAuditLogsPageContent() {
               iconLeft={<Search size={18} aria-hidden="true" />}
             />
             <Select
+              placeholder={selectTexts.placeholder}
+              searchPlaceholder={selectTexts.searchPlaceholder}
+              noOptionsMessage={selectTexts.noOptionsMessage}
               ariaLabel={t('admin.auditLogs.filters.targetTypeLabel')}
               options={targetTypeOptions}
               value={filters.targetType}

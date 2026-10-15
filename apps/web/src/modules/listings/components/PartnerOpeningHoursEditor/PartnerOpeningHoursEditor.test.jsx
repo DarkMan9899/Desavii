@@ -74,7 +74,7 @@ describe('PartnerOpeningHoursEditor (Pass 6, Restaurant vertical)', () => {
     });
     render(<PartnerOpeningHoursEditor listingId={7} />);
 
-    await user.click(screen.getByRole('button', { name: 'երկուշաբթի' }));
+    await user.click(screen.getByRole('combobox', { name: 'երկուշաբթի' }));
     await user.click(screen.getByRole('option', { name: 'Բաց' }));
 
     expect(

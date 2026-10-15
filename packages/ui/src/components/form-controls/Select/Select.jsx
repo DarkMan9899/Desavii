@@ -32,13 +32,26 @@
  * stays the option's plain text for search and type-ahead, so plain
  * `{ value, label }` options behave exactly as before.
  *
- * `portal`: by default the panel is an absolutely positioned sibling of
- * the trigger, so an `overflow: hidden` ancestor clips it. With `portal`
- * it is mounted like `DatePicker`'s calendar — into the enclosing
- * Modal/Drawer dialog, or `document.body` (`usePortalContainer`) — and
- * placed from the trigger's own rect, opening upward when there is no
- * room below. Below the Tablet breakpoint the mobile sheet styling still
- * applies unchanged.
+ * `portal` (default on): the panel is mounted like `DatePicker`'s
+ * calendar — into the enclosing Modal/Drawer dialog, or `document.body`
+ * outside any overlay (`usePortalContainer`) — and placed from the
+ * trigger's own rect: below it, or above when only that side fits, and
+ * otherwise on the roomier side with its height capped to the viewport;
+ * at least `PANEL_MIN_WIDTH` wide and kept inside the viewport
+ * horizontally. A panel left inside the field is clipped by any
+ * `overflow: hidden`/scrolling ancestor (a Modal body, a card) and, below
+ * the Tablet breakpoint, its fixed bottom sheet is captured by any
+ * ancestor that establishes a containing block (a `transform-style:
+ * preserve-3d` elevated Card). `portal={false}` keeps the old in-field,
+ * absolutely positioned panel. Below the Tablet breakpoint the mobile
+ * sheet styling applies either way.
+ *
+ * ARIA: the trigger is a select-only combobox (WAI-ARIA APG) — the only
+ * role that supports `aria-activedescendant`, `aria-required` and
+ * `aria-invalid` and that does not flatten the multi-select chips'
+ * remove buttons into presentational text, as `role="button"` did. The
+ * active option is scrolled into view as it moves, and opening a
+ * single-select starts on its selected option.
  */
 
 import {
@@ -60,6 +73,9 @@ const SIZES = ['sm', 'md', 'lg'];
 const SEARCHABLE_THRESHOLD = 8;
 const PANEL_GAP = 4;
 const VIEWPORT_MARGIN = 8;
+// The narrowest a floating panel gets, so a compact trigger (a role or
+// status picker in a table row) still shows readable option rows.
+const PANEL_MIN_WIDTH = 240;
 
 const optionShape = PropTypes.shape({
   value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
@@ -70,24 +86,43 @@ const optionShape = PropTypes.shape({
 });
 
 /**
- * Fixed-position placement for a portaled panel: directly under the
- * trigger and as wide as it, flipped above the trigger when it would run
- * past the bottom of the viewport and fits above (`DatePicker`'s rule).
+ * Fixed-position placement for a portaled panel. Vertically: under the
+ * trigger when it fits, else above it when that fits (`DatePicker`'s
+ * rule), else on whichever side has more room with `maxHeight` capping
+ * it there (the list scrolls inside). Horizontally: at least as wide as
+ * the trigger and `PANEL_MIN_WIDTH`, never wider than the viewport, and
+ * shifted left when it would run past the right edge. `scrollHeight` is
+ * the panel's natural height even while a previous `maxHeight` caps it.
  */
 function computePanelPlacement(triggerEl, panelEl) {
   const triggerRect = triggerEl.getBoundingClientRect();
-  const panelHeight = panelEl.getBoundingClientRect().height;
-  const overflowsBottom =
-    triggerRect.bottom + PANEL_GAP + panelHeight >
-    window.innerHeight - VIEWPORT_MARGIN;
-  const fitsAbove = triggerRect.top - PANEL_GAP - panelHeight >= 0;
+  const naturalHeight = panelEl.scrollHeight;
+  const spaceBelow =
+    window.innerHeight - VIEWPORT_MARGIN - triggerRect.bottom - PANEL_GAP;
+  const spaceAbove = triggerRect.top - PANEL_GAP - VIEWPORT_MARGIN;
+  const openUpward =
+    naturalHeight > spaceBelow &&
+    (naturalHeight <= spaceAbove || spaceAbove > spaceBelow);
+  const maxHeight = Math.max(0, openUpward ? spaceAbove : spaceBelow);
+  const height = Math.min(naturalHeight, maxHeight);
+
+  const maxWidth = window.innerWidth - 2 * VIEWPORT_MARGIN;
+  const width = Math.min(
+    Math.max(triggerRect.width, PANEL_MIN_WIDTH),
+    maxWidth,
+  );
+  const left = Math.max(
+    VIEWPORT_MARGIN,
+    Math.min(triggerRect.left, window.innerWidth - VIEWPORT_MARGIN - width),
+  );
+
   return {
-    top:
-      overflowsBottom && fitsAbove
-        ? triggerRect.top - PANEL_GAP - panelHeight
-        : triggerRect.bottom + PANEL_GAP,
-    left: triggerRect.left,
-    width: triggerRect.width,
+    top: openUpward
+      ? triggerRect.top - PANEL_GAP - height
+      : triggerRect.bottom + PANEL_GAP,
+    left,
+    width,
+    maxHeight,
   };
 }
 
@@ -152,7 +187,7 @@ const Select = forwardRef(function Select(
     searchPlaceholder = 'Search…',
     noOptionsMessage = 'No results',
     getRemoveChipLabel = (optionLabel) => `Remove ${optionLabel}`,
-    portal = false,
+    portal = true,
   },
   forwardedRef,
 ) {
@@ -235,16 +270,46 @@ const Select = forwardRef(function Select(
     };
   }, [open, isPortaled, filteredOptions.length]);
 
+  // A portaled panel stays `visibility: hidden` until it is placed, and a
+  // hidden input cannot take focus — so focus the search once it shows.
+  const panelVisible = open && (!isPortaled || panelPlacement !== null);
   useEffect(() => {
-    if (open && isSearchable && searchInputRef.current) {
+    if (panelVisible && isSearchable && searchInputRef.current) {
       searchInputRef.current.focus();
     }
-  }, [open, isSearchable]);
+  }, [panelVisible, isSearchable]);
+
+  // Every way of closing — a choice, Escape, Tab, a press outside —
+  // leaves no stale search text or highlighted row for the next opening.
+  useEffect(() => {
+    if (open) return;
+    setQuery('');
+    setActiveIndex(-1);
+  }, [open]);
+
+  // Keyboard navigation moves `aria-activedescendant`, not DOM focus, so
+  // the list must scroll the active row into view itself.
+  useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    document
+      .getElementById(`${listboxId}-option-${activeIndex}`)
+      ?.scrollIntoView?.({ block: 'nearest' });
+  }, [open, activeIndex, listboxId, panelPlacement]);
+
+  function openPanel() {
+    // A single-select opens on its current choice (WAI-ARIA APG), so a
+    // long list shows where the selection is and arrows continue from it.
+    if (!multiple) {
+      const selectedIndex = options.findIndex(
+        (option) => option.value === value,
+      );
+      setActiveIndex(selectedIndex);
+    }
+    setOpen(true);
+  }
 
   function closePanel() {
     setOpen(false);
-    setQuery('');
-    setActiveIndex(-1);
     if (triggerRef.current) triggerRef.current.focus();
   }
 
@@ -306,7 +371,7 @@ const Select = forwardRef(function Select(
     if (!open) {
       if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) {
         event.preventDefault();
-        setOpen(true);
+        openPanel();
       }
       return;
     }
@@ -330,6 +395,10 @@ const Select = forwardRef(function Select(
         closePanel();
         break;
       case 'Tab':
+        // From the search field or the listbox — both live in the panel,
+        // which unmounts now — Tab must continue from the trigger, or
+        // focus would fall back to the document.
+        if (event.target !== triggerRef.current) triggerRef.current?.focus();
         setOpen(false);
         break;
       default:
@@ -354,6 +423,9 @@ const Select = forwardRef(function Select(
         '--select-panel-top': `${panelPlacement?.top ?? 0}px`,
         '--select-panel-left': `${panelPlacement?.left ?? 0}px`,
         '--select-panel-width': `${panelPlacement?.width ?? 0}px`,
+        '--select-panel-max-height': panelPlacement
+          ? `${panelPlacement.maxHeight}px`
+          : 'none',
         visibility: panelPlacement ? 'visible' : 'hidden',
       }
     : undefined;
@@ -384,7 +456,7 @@ const Select = forwardRef(function Select(
           id={fieldId}
           ref={setTriggerRef}
           data-testid="select-trigger"
-          role="button"
+          role="combobox"
           tabIndex={disabled ? -1 : 0}
           aria-haspopup="listbox"
           aria-expanded={open}
@@ -395,6 +467,8 @@ const Select = forwardRef(function Select(
               : undefined
           }
           aria-describedby={error ? errorId : undefined}
+          aria-required={required || undefined}
+          aria-invalid={error ? true : undefined}
           aria-disabled={disabled || undefined}
           aria-labelledby={label ? labelId : undefined}
           aria-label={!label ? ariaLabel : undefined}
@@ -406,7 +480,11 @@ const Select = forwardRef(function Select(
           ]
             .filter(Boolean)
             .join(' ')}
-          onClick={() => !disabled && setOpen((prev) => !prev)}
+          onClick={() => {
+            if (disabled) return;
+            if (open) setOpen(false);
+            else openPanel();
+          }}
           onKeyDown={handleTriggerKeyDown}
         >
           {multiple ? (
@@ -455,7 +533,10 @@ const Select = forwardRef(function Select(
                   type="text"
                   className={styles.search}
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setActiveIndex(-1);
+                  }}
                   onKeyDown={handleTriggerKeyDown}
                   placeholder={searchPlaceholder}
                   aria-label={searchPlaceholder}
@@ -508,13 +589,9 @@ const Select = forwardRef(function Select(
                       onMouseEnter={() => setActiveIndex(index)}
                       onClick={() => selectOption(option)}
                     >
-                      {option.content ? (
-                        <span className={styles.optionContent}>
-                          {option.content}
-                        </span>
-                      ) : (
-                        <span>{option.label}</span>
-                      )}
+                      <span className={styles.optionContent}>
+                        {option.content ?? option.label}
+                      </span>
                       {isSelected && <CheckIcon />}
                     </li>
                   );
@@ -563,9 +640,9 @@ Select.propTypes = {
   searchPlaceholder: PropTypes.string,
   noOptionsMessage: PropTypes.string,
   getRemoveChipLabel: PropTypes.func,
-  // Mount the panel outside the field (in the enclosing overlay, or
-  // document.body) with viewport-aware placement — for a Select inside an
-  // `overflow: hidden` container that would otherwise clip its list.
+  // Default true: mount the panel outside the field (in the enclosing
+  // overlay, or document.body) with viewport-aware placement. `false`
+  // keeps it in the field, where clipping/containing ancestors apply.
   portal: PropTypes.bool,
 };
 /* eslint-enable react/require-default-props */

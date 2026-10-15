@@ -199,7 +199,7 @@ test.describe.serial('Admin Listing Moderation (Stage 11.3)', () => {
     await page.getByRole('link', { name: 'Listings', exact: true }).click();
     await expect(page).toHaveURL(/\/en\/admin\/listings$/);
 
-    await page.getByRole('button', { name: 'Moderation' }).click();
+    await page.getByRole('combobox', { name: 'Moderation' }).click();
     await page.getByRole('option', { name: 'Approved' }).click();
     await expect(page.getByRole('row').nth(1)).toBeVisible({
       timeout: 10_000,
@@ -214,7 +214,7 @@ test.describe.serial('Admin Listing Moderation (Stage 11.3)', () => {
   }) => {
     await loginAsDevAdmin(page);
     await page.goto('/en/admin/listings');
-    await page.getByRole('button', { name: 'Moderation' }).click();
+    await page.getByRole('combobox', { name: 'Moderation' }).click();
     await page.getByRole('option', { name: 'Rejected' }).click();
     await expect(
       page.getByRole('button', { name: 'Approve' }).first(),
@@ -238,7 +238,7 @@ test.describe.serial('Admin Listing Moderation (Stage 11.3)', () => {
   }) => {
     await loginAsDevAdmin(page);
     await page.goto('/en/admin/listings');
-    await page.getByRole('button', { name: 'Moderation' }).click();
+    await page.getByRole('combobox', { name: 'Moderation' }).click();
     await page.getByRole('option', { name: 'Approved' }).click();
     await expect(
       page.getByRole('button', { name: 'Reject' }).first(),
@@ -308,7 +308,7 @@ test.describe.serial('Admin Booking Operations (Stage 11.4)', () => {
   }) => {
     await loginAsDevAdmin(page);
     await page.goto('/en/admin/bookings');
-    await page.getByRole('button', { name: 'Status' }).click();
+    await page.getByRole('combobox', { name: 'Status' }).click();
     await page.getByRole('option', { name: 'Awaiting confirmation' }).click();
     await expect(page.getByRole('row').nth(1)).toBeVisible({
       timeout: 10_000,
@@ -333,7 +333,7 @@ test.describe.serial('Admin Booking Operations (Stage 11.4)', () => {
   }) => {
     await loginAsDevAdmin(page);
     await page.goto('/en/admin/bookings');
-    await page.getByRole('button', { name: 'Status' }).click();
+    await page.getByRole('combobox', { name: 'Status' }).click();
     await page.getByRole('option', { name: 'Awaiting confirmation' }).click();
     await expect(page.getByRole('row').nth(1)).toBeVisible({
       timeout: 10_000,

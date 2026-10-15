@@ -43,6 +43,7 @@ import { usePublishPostMutation } from '../../mutations/usePublishPostMutation.j
 import { useUnpublishPostMutation } from '../../mutations/useUnpublishPostMutation.js';
 import { useSchedulePostMutation } from '../../mutations/useSchedulePostMutation.js';
 import { useUnschedulePostMutation } from '../../mutations/useUnschedulePostMutation.js';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 import styles from './BlogPostEditorContent.module.scss';
 
 function useCategoryOptions(locale) {
@@ -313,6 +314,7 @@ TranslationEditor.propTypes = {
 };
 
 export default function BlogPostEditorContent({ basePath }) {
+  const selectTexts = useSelectTexts();
   const { t, i18n } = useTranslation();
   const { locale, id } = useParams();
   const navigate = useNavigate();
@@ -600,6 +602,9 @@ export default function BlogPostEditorContent({ basePath }) {
               required
             />
             <Select
+              placeholder={selectTexts.placeholder}
+              searchPlaceholder={selectTexts.searchPlaceholder}
+              noOptionsMessage={selectTexts.noOptionsMessage}
               label={t('marketing.editor.categoryLabel')}
               options={categoryOptions}
               value={categorySlug}

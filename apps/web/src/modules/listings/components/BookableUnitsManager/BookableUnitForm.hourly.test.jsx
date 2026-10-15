@@ -57,7 +57,7 @@ function renderHotelForm() {
 }
 
 async function choose(user, section, label, option) {
-  await user.click(within(section).getByRole('button', { name: label }));
+  await user.click(within(section).getByRole('combobox', { name: label }));
   await user.click(screen.getByRole('option', { name: option }));
 }
 

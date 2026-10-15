@@ -36,11 +36,13 @@ import { useCategoriesQuery } from '../../../search/index.js';
 import { shouldShowGuestsFilter } from '../../../search/utils/categoryFilterCapabilities.js';
 import DestinationAutocomplete from '../DestinationAutocomplete/DestinationAutocomplete.jsx';
 import { getBusinessToday } from '../../../../utils/businessDate.js';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 import styles from './SearchWidget.module.scss';
 
 const GUEST_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function SearchWidget({ className = undefined }) {
+  const selectTexts = useSelectTexts();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { locale } = useParams();
@@ -164,6 +166,8 @@ export default function SearchWidget({ className = undefined }) {
             )}
             <div className={styles.field}>
               <Select
+                searchPlaceholder={selectTexts.searchPlaceholder}
+                noOptionsMessage={selectTexts.noOptionsMessage}
                 ariaLabel={t('home.search.categoryLabel')}
                 placeholder={t('home.search.categoryAll')}
                 options={categoryOptions}

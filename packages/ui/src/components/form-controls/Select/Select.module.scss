@@ -87,8 +87,11 @@
   color: colors.$color-gray-900;
   font-size: fn.rem(16px);
   line-height: fn.rem(24px);
-  // A long selected name wraps inside the trigger instead of overflowing.
-  overflow-wrap: anywhere;
+  // A long selected name wraps between words inside the trigger, and only
+  // breaks a word that cannot fit a line on its own. Not `anywhere`: that
+  // also shrinks the min-content width to one character, so a trigger in a
+  // table cell got squeezed until every letter sat on its own line.
+  overflow-wrap: break-word;
 }
 
 .chevron {
@@ -184,7 +187,9 @@
 // `portal`: the panel is mounted outside the field (the enclosing overlay,
 // or document.body) and placed by JS from the trigger's own rect through
 // custom properties. Only from the Tablet breakpoint up — below it the
-// mobile sheet rule above still applies unchanged.
+// mobile sheet rule above still applies unchanged. When neither side of
+// the trigger fits the whole panel, `--select-panel-max-height` caps it
+// to the roomier side and the list (a flex child) scrolls inside it.
 .panel--floating {
   @media (min-width: bp.$breakpoint-tablet) {
     position: fixed;
@@ -192,6 +197,18 @@
     left: var(--select-panel-left);
     right: auto;
     width: var(--select-panel-width);
+    max-height: var(--select-panel-max-height);
+    display: flex;
+    flex-direction: column;
+
+    .search {
+      flex-shrink: 0;
+    }
+
+    .list {
+      flex: 1 1 auto;
+      min-height: 0;
+    }
   }
 }
 
@@ -240,12 +257,13 @@
   cursor: pointer;
 }
 
-// A structured option body (`option.content`): takes the row's free
-// width and wraps naturally, so long names never push the check mark out.
+// An option body (its `content`, or its plain `label`): takes the row's
+// free width and wraps naturally, so a long HY/RU name never overflows
+// the row or pushes the check mark out.
 .optionContent {
   flex: 1;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .option--active {

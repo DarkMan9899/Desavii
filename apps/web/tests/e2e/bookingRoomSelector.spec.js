@@ -23,6 +23,10 @@ import {
   resetRateLimits,
   request as playwrightRequest,
 } from './fixtures.js';
+import {
+  expectEveryOptionReachable,
+  expectNoHorizontalOverflow,
+} from './selectAssertions.js';
 
 const API_BASE = 'http://localhost:4000/api/v1/';
 const VENDOR = { email: 'vendor@travelhub.dev', password: 'DevVendor!2024' };
@@ -209,50 +213,6 @@ async function openDrawer(page, cta = BOOK_CTA) {
   return drawer;
 }
 
-/**
- * Every option of the open list can be brought into view inside the list
- * and is then fully on screen and the element a tap at its centre reaches.
- */
-async function expectEveryOptionReachable(page) {
-  const results = await page.getByRole('listbox').evaluate((listbox) =>
-    [...listbox.querySelectorAll('[role=option]')].map((option) => {
-      option.scrollIntoView({ block: 'nearest' });
-      const r = option.getBoundingClientRect();
-      const hit = document.elementFromPoint(
-        r.left + r.width / 2,
-        r.top + r.height / 2,
-      );
-      return {
-        name: option.textContent.slice(0, 40),
-        onScreen:
-          r.top >= 0 &&
-          r.left >= 0 &&
-          r.bottom <= window.innerHeight &&
-          r.right <= window.innerWidth,
-        reachable: hit === option || option.contains(hit),
-        textClipped: option.scrollWidth > option.clientWidth + 1,
-      };
-    }),
-  );
-  expect(results.length).toBeGreaterThan(0);
-  results.forEach((result) => {
-    expect(result, result.name).toMatchObject({
-      onScreen: true,
-      reachable: true,
-      textClipped: false,
-    });
-  });
-}
-
-async function noHorizontalOverflow(page) {
-  const overflow = await page.evaluate(
-    () =>
-      document.documentElement.scrollWidth -
-      document.documentElement.clientWidth,
-  );
-  expect(overflow).toBe(0);
-}
-
 /** Taps "Next month" until the open calendar shows the target month. */
 async function navigateToMonth(page, isoDate) {
   const [year, month] = isoDate.split('-').map(Number);
@@ -319,7 +279,7 @@ test.describe('Reservation widget — room selector', () => {
       const drawer = await openDrawer(page);
       await pickStay(page, drawer, checkIn, checkOut);
 
-      await drawer.getByRole('button', { name: 'Unit', exact: true }).tap();
+      await drawer.getByRole('combobox', { name: 'Unit', exact: true }).tap();
       await expectEveryOptionReachable(page);
       const room = page.getByRole('option', {
         name: new RegExp(`^${HY_ROOM}`),
@@ -329,11 +289,11 @@ test.describe('Reservation widget — room selector', () => {
       await expect(room).toContainText('Per night');
       await expect(room).not.toContainText('30000.00');
       await expect(page.getByRole('listbox')).not.toContainText(/available/);
-      await noHorizontalOverflow(page);
+      await expectNoHorizontalOverflow(page);
 
       await room.tap();
       await expect(
-        drawer.getByRole('button', { name: 'Unit', exact: true }),
+        drawer.getByRole('combobox', { name: 'Unit', exact: true }),
       ).toHaveText(HY_ROOM);
 
       const holdResponse = page.waitForResponse(
@@ -362,7 +322,7 @@ test.describe('Reservation widget — room selector', () => {
       const drawer = await openDrawer(page);
       await drawer.getByText('Book by hour', { exact: true }).tap();
 
-      await drawer.getByRole('button', { name: 'Unit', exact: true }).tap();
+      await drawer.getByRole('combobox', { name: 'Unit', exact: true }).tap();
       await expectEveryOptionReachable(page);
       const hourlyRoom = page.getByRole('option', {
         name: new RegExp(`^${RU_ROOM}`),
@@ -381,13 +341,15 @@ test.describe('Reservation widget — room selector', () => {
         drawer.getByRole('radio', { name: 'Book by hour' }),
       ).toBeChecked();
       await drawer
-        .getByRole('button', { name: 'Start time', exact: true })
+        .getByRole('combobox', { name: 'Start time', exact: true })
         .tap();
       await page.getByRole('option', { name: '10:00', exact: true }).tap();
-      await drawer.getByRole('button', { name: 'End time', exact: true }).tap();
+      await drawer
+        .getByRole('combobox', { name: 'End time', exact: true })
+        .tap();
       await page.getByRole('option', { name: '13:00', exact: true }).tap();
       await expect(drawer.getByText('Duration: 3 hours')).toBeVisible();
-      await noHorizontalOverflow(page);
+      await expectNoHorizontalOverflow(page);
 
       const holdResponse = page.waitForResponse(
         (res) =>
@@ -409,7 +371,10 @@ test.describe('Reservation widget — room selector', () => {
     }) => {
       await page.goto(`/en/listings/${listingId}`);
       const drawer = await openDrawer(page);
-      const trigger = drawer.getByRole('button', { name: 'Unit', exact: true });
+      const trigger = drawer.getByRole('combobox', {
+        name: 'Unit',
+        exact: true,
+      });
       await trigger.tap();
       await expect(page.getByRole('listbox')).toBeVisible();
 
@@ -443,7 +408,7 @@ test.describe('Reservation widget — room selector', () => {
       }) => {
         await page.goto(`/${locale}/listings/${listingId}`);
         const drawer = await openDrawer(page, cta);
-        const trigger = drawer.getByRole('button', {
+        const trigger = drawer.getByRole('combobox', {
           name: unitLabel,
           exact: true,
         });
@@ -459,7 +424,7 @@ test.describe('Reservation widget — room selector', () => {
           (el) => el.scrollWidth > el.clientWidth + 1,
         );
         expect(triggerClipped).toBe(false);
-        await noHorizontalOverflow(page);
+        await expectNoHorizontalOverflow(page);
       });
     });
   });
@@ -473,7 +438,7 @@ test.describe('Reservation widget — room selector', () => {
       await page.goto(`/en/listings/${listingId}`);
       const sidebar = page.getByRole('complementary');
       await expect(sidebar).toBeVisible();
-      const trigger = sidebar.getByRole('button', {
+      const trigger = sidebar.getByRole('combobox', {
         name: 'Unit',
         exact: true,
       });
@@ -484,7 +449,7 @@ test.describe('Reservation widget — room selector', () => {
         .getByRole('option', { name: new RegExp(`^${GARDEN_ROOM}`) })
         .click();
       await expect(trigger).toHaveText(GARDEN_ROOM);
-      await noHorizontalOverflow(page);
+      await expectNoHorizontalOverflow(page);
     });
   });
 });

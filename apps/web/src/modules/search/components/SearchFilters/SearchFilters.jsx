@@ -32,6 +32,7 @@ import {
 } from '../../../../constants/sortOptions.js';
 import { shouldShowGuestsFilter } from '../../utils/categoryFilterCapabilities.js';
 import { getBusinessToday } from '../../../../utils/businessDate.js';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 import styles from './SearchFilters.module.scss';
 
 const KEYWORD_DEBOUNCE_MS = 400;
@@ -46,6 +47,7 @@ export default function SearchFilters({
   onClearFilters,
   hasActiveFilters,
 }) {
+  const selectTexts = useSelectTexts();
   const { t, i18n } = useTranslation();
   const { data: categories = [] } = useCategoriesQuery();
   const [keywordText, setKeywordText] = useState(filters.destination);
@@ -126,6 +128,8 @@ export default function SearchFilters({
         </div>
         <div className={styles.categoryField}>
           <Select
+            searchPlaceholder={selectTexts.searchPlaceholder}
+            noOptionsMessage={selectTexts.noOptionsMessage}
             ariaLabel={t('search.filters.categoryLabel')}
             placeholder={t('search.filters.categoryAll')}
             options={categoryOptions}

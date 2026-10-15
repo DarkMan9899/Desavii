@@ -140,7 +140,7 @@ async function resolveListingId(slug) {
 async function openPartnerCalendarSelection(page, { listingLabel, unitLabel }) {
   await page.goto('/en/partner/calendar');
   await expect(page.getByRole('heading', { name: 'Calendar' })).toBeVisible();
-  await page.getByRole('button', { name: 'Listing', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Listing', exact: true }).click();
   await page.getByRole('option', { name: listingLabel, exact: true }).click();
   if (unitLabel) {
     await page.getByRole('button', { name: unitLabel, exact: true }).click();

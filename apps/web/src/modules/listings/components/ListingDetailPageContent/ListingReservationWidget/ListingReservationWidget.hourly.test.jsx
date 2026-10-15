@@ -254,9 +254,9 @@ describe('ListingReservationWidget — optional hourly hotel stays (Step L6.3B)'
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'pick day' }));
-    await user.click(screen.getByRole('button', { name: START }));
+    await user.click(screen.getByRole('combobox', { name: START }));
     await user.click(screen.getByRole('option', { name: '14:00' }));
-    await user.click(screen.getByRole('button', { name: END }));
+    await user.click(screen.getByRole('combobox', { name: END }));
     await user.click(screen.getByRole('option', { name: '18:00' }));
     expect(screen.getByText('Տևողությունը՝ 4 ժամ')).toBeInTheDocument();
 
@@ -280,13 +280,13 @@ describe('ListingReservationWidget — optional hourly hotel stays (Step L6.3B)'
     renderWidget(2);
     await user.click(screen.getByRole('radio', { name: BY_HOUR }));
     await user.click(screen.getByRole('button', { name: 'pick day' }));
-    await user.click(screen.getByRole('button', { name: START }));
+    await user.click(screen.getByRole('combobox', { name: START }));
     expect(screen.getByRole('option', { name: '11:00' })).toHaveAttribute(
       'aria-disabled',
       'true',
     );
     await user.click(screen.getByRole('option', { name: '10:00' }));
-    await user.click(screen.getByRole('button', { name: END }));
+    await user.click(screen.getByRole('combobox', { name: END }));
     expect(screen.getByRole('option', { name: '12:00' })).toHaveAttribute(
       'aria-disabled',
       'true',

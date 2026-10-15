@@ -53,7 +53,7 @@ async function loginAsVendor(page) {
 }
 
 async function choose(page, selectLabel, optionLabel) {
-  await page.getByRole('button', { name: selectLabel, exact: true }).click();
+  await page.getByRole('combobox', { name: selectLabel, exact: true }).click();
   await page.getByRole('option', { name: optionLabel, exact: true }).click();
 }
 
@@ -133,10 +133,10 @@ test.describe('Step L6.3A — hotel room details', () => {
       page.getByLabel('Room size (m²)', { exact: true }),
     ).toHaveValue('26.00');
     await expect(
-      page.getByRole('button', { name: 'Meal plan', exact: true }),
+      page.getByRole('combobox', { name: 'Meal plan', exact: true }),
     ).toContainText('Breakfast included');
     await expect(
-      page.getByRole('button', { name: 'Bathroom', exact: true }),
+      page.getByRole('combobox', { name: 'Bathroom', exact: true }),
     ).toContainText('Private bathroom');
     await expect(
       page.getByRole('checkbox', { name: 'Hair dryer' }),

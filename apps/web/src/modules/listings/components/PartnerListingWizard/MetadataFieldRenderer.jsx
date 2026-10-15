@@ -41,6 +41,7 @@ import {
 } from '@desavii/ui/components/form-controls';
 import NumberStepperField from './controls/NumberStepperField.jsx';
 import { METADATA_TEXT_VALUE_MAX_LENGTH } from '../../constants/textLimits.js';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 
 const NUMERIC_DATA_TYPES = ['INTEGER', 'DECIMAL'];
 
@@ -51,6 +52,7 @@ export default function MetadataFieldRenderer({
   onChange,
   error = undefined,
 }) {
+  const selectTexts = useSelectTexts();
   const { t } = useTranslation();
   const { locale } = useParams();
   const label = t(
@@ -119,6 +121,8 @@ export default function MetadataFieldRenderer({
   if (definition.data_type === 'ENUM') {
     return (
       <Select
+        searchPlaceholder={selectTexts.searchPlaceholder}
+        noOptionsMessage={selectTexts.noOptionsMessage}
         label={label}
         placeholder={t('partner.listingWizard.selectPlaceholder')}
         options={definition.options.map((option) => ({
@@ -136,6 +140,9 @@ export default function MetadataFieldRenderer({
   if (definition.data_type === 'MULTI_ENUM') {
     return (
       <Select
+        searchPlaceholder={selectTexts.searchPlaceholder}
+        noOptionsMessage={selectTexts.noOptionsMessage}
+        getRemoveChipLabel={selectTexts.getRemoveChipLabel}
         label={label}
         placeholder={t('partner.listingWizard.selectPlaceholder')}
         multiple

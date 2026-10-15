@@ -75,7 +75,7 @@ describe('PartnerAnalyticsListingsTable (apps/web/src/modules/partner) — brief
       onLoadMore: vi.fn(),
     });
 
-    const [trigger] = screen.getAllByRole('button');
+    const [trigger] = screen.getAllByRole('combobox');
     await user.click(trigger);
     await user.click(
       screen.getByRole('option', { name: 'Առաջխաղացման սեղմումներ' }),

@@ -50,6 +50,7 @@ import {
   CONNECTOR_TYPES,
   CONNECTION_DIRECTIONS,
 } from '../../../availability/index.js';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 
 const EMPTY_CREATE_FORM = {
   name: '',
@@ -66,6 +67,7 @@ function exportFeedUrl(token) {
 }
 
 export default function PartnerConnectionsPageContent() {
+  const selectTexts = useSelectTexts();
   const { t } = useTranslation();
   const { locale } = useParams();
   const { showToast } = useToast();
@@ -546,6 +548,9 @@ export default function PartnerConnectionsPageContent() {
                               }
                             />
                             <Select
+                              placeholder={selectTexts.placeholder}
+                              searchPlaceholder={selectTexts.searchPlaceholder}
+                              noOptionsMessage={selectTexts.noOptionsMessage}
                               label={t('partner.connections.mapping.unitLabel')}
                               options={unitOptions}
                               value={mappingForm.bookableUnitId}
@@ -626,6 +631,9 @@ export default function PartnerConnectionsPageContent() {
               }
             />
             <Select
+              placeholder={selectTexts.placeholder}
+              searchPlaceholder={selectTexts.searchPlaceholder}
+              noOptionsMessage={selectTexts.noOptionsMessage}
               label={t('partner.connections.form.listingLabel')}
               options={listingOptions}
               value={createForm.listingId}

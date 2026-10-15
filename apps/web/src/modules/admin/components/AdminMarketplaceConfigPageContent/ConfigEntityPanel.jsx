@@ -28,6 +28,7 @@ import { DataTable } from '@desavii/ui/components/dashboard';
 import { Modal, ErrorState } from '@desavii/ui/components/feedback-overlays';
 import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 
 export default function ConfigEntityPanel({
   heading,
@@ -45,6 +46,7 @@ export default function ConfigEntityPanel({
   copy,
   canWrite = true,
 }) {
+  const selectTexts = useSelectTexts();
   const confirm = useConfirm();
   const { showToast } = useToast();
   const [formTarget, setFormTarget] = useState(null); // null | 'create' | row
@@ -217,6 +219,9 @@ export default function ConfigEntityPanel({
                 if (field.type === 'select') {
                   return (
                     <Select
+                      placeholder={selectTexts.placeholder}
+                      searchPlaceholder={selectTexts.searchPlaceholder}
+                      noOptionsMessage={selectTexts.noOptionsMessage}
                       key={field.name}
                       label={field.label}
                       options={field.options}

@@ -221,7 +221,7 @@ async function login(page, credentials, expectedUrlPattern) {
 }
 
 async function chooseOption(scope, page, label, option) {
-  await scope.getByRole('button', { name: label }).click();
+  await scope.getByRole('combobox', { name: label }).click();
   await page.getByRole('option', { name: option, exact: true }).click();
 }
 
@@ -641,7 +641,7 @@ test.describe('Step L6.3B — optional hourly hotel room booking', () => {
     await chooseBookByHour(widget);
     await widget.getByLabel('Date', { exact: true }).click();
     await pickDay(page, date);
-    await widget.getByRole('button', { name: 'Start time' }).click();
+    await widget.getByRole('combobox', { name: 'Start time' }).click();
     await Promise.all(
       ['14:00', '15:00', '16:00', '17:00'].map((hour) =>
         expect(

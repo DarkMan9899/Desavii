@@ -34,6 +34,7 @@ import {
   usePublicCategoriesQuery,
   usePublicTagsQuery,
 } from '../../queries/usePublicTaxonomyQuery.js';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 import styles from './BlogPageContent.module.scss';
 
 const PAGE_SIZE = 12;
@@ -122,6 +123,7 @@ BlogPostGrid.propTypes = {
 };
 
 export default function BlogPageContent() {
+  const selectTexts = useSelectTexts();
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -246,12 +248,18 @@ export default function BlogPageContent() {
 
       <Inline gap="3" wrap className={styles.filters}>
         <Select
+          placeholder={selectTexts.placeholder}
+          searchPlaceholder={selectTexts.searchPlaceholder}
+          noOptionsMessage={selectTexts.noOptionsMessage}
           label={t('blog.filters.category')}
           options={categoryOptions}
           value={category ?? ''}
           onChange={handleCategoryChange}
         />
         <Select
+          placeholder={selectTexts.placeholder}
+          searchPlaceholder={selectTexts.searchPlaceholder}
+          noOptionsMessage={selectTexts.noOptionsMessage}
           label={t('blog.filters.tag')}
           options={tagOptions}
           value={tag ?? ''}

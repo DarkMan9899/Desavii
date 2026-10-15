@@ -18,8 +18,10 @@ import {
   BOOKING_STATUS_KEYS,
 } from '../../../bookings/index.js';
 import PartnerBookingsList from '../PartnerBookingsList/PartnerBookingsList.jsx';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 
 export default function PartnerBookingsPageContent() {
+  const selectTexts = useSelectTexts();
   const { t } = useTranslation();
   const { locale } = useParams();
   const { activePartnerId } = usePartnerContext();
@@ -66,6 +68,9 @@ export default function PartnerBookingsPageContent() {
       <Stack gap="4">
         <Inline gap="3" wrap>
           <Select
+            placeholder={selectTexts.placeholder}
+            searchPlaceholder={selectTexts.searchPlaceholder}
+            noOptionsMessage={selectTexts.noOptionsMessage}
             ariaLabel={t('partner.bookings.filters.statusLabel')}
             options={statusOptions}
             value={status}

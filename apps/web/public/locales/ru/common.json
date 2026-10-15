@@ -71,7 +71,13 @@
     "dismiss": "Закрыть",
     "dialog": "Диалог",
     "quoteOpen": "«",
-    "quoteClose": "»"
+    "quoteClose": "»",
+    "select": {
+      "placeholder": "Выбрать…",
+      "searchPlaceholder": "Поиск…",
+      "noResults": "Ничего не найдено",
+      "removeOption": "Удалить {{label}}"
+    }
   },
   "nav": {
     "home": "Главная",

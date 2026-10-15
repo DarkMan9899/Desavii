@@ -22,8 +22,10 @@ import {
 } from '../../../bookings/index.js';
 import PartnerBookingsList from '../../../partner/components/PartnerBookingsList/PartnerBookingsList.jsx';
 import ManagerCompanySwitcher from '../ManagerCompanySwitcher/ManagerCompanySwitcher.jsx';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 
 export default function ManagerBookingsPageContent() {
+  const selectTexts = useSelectTexts();
   const { t } = useTranslation();
   const { locale } = useParams();
   const { activeCompanyId } = useManagerContext();
@@ -72,6 +74,9 @@ export default function ManagerBookingsPageContent() {
 
         <Inline gap="3" wrap>
           <Select
+            placeholder={selectTexts.placeholder}
+            searchPlaceholder={selectTexts.searchPlaceholder}
+            noOptionsMessage={selectTexts.noOptionsMessage}
             ariaLabel={t('partner.bookings.filters.statusLabel')}
             options={statusOptions}
             value={status}

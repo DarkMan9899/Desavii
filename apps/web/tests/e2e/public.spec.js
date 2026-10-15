@@ -39,7 +39,7 @@ test.describe('Search', () => {
     await expect(page.getByText(/Hotel/i).first()).toBeVisible();
     await page.getByPlaceholder(/Search destinations/i).fill('');
 
-    await page.getByRole('button', { name: 'Category' }).click();
+    await page.getByRole('combobox', { name: 'Category' }).click();
     await page.getByRole('option', { name: 'Hotels' }).click();
     await expect(page.getByText(/Hotel/i).first()).toBeVisible();
   });

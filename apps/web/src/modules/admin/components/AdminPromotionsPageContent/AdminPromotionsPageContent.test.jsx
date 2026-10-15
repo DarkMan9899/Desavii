@@ -240,18 +240,20 @@ describe('AdminPromotionsPageContent (Sprint E — Promotion Engine)', () => {
     // via aria-labelledby), then click the desired option, same pattern
     // `BasicInfoStep.test.jsx` already establishes for this component.
     await user.click(
-      within(dialog).getByRole('button', { name: 'Տեղաբաշխում' }),
+      within(dialog).getByRole('combobox', { name: 'Տեղաբաշխում' }),
     );
     await user.click(within(dialog).getByRole('option', { name: 'Կատեգորիա' }));
     // A category is now required by CATEGORY_TOP but not yet chosen.
     expect(submit).toBeDisabled();
 
-    await user.click(within(dialog).getByRole('button', { name: 'Կատեգորիա' }));
+    await user.click(
+      within(dialog).getByRole('combobox', { name: 'Կատեգորիա' }),
+    );
     await user.click(
       within(dialog).getByRole('option', { name: 'Car Rentals' }),
     );
     await user.click(
-      within(dialog).getByRole('button', { name: 'Տևողություն / գին' }),
+      within(dialog).getByRole('combobox', { name: 'Տևողություն / գին' }),
     );
     // The rendered option text is the translated
     // `productDurationLabel`/`productCustomLabel`, never the catalog
@@ -279,7 +281,7 @@ describe('AdminPromotionsPageContent (Sprint E — Promotion Engine)', () => {
       target: { value: '86' },
     });
     await user.click(
-      within(dialog).getByRole('button', { name: 'Տևողություն / գին' }),
+      within(dialog).getByRole('combobox', { name: 'Տևողություն / գին' }),
     );
     await user.click(
       within(dialog).getByRole('option', { name: '7 օր — 30000.00 AMD' }),
@@ -367,7 +369,7 @@ describe('AdminPromotionsPageContent (Sprint E — Promotion Engine)', () => {
         { target: { value: '5' } },
       );
       await user.click(
-        within(dialog).getByRole('button', { name: 'Տևողություն / գին' }),
+        within(dialog).getByRole('combobox', { name: 'Տևողություն / գին' }),
       );
       await user.click(
         within(dialog).getByRole('option', { name: '7 օր — 30000.00 AMD' }),
@@ -400,7 +402,7 @@ describe('AdminPromotionsPageContent (Sprint E — Promotion Engine)', () => {
         target: { value: '86' },
       });
       await user.click(
-        within(dialog).getByRole('button', { name: 'Տեղաբաշխում' }),
+        within(dialog).getByRole('combobox', { name: 'Տեղաբաշխում' }),
       );
       await user.click(
         within(dialog).getByRole('option', {
@@ -408,13 +410,13 @@ describe('AdminPromotionsPageContent (Sprint E — Promotion Engine)', () => {
         }),
       );
       await user.click(
-        within(dialog).getByRole('button', { name: 'Կատեգորիա' }),
+        within(dialog).getByRole('combobox', { name: 'Կատեգորիա' }),
       );
       await user.click(
         within(dialog).getByRole('option', { name: 'Car Rentals' }),
       );
       await user.click(
-        within(dialog).getByRole('button', {
+        within(dialog).getByRole('combobox', {
           name: 'Գլխավոր էջի տևողություն / գին',
         }),
       );
@@ -422,7 +424,7 @@ describe('AdminPromotionsPageContent (Sprint E — Promotion Engine)', () => {
         within(dialog).getByRole('option', { name: '7 օր — 30000.00 AMD' }),
       );
       await user.click(
-        within(dialog).getByRole('button', {
+        within(dialog).getByRole('combobox', {
           name: 'Կատեգորիայի տևողություն / գին',
         }),
       );

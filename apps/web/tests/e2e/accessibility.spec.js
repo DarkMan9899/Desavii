@@ -676,7 +676,7 @@ test.describe('Phase 18 accessibility', () => {
     await expect(mobileCta).toBeVisible({ timeout: 10_000 });
     await mobileCta.click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Unit' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Unit' })).toBeVisible();
     // The drawer's shared Overlay backdrop fades in over
     // `$motion-transition` (300ms, Overlay.module.scss's own
     // `overlay-backdrop-in` keyframe) — scanning mid-fade briefly drops
@@ -709,7 +709,7 @@ test.describe('Phase 18 accessibility', () => {
 
     // Opens one row's icon Select (listbox + options) so the scan covers
     // its real open state, not just the closed trigger.
-    await page.getByRole('button', { name: 'Icon' }).first().click();
+    await page.getByRole('combobox', { name: 'Icon' }).first().click();
     await expect(page.getByRole('listbox')).toBeVisible();
 
     const violations = await seriousOrCriticalViolations(page);
@@ -774,7 +774,7 @@ test.describe('Phase 18 accessibility', () => {
     // Single-date picker, not the generic Unit selector or a date-range
     // field — the core UX change this sprint makes.
     await expect(page.getByRole('button', { name: 'Date' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Unit' })).toHaveCount(0);
+    await expect(page.getByRole('combobox', { name: 'Unit' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Date' }).click();
     await expect(page.getByRole('grid')).toBeVisible();
     // Day cells' accessible names are full dates ("Sep 10, 2026" —

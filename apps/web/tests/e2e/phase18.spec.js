@@ -134,7 +134,7 @@ test.describe('Phase 18.11 — mobile sticky booking bar and drawer', () => {
     // The full `ListingReservationWidget` renders inside the drawer: unit
     // selector (this hotel has 2 real bookable units — Standard Room and
     // Deluxe Suite), date picker, and its own submit button.
-    await expect(dialog.getByRole('button', { name: 'Unit' })).toBeVisible();
+    await expect(dialog.getByRole('combobox', { name: 'Unit' })).toBeVisible();
     await expect(dialog.getByLabel('Dates')).toBeVisible();
     await expect(
       dialog.getByRole('button', { name: 'Check availability' }),
@@ -153,7 +153,7 @@ test.describe('Phase 18.11 — desktop sidebar reservation widget', () => {
 
     const sidebar = page.getByRole('complementary');
     await expect(sidebar).toBeVisible({ timeout: 10_000 });
-    await expect(sidebar.getByRole('button', { name: 'Unit' })).toBeVisible();
+    await expect(sidebar.getByRole('combobox', { name: 'Unit' })).toBeVisible();
     await expect(
       sidebar.getByRole('button', { name: 'Check availability' }),
     ).toBeVisible();
@@ -199,7 +199,7 @@ test.describe('Phase 18.10 — Partner Content editor', () => {
     const newAnswer = `E2E answer ${uniqueSuffix}`;
 
     await page.getByRole('button', { name: 'Add highlight' }).click();
-    const newIconTrigger = page.getByRole('button', { name: 'Icon' }).last();
+    const newIconTrigger = page.getByRole('combobox', { name: 'Icon' }).last();
     await newIconTrigger.click();
     await page.getByRole('option', { name: 'Top rated' }).click();
     await page.getByLabel('Highlight text').last().fill(newHighlightText);

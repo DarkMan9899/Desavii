@@ -224,7 +224,7 @@ describe('BookableUnitForm (P2.2A)', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: MEAL_PLAN }));
+    await user.click(screen.getByRole('combobox', { name: MEAL_PLAN }));
     await user.click(
       screen.getByRole('option', { name: 'Նախաճաշը ներառված է' }),
     );
@@ -253,9 +253,9 @@ describe('BookableUnitForm (P2.2A)', () => {
 
     await user.clear(screen.getByLabelText(HOTEL_MAX_GUESTS));
     await user.clear(screen.getByLabelText(ROOM_SIZE));
-    await user.click(screen.getByRole('button', { name: 'Լոգարան' }));
+    await user.click(screen.getByRole('combobox', { name: 'Լոգարան' }));
     await user.click(screen.getByRole('option', { name: 'Նշված չէ' }));
-    await user.click(screen.getByRole('button', { name: MEAL_PLAN }));
+    await user.click(screen.getByRole('combobox', { name: MEAL_PLAN }));
     await user.click(screen.getByRole('option', { name: 'Նշված չէ' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -526,9 +526,9 @@ describe('BookableUnitForm (P2.2A)', () => {
           lodging,
         );
         expect(Boolean(screen.queryByLabelText(SINGLE_BEDS))).toBe(lodging);
-        expect(Boolean(screen.queryByRole('button', { name: MEAL_PLAN }))).toBe(
-          room,
-        );
+        expect(
+          Boolean(screen.queryByRole('combobox', { name: MEAL_PLAN })),
+        ).toBe(room);
         expect(Boolean(screen.queryByLabelText(ROOM_SIZE))).toBe(room);
         expect(Boolean(screen.queryByLabelText(START_TIME))).toBe(timeSlot);
       },

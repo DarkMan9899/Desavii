@@ -1,10 +1,11 @@
 import { createRef, forwardRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { describe, test, expect, vi, onTestFinished } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Select from './Select.jsx';
 import Drawer from '../../feedback-overlays/Drawer/Drawer.jsx';
+import Modal from '../../feedback-overlays/Modal/Modal.jsx';
 
 const ROOM_OPTIONS = [
   { value: 'standard', label: 'Standard room' },
@@ -50,7 +51,7 @@ describe('Select / Dropdown (COMPONENT_LIBRARY.md Part II §2)', () => {
 
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Room type' }));
+    await user.click(screen.getByRole('combobox', { name: 'Room type' }));
 
     const listbox = screen.getByRole('listbox');
     expect(within(listbox).getAllByRole('option')).toHaveLength(3);
@@ -60,13 +61,13 @@ describe('Select / Dropdown (COMPONENT_LIBRARY.md Part II §2)', () => {
     const user = userEvent.setup();
     render(<ControlledSelect options={ROOM_OPTIONS} label="Room type" />);
 
-    await user.click(screen.getByRole('button', { name: 'Room type' }));
+    await user.click(screen.getByRole('combobox', { name: 'Room type' }));
     await user.click(screen.getByRole('option', { name: 'Deluxe room' }));
 
     // The trigger's accessible name stays the field label (Phase 8 fix —
     // matches a native <select>'s own pattern); the current selection is
     // communicated via its visible text content instead.
-    const trigger = screen.getByRole('button', { name: 'Room type' });
+    const trigger = screen.getByRole('combobox', { name: 'Room type' });
     expect(within(trigger).getByText('Deluxe room')).toBeInTheDocument();
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
@@ -76,13 +77,13 @@ describe('Select / Dropdown (COMPONENT_LIBRARY.md Part II §2)', () => {
     render(<ControlledSelect options={ROOM_OPTIONS} label="Room type" />);
 
     await user.tab();
-    expect(screen.getByRole('button', { name: 'Room type' })).toHaveFocus();
+    expect(screen.getByRole('combobox', { name: 'Room type' })).toHaveFocus();
 
     await user.keyboard('{ArrowDown}');
     expect(screen.getByRole('listbox')).toBeInTheDocument();
 
     await user.keyboard('{ArrowDown}{Enter}');
-    const trigger = screen.getByRole('button', { name: 'Room type' });
+    const trigger = screen.getByRole('combobox', { name: 'Room type' });
     expect(within(trigger).getByText('Standard room')).toBeInTheDocument();
 
     await user.keyboard('{ArrowDown}{Escape}');
@@ -101,7 +102,7 @@ describe('Select / Dropdown (COMPONENT_LIBRARY.md Part II §2)', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Amenities' }));
+    await user.click(screen.getByRole('combobox', { name: 'Amenities' }));
     await user.click(screen.getByRole('option', { name: 'Standard room' }));
     await user.click(screen.getByRole('option', { name: 'Suite' }));
 
@@ -136,7 +137,7 @@ describe('Select / Dropdown (COMPONENT_LIBRARY.md Part II §2)', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Amenities' }));
+    await user.click(screen.getByRole('combobox', { name: 'Amenities' }));
     await user.click(screen.getByRole('option', { name: 'Suite' }));
     expect(screen.getByRole('listbox')).toHaveFocus();
 
@@ -155,7 +156,7 @@ describe('Select / Dropdown (COMPONENT_LIBRARY.md Part II §2)', () => {
       <ControlledSelect options={ROOM_OPTIONS} label="Room type" searchable />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Room type' }));
+    await user.click(screen.getByRole('combobox', { name: 'Room type' }));
     await user.type(screen.getByRole('textbox', { name: /search/i }), 'suite');
 
     const listbox = screen.getByRole('listbox');
@@ -173,7 +174,7 @@ describe('Select / Dropdown (COMPONENT_LIBRARY.md Part II §2)', () => {
     const user = userEvent.setup();
     render(<ControlledSelect options={manyOptions} label="Country" />);
 
-    await user.click(screen.getByRole('button', { name: 'Country' }));
+    await user.click(screen.getByRole('combobox', { name: 'Country' }));
     expect(
       screen.getByRole('textbox', { name: /search/i }),
     ).toBeInTheDocument();
@@ -189,7 +190,7 @@ describe('Select / Dropdown (COMPONENT_LIBRARY.md Part II §2)', () => {
     );
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent('Please choose a room');
-    expect(screen.getByRole('button').getAttribute('aria-describedby')).toBe(
+    expect(screen.getByRole('combobox').getAttribute('aria-describedby')).toBe(
       alert.id,
     );
   });
@@ -214,7 +215,7 @@ describe('Select / Dropdown (COMPONENT_LIBRARY.md Part II §2)', () => {
       <ControlledSelect options={ROOM_OPTIONS} label="Room type" disabled />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Room type' }));
+    await user.click(screen.getByRole('combobox', { name: 'Room type' }));
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 
@@ -270,7 +271,7 @@ describe('Select / Dropdown (COMPONENT_LIBRARY.md Part II §2)', () => {
         <ControlledSelect ref={ref} options={ROOM_OPTIONS} label="Room type" />,
       );
 
-      await user.click(screen.getByRole('button', { name: 'Room type' }));
+      await user.click(screen.getByRole('combobox', { name: 'Room type' }));
       await user.keyboard('{Escape}');
 
       expect(screen.getByTestId('select-trigger')).toHaveFocus();
@@ -316,7 +317,7 @@ describe('Select — structured options and portal placement', () => {
     const user = userEvent.setup();
     render(<ControlledSelect options={STRUCTURED_OPTIONS} label="Room" />);
 
-    await user.click(screen.getByRole('button', { name: 'Room' }));
+    await user.click(screen.getByRole('combobox', { name: 'Room' }));
 
     const standard = screen.getByRole('option', { name: /^Standard room/ });
     expect(within(standard).getByText('Sleeps 2')).toBeInTheDocument();
@@ -328,10 +329,10 @@ describe('Select — structured options and portal placement', () => {
     const user = userEvent.setup();
     render(<ControlledSelect options={STRUCTURED_OPTIONS} label="Room" />);
 
-    await user.click(screen.getByRole('button', { name: 'Room' }));
+    await user.click(screen.getByRole('combobox', { name: 'Room' }));
     await user.click(screen.getByRole('option', { name: /^Family suite/ }));
 
-    const trigger = screen.getByRole('button', { name: 'Room' });
+    const trigger = screen.getByRole('combobox', { name: 'Room' });
     expect(trigger).toHaveTextContent(
       /^Family suite with a very long name that has to wrap$/,
     );
@@ -342,17 +343,17 @@ describe('Select — structured options and portal placement', () => {
     const user = userEvent.setup();
     render(<ControlledSelect options={STRUCTURED_OPTIONS} label="Room" />);
 
-    screen.getByRole('button', { name: 'Room' }).focus();
+    screen.getByRole('combobox', { name: 'Room' }).focus();
     await user.keyboard('{ArrowDown}');
     await user.keyboard('f');
-    expect(screen.getByRole('button', { name: 'Room' })).toHaveAttribute(
+    expect(screen.getByRole('combobox', { name: 'Room' })).toHaveAttribute(
       'aria-activedescendant',
       screen.getByRole('option', { name: /^Family suite/ }).id,
     );
     await user.keyboard('{Enter}');
 
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Room' })).toHaveTextContent(
+    expect(screen.getByRole('combobox', { name: 'Room' })).toHaveTextContent(
       /^Family suite/,
     );
   });
@@ -363,7 +364,7 @@ describe('Select — structured options and portal placement', () => {
       <ControlledSelect options={STRUCTURED_OPTIONS} label="Room" searchable />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Room' }));
+    await user.click(screen.getByRole('combobox', { name: 'Room' }));
     await user.type(screen.getByRole('textbox'), 'family');
 
     const options = screen.getAllByRole('option');
@@ -371,61 +372,332 @@ describe('Select — structured options and portal placement', () => {
     expect(options[0]).toHaveAccessibleName(/^Family suite/);
   });
 
-  test('without `portal` the panel stays inside the field, exactly as before', async () => {
+  test('`portal={false}` keeps the panel inside the field', async () => {
     const user = userEvent.setup();
     const { container } = render(
-      <ControlledSelect options={ROOM_OPTIONS} label="Room type" />,
+      <ControlledSelect
+        options={ROOM_OPTIONS}
+        label="Room type"
+        portal={false}
+      />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Room type' }));
+    await user.click(screen.getByRole('combobox', { name: 'Room type' }));
 
     expect(container).toContainElement(screen.getByRole('listbox'));
   });
 
-  test('with `portal` outside any overlay the panel mounts on document.body; picking a row selects it, a press outside closes it', async () => {
+  test('by default, outside any overlay, the panel mounts on document.body; picking a row selects it, a press outside closes it', async () => {
     const user = userEvent.setup();
     const { container } = render(
       <div>
-        <ControlledSelect options={ROOM_OPTIONS} label="Room type" portal />
+        <ControlledSelect options={ROOM_OPTIONS} label="Room type" />
         <p>{OUTSIDE_TEXT}</p>
       </div>,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Room type' }));
+    await user.click(screen.getByRole('combobox', { name: 'Room type' }));
     const listbox = screen.getByRole('listbox');
     expect(container).not.toContainElement(listbox);
     expect(document.body).toContainElement(listbox);
 
     await user.click(screen.getByRole('option', { name: 'Suite' }));
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Room type' })).toHaveTextContent(
-      'Suite',
-    );
+    expect(
+      screen.getByRole('combobox', { name: 'Room type' }),
+    ).toHaveTextContent('Suite');
 
-    await user.click(screen.getByRole('button', { name: 'Room type' }));
+    await user.click(screen.getByRole('combobox', { name: 'Room type' }));
     await user.click(screen.getByText(OUTSIDE_TEXT));
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 
-  test('with `portal` inside a Drawer the list mounts in the drawer dialog; Escape closes the list first and the drawer second', async () => {
+  test('by default, inside a Drawer, the list mounts in the drawer dialog; Escape closes the list first and the drawer second', async () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
       <Drawer isOpen onClose={onClose} title="Book">
-        <ControlledSelect options={STRUCTURED_OPTIONS} label="Room" portal />
+        <ControlledSelect options={STRUCTURED_OPTIONS} label="Room" />
       </Drawer>,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Room' }));
+    await user.click(screen.getByRole('combobox', { name: 'Room' }));
     const drawer = screen.getByRole('dialog', { name: 'Book' });
     expect(drawer).toContainElement(screen.getByRole('listbox'));
 
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Room' })).toHaveFocus();
+    expect(screen.getByRole('combobox', { name: 'Room' })).toHaveFocus();
 
     await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Geometry jsdom does not compute: the trigger's rect and the panel's
+// natural height, so placement can be checked against a known layout
+// (jsdom's viewport is 1024 x 768).
+function mockGeometry({ trigger, panelHeight }) {
+  const rectSpy = vi
+    .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    .mockImplementation(function rect() {
+      return this.dataset.testid === 'select-trigger'
+        ? { ...trigger, right: trigger.left + trigger.width }
+        : { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 };
+    });
+  const heightSpy = vi
+    .spyOn(HTMLElement.prototype, 'scrollHeight', 'get')
+    .mockImplementation(function height() {
+      return this.querySelector(':scope > [role="listbox"]') ? panelHeight : 0;
+    });
+  onTestFinished(() => {
+    rectSpy.mockRestore();
+    heightSpy.mockRestore();
+  });
+}
+
+function panelVar(name) {
+  return screen.getByRole('listbox').parentElement.style.getPropertyValue(name);
+}
+
+const MANY_OPTIONS = Array.from({ length: 8 }, (_, index) => ({
+  value: `option-${index}`,
+  label: `Option ${index}`,
+}));
+
+describe('Select — overlay, placement, keyboard and state hardening', () => {
+  test('by default, inside a Modal, the list mounts in the modal dialog; Escape closes the list first and the modal second', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <Modal isOpen onClose={onClose} title="Promote">
+        <ControlledSelect options={ROOM_OPTIONS} label="Placement" />
+      </Modal>,
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Placement' }));
+    expect(screen.getByRole('dialog', { name: 'Promote' })).toContainElement(
+      screen.getByRole('listbox'),
+    );
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('combobox', { name: 'Placement' })).toHaveFocus();
+
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test('near the bottom of the viewport the panel opens above the trigger', async () => {
+    mockGeometry({
+      trigger: { top: 600, bottom: 640, left: 100, width: 300, height: 40 },
+      panelHeight: 200,
+    });
+    const user = userEvent.setup();
+    render(<ControlledSelect options={ROOM_OPTIONS} label="Status" />);
+
+    await user.click(screen.getByRole('combobox', { name: 'Status' }));
+
+    expect(panelVar('--select-panel-top')).toBe('396px');
+    expect(panelVar('--select-panel-left')).toBe('100px');
+    expect(panelVar('--select-panel-width')).toBe('300px');
+  });
+
+  test('when neither side fits, the panel takes the roomier side and is capped to it', async () => {
+    mockGeometry({
+      trigger: { top: 300, bottom: 340, left: 100, width: 300, height: 40 },
+      panelHeight: 600,
+    });
+    const user = userEvent.setup();
+    render(<ControlledSelect options={ROOM_OPTIONS} label="Status" />);
+
+    await user.click(screen.getByRole('combobox', { name: 'Status' }));
+
+    expect(panelVar('--select-panel-top')).toBe('344px');
+    expect(panelVar('--select-panel-max-height')).toBe('416px');
+  });
+
+  test('a narrow trigger near the right edge gets a readable panel kept inside the viewport', async () => {
+    mockGeometry({
+      trigger: { top: 100, bottom: 140, left: 950, width: 60, height: 40 },
+      panelHeight: 150,
+    });
+    const user = userEvent.setup();
+    render(<ControlledSelect options={ROOM_OPTIONS} label="Role" />);
+
+    await user.click(screen.getByRole('combobox', { name: 'Role' }));
+
+    expect(panelVar('--select-panel-width')).toBe('240px');
+    expect(panelVar('--select-panel-left')).toBe('776px');
+  });
+
+  test('opening a single-select starts on the selected option and keeps the active option scrolled into view', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    onTestFinished(() => {
+      delete Element.prototype.scrollIntoView;
+    });
+    const user = userEvent.setup();
+    render(
+      <ControlledSelect
+        options={MANY_OPTIONS}
+        label="Status"
+        initialValue="option-6"
+      />,
+    );
+    const trigger = screen.getByRole('combobox', { name: 'Status' });
+
+    await user.click(trigger);
+    const selected = screen.getByRole('option', { name: 'Option 6' });
+    expect(trigger).toHaveAttribute('aria-activedescendant', selected.id);
+    expect(scrollIntoView.mock.contexts).toContain(selected);
+
+    await user.keyboard('{ArrowDown}');
+    const next = screen.getByRole('option', { name: 'Option 7' });
+    expect(trigger).toHaveAttribute('aria-activedescendant', next.id);
+    expect(scrollIntoView.mock.contexts.at(-1)).toBe(next);
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest' });
+  });
+
+  test('closing by a press outside leaves no stale search text for the next opening', async () => {
+    const user = userEvent.setup();
+    render(
+      <div>
+        <ControlledSelect options={ROOM_OPTIONS} label="Room type" searchable />
+        <p>{OUTSIDE_TEXT}</p>
+      </div>,
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Room type' }));
+    await user.type(screen.getByRole('textbox'), 'sui');
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    await user.click(screen.getByText(OUTSIDE_TEXT));
+
+    await user.click(screen.getByRole('combobox', { name: 'Room type' }));
+    expect(screen.getByRole('textbox')).toHaveValue('');
+    expect(screen.getAllByRole('option')).toHaveLength(3);
+  });
+
+  // jsdom has no sequential focus navigation of its own, so this checks
+  // the handoff — the browser's Tab then continues from the trigger (the
+  // web app's sharedSelect.spec.js covers the real move to the next field).
+  test('Tab from the search field closes the list and hands focus back to the trigger, so focus is never lost with the panel', async () => {
+    const user = userEvent.setup();
+    render(
+      <ControlledSelect options={ROOM_OPTIONS} label="Room type" searchable />,
+    );
+    const trigger = screen.getByRole('combobox', { name: 'Room type' });
+
+    await user.click(trigger);
+    const search = screen.getByRole('textbox');
+    expect(search).toHaveFocus();
+    fireEvent.keyDown(search, { key: 'Tab' });
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  test('the trigger is a combobox that exposes required and invalid state', () => {
+    render(
+      <ControlledSelect
+        options={ROOM_OPTIONS}
+        label="Room type"
+        required
+        error="Choose a room type"
+      />,
+    );
+
+    const trigger = screen.getByRole('combobox', { name: 'Room type' });
+    expect(trigger).toHaveAttribute('aria-haspopup', 'listbox');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveAttribute('aria-required', 'true');
+    expect(trigger).toHaveAttribute('aria-invalid', 'true');
+    expect(trigger).toHaveAccessibleDescription('Choose a room type');
+  });
+
+  test('a disabled option is announced as disabled, skipped by the arrows and not selectable by click', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <Select
+        label="Room type"
+        value={undefined}
+        onChange={onChange}
+        options={[
+          { value: 'standard', label: 'Standard room' },
+          { value: 'deluxe', label: 'Deluxe room', disabled: true },
+          { value: 'suite', label: 'Suite' },
+        ]}
+      />,
+    );
+    const trigger = screen.getByRole('combobox', { name: 'Room type' });
+
+    await user.click(trigger);
+    const disabled = screen.getByRole('option', { name: 'Deluxe room' });
+    expect(disabled).toHaveAttribute('aria-disabled', 'true');
+    await user.click(disabled);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    await user.keyboard('{ArrowDown}{ArrowDown}');
+    expect(trigger).toHaveAttribute(
+      'aria-activedescendant',
+      screen.getByRole('option', { name: 'Suite' }).id,
+    );
+  });
+
+  test('a controlled value set or reset from outside (a form reset) is reflected in the trigger', () => {
+    const { rerender } = render(
+      <Select
+        label="Room type"
+        placeholder="Choose a room"
+        options={ROOM_OPTIONS}
+        value="suite"
+        onChange={vi.fn()}
+      />,
+    );
+    const trigger = screen.getByRole('combobox', { name: 'Room type' });
+    expect(trigger).toHaveTextContent('Suite');
+
+    rerender(
+      <Select
+        label="Room type"
+        placeholder="Choose a room"
+        options={ROOM_OPTIONS}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(trigger).toHaveTextContent('Choose a room');
+  });
+
+  test('long Armenian and Russian labels keep their full text as option names and in the trigger, and type-ahead reads them', async () => {
+    const armenian = 'Լյուքս համար Արարատի և Մասիսի համայնապատկերով';
+    const russian = 'Семейный номер с видом на Арарат и гостиной';
+    const user = userEvent.setup();
+    render(
+      <ControlledSelect
+        label="Room"
+        options={[
+          { value: 'hy', label: armenian },
+          { value: 'ru', label: russian },
+        ]}
+      />,
+    );
+    const trigger = screen.getByRole('combobox', { name: 'Room' });
+
+    trigger.focus();
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('option', { name: armenian })).toBeInTheDocument();
+    await user.keyboard('С');
+    expect(trigger).toHaveAttribute(
+      'aria-activedescendant',
+      screen.getByRole('option', { name: russian }).id,
+    );
+    await user.keyboard('{Enter}');
+
+    expect(trigger).toHaveTextContent(russian);
   });
 });

@@ -55,6 +55,7 @@ import {
 import { SUPPORTED_LOCALES } from '../../../../../translations/i18n.js';
 import AuthoringLocaleTabs from '../AuthoringLocaleTabs/AuthoringLocaleTabs.jsx';
 import WizardStepActions from '../WizardStepActions.jsx';
+import useSelectTexts from '../../../../../hooks/useSelectTexts.js';
 import styles from './BasicInfoStep.module.scss';
 
 const TRANSLATION_FIELDS = ['title', 'summary', 'description'];
@@ -89,6 +90,7 @@ export default function BasicInfoStep({
   onBack = undefined,
   onNext,
 }) {
+  const selectTexts = useSelectTexts();
   const { t } = useTranslation();
   const { showToast } = useToast();
   const createListingMutation = useCreateListingMutation();
@@ -311,6 +313,8 @@ export default function BasicInfoStep({
                   }}
                   render={({ field }) => (
                     <Select
+                      searchPlaceholder={selectTexts.searchPlaceholder}
+                      noOptionsMessage={selectTexts.noOptionsMessage}
                       label={t('partner.listingWizard.basicInfo.partner')}
                       placeholder={t('partner.listingWizard.selectPlaceholder')}
                       options={partnerships.map((partnership) => ({

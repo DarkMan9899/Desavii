@@ -71,7 +71,13 @@
     "dismiss": "Փակել",
     "dialog": "Երկխոսություն",
     "quoteOpen": "«",
-    "quoteClose": "»"
+    "quoteClose": "»",
+    "select": {
+      "placeholder": "Ընտրել…",
+      "searchPlaceholder": "Փնտրել…",
+      "noResults": "Արդյունքներ չեն գտնվել",
+      "removeOption": "Հեռացնել {{label}}"
+    }
   },
   "nav": {
     "home": "Գլխավոր",

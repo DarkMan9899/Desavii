@@ -38,7 +38,7 @@ describe('StaffMemberCard (apps/web/src/modules/partner)', () => {
     );
 
     expect(screen.getByText('editor@example.com')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Դեր' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Դեր' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Հեռացնել' }));
     expect(onRemove).toHaveBeenCalledWith(staff());
@@ -56,7 +56,7 @@ describe('StaffMemberCard (apps/web/src/modules/partner)', () => {
     );
 
     expect(
-      screen.queryByRole('button', { name: 'Դեր' }),
+      screen.queryByRole('combobox', { name: 'Դեր' }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Հեռացնել' }),
@@ -75,7 +75,7 @@ describe('StaffMemberCard (apps/web/src/modules/partner)', () => {
     );
 
     expect(
-      screen.queryByRole('button', { name: 'Դեր' }),
+      screen.queryByRole('combobox', { name: 'Դեր' }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText('Editor')).not.toBeInTheDocument();
     expect(screen.getByText('Խմբագիր')).toBeInTheDocument();

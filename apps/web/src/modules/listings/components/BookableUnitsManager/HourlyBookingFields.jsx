@@ -12,6 +12,7 @@ import { Inline } from '@desavii/ui/components/layout';
 import { CURRENCY_CODES } from '../../constants/currencies.js';
 import { formatHour, HOURS_PER_DAY } from '../../utils/hourlyStay.js';
 import { HOURLY_DURATION_OPTIONS } from './hourlyBookingSettings.js';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 import styles from './BookableUnitForm.module.scss';
 
 const START_HOURS = Array.from({ length: HOURS_PER_DAY }, (_, hour) => hour);
@@ -23,6 +24,7 @@ export default function HourlyBookingFields({
   errors = {},
   serverFieldError = () => undefined,
 }) {
+  const selectTexts = useSelectTexts();
   const { t } = useTranslation();
   const label = (key) => t(`partner.listingWizard.availability.${key}`);
   const errorFor = (field) =>
@@ -90,6 +92,8 @@ export default function HourlyBookingFields({
           </Inline>
           <Inline gap="4" wrap>
             <Select
+              searchPlaceholder={selectTexts.searchPlaceholder}
+              noOptionsMessage={selectTexts.noOptionsMessage}
               label={label('hourlyAvailableFrom')}
               placeholder={t('partner.listingWizard.selectPlaceholder')}
               options={hourOptions(START_HOURS)}
@@ -98,6 +102,8 @@ export default function HourlyBookingFields({
               onChange={(value) => update({ availableFrom: value })}
             />
             <Select
+              searchPlaceholder={selectTexts.searchPlaceholder}
+              noOptionsMessage={selectTexts.noOptionsMessage}
               label={label('hourlyAvailableUntil')}
               placeholder={t('partner.listingWizard.selectPlaceholder')}
               options={hourOptions(END_HOURS)}

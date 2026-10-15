@@ -24,6 +24,7 @@ import {
   PaymentStatusBadge,
   usePaymentsConfigQuery,
 } from '../../../payments/index.js';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 
 const DEFAULT_FILTERS = { status: '' };
 
@@ -40,6 +41,7 @@ const STATUS_CODES = [
 ];
 
 export default function AdminPaymentsPageContent() {
+  const selectTexts = useSelectTexts();
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
 
@@ -147,6 +149,9 @@ export default function AdminPaymentsPageContent() {
 
           <Inline gap="3" wrap>
             <Select
+              placeholder={selectTexts.placeholder}
+              searchPlaceholder={selectTexts.searchPlaceholder}
+              noOptionsMessage={selectTexts.noOptionsMessage}
               ariaLabel={t('admin.payments.filters.statusLabel')}
               options={statusOptions}
               value={filters.status}

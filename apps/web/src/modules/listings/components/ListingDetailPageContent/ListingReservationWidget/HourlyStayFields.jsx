@@ -19,6 +19,7 @@ import {
   endHourOptions,
   toHourlyRules,
 } from '../../../utils/hourlyStay.js';
+import useSelectTexts from '../../../../../hooks/useSelectTexts.js';
 import styles from './ListingReservationWidget.module.scss';
 
 const UNAVAILABLE_SLOT_STATUSES = new Set(['SOLD_OUT', 'PAST']);
@@ -37,6 +38,7 @@ export default function HourlyStayFields({
   onChangeStart,
   onChangeEnd,
 }) {
+  const selectTexts = useSelectTexts();
   const { t } = useTranslation();
   const rules = toHourlyRules(unit);
   const unavailableHours = new Set(
@@ -95,22 +97,24 @@ export default function HourlyStayFields({
       ) : (
         <Inline gap="3" wrap>
           <Select
+            searchPlaceholder={selectTexts.searchPlaceholder}
+            noOptionsMessage={selectTexts.noOptionsMessage}
             label={t('pages.listingDetail.reservation.startTimeLabel')}
             placeholder={t('partner.listingWizard.selectPlaceholder')}
             options={startOptions}
             value={startHour === null ? null : String(startHour)}
             disabled={!hasSlots}
             onChange={(value) => onChangeStart(Number(value))}
-            portal
           />
           <Select
+            searchPlaceholder={selectTexts.searchPlaceholder}
+            noOptionsMessage={selectTexts.noOptionsMessage}
             label={t('pages.listingDetail.reservation.endTimeLabel')}
             placeholder={t('partner.listingWizard.selectPlaceholder')}
             options={endOptions}
             value={endHour === null ? null : String(endHour)}
             disabled={startHour === null}
             onChange={(value) => onChangeEnd(Number(value))}
-            portal
           />
         </Inline>
       )}

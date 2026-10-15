@@ -81,6 +81,7 @@ import {
   useCancelExternalReservationMutation,
   BOOKABLE_UNIT_TYPES,
 } from '../../../availability/index.js';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 
 const REAL_CONNECTOR_TYPES = ['MANUAL', 'ICAL'];
 
@@ -108,6 +109,7 @@ function unitLabel(unit, t) {
 }
 
 export default function AdminInventoryPageContent() {
+  const selectTexts = useSelectTexts();
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
   const { permissions } = useAuth();
@@ -772,6 +774,9 @@ export default function AdminInventoryPageContent() {
             <Inline justify="space-between" align="center" wrap>
               <h2>{t('admin.inventory.overview.connectionsHeading')}</h2>
               <Select
+                placeholder={selectTexts.placeholder}
+                searchPlaceholder={selectTexts.searchPlaceholder}
+                noOptionsMessage={selectTexts.noOptionsMessage}
                 ariaLabel={t('admin.inventory.overview.statusFilterLabel')}
                 options={statusFilterOptions}
                 value={overviewStatusFilter}

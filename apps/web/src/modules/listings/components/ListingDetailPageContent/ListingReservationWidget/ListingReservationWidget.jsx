@@ -118,6 +118,7 @@ import { useListingHourlyAvailabilityQuery } from '../../../queries/useListingHo
 import StayModeSelector from './StayModeSelector.jsx';
 import HourlyStayFields from './HourlyStayFields.jsx';
 import UnitOptionContent from './UnitOptionContent.jsx';
+import useSelectTexts from '../../../../../hooks/useSelectTexts.js';
 import styles from './ListingReservationWidget.module.scss';
 
 const CALENDAR_WINDOW_DAYS = 180;
@@ -157,6 +158,7 @@ export default function ListingReservationWidget({
   // Entertainment Venues share one listing type).
   categorySlug = null,
 }) {
+  const selectTexts = useSelectTexts();
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
   const navigate = useNavigate();
@@ -1127,13 +1129,12 @@ export default function ListingReservationWidget({
 
             {units.length > 1 && (
               <Select
+                searchPlaceholder={selectTexts.searchPlaceholder}
+                noOptionsMessage={selectTexts.noOptionsMessage}
                 label={t('pages.listingDetail.reservation.unitLabel')}
                 options={unitOptions}
                 value={selectedUnitId ?? ''}
                 onChange={(value) => handleSelectUnit(value)}
-                // The widget card clips its contents (`overflow: hidden`);
-                // the list must escape it, in the sidebar and the drawer.
-                portal
                 placeholder={t(
                   'pages.listingDetail.reservation.unitPlaceholder',
                 )}

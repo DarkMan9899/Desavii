@@ -174,13 +174,13 @@ describe('Drawer (COMPONENT_LIBRARY.md Part II §4)', () => {
         </Drawer>,
       );
 
-      await user.click(screen.getByRole('button', { name: 'Unit' }));
+      await user.click(screen.getByRole('combobox', { name: 'Unit' }));
       expect(screen.getByRole('listbox')).toBeInTheDocument();
 
       await user.keyboard('{Escape}');
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
       expect(onClose).not.toHaveBeenCalled();
-      expect(screen.getByRole('button', { name: 'Unit' })).toHaveFocus();
+      expect(screen.getByRole('combobox', { name: 'Unit' })).toHaveFocus();
 
       await user.keyboard('{Escape}');
       expect(onClose).toHaveBeenCalledTimes(1);

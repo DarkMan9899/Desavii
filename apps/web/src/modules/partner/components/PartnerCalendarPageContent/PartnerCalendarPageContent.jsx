@@ -71,6 +71,7 @@ import {
   INVENTORY_TEXT_MAX_LENGTH,
 } from '../../../availability/index.js';
 import { useUnitBookingsQuery } from '../../../bookings/index.js';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 
 const VIEW_MODES = ['month', 'week', 'day'];
 
@@ -160,6 +161,7 @@ function unitLabel(unit, t) {
 }
 
 export default function PartnerCalendarPageContent() {
+  const selectTexts = useSelectTexts();
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
   const navigate = useNavigate();
@@ -854,6 +856,9 @@ export default function PartnerCalendarPageContent() {
           <Card as="div" padding="lg">
             <Stack gap="3">
               <Select
+                placeholder={selectTexts.placeholder}
+                searchPlaceholder={selectTexts.searchPlaceholder}
+                noOptionsMessage={selectTexts.noOptionsMessage}
                 ariaLabel={t('partner.calendar.listingLabel')}
                 options={listingOptions}
                 value={String(effectiveListingId ?? '')}

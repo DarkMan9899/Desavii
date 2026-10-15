@@ -82,7 +82,7 @@ test.describe('Admin Listing Detail — read-only view', () => {
     // default ('PENDING'), so "All" can never actually be selected via
     // this control as currently built. That's a pre-existing quirk in
     // the shared filter hook, out of P2.1's scope to change here.
-    await page.getByRole('button', { name: 'Moderation' }).click();
+    await page.getByRole('combobox', { name: 'Moderation' }).click();
     await page.getByRole('option', { name: 'Approved' }).click();
     // Wait for this filter change to actually land in the URL/re-render
     // before typing a search term — `useAdminListFilters#updateFilters`
@@ -93,7 +93,7 @@ test.describe('Admin Listing Detail — read-only view', () => {
     // filter silently reverted to "Pending" every time these two actions
     // ran back to back without this wait).
     await expect(
-      page.getByRole('button', { name: 'Moderation' }),
+      page.getByRole('combobox', { name: 'Moderation' }),
     ).toContainText('Approved');
     await page.getByLabel('Search listings').fill('Modern Sevan Tour');
     await page.keyboard.press('Enter');

@@ -80,7 +80,7 @@ async function resolveListing(slug) {
 
 /** The Partner Calendar's listing picker is a custom `role="button"` + `role="option"` combobox, not a native `<select>`. */
 async function selectListing(page, title) {
-  await page.getByRole('button', { name: 'Listing' }).click();
+  await page.getByRole('combobox', { name: 'Listing' }).click();
   await page.getByRole('option', { name: title }).click();
 }
 
@@ -209,7 +209,9 @@ test.describe('Partner Calendar — Sprint 5 closeout (time-slot persistence + m
     // action panel scoped to this unit/date — never a dead tap target.
     await page.getByText('Morning Departure').click();
     await expect(
-      page.getByRole('button', { name: 'Set status for the selected dates' }),
+      page.getByRole('combobox', {
+        name: 'Set status for the selected dates',
+      }),
     ).toBeVisible();
   });
 

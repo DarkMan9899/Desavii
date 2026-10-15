@@ -35,7 +35,13 @@
     "dismiss": "Dismiss",
     "dialog": "Dialog",
     "quoteOpen": "“",
-    "quoteClose": "”"
+    "quoteClose": "”",
+    "select": {
+      "placeholder": "Select…",
+      "searchPlaceholder": "Search…",
+      "noResults": "No results found",
+      "removeOption": "Remove {{label}}"
+    }
   },
   "discovery": {
     "category": {

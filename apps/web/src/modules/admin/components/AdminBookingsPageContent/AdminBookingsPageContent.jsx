@@ -24,6 +24,7 @@ import RouterLink from '../../../../components/RouterLink.jsx';
 import { useAdminListFilters } from '../../hooks/useAdminListFilters.js';
 import { useAdminBookingsQuery } from '../../queries/useAdminBookingsQuery.js';
 import { BookingStatusBadge } from '../../../bookings/index.js';
+import useSelectTexts from '../../../../hooks/useSelectTexts.js';
 
 const DEFAULT_FILTERS = { status: '', refundStatus: '' };
 
@@ -54,6 +55,7 @@ const REFUND_STATUS_CODES = [
 ];
 
 export default function AdminBookingsPageContent() {
+  const selectTexts = useSelectTexts();
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
 
@@ -190,6 +192,9 @@ export default function AdminBookingsPageContent() {
         <Stack gap="4">
           <Inline gap="3" wrap>
             <Select
+              placeholder={selectTexts.placeholder}
+              searchPlaceholder={selectTexts.searchPlaceholder}
+              noOptionsMessage={selectTexts.noOptionsMessage}
               ariaLabel={t('admin.bookings.filters.statusLabel')}
               options={statusOptions}
               value={filters.status}

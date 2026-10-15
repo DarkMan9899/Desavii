@@ -220,13 +220,13 @@ async function tapDay(page, isoDate) {
 
 /** Opens a Select in the drawer by touch and taps the option. */
 async function tapOption(page, drawer, label, option) {
-  await drawer.getByRole('button', { name: label, exact: true }).tap();
+  await drawer.getByRole('combobox', { name: label, exact: true }).tap();
   await page.getByRole('option', { name: option }).first().tap();
 }
 
 /** Opens a Select in the drawer; Escape must close its list, not the drawer. */
 async function expectEscapeClosesOnlyList(page, drawer, label) {
-  await drawer.getByRole('button', { name: label, exact: true }).tap();
+  await drawer.getByRole('combobox', { name: label, exact: true }).tap();
   await expect(page.getByRole('listbox')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('listbox')).toHaveCount(0);
@@ -303,7 +303,7 @@ test.describe('Mobile booking drawer — date pickers are tappable', () => {
 
     // Room selection stays usable in the drawer, and booking can continue.
     await tapOption(page, drawer, 'Unit', new RegExp(`^${NIGHT_ROOM}`));
-    await expect(drawer.getByRole('button', { name: 'Unit' })).toContainText(
+    await expect(drawer.getByRole('combobox', { name: 'Unit' })).toContainText(
       NIGHT_ROOM,
     );
     await expect(

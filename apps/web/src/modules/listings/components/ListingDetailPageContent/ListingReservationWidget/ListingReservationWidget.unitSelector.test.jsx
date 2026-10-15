@@ -220,7 +220,7 @@ describe('ListingReservationWidget — room/unit selector', () => {
   test('HY: a long Armenian name leads its option, followed by guests and the formatted nightly price', async () => {
     const user = userEvent.setup();
     renderWidget('hy');
-    await user.click(screen.getByRole('button', { name: 'Միավոր' }));
+    await user.click(screen.getByRole('combobox', { name: 'Միավոր' }));
 
     const room = roomOption(LONG_HY);
     expect(within(room).getByText(LONG_HY)).toBeInTheDocument();
@@ -234,7 +234,7 @@ describe('ListingReservationWidget — room/unit selector', () => {
     await i18n.changeLanguage('ru');
     const user = userEvent.setup();
     renderWidget('ru');
-    await user.click(screen.getByRole('button', { name: 'Единица' }));
+    await user.click(screen.getByRole('combobox', { name: 'Единица' }));
 
     const room = roomOption(LONG_RU);
     expect(within(room).getByText('Вмещает 4')).toBeInTheDocument();
@@ -246,7 +246,7 @@ describe('ListingReservationWidget — room/unit selector', () => {
   test('before any dates no option claims availability — the room count is inventory, not availability', async () => {
     const user = userEvent.setup();
     renderWidget('hy');
-    await user.click(screen.getByRole('button', { name: 'Միավոր' }));
+    await user.click(screen.getByRole('combobox', { name: 'Միավոր' }));
 
     const listbox = screen.getByRole('listbox');
     expect(within(listbox).queryByText(/հասանելի/)).not.toBeInTheDocument();
@@ -259,7 +259,7 @@ describe('ListingReservationWidget — room/unit selector', () => {
     const user = userEvent.setup();
     renderWidget('en');
     await user.click(screen.getByRole('button', { name: 'pick nights' }));
-    await user.click(screen.getByRole('button', { name: 'Unit' }));
+    await user.click(screen.getByRole('combobox', { name: 'Unit' }));
 
     expect(
       within(roomOption(LONG_HY)).getByText('Only 2 left for these dates'),
@@ -273,10 +273,10 @@ describe('ListingReservationWidget — room/unit selector', () => {
     await i18n.changeLanguage('en');
     const user = userEvent.setup();
     renderWidget('en');
-    await user.click(screen.getByRole('button', { name: 'Unit' }));
+    await user.click(screen.getByRole('combobox', { name: 'Unit' }));
     await user.click(roomOption(LONG_RU));
 
-    const trigger = screen.getByRole('button', { name: 'Unit' });
+    const trigger = screen.getByRole('combobox', { name: 'Unit' });
     expect(trigger).toHaveTextContent(new RegExp(`^${LONG_RU}$`));
     expect(trigger).not.toHaveTextContent(/Sleeps|night|\$/);
   });
@@ -286,7 +286,7 @@ describe('ListingReservationWidget — room/unit selector', () => {
     const user = userEvent.setup();
     renderWidget('en', 2);
     await user.click(screen.getByText('Book by hour', { exact: true }));
-    await user.click(screen.getByRole('button', { name: 'Unit' }));
+    await user.click(screen.getByRole('combobox', { name: 'Unit' }));
 
     const hourly = roomOption(LONG_RU);
     expect(within(hourly).getByText(/Per hour/)).toBeInTheDocument();

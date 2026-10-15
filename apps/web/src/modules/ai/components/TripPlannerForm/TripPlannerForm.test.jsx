@@ -35,6 +35,14 @@ describe('TripPlannerForm (apps/web/src/modules/ai)', () => {
     });
   });
 
+  test('the label-less currency picker is still a named combobox for assistive technology', () => {
+    render(<TripPlannerForm onSubmit={vi.fn()} />);
+
+    expect(screen.getByRole('combobox', { name: 'Արժույթ' })).toHaveTextContent(
+      'AMD',
+    );
+  });
+
   test('disables the submit button and shows a submitting label while pending', () => {
     render(<TripPlannerForm onSubmit={vi.fn()} isSubmitting />);
     const button = screen.getByRole('button', { name: 'Պլանավորվում է...' });

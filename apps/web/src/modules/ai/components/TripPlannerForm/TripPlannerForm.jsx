@@ -73,7 +73,7 @@ export default function TripPlannerForm({ onSubmit, isSubmitting = false }) {
               required
             />
             <Select
-              aria-label={t('ai.tripPlanner.form.currencyLabel')}
+              ariaLabel={t('ai.tripPlanner.form.currencyLabel')}
               value={currency}
               onChange={(value) => setCurrency(value)}
               options={CURRENCIES.map((code) => ({ value: code, label: code }))}
