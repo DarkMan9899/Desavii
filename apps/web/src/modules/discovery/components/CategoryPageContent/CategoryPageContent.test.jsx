@@ -107,7 +107,7 @@ describe('CategoryPageContent (apps/web/src/modules/discovery)', () => {
     // No matching category (slug not found in the seeded list above) —
     // `category?.id` is undefined, so the fetch must stay disabled.
     expect(useSearchListingsQuery).toHaveBeenCalledWith(
-      { categoryId: undefined, dynamicFilters: {} },
+      { categoryId: undefined, dynamicFilters: {}, excludeCategoryTop: true },
       expect.objectContaining({ enabled: false }),
     );
   });
@@ -258,6 +258,7 @@ describe('CategoryPageContent (apps/web/src/modules/discovery)', () => {
       {
         categoryId: 5,
         dynamicFilters: { attr_cuisine: 'ARMENIAN' },
+        excludeCategoryTop: true,
       },
       expect.objectContaining({ enabled: true }),
     );

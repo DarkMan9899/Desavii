@@ -1,6 +1,13 @@
 /**
  * SearchResults — grid + loading/empty/error/pagination states.
  *
+ * Search & Discovery rebuild: the result count moved up into
+ * `SearchToolbar`, which reports the whole filtered total, not the cards
+ * loaded so far. While a changed search loads, the previous cards stay in
+ * place, dimmed and `aria-busy` (`isUpdating`), instead of the grid
+ * collapsing to skeletons and back. The empty state can offer one way
+ * out (`emptyActionLabel`/`onEmptyAction`, e.g. Clear filters).
+ *
  * Deliberately prop-driven and unaware of React Query, filter state, or
  * "classic" vs. a hypothetical future AI search mode — it only knows
  * about a flat `results` array plus a handful of booleans/callbacks
@@ -31,6 +38,10 @@ export default function SearchResults({
   hasNextPage,
   isFetchingNextPage,
   onLoadMore,
+  isUpdating = false,
+  emptyDescription = undefined,
+  emptyActionLabel = undefined,
+  onEmptyAction = undefined,
   // Step A3 (engagement analytics) — this same component renders Search
   // results, Category/Destination organic grids, and Home's
   // PopularExperiences carousel, all through `useSearchListingsQuery` —
@@ -69,23 +80,18 @@ export default function SearchResults({
     return (
       <EmptyState
         title={t('search.results.empty.title')}
-        description={t('search.results.empty.description')}
+        description={emptyDescription ?? t('search.results.empty.description')}
+        actionLabel={emptyActionLabel}
+        onAction={onEmptyAction}
       />
     );
   }
 
   return (
-    <div>
-      {/* P2.2D: truthful, screen-reader-announced result count — labeled
-          as the number currently loaded (grows as "Load more" fetches
-          further cursor pages), never a fabricated total the cursor-
-          paginated API doesn't expose. `aria-live="polite"` means both a
-          filter change and a "Load more" click are announced, closing
-          the audited gap where a result-set update was silent to
-          screen-reader users. */}
-      <p className={styles.resultCount} aria-live="polite">
-        {t('search.results.count', { count: results.length })}
-      </p>
+    <div
+      className={isUpdating ? styles.updating : undefined}
+      aria-busy={isUpdating || undefined}
+    >
       <div className={styles.grid}>
         {results.map((result, index) => (
           <SearchResultCard
@@ -123,6 +129,10 @@ SearchResults.propTypes = {
   hasNextPage: PropTypes.bool.isRequired,
   isFetchingNextPage: PropTypes.bool.isRequired,
   onLoadMore: PropTypes.func.isRequired,
+  isUpdating: PropTypes.bool,
+  emptyDescription: PropTypes.string,
+  emptyActionLabel: PropTypes.string,
+  onEmptyAction: PropTypes.func,
   searchContext: PropTypes.shape({
     queryText: PropTypes.string,
     categoryCode: PropTypes.string,

@@ -34,6 +34,7 @@ import {
 } from '../../../infrastructure/database/pagination.js';
 import { ACCOMMODATION_BOOKABLE_UNIT_TYPES } from '../../../core/domain/accommodationDateSemantics.js';
 import { INVENTORY_QUANTITY_BOOKABLE_UNIT_TYPES } from '../../../core/domain/inventoryQuantityUnitTypes.js';
+import { BASE_CURRENCY_CODE } from '../../../core/domain/fxConversion.js';
 
 /** `IN (?, ?)`-shaped placeholder list matching `ACCOMMODATION_BOOKABLE_UNIT_TYPES`'s length — reused everywhere the query needs to branch by accommodation-vs-not without a second, independent type list (DATE semantics only — see `INVENTORY_QUANTITY_TYPE_PLACEHOLDERS` below for the separate capacity-semantics branch). */
 const ACCOMMODATION_TYPE_PLACEHOLDERS = ACCOMMODATION_BOOKABLE_UNIT_TYPES.map(
@@ -53,6 +54,32 @@ const INVENTORY_QUANTITY_TYPE_PLACEHOLDERS =
  * — see the availability EXISTS block below.
  */
 const SEARCH_REQUESTED_QUANTITY = 1;
+
+/**
+ * "Can ONE unit of this type hold the party" for accommodation types —
+ * `bookingService.js#resolveItem`'s `guestCount > maxGuests * quantity`
+ * check with quantity=1, NULL-safe the same way (a unit with no
+ * `max_guests` is never vetoed). Binds the accommodation type list, then
+ * the guest count. Shared by the dated availability EXISTS and the
+ * undated occupancy EXISTS so the two can never disagree on occupancy.
+ */
+const ACCOMMODATION_OCCUPANCY_FITS_SQL = `(
+          but.code NOT IN (${ACCOMMODATION_TYPE_PLACEHOLDERS})
+          OR bu.max_guests IS NULL
+          OR bu.max_guests >= ?
+        )`;
+
+/**
+ * The card's "from" price, only when it is in the platform's base
+ * currency: price filters and price sorts compare AMD to AMD and never
+ * convert. A listing priced in anything else (never authored today) is
+ * treated as unpriced rather than compared across currencies.
+ */
+const BASE_PRICE_SQL = `CASE WHEN base.price_currency_code = '${BASE_CURRENCY_CODE}' THEN base.price_amount END`;
+
+/** Never-NULL price sort keys: unpriced listings sort last in either direction (above any real price ascending, below zero descending). */
+const UNPRICED_SORT_KEY_ASC = '999999999999999';
+const UNPRICED_SORT_KEY_DESC = '-1';
 
 /**
  * A `created_at`-sorted cursor's `sortValue` is a `DATETIME(3)` column,
@@ -348,10 +375,14 @@ function toFilterGroupsDomain(rows, optionsByAttributeId, amenityOptions) {
  *   (Array<{attributeDefinitionId, dataTypeCode, optionIds?: number[], min?,
  *   max?}> — ENUM/MULTI_ENUM use `optionIds` with OR semantics within one
  *   attribute; every other type uses `min`/`max` against its typed value
- *   table; different attributes/amenityIds are always AND'd together)
+ *   table; different attributes/amenityIds are always AND'd together),
+ *   availabilityDateFrom/availabilityDateTo/availabilityLastNight/
+ *   availabilityGuests (dated availability), occupancyGuests (party size
+ *   with no dates), excludeCategoryTop (Category page grid only),
+ *   priceMin/priceMax (AMD, against the card's "from" price)
  * @param {{key: string, column: string, direction: 'ASC'|'DESC'}} sort
  * @param {{cursor?: string|null, limit?: number}} [paginationOpts]
- * @returns {{sql: string, params: any[], limit: number}}
+ * @returns {{sql: string, params: any[], limit: number, countSql: string, countParams: any[]}}
  */
 export function buildSearchListingsQuery(
   filters,
@@ -375,6 +406,10 @@ export function buildSearchListingsQuery(
     availabilityDateTo,
     availabilityLastNight,
     availabilityGuests,
+    occupancyGuests,
+    excludeCategoryTop,
+    priceMin,
+    priceMax,
   } = filters;
 
   const innerConditions = [scopeActive('l')];
@@ -408,16 +443,18 @@ export function buildSearchListingsQuery(
   if (categoryId !== undefined) {
     innerConditions.push('lcl.category_id = ?');
     innerParams.push(categoryId);
+  }
+  if (categoryId !== undefined && excludeCategoryTop) {
     // Sprint E (Promotion Engine, spec §19): a listing with an active
     // CATEGORY_TOP promotion is shown in the category page's dedicated
     // TOP section (`AdvertisementService#getPublicCategoryTop`) — it
-    // must never ALSO appear in this normal grid, or it would be
-    // duplicated on the page. Deliberately gated on `categoryId` alone
-    // (present whenever a category page is being browsed, keyword or
-    // not) rather than threading a new filter flag through `SearchService`
-    // — general keyword Search with no category filter is completely
-    // unaffected, matching spec §21's "do not broaden into sponsored
-    // search ranking." A direct read of `advertisements`/
+    // must never ALSO appear in that page's normal grid, or it would be
+    // duplicated on the page. Opt-in (`excludeCategoryTop`), sent only by
+    // the Category page: gating it on `categoryId` alone made the Search
+    // page's category filter silently hide the very listing promoted in
+    // that category, since Search has no TOP section to show it in.
+    // Matches spec §21's "do not broaden into sponsored search ranking."
+    // A direct read of `advertisements`/
     // `ad_placement_types`/`advertisement_statuses` here, not a second
     // Repository call — the same "Search reads other modules' tables
     // directly for read-only query composition" precedent this file's
@@ -548,11 +585,7 @@ export function buildSearchListingsQuery(
         SELECT 1 FROM bookable_units bu
         JOIN bookable_unit_types but ON but.id = bu.bookable_unit_type_id
         WHERE bu.listing_id = l.id AND bu.deleted_at IS NULL
-        AND (
-          but.code NOT IN (${ACCOMMODATION_TYPE_PLACEHOLDERS})
-          OR bu.max_guests IS NULL
-          OR bu.max_guests >= ?
-        )
+        AND ${ACCOMMODATION_OCCUPANCY_FITS_SQL}
         AND NOT EXISTS (
           SELECT 1 FROM availability_search_dates sd
           LEFT JOIN availability_calendar ac ON ac.bookable_unit_id = bu.id AND ac.date = sd.d
@@ -606,6 +639,32 @@ export function buildSearchListingsQuery(
       availabilityLastNight,
       availabilityDateTo,
       availabilityDateFrom,
+    );
+  } else if (occupancyGuests !== undefined) {
+    // A party size with no dates: no calendar to consult, so only "could
+    // one unit ever hold this party". Same per-type split as the dated
+    // block above, with the unit's static `capacity` standing in for a
+    // date's `quantity_available`: accommodation checks `max_guests`;
+    // inventory-quantity types (rooms, tables, vehicles) never compare
+    // capacity to the party; every other type (TOUR_DEPARTURE seats)
+    // needs `capacity` for the whole party.
+    innerConditions.push(`
+      EXISTS (
+        SELECT 1 FROM bookable_units bu
+        JOIN bookable_unit_types but ON but.id = bu.bookable_unit_type_id
+        WHERE bu.listing_id = l.id AND bu.deleted_at IS NULL
+        AND ${ACCOMMODATION_OCCUPANCY_FITS_SQL}
+        AND (
+          but.code IN (${INVENTORY_QUANTITY_TYPE_PLACEHOLDERS})
+          OR bu.capacity >= ?
+        )
+      )
+    `);
+    innerParams.push(
+      ...ACCOMMODATION_BOOKABLE_UNIT_TYPES,
+      occupancyGuests,
+      ...INVENTORY_QUANTITY_BOOKABLE_UNIT_TYPES,
+      occupancyGuests,
     );
   }
 
@@ -751,37 +810,68 @@ export function buildSearchListingsQuery(
     WHERE ${innerConditions.join(' AND ')}
   `;
 
-  const outerConditions = [];
-  const outerParams = [];
+  // One more derived-table layer, so the base-currency price and its two
+  // never-NULL sort keys become real columns the price filter, the price
+  // sorts and their keyset cursor can all reference by name.
+  const pricedResultsSql = `
+    SELECT base.*,
+      ${BASE_PRICE_SQL} AS price_amount_base,
+      COALESCE(${BASE_PRICE_SQL}, ${UNPRICED_SORT_KEY_ASC}) AS price_sort_asc,
+      COALESCE(${BASE_PRICE_SQL}, ${UNPRICED_SORT_KEY_DESC}) AS price_sort_desc
+    FROM (${innerSql}) AS base
+  `;
+
+  // Filters on the computed price (shared by the page and the count);
+  // the keyset cursor is page-only.
+  const filterConditions = [];
+  const filterParams = [];
+  if (priceMin !== undefined) {
+    filterConditions.push('results.price_amount_base >= ?');
+    filterParams.push(priceMin);
+  }
+  if (priceMax !== undefined) {
+    filterConditions.push('results.price_amount_base <= ?');
+    filterParams.push(priceMax);
+  }
+
+  const pageConditions = [...filterConditions];
+  const cursorParams = [];
   const decoded = decodeCursor(cursor);
   if (decoded && decoded.sortValue !== undefined && decoded.id !== undefined) {
     const operator = sort.direction === 'DESC' ? '<' : '>';
-    outerConditions.push(
+    pageConditions.push(
       `(results.${sort.column}, results.id) ${operator} (?, ?)`,
     );
-    outerParams.push(fromCursorSortValue(decoded.sortValue), decoded.id);
+    cursorParams.push(fromCursorSortValue(decoded.sortValue), decoded.id);
   }
-  const outerWhere =
-    outerConditions.length > 0 ? `WHERE ${outerConditions.join(' AND ')}` : '';
+  const toWhere = (conditions) =>
+    conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const sql = `
-    SELECT * FROM (${innerSql}) AS results
-    ${outerWhere}
+    SELECT * FROM (${pricedResultsSql}) AS results
+    ${toWhere(pageConditions)}
     ORDER BY results.${sort.column} ${sort.direction}, results.id ${sort.direction}
     LIMIT ?
   `;
 
-  const params = [
+  const filteredParams = [
     ...availabilityCteParams,
     ...selectKeywordParam,
     localeId,
     defaultLocaleId,
     ...innerParams,
-    ...outerParams,
-    limit + 1,
+    ...filterParams,
   ];
+  const params = [...filteredParams, ...cursorParams, limit + 1];
 
-  return { sql, params, limit };
+  // The whole filtered result set's size, for an honest "N results"
+  // summary — the page query alone only knows whether one more row exists.
+  const countSql = `
+    SELECT COUNT(*) AS total FROM (${pricedResultsSql}) AS results
+    ${toWhere(filterConditions)}
+  `;
+
+  return { sql, params, limit, countSql, countParams: filteredParams };
 }
 
 export class MySqlSearchRepository {
@@ -824,8 +914,7 @@ export class MySqlSearchRepository {
   }
 
   /**
-   * @param {object} filters - keyword, categoryId, listingTypeCode, cityId,
-   *   countryId, partnerId, statusCode, onlyPublished, localeId, defaultLocaleId
+   * @param {object} filters - see `buildSearchListingsQuery`
    * @param {{key: string, column: string, direction: 'ASC'|'DESC'}} sort -
    *   from `core/domain/sortOptions.js`; `column`/`id` always share
    *   `direction` (see the module header) so keyset pagination stays a
@@ -833,18 +922,25 @@ export class MySqlSearchRepository {
    * @param {{cursor?: string|null, limit?: number}} paginationOpts
    */
   async searchListings(filters, sort, paginationOpts = {}) {
-    const { sql, params, limit } = buildSearchListingsQuery(
-      filters,
-      sort,
-      paginationOpts,
-    );
-    const [rows] = await this.#pool.query(sql, params);
+    const { sql, params, limit, countSql, countParams } =
+      buildSearchListingsQuery(filters, sort, paginationOpts);
+    // `meta.total` is computed for the first page only — a "Load more"
+    // page reuses the total its first page already reported, so it never
+    // pays for the count again.
+    const isFirstPage = !paginationOpts.cursor;
+    const [[rows], countResult] = await Promise.all([
+      this.#pool.query(sql, params),
+      isFirstPage ? this.#pool.query(countSql, countParams) : null,
+    ]);
 
     const { rows: pageRows, meta } = buildPageMeta(rows, limit, (row) => ({
       sortValue: toCursorSortValue(row[sort.column]),
       id: row.id,
     }));
-    return { rows: pageRows.map(toSearchResultDomain), meta };
+    const pageMeta = countResult
+      ? { ...meta, total: Number(countResult[0][0].total) }
+      : meta;
+    return { rows: pageRows.map(toSearchResultDomain), meta: pageMeta };
   }
 
   /**

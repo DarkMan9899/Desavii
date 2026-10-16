@@ -55,11 +55,13 @@ export function getSuggestions(params) {
  * not `GET /listings`' bare summary — no per-row follow-up call is needed
  * to render a result card. Only params the backend validator
  * (`modules/search/validators/searchValidators.js`) actually accepts are
- * ever sent: `keyword, categoryId, listingType, cityId, countryId, sort,
- * cursor, limit`.
+ * ever sent — see `docs/API_SPECIFICATION.md` §14.1 for each one's
+ * meaning. The first page's `meta.total` is the whole filtered count.
  * @param {{ keyword?: string, categoryId?: number, listingType?: string,
- *   cityId?: number, countryId?: number, locale?: string, sort?: string,
- *   cursor?: string, limit?: number }} params
+ *   cityId?: number, countryId?: number, partnerId?: number,
+ *   locale?: string, sort?: string, dateFrom?: string, dateTo?: string,
+ *   guests?: number, priceMin?: number, priceMax?: number,
+ *   excludeCategoryTop?: 'true', cursor?: string, limit?: number }} params
  */
 export function searchListings(params) {
   return apiClient.get('/search', { params }).then((response) => response.data);

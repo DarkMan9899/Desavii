@@ -19,6 +19,9 @@
 
 import { Money } from './money.js';
 
+/** The platform's one canonical/base currency (see the file header). */
+export const BASE_CURRENCY_CODE = 'AMD';
+
 const DECIMAL_STRING = /^-?\d+(\.\d+)?$/;
 
 function parseDecimalToScaledBigInt(value) {
@@ -100,12 +103,12 @@ export function convertAmdToDisplayCurrency(
   targetDecimalPlaces,
   amdPerUnit,
 ) {
-  if (amdMoney.currency !== 'AMD') {
+  if (amdMoney.currency !== BASE_CURRENCY_CODE) {
     throw new TypeError(
       `convertAmdToDisplayCurrency requires an AMD Money amount, got ${amdMoney.currency}.`,
     );
   }
-  if (targetCurrencyCode === 'AMD') {
+  if (targetCurrencyCode === BASE_CURRENCY_CODE) {
     return amdMoney;
   }
   const converted = divideDecimalStrings(
@@ -121,6 +124,7 @@ export function convertAmdToDisplayCurrency(
 }
 
 export default {
+  BASE_CURRENCY_CODE,
   divideDecimalStrings,
   normalizeAmdPerUnit,
   convertAmdToDisplayCurrency,

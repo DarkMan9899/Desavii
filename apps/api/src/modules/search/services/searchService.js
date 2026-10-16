@@ -15,6 +15,9 @@
 
 import { isPartnerOwner } from '../../../infrastructure/database/repositories/partnerEmployeeRepository.js';
 import { resolveSortOption } from '../../../core/domain/sortOptions.js';
+import { toBusinessDateTime } from '../../../core/domain/bookingTimebase.js';
+import { isoDateSchema } from '../../../validation/isoDate.js';
+import { ValidationError } from '../../../errors/AppError.js';
 
 const SUGGESTION_MIN_QUERY_LENGTH = 2;
 const ATTR_RANGE_PATTERN = /^attr_(.+)_(min|max)$/;
@@ -27,10 +30,19 @@ function toIdList(value) {
     .filter((id) => Number.isInteger(id) && id > 0);
 }
 
-/** DATE bounds stay a plain string (MySQL compares `YYYY-MM-DD` directly); every other type coerces to a number. */
+/**
+ * DATE bounds stay a plain string (MySQL compares `YYYY-MM-DD` directly);
+ * every other type coerces to a number. A bound of the wrong shape for its
+ * attribute's own type (a date sent for an INTEGER attribute, or a number
+ * for a DATE one) is dropped like an unknown code — never bound as `NaN`.
+ */
 function resolveBound(rawValue, isDate) {
   if (rawValue === undefined) return undefined;
-  return isDate ? rawValue : Number(rawValue);
+  if (isDate) {
+    return isoDateSchema.safeParse(rawValue).success ? rawValue : undefined;
+  }
+  const value = Number(rawValue);
+  return Number.isFinite(value) ? value : undefined;
 }
 
 /** `YYYY-MM-DD` minus one calendar day, in plain string form (no Date/timezone round-trip needed for a pure calendar-date subtraction). */
@@ -60,7 +72,10 @@ function previousDateString(dateStr) {
  */
 function resolveAvailabilityFilter({ dateFrom, dateTo, guests }) {
   if (!dateFrom || !dateTo) {
-    return undefined;
+    // No dates, no calendar to check — a party size alone still narrows
+    // to listings with a unit that could hold it (see the Repository's
+    // undated occupancy EXISTS), rather than being silently ignored.
+    return guests ? { occupancyGuests: Number(guests) } : undefined;
   }
   const lastNight = dateFrom === dateTo ? dateTo : previousDateString(dateTo);
   return {
@@ -208,8 +223,20 @@ export class SearchService {
       dateFrom,
       dateTo,
       guests,
+      priceMin,
+      priceMax,
+      excludeCategoryTop,
       ...rest
     } = params;
+
+    // A stay or departure that started before today (Asia/Yerevan, the
+    // same business date booking enforces) can never be booked, so a
+    // dated search for it would only list listings checkout rejects.
+    if (dateFrom && dateFrom < toBusinessDateTime(new Date()).date) {
+      throw new ValidationError('dateFrom must not be in the past.', [
+        { field: 'dateFrom', issue: 'DATE_IN_PAST' },
+      ]);
+    }
 
     const [visibility, { localeId, defaultLocaleId }, attributeFilters] =
       await Promise.all([
@@ -235,6 +262,9 @@ export class SearchService {
       defaultLocaleId,
       amenityIds: amenityIds ? toIdList(amenityIds) : undefined,
       attributeFilters,
+      priceMin,
+      priceMax,
+      excludeCategoryTop,
       ...availabilityFilter,
       ...visibility.filters,
     };

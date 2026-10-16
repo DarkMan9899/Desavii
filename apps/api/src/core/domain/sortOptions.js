@@ -1,6 +1,7 @@
 /**
  * Search sort-option resolution — Sprint 8's "newest/oldest/alphabetical/
- * relevance" sorting (`API_SPECIFICATION.md` §14). Pure domain lookup,
+ * relevance" sorting (`API_SPECIFICATION.md` §14), plus price low-to-high
+ * and high-to-low. Pure domain lookup,
  * mirrors `listingStatusTransitions.js`'s shape.
  *
  * `relevance` only means something when a keyword was supplied (it orders
@@ -31,6 +32,20 @@ const SORT_OPTIONS = Object.freeze({
     column: 'relevance_score',
     direction: 'DESC',
     requiresKeyword: true,
+  }),
+  // Search & Discovery rebuild: by the card's own AMD "from" price. Each
+  // direction has its own never-NULL sort key (see
+  // `mysqlSearchRepository.js`) so unpriced listings always come last and
+  // keyset pagination stays a plain tuple comparison.
+  price_asc: Object.freeze({
+    column: 'price_sort_asc',
+    direction: 'ASC',
+    requiresKeyword: false,
+  }),
+  price_desc: Object.freeze({
+    column: 'price_sort_desc',
+    direction: 'DESC',
+    requiresKeyword: false,
   }),
 });
 

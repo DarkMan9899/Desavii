@@ -22,6 +22,8 @@ import {
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { toBusinessDateTime } from '../../../src/core/domain/bookingTimebase.js';
+import { addIsoDays } from '../helpers/isoDates.js';
 
 const ONE_PX_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
@@ -51,12 +53,16 @@ let blackoutId;
 let soldOutUnitId;
 let carUnitId;
 
-const STAY_FROM = '2026-09-10';
-const STAY_TO = '2026-09-12'; // checkout-exclusive: consumed nights are 09-10, 09-11
-const TOUR_DAY = '2026-09-15';
-const CAR_FROM = '2026-09-20';
-const CAR_TO = '2026-09-22'; // VEHICLE keeps inclusive-both-ends: the rental spans 09-20, 09-21, AND 09-22
-const RESTAURANT_DAY = '2026-09-25';
+// Relative to the business date: `GET /search` rejects a dateFrom in the
+// past, so fixed calendar dates would silently expire this suite.
+const FIXTURE_BASE_DATE = addIsoDays(toBusinessDateTime(new Date()).date, 30);
+const STAY_FROM = FIXTURE_BASE_DATE;
+const STAY_TO = addIsoDays(FIXTURE_BASE_DATE, 2); // checkout-exclusive: consumed nights are STAY_FROM and the day after
+const TOUR_DAY = addIsoDays(FIXTURE_BASE_DATE, 5);
+const CAR_FROM = addIsoDays(FIXTURE_BASE_DATE, 10);
+const CAR_MIDDLE_DAY = addIsoDays(FIXTURE_BASE_DATE, 11);
+const CAR_TO = addIsoDays(FIXTURE_BASE_DATE, 12); // VEHICLE keeps inclusive-both-ends: the rental spans CAR_FROM, CAR_MIDDLE_DAY, AND CAR_TO
+const RESTAURANT_DAY = addIsoDays(FIXTURE_BASE_DATE, 15);
 
 async function login(email, password) {
   const res = await request(app)
@@ -426,7 +432,7 @@ describe('GET /search — availability filtering (Inventory Engine)', () => {
     // touches its one blocked day — proves the exclusion above is really
     // about the final-day check, not the vehicle being permanently gone.
     const clearRangeRes = await request(app).get(
-      `/api/v1/search?keyword=Availability&dateFrom=${CAR_FROM}&dateTo=2026-09-21&guests=1`,
+      `/api/v1/search?keyword=Availability&dateFrom=${CAR_FROM}&dateTo=${CAR_MIDDLE_DAY}&guests=1`,
     );
     expect(clearRangeRes.status).toBe(200);
     expect(clearRangeRes.body.data.map((r) => r.id)).toContain(listingCar);
@@ -445,17 +451,17 @@ describe('GET /search — availability filtering (Inventory Engine)', () => {
   // party size, the same as a TOUR_DEPARTURE's seat count. A single
   // available vehicle was excluded from any `guests >= 2` search even
   // though it had nothing to do with how many people it could seat.
-  // `CAR_FROM`..`2026-09-21` is the same "clear range" (no blocks) the
+  // `CAR_FROM`..`CAR_MIDDLE_DAY` is the same "clear range" (no blocks) the
   // existing inclusive-final-day test above already establishes.
   test('a single available VEHICLE remains discoverable for guests=2 and guests=3 (P0-C)', async () => {
     const guests2 = await request(app).get(
-      `/api/v1/search?keyword=Availability&dateFrom=${CAR_FROM}&dateTo=2026-09-21&guests=2`,
+      `/api/v1/search?keyword=Availability&dateFrom=${CAR_FROM}&dateTo=${CAR_MIDDLE_DAY}&guests=2`,
     );
     expect(guests2.status).toBe(200);
     expect(guests2.body.data.map((r) => r.id)).toContain(listingCar);
 
     const guests3 = await request(app).get(
-      `/api/v1/search?keyword=Availability&dateFrom=${CAR_FROM}&dateTo=2026-09-21&guests=3`,
+      `/api/v1/search?keyword=Availability&dateFrom=${CAR_FROM}&dateTo=${CAR_MIDDLE_DAY}&guests=3`,
     );
     expect(guests3.status).toBe(200);
     expect(guests3.body.data.map((r) => r.id)).toContain(listingCar);
@@ -506,6 +512,31 @@ describe('GET /search — availability filtering (Inventory Engine)', () => {
         listingTour,
       ]),
     );
+  });
+
+  // Search & Discovery rebuild: a party size with no dates used to be
+  // silently ignored. Without a calendar it still asks "could one unit
+  // ever hold this party" — the same per-type occupancy rule as the dated
+  // search, against each unit's static capacity.
+  test('guests without dates narrows by occupancy: max_guests for rooms, seats for departures', async () => {
+    const twoGuests = await request(app).get(
+      '/api/v1/search?keyword=Availability&guests=2&limit=100',
+    );
+    expect(twoGuests.status).toBe(200);
+    const twoIds = twoGuests.body.data.map((r) => r.id);
+    expect(twoIds).toContain(listingTour); // 2 seats
+    expect(twoIds).toContain(listingRoomy); // no max_guests set
+    expect(twoIds).not.toContain(listingSingleOccupancy); // sleeps 1
+
+    const threeGuests = await request(app).get(
+      '/api/v1/search?keyword=Availability&guests=3&limit=100',
+    );
+    const threeIds = threeGuests.body.data.map((r) => r.id);
+    expect(threeIds).not.toContain(listingTour);
+    // A vehicle's capacity is fleet inventory and a table's is concurrent
+    // reservations — never compared with the party, same as a dated search.
+    expect(threeIds).toContain(listingCar);
+    expect(threeIds).toContain(listingRestaurant);
   });
 
   test('dateFrom without dateTo is rejected with 422', async () => {

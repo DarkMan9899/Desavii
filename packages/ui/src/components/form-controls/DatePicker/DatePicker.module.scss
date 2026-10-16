@@ -8,10 +8,12 @@
 @use '../../../tokens/z-index' as z;
 @use '../../../functions' as fn;
 
+// Same label-to-control gap as Select and Input, so a date field lines
+// up with its neighbours in any row of fields.
 .field {
   display: flex;
   flex-direction: column;
-  gap: spacing.$space-2;
+  gap: spacing.$space-1;
 }
 
 .wrapper {

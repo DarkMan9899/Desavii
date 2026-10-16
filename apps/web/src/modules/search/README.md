@@ -88,6 +88,47 @@ city_name, country_id, cover_image_url, price_amount,
 price_currency_code, media_count, rating_average, review_count,
 created_at`.
 
+**Search & Discovery rebuild (2026-10) — supersedes the "not built"
+notes above where they disagree:**
+
+- **Page:** title → search panel (`SearchFilters`) → active-filter chips
+  (`ActiveFilters`) → total + sort (`SearchToolbar`) → results
+  (`SearchResults`). Compact page spacing, AI search collapsed behind a
+  toggle, and a one-line summary instead of five stacked fields on
+  phones — the old stack pushed the first result below the first
+  screen (the reported "white area").
+- **Apply model:** the primary fields (`SearchForm` from Tablet, the
+  `SearchFiltersDrawer` on phones) and the drawer's price/category
+  filters edit a local draft (`useSearchDraft`, `utils/searchDraft.js`)
+  and apply as one search on Search / Show results. Sort and chip
+  removal apply at once. The old bar wrote every change straight to the
+  URL, so the first click of a date range was written, dropped as an
+  unpaired date and reset the calendar — the date filter could never
+  be set.
+- **URL state:** `schemas/searchParams.js` parses structurally (real
+  calendar dates not in the past, ≤ 90 days; integer ids/prices; well-
+  formed `attr_*`/`amenityIds`), then `normalizeSearchFilters` applies
+  the catalogs (`?category=<slug>` → `categoryId`, unknown ids dropped)
+  and the category rules. `useSearchFilters` waits for the catalogs a
+  URL depends on (`isResolved`) and replaces a messy URL with its
+  canonical form, which maps to the same request — one request per
+  search, reload/Back/copied links reopen the same state.
+- **Destination** is now a real city (`cityId`, from
+  `GET /search/destinations`, only cities with listings). The free-text
+  field is the keyword (URL param still `destination`, for old links).
+- **Category rules** (`utils/categoryFilterCapabilities.js`):
+  stays — check-in/check-out; car rentals — pick-up/return, no party;
+  restaurants — one date, no party (a table's availability never
+  depends on party size, so the filter would do nothing); tours /
+  attractions / entertainment venues — one date, party named
+  Travelers / Visitors / Participants. Changing category drops the old
+  category's attribute filters.
+- **Price:** min/max in AMD against the card's "from" price — prices are
+  authored in AMD and the filter never converts currencies.
+- **Sort:** adds `price_asc` / `price_desc`.
+- **Count:** the toolbar shows the whole filtered total (`meta.total`),
+  not the number of cards loaded so far.
+
 **Future AI Search preparation:** `SearchResults` takes a plain
 `results` array plus loading/error/pagination props — it has no
 knowledge of `useSearchListingsQuery`, `useSearchFilters`, or "classic"

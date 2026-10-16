@@ -58,6 +58,9 @@ vi.mock('../modules/search/queries/useSearchListingsQuery.js', () => ({
 vi.mock('../modules/search/queries/useCategoriesQuery.js', () => ({
   useCategoriesQuery: vi.fn(() => ({ data: [], isPending: false })),
 }));
+vi.mock('../modules/search/queries/useDestinationsQuery.js', () => ({
+  useDestinationsQuery: vi.fn(() => ({ data: [], isPending: false })),
+}));
 vi.mock('../modules/search/queries/useSearchFilterDefinitionsQuery.js', () => ({
   useSearchFilterDefinitionsQuery: vi.fn(() => ({
     data: undefined,
@@ -133,9 +136,12 @@ describe('Real page-level canonical output stays clean under dirty query strings
         sort: 'newest',
         dynamicFilters: {},
       },
+      categorySlug: undefined,
+      isResolved: true,
       updateFilters: vi.fn(),
       updateDynamicFilter: vi.fn(),
       clearFilters: vi.fn(),
+      activeFilterCount: 1,
       hasActiveFilters: true,
     });
 

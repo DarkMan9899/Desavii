@@ -488,8 +488,8 @@
   },
   "search": {
     "filters": {
-      "keywordLabel": "Поиск",
-      "keywordPlaceholder": "Направления, жильё, впечатления...",
+      "keywordLabel": "Ключевое слово",
+      "keywordPlaceholder": "Название, занятие или место",
       "categoryLabel": "Категория",
       "categoryAll": "Все категории",
       "sortLabel": "Сортировать по",
@@ -497,16 +497,83 @@
         "newest": "Сначала новые",
         "oldest": "Сначала старые",
         "alphabetical": "А–Я",
-        "relevance": "Лучшее совпадение"
+        "relevance": "Лучшее совпадение",
+        "price_asc": "Сначала дешевле",
+        "price_desc": "Сначала дороже"
       },
-      "datesLabel": "Даты",
-      "datesPlaceholder": "Добавить даты",
-      "guestsLabel": "Гости",
-      "guestsPlaceholder": "Добавить гостей",
-      "guestsCount": "{{count}} гостей",
       "activeFilters": "Активные фильтры",
       "removeFilter": "Убрать фильтр «{{label}}»",
-      "clearAll": "Сбросить фильтры"
+      "clearAll": "Сбросить фильтры",
+      "destinationLabel": "Направление",
+      "destinationAll": "Любое место",
+      "destinationOption": "{{name}} ({{count}})",
+      "dates": {
+        "range": {
+          "label": "Даты",
+          "placeholder": "Добавить даты",
+          "endRequired": "Выберите дату окончания"
+        },
+        "stay": {
+          "label": "Заезд – выезд",
+          "placeholder": "Добавить даты проживания",
+          "endRequired": "Выберите дату выезда"
+        },
+        "rental": {
+          "label": "Получение – возврат",
+          "placeholder": "Добавить даты аренды",
+          "endRequired": "Выберите дату возврата"
+        },
+        "day": {
+          "label": "Дата",
+          "placeholder": "Добавить дату"
+        }
+      },
+      "party": {
+        "guests": "Гости",
+        "travelers": "Путешественники",
+        "visitors": "Посетители",
+        "participants": "Участники"
+      },
+      "partyCount": {
+        "guests_one": "{{count}} гость",
+        "guests_few": "{{count}} гостя",
+        "guests_many": "{{count}} гостей",
+        "guests_other": "{{count}} гостя",
+        "travelers_one": "{{count}} путешественник",
+        "travelers_few": "{{count}} путешественника",
+        "travelers_many": "{{count}} путешественников",
+        "travelers_other": "{{count}} путешественника",
+        "visitors_one": "{{count}} посетитель",
+        "visitors_few": "{{count}} посетителя",
+        "visitors_many": "{{count}} посетителей",
+        "visitors_other": "{{count}} посетителя",
+        "participants_one": "{{count}} участник",
+        "participants_few": "{{count}} участника",
+        "participants_many": "{{count}} участников",
+        "participants_other": "{{count}} участника"
+      },
+      "partyPlaceholder": "Любое",
+      "submit": "Найти",
+      "editSearchSummary": "Изменить поиск: {{summary}}",
+      "summaryEverything": "Все объявления",
+      "filtersButton": "Фильтры",
+      "filtersButtonActive": "Фильтры, активно: {{count}}",
+      "drawerTitle": "Фильтры",
+      "sections": {
+        "search": "Поиск",
+        "price": "Цена"
+      },
+      "price": {
+        "minLabel": "Минимум (AMD)",
+        "maxLabel": "Максимум (AMD)",
+        "hint": "Сравнивается с начальной ценой каждого объявления, в армянских драмах.",
+        "invalidRange": "Минимум не может быть больше максимума.",
+        "chipRange": "{{min}} – {{max}}",
+        "chipMin": "От {{min}}",
+        "chipMax": "До {{max}}"
+      },
+      "keywordChip": "«{{keyword}}»",
+      "apply": "Показать результаты"
     },
     "aiSearch": {
       "ariaLabel": "Поиск с помощью ИИ",
@@ -514,7 +581,9 @@
       "placeholder": "например: недорогие отели с бассейном в Ереване",
       "submit": "Искать с ИИ",
       "submitting": "Поиск...",
-      "error": "Не удалось обработать запрос — попробуйте ещё раз."
+      "error": "Не удалось обработать запрос — попробуйте ещё раз.",
+      "toggle": "Опишите поездку ИИ",
+      "hide": "Скрыть поиск с ИИ"
     },
     "dynamicFilters": {
       "triggerLabel": "Фильтры",
@@ -574,16 +643,22 @@
     },
     "results": {
       "loadMore": "Показать ещё",
-      "count": "{{count}} результатов",
       "empty": {
         "title": "Ничего не найдено",
-        "description": "Попробуйте изменить поиск или фильтры."
+        "description": "Попробуйте изменить поиск или фильтры.",
+        "withDates": "На эти даты ничего не найдено. Попробуйте другие даты или меньше фильтров."
       },
       "error": {
         "title": "Не удалось загрузить результаты",
         "description": "Что-то пошло не так во время поиска. Попробуйте ещё раз.",
         "retry": "Повторить"
-      }
+      },
+      "count_one": "{{count}} результат",
+      "count_few": "{{count}} результата",
+      "count_many": "{{count}} результатов",
+      "count_other": "{{count}} результата",
+      "updating": "Обновляем результаты…",
+      "loading": "Ищем…"
     },
     "card": {
       "viewDetails": "Смотреть {{title}}",

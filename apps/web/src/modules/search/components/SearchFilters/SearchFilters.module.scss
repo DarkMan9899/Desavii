@@ -1,99 +1,149 @@
 // SearchFilters — tokens only, consumed from @desavii/ui.
+//
+// One elevated panel. Phones: the summary button and Filters share the
+// first row, the AI toggle sits under them — about 120px in all, so the
+// first results show on the first screen. Tablet+: the inline form, then
+// Filters and the AI toggle in one row.
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
 @use 'mixins/focus-ring' as focus;
 
-// Redesign phase (2026) — the filter bar as one elevated, rounded panel
-// rather than controls floating loose on the page background. `radius-xl`
-// (not the usual `radius-lg`) reads more like an intentional "premium
-// instrument panel" for the search experience specifically.
-.filters {
+.panel {
   display: flex;
   flex-direction: column;
-  gap: tokens.$space-4;
-  margin-block-end: tokens.$space-8;
-  padding: tokens.$space-4;
+  gap: tokens.$space-3;
+  padding: tokens.$space-3;
   border-radius: tokens.$radius-xl;
   background-color: tokens.$color-white;
   @include tokens.elevation-2;
 
   @include respond.respond(tablet) {
+    gap: tokens.$space-4;
     padding: tokens.$space-6;
   }
 }
 
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: tokens.$space-3;
-  align-items: flex-end;
-}
-
-.keywordField {
-  flex: 1 1 100%;
+.inlineForm {
+  display: none;
 
   @include respond.respond(tablet) {
-    flex: 1 1 260px;
+    display: block;
   }
 }
 
-.categoryField,
-.sortField,
-.datesField,
-.guestsField {
-  flex: 1 1 calc(50% - #{tokens.$space-2});
-
-  @include respond.respond(tablet) {
-    flex: 0 1 220px;
-  }
-}
-
-.chips {
+.bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: tokens.$space-2;
 }
 
-.chip {
-  // Vertical padding widens the tap target beyond the Badge's own
-  // ~20px visual height (the Badge's own padding/border-radius still
-  // draw the visible pill; this button just adds invisible margin
-  // around it) without enlarging how the chip looks.
-  display: inline-flex;
+// --- Phone summary --------------------------------------------------------
+
+.summary {
+  display: flex;
+  flex: 1 1 0;
   align-items: center;
-  gap: tokens.$space-1;
-  padding: tokens.$space-2 0;
-  border: none;
-  background: none;
+  gap: tokens.$space-3;
+  min-width: 0;
+  min-height: tokens.$input-height-md;
+  padding: tokens.$space-2 tokens.$space-3;
+  border: 1px solid tokens.$color-gray-200;
+  border-radius: tokens.$radius-md;
+  background-color: tokens.$color-white;
+  color: tokens.$color-gray-900;
+  font-family: tokens.$font-body;
+  text-align: start;
   cursor: pointer;
-  border-radius: tokens.$radius-full;
   @include focus.focus-ring;
 
-  svg {
-    color: tokens.$color-gray-600;
-    transition: color tokens.$motion-micro tokens.$ease-out;
-    @include tokens.reduced-motion-safe;
+  &:hover {
+    border-color: tokens.$color-royal-blue;
   }
 
-  &:hover svg {
-    color: tokens.$color-danger;
+  @include respond.respond(tablet) {
+    display: none;
   }
 }
 
-// Standard visually-hidden pattern (matches Checkbox/Radio/Switch's own
-// `.input` treatment) — the chip's accessible name ("Remove X filter")
-// differs from what's visually shown (the badge label + an icon), so a
-// screen-reader-only span carries the fuller text.
-.chipSrLabel {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
+.summaryIcon {
+  flex-shrink: 0;
+  color: tokens.$color-royal-blue;
+}
+
+.summaryText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.summaryTitle,
+.summaryDetails {
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  text-overflow: ellipsis;
   white-space: nowrap;
-  border: 0;
+}
+
+.summaryTitle {
+  font-size: tokens.$font-size-body;
+  line-height: tokens.$line-height-body;
+  font-weight: 600;
+}
+
+.summaryDetails {
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+}
+
+.filtersLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-2;
+}
+
+// --- AI search toggle -----------------------------------------------------
+
+.aiToggle {
+  display: inline-flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: tokens.$space-2;
+  min-height: tokens.$button-height-sm;
+  padding: 0 tokens.$space-1;
+  border: none;
+  border-radius: tokens.$radius-md;
+  background: none;
+  color: tokens.$color-royal-blue;
+  font-family: tokens.$font-body;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  font-weight: 600;
+  cursor: pointer;
+  @include focus.focus-ring;
+
+  &:hover .aiLabel {
+    text-decoration: underline;
+  }
+
+  @include respond.respond(tablet) {
+    flex-basis: auto;
+    min-height: tokens.$button-height-md;
+    padding: 0 tokens.$space-2;
+  }
+}
+
+.aiLabel {
+  text-align: start;
+}
+
+.chevron {
+  flex-shrink: 0;
+  transition: transform tokens.$motion-micro tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
 }

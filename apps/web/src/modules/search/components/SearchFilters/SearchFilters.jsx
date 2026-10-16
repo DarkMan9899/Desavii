@@ -1,301 +1,176 @@
 /**
- * SearchFilters — the "classic search" filter bar: keyword, category,
- * sort, plus active-filter chips and a clear-all action.
+ * SearchFilters — the Search page's search panel, everything above the
+ * results that edits the search:
  *
- * Every other filter (rating, rooms, cuisine, amenities, and any
- * category-specific attribute) is dynamic, backend-declared metadata, not
- * a fixed set this component could enumerate — that's
- * `DynamicFilterPanel`'s job (Phase 4.2), rendered as a sibling next to
- * this component in `SearchPageContent`, never folded into this file.
- * Still no city/country/region controls here — no endpoint exists yet to
- * enumerate real option values for them. See `modules/search/README.md`.
+ * - From Tablet: `SearchForm`, the primary fields inline with a Search
+ *   button.
+ * - On phones: a one-line summary of the applied search (what · when ·
+ *   who) that opens the drawer, so the results start within the first
+ *   screen instead of below five stacked fields.
+ * - "Filters" (every width): opens `SearchFiltersDrawer` — price and the
+ *   category's own filters, plus the primary fields on phones. Its badge
+ *   counts the filters only the drawer shows.
+ * - AI search, collapsed behind a toggle: `AiSearchBar` (Stage 15.2)
+ *   turns a sentence into the same filters through `onAiApply`.
  *
- * Deliberately scoped to *this* (classic) search mode only — Stage 15.2's
- * `AiSearchBar` is a sibling component with its own state, not a change
- * to this one; `SearchPageContent` is the seam where the two coexist.
+ * Owns no filter state: the applied filters come from `useSearchFilters`
+ * (the URL), and every edit is a local draft until applied.
  */
 
-import { useEffect, useState } from 'react';
+import { useId, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { Search, X } from 'lucide-react';
+import { ChevronDown, Search, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { Badge, Button } from '@desavii/ui/components/primitives';
+import SearchForm from '../SearchForm/SearchForm.jsx';
+import SearchFiltersDrawer from '../SearchFiltersDrawer/SearchFiltersDrawer.jsx';
+import { AiSearchBar } from '../../../ai/index.js';
+import { getSearchCapabilities } from '../../utils/categoryFilterCapabilities.js';
+import { formatSearchDates } from '../../utils/activeSearchChips.js';
 import {
-  Input,
-  Select,
-  DatePicker,
-} from '@desavii/ui/components/form-controls';
-import { Button, Badge } from '@desavii/ui/components/primitives';
-import { useCategoriesQuery } from '../../queries/useCategoriesQuery.js';
-import {
-  SORT_KEYS,
-  SORT_OPTION_META,
-} from '../../../../constants/sortOptions.js';
-import { shouldShowGuestsFilter } from '../../utils/categoryFilterCapabilities.js';
-import { getBusinessToday } from '../../../../utils/businessDate.js';
-import useSelectTexts from '../../../../hooks/useSelectTexts.js';
+  categoryShape,
+  destinationShape,
+  searchFiltersShape,
+} from '../../constants/propShapes.js';
 import styles from './SearchFilters.module.scss';
 
-const KEYWORD_DEBOUNCE_MS = 400;
-// P1.1 (Master Roadmap): mirrors the Homepage SearchWidget's own guest
-// list — two independent call sites, not worth centralizing an 8-item
-// array over.
-const GUEST_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8];
+function countDrawerOnlyFilters(filters) {
+  const hasPrice =
+    filters.priceMin !== undefined || filters.priceMax !== undefined;
+  return (hasPrice ? 1 : 0) + Object.keys(filters.dynamicFilters).length;
+}
 
 export default function SearchFilters({
   filters,
-  onUpdateFilters,
-  onClearFilters,
-  hasActiveFilters,
+  categories,
+  destinations,
+  onApply,
+  onAiApply,
 }) {
-  const selectTexts = useSelectTexts();
   const { t, i18n } = useTranslation();
-  const { data: categories = [] } = useCategoriesQuery();
-  const [keywordText, setKeywordText] = useState(filters.destination);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const aiPanelId = useId();
 
-  // Resync the local input when the URL changes from elsewhere (a chip
-  // removal, clear-all, or browser Back/Forward) — never fires for this
-  // component's own debounced write, since that write only happens once
-  // `keywordText` already equals `filters.destination` (see below).
-  useEffect(() => {
-    setKeywordText(filters.destination);
-  }, [filters.destination]);
-
-  useEffect(() => {
-    if (keywordText === filters.destination) return undefined;
-    const timeout = setTimeout(() => {
-      onUpdateFilters({ destination: keywordText }, { replace: true });
-    }, KEYWORD_DEBOUNCE_MS);
-    return () => clearTimeout(timeout);
-    // Only the debounced text itself should re-arm the timer; including
-    // filters.destination/onUpdateFilters would re-fire this on every
-    // URL change, defeating the debounce.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keywordText]);
-
-  const categoryOptions = [
-    { value: '', label: t('search.filters.categoryAll') },
-    ...categories.map((category) => ({
-      value: String(category.id),
-      label: category.name,
-    })),
-  ];
-
-  const sortOptions = SORT_KEYS.filter(
-    (key) => !SORT_OPTION_META[key].requiresKeyword || filters.destination,
-  ).map((key) => ({ value: key, label: t(`search.filters.sort.${key}`) }));
-
-  const selectedCategory = categories.find(
-    (category) => category.id === filters.categoryId,
+  const category = categories.find(
+    (candidate) => candidate.id === filters.categoryId,
   );
-  const showGuests = shouldShowGuestsFilter(selectedCategory?.slug);
+  const city = destinations.find(
+    (destination) => destination.id === filters.cityId,
+  );
+  const { party } = getSearchCapabilities(category?.slug);
 
-  // Strip an already-set guests value the moment the selected category
-  // stops supporting it (e.g. switching to Car Rentals), so it can't
-  // silently keep constraining results for a category it's meaningless
-  // for, nor reappear as a stale chip.
-  useEffect(() => {
-    if (!showGuests && filters.guests) {
-      onUpdateFilters({ guests: undefined }, { replace: true });
-    }
-  }, [showGuests, filters.guests, onUpdateFilters]);
+  const summaryTitle =
+    (filters.destination &&
+      t('search.filters.keywordChip', { keyword: filters.destination })) ||
+    [city?.name, category?.name].filter(Boolean).join(' · ') ||
+    t('search.filters.summaryEverything');
+  const summaryDetails = [
+    filters.dateFrom &&
+      formatSearchDates(filters.dateFrom, filters.dateTo, i18n.language),
+    filters.guests &&
+      party &&
+      t(`search.filters.partyCount.${party}`, { count: filters.guests }),
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
-  const guestOptions = GUEST_COUNTS.map((count) => ({
-    value: String(count),
-    label: t('search.filters.guestsCount', { count }),
-  }));
-  // Step L6.2E: Armenia's business date, never the UTC date.
-  const today = getBusinessToday();
-  const dateRangeValue = {
-    start: filters.dateFrom ?? null,
-    end: filters.dateTo ?? null,
-  };
-  const datesLabel =
-    filters.dateFrom && filters.dateTo
-      ? `${filters.dateFrom} – ${filters.dateTo}`
-      : '';
+  const drawerOnlyCount = countDrawerOnlyFilters(filters);
 
   return (
-    <div className={styles.filters}>
-      <div className={styles.controls}>
-        <div className={styles.keywordField}>
-          <Input
-            aria-label={t('search.filters.keywordLabel')}
-            placeholder={t('search.filters.keywordPlaceholder')}
-            value={keywordText}
-            onChange={(event) => setKeywordText(event.target.value)}
-            iconLeft={<Search size={18} aria-hidden="true" />}
-          />
-        </div>
-        <div className={styles.categoryField}>
-          <Select
-            searchPlaceholder={selectTexts.searchPlaceholder}
-            noOptionsMessage={selectTexts.noOptionsMessage}
-            ariaLabel={t('search.filters.categoryLabel')}
-            placeholder={t('search.filters.categoryAll')}
-            options={categoryOptions}
-            value={filters.categoryId ? String(filters.categoryId) : ''}
-            onChange={(value) =>
-              onUpdateFilters(
-                { categoryId: value ? Number(value) : undefined },
-                { replace: false },
-              )
-            }
-          />
-        </div>
-        <div className={styles.sortField}>
-          <Select
-            ariaLabel={t('search.filters.sortLabel')}
-            options={sortOptions}
-            value={filters.sort}
-            onChange={(value) =>
-              onUpdateFilters({ sort: value }, { replace: false })
-            }
-          />
-        </div>
-        <div className={styles.datesField}>
-          <DatePicker
-            mode="range"
-            ariaLabel={t('search.filters.datesLabel')}
-            placeholder={t('search.filters.datesPlaceholder')}
-            value={dateRangeValue}
-            onChange={(value) =>
-              onUpdateFilters(
-                { dateFrom: value.start, dateTo: value.end },
-                { replace: false },
-              )
-            }
-            minDate={today}
-            locale={i18n.language}
-            previousMonthLabel={t(
-              'partner.listingWizard.datePicker.previousMonth',
-            )}
-            nextMonthLabel={t('partner.listingWizard.datePicker.nextMonth')}
-          />
-        </div>
-        {showGuests && (
-          <div className={styles.guestsField}>
-            <Select
-              ariaLabel={t('search.filters.guestsLabel')}
-              placeholder={t('search.filters.guestsPlaceholder')}
-              options={guestOptions}
-              value={filters.guests ? String(filters.guests) : ''}
-              onChange={(value) =>
-                onUpdateFilters(
-                  { guests: value ? Number(value) : undefined },
-                  { replace: false },
-                )
-              }
-            />
-          </div>
-        )}
+    <div className={styles.panel}>
+      <div className={styles.inlineForm}>
+        <SearchForm
+          filters={filters}
+          categories={categories}
+          destinations={destinations}
+          onApply={onApply}
+        />
       </div>
 
-      {hasActiveFilters && (
-        <div
-          className={styles.chips}
-          role="group"
-          aria-label={t('search.filters.activeFilters')}
+      <div className={styles.bar}>
+        <button
+          type="button"
+          className={styles.summary}
+          onClick={() => setIsDrawerOpen(true)}
+          aria-label={t('search.filters.editSearchSummary', {
+            summary: [summaryTitle, summaryDetails].filter(Boolean).join(', '),
+          })}
         >
-          {filters.destination && (
-            <button
-              type="button"
-              className={styles.chip}
-              onClick={() =>
-                onUpdateFilters({ destination: '' }, { replace: false })
-              }
-            >
-              <Badge variant="neutral" label={filters.destination} size="sm" />
-              <X size={14} aria-hidden="true" />
-              <span className={styles.chipSrLabel}>
-                {t('search.filters.removeFilter', {
-                  label: filters.destination,
-                })}
-              </span>
-            </button>
+          <Search size={18} aria-hidden="true" className={styles.summaryIcon} />
+          <span className={styles.summaryText}>
+            <span className={styles.summaryTitle}>{summaryTitle}</span>
+            {summaryDetails && (
+              <span className={styles.summaryDetails}>{summaryDetails}</span>
+            )}
+          </span>
+        </button>
+        <Button
+          variant="secondary"
+          size="md"
+          iconLeft={<SlidersHorizontal size={18} aria-hidden="true" />}
+          onClick={() => setIsDrawerOpen(true)}
+          ariaLabel={
+            drawerOnlyCount > 0
+              ? t('search.filters.filtersButtonActive', {
+                  count: drawerOnlyCount,
+                })
+              : undefined
+          }
+        >
+          <span className={styles.filtersLabel}>
+            {t('search.filters.filtersButton')}
+          </span>
+          {drawerOnlyCount > 0 && (
+            <Badge
+              variant="info"
+              label={String(drawerOnlyCount)}
+              size="sm"
+              filled
+            />
           )}
-          {selectedCategory && (
-            <button
-              type="button"
-              className={styles.chip}
-              onClick={() =>
-                onUpdateFilters({ categoryId: undefined }, { replace: false })
-              }
-            >
-              <Badge
-                variant="neutral"
-                label={selectedCategory.name}
-                size="sm"
-              />
-              <X size={14} aria-hidden="true" />
-              <span className={styles.chipSrLabel}>
-                {t('search.filters.removeFilter', {
-                  label: selectedCategory.name,
-                })}
-              </span>
-            </button>
-          )}
-          {datesLabel && (
-            <button
-              type="button"
-              className={styles.chip}
-              onClick={() =>
-                onUpdateFilters(
-                  { dateFrom: undefined, dateTo: undefined },
-                  { replace: false },
-                )
-              }
-            >
-              <Badge variant="neutral" label={datesLabel} size="sm" />
-              <X size={14} aria-hidden="true" />
-              <span className={styles.chipSrLabel}>
-                {t('search.filters.removeFilter', { label: datesLabel })}
-              </span>
-            </button>
-          )}
-          {showGuests && filters.guests && (
-            <button
-              type="button"
-              className={styles.chip}
-              onClick={() =>
-                onUpdateFilters({ guests: undefined }, { replace: false })
-              }
-            >
-              <Badge
-                variant="neutral"
-                label={t('search.filters.guestsCount', {
-                  count: filters.guests,
-                })}
-                size="sm"
-              />
-              <X size={14} aria-hidden="true" />
-              <span className={styles.chipSrLabel}>
-                {t('search.filters.removeFilter', {
-                  label: t('search.filters.guestsCount', {
-                    count: filters.guests,
-                  }),
-                })}
-              </span>
-            </button>
-          )}
-          <Button variant="ghost" size="sm" onClick={onClearFilters}>
-            {t('search.filters.clearAll')}
-          </Button>
-        </div>
-      )}
+        </Button>
+        <button
+          type="button"
+          className={styles.aiToggle}
+          onClick={() => setIsAiOpen((open) => !open)}
+          aria-expanded={isAiOpen}
+          aria-controls={aiPanelId}
+        >
+          <Sparkles size={18} aria-hidden="true" />
+          <span className={styles.aiLabel}>
+            {isAiOpen ? t('search.aiSearch.hide') : t('search.aiSearch.toggle')}
+          </span>
+          <ChevronDown
+            size={16}
+            aria-hidden="true"
+            className={[styles.chevron, isAiOpen && styles.chevronOpen]
+              .filter(Boolean)
+              .join(' ')}
+          />
+        </button>
+      </div>
+
+      <div id={aiPanelId} hidden={!isAiOpen}>
+        {isAiOpen && <AiSearchBar onApply={onAiApply} />}
+      </div>
+
+      <SearchFiltersDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        filters={filters}
+        categories={categories}
+        destinations={destinations}
+        onApply={onApply}
+      />
     </div>
   );
 }
 
 SearchFilters.propTypes = {
-  filters: PropTypes.shape({
-    destination: PropTypes.string,
-    categoryId: PropTypes.number,
-    sort: PropTypes.string,
-    dateFrom: PropTypes.string,
-    dateTo: PropTypes.string,
-    guests: PropTypes.number,
-  }).isRequired,
-  onUpdateFilters: PropTypes.func.isRequired,
-  onClearFilters: PropTypes.func.isRequired,
-  hasActiveFilters: PropTypes.bool.isRequired,
+  filters: searchFiltersShape.isRequired,
+  categories: PropTypes.arrayOf(categoryShape).isRequired,
+  destinations: PropTypes.arrayOf(destinationShape).isRequired,
+  onApply: PropTypes.func.isRequired,
+  onAiApply: PropTypes.func.isRequired,
 };

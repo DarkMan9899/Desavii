@@ -3,12 +3,11 @@
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
 
-.resultCount {
-  margin: 0 0 tokens.$space-4;
-  font-size: tokens.$font-size-small;
-  font-weight: 600;
-  color: tokens.$color-gray-600;
-  letter-spacing: 0.01em;
+// The previous results while a changed search loads: still readable,
+// clearly not final, never interactive mid-swap.
+.updating {
+  opacity: 0.5; // the same dimming as a disabled Button
+  pointer-events: none;
 }
 
 .grid {

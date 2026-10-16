@@ -22,6 +22,8 @@ export const SORT_KEYS = Object.freeze([
   'oldest',
   'alphabetical',
   'relevance',
+  'price_asc',
+  'price_desc',
 ]);
 
 export const DEFAULT_SORT_KEY = 'newest';
@@ -31,6 +33,8 @@ export const SORT_OPTION_META = Object.freeze({
   oldest: { requiresKeyword: false },
   alphabetical: { requiresKeyword: false },
   relevance: { requiresKeyword: true },
+  price_asc: { requiresKeyword: false },
+  price_desc: { requiresKeyword: false },
 });
 
 export default {

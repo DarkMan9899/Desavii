@@ -17,7 +17,7 @@ import searchKeys from '../constants/queryKeys.js';
 
 export function useCategoriesQuery({ locale } = {}) {
   return useQuery({
-    queryKey: searchKeys.categories(),
+    queryKey: searchKeys.categories(locale),
     queryFn: async () => {
       const { data } = await getCategories({ locale });
       return data;

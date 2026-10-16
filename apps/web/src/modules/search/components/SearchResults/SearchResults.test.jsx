@@ -73,14 +73,27 @@ describe('SearchResults (apps/web/src/modules/search)', () => {
     expect(links[0]).toHaveAttribute('href', '/en/listings/1');
   });
 
-  // P2.2D: a truthful, screen-reader-announced count of what's currently
-  // loaded — never a fabricated total the cursor-paginated API can't
-  // provide.
-  test('renders an aria-live result count matching the loaded results, not a fabricated total', () => {
-    renderResults({ results: RESULTS });
-    const count = screen.getByText('2 արդյունք');
-    expect(count).toBeInTheDocument();
-    expect(count).toHaveAttribute('aria-live', 'polite');
+  // Search & Discovery rebuild: the count lives in SearchToolbar (the whole
+  // filtered total). While a changed search loads, the previous cards stay
+  // on screen and are marked busy instead of collapsing to skeletons.
+  test('keeps the previous cards on screen, marked busy, while a changed search loads', () => {
+    const { container } = renderResults({ results: RESULTS, isUpdating: true });
+    expect(screen.getAllByRole('link')).toHaveLength(2);
+    expect(container.firstChild).toHaveAttribute('aria-busy', 'true');
+  });
+
+  test('the empty state shows the caller description and its one way out', async () => {
+    const onEmptyAction = vi.fn();
+    const user = userEvent.setup();
+    renderResults({
+      results: [],
+      emptyDescription: 'Nothing on these dates.',
+      emptyActionLabel: 'Clear filters',
+      onEmptyAction,
+    });
+    expect(screen.getByText('Nothing on these dates.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(onEmptyAction).toHaveBeenCalledTimes(1);
   });
 
   test('renders a "load more" control only when hasNextPage is true', () => {

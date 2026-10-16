@@ -11,7 +11,7 @@ import searchKeys from '../constants/queryKeys.js';
 
 export function useDestinationsQuery({ locale } = {}) {
   return useQuery({
-    queryKey: searchKeys.destinations(),
+    queryKey: searchKeys.destinations(locale),
     queryFn: async () => {
       const { data } = await getDestinations({ locale });
       return data;

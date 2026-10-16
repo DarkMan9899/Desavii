@@ -1,0 +1,26 @@
+// SearchPageContent — tokens only, consumed from @desavii/ui.
+//
+// A working page, not a marketing band: compact top spacing so the
+// search panel and the first results sit on the first screen.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+
+.page {
+  padding-block: tokens.$space-6 tokens.$space-16;
+
+  @include respond.respond(tablet) {
+    padding-block-start: tokens.$space-8;
+  }
+}
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-4;
+  min-width: 0;
+
+  @include respond.respond(tablet) {
+    gap: tokens.$space-6;
+  }
+}

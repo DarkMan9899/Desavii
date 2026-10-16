@@ -35,13 +35,24 @@ test.describe('Search', () => {
       page.locator('a[href*="/en/listings/"]').first(),
     ).toBeVisible();
 
-    await page.getByPlaceholder(/Search destinations/i).fill('Hotel');
-    await expect(page.getByText(/Hotel/i).first()).toBeVisible();
-    await page.getByPlaceholder(/Search destinations/i).fill('');
+    // Search & Discovery rebuild: the form applies on Search, not per
+    // keystroke.
+    const form = page.getByRole('search');
+    const hotelCard = page
+      .locator('main a[href*="/en/listings/"]')
+      .filter({ hasText: /Hotel/i })
+      .first();
+    await form.getByLabel('Keyword').fill('Hotel');
+    await form.getByRole('button', { name: 'Search' }).click();
+    await expect(page).toHaveURL(/destination=Hotel/);
+    await expect(hotelCard).toBeVisible();
 
-    await page.getByRole('combobox', { name: 'Category' }).click();
-    await page.getByRole('option', { name: 'Hotels' }).click();
-    await expect(page.getByText(/Hotel/i).first()).toBeVisible();
+    await form.getByLabel('Keyword').fill('');
+    await form.getByRole('combobox', { name: 'Category' }).click();
+    await page.getByRole('option', { name: 'Hotels', exact: true }).click();
+    await form.getByRole('button', { name: 'Search' }).click();
+    await expect(page).toHaveURL(/categoryId=\d+/);
+    await expect(hotelCard).toBeVisible();
   });
 });
 

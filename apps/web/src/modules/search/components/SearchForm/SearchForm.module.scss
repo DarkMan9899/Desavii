@@ -1,0 +1,29 @@
+// SearchForm — tokens only, consumed from @desavii/ui.
+//
+// Fields above the Search button at Tablet; one row with the button
+// aligned to the fields' input line at Laptop+.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-3;
+  min-width: 0;
+
+  > :first-child {
+    flex: 1 1 auto;
+  }
+
+  @include respond.respond(laptop) {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}

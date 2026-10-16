@@ -1,130 +1,147 @@
 /**
  * SearchPageContent — the `search` module's page-level content.
  *
- * Phase 4 (Search & Discovery): real `GET /search` results, replacing
- * the earlier `UnderConstructionPage` placeholder. Filter state lives in
- * the URL (`useSearchFilters`) and results come from `GET /search`
- * directly (`useSearchListingsQuery`, `useInfiniteQuery` over the
- * backend's own cursor pagination) — no fake data, no endpoint that
- * doesn't already exist.
+ * Reading order, top to bottom: title → the search panel
+ * (`SearchFilters`: primary fields inline on Tablet+, a one-line summary
+ * plus the filters drawer on phones, AI search behind a toggle) → active
+ * filter chips → result count and sort (`SearchToolbar`) → results.
+ * The page uses compact spacing (not a marketing `Section`'s 64–96px
+ * band) so the first results start on the first screen at every width —
+ * the old stack of section padding, an always-open AI panel and five
+ * stacked fields pushed them below the fold on phones.
  *
- * Stage 15.2 (AI Search) wires `AiSearchBar` in as exactly the seam this
- * component was always meant to be: it parses free text into real
- * filters (`ai` module, `POST /ai/search/parse`) and applies them
- * through the same `updateFilters` write path `SearchFilters` already
- * uses — no parallel filter state, no change to `SearchFilters` or
- * `SearchResults` themselves. See `modules/search/README.md`'s Phase 4
- * section.
+ * Filter state lives only in the URL (`useSearchFilters`); the
+ * categories and destinations catalogs it needs are loaded here, and the
+ * search waits until they have resolved what the URL means
+ * (`isResolved`), so a deep link sends exactly one request. Results come
+ * from `GET /search` (`useSearchListingsQuery`, cursor pagination via
+ * "Load more"), keeping the previous cards on screen while a changed
+ * search loads.
  */
 
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Section } from '@desavii/ui/components/layout';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import useSeo from '../../../../seo/useSeo.js';
 import { useSearchFilters } from '../../hooks/useSearchFilters.js';
+import { useRenderableFilterGroups } from '../../hooks/useRenderableFilterGroups.js';
 import { useSearchListingsQuery } from '../../queries/useSearchListingsQuery.js';
 import { useCategoriesQuery } from '../../queries/useCategoriesQuery.js';
+import { useDestinationsQuery } from '../../queries/useDestinationsQuery.js';
+import { getSearchCapabilities } from '../../utils/categoryFilterCapabilities.js';
+import { buildActiveSearchChips } from '../../utils/activeSearchChips.js';
 import SearchFilters from '../SearchFilters/SearchFilters.jsx';
+import ActiveFilters from '../ActiveFilters/ActiveFilters.jsx';
+import SearchToolbar from '../SearchToolbar/SearchToolbar.jsx';
 import SearchResults from '../SearchResults/SearchResults.jsx';
-import DynamicFilterPanel from '../DynamicFilterPanel/DynamicFilterPanel.jsx';
-import { AiSearchBar } from '../../../ai/index.js';
 import { trackSearchImpression } from '../../../../analytics/index.js';
+import styles from './SearchPageContent.module.scss';
+
+const NO_ITEMS = [];
 
 export default function SearchPageContent() {
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
+  const { data: categories } = useCategoriesQuery({ locale: i18n.language });
+  const { data: destinations } = useDestinationsQuery({
+    locale: i18n.language,
+  });
   const {
     filters,
+    categorySlug,
+    isResolved,
     updateFilters,
     updateDynamicFilter,
     clearFilters,
     hasActiveFilters,
-  } = useSearchFilters();
-
-  // Phase 10: the primary nav's "Explore" menu links to categories it
-  // only knows by slug (a stable, human-readable identifier), not the
-  // numeric `categoryId` `searchParams.js` stores — category ids vary by
-  // environment/DB state, so a static nav config can't hardcode them.
-  // This one-time effect resolves an incoming `?category=<slug>` into
-  // the real `categoryId` once categories have loaded, then clears the
-  // slug param so the URL settles into `searchParams.js`'s normal
-  // `categoryId`-only shape — nothing else in this file's filter model
-  // changes.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { data: categories } = useCategoriesQuery({ locale: i18n.language });
-  useEffect(() => {
-    const categorySlug = searchParams.get('category');
-    if (!categorySlug || !categories) return;
-    const matched = categories.find(
-      (category) => category.slug === categorySlug,
-    );
-    const next = new URLSearchParams(searchParams);
-    next.delete('category');
-    if (matched) next.set('categoryId', String(matched.id));
-    setSearchParams(next, { replace: true });
-  }, [searchParams, categories, setSearchParams]);
+  } = useSearchFilters({ categories, destinations });
+  const groups = useRenderableFilterGroups(filters.categoryId);
+  const { party } = getSearchCapabilities(categorySlug);
 
   const {
     data,
     isPending,
     isError,
+    isPlaceholderData,
     refetch,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useSearchListingsQuery(filters, { locale: i18n.language });
+  } = useSearchListingsQuery(filters, {
+    locale: i18n.language,
+    enabled: isResolved,
+    keepPreviousResults: true,
+  });
 
   const results = useMemo(
     () => data?.pages.flatMap((page) => page.results) ?? [],
     [data],
   );
+  const total = data?.pages[0]?.meta?.total;
+  const isLoading = !isResolved || isPending;
 
-  // Step A3 (engagement analytics) — a code-shaped identifier for
-  // `search_impression.categoryCode`, resolved from the already-loaded
-  // `categories` list rather than the numeric `filters.categoryId` the
-  // URL carries.
-  const activeCategorySlug = categories?.find(
-    (category) => category.id === filters.categoryId,
-  )?.slug;
+  const chips = buildActiveSearchChips({
+    filters,
+    categories: categories ?? NO_ITEMS,
+    destinations: destinations ?? NO_ITEMS,
+    groups,
+    party,
+    t,
+    locale: i18n.language,
+  });
+
+  const removeChip = (chip) => {
+    if (chip.dynamicKeys) {
+      updateDynamicFilter(
+        Object.fromEntries(chip.dynamicKeys.map((key) => [key, ''])),
+      );
+      return;
+    }
+    updateFilters(chip.patch);
+  };
 
   // One `search_impression` per genuinely NEW resolved search state
-  // (brief §24) — the dedup key is the exact same query-param
-  // serialization `useSearchListingsQuery` already uses for its own
-  // React Query cache key, so "Load more" (same filters, another page)
-  // never re-fires this, but a real filter/query change does. The
-  // client-side dedup inside `trackSearchImpression` (session_id +
-  // this key) is also what makes this StrictMode-safe (brief §35) — the
-  // effect may run twice, the second call is a silent no-op.
+  // (brief §24) — never for the previous results still shown while a
+  // changed search loads, and never again for "Load more" (same filters,
+  // another page). The client-side dedup inside `trackSearchImpression`
+  // (session_id + this key) also makes this StrictMode-safe (brief §35).
   useEffect(() => {
-    if (isPending || isError) return;
+    if (isLoading || isError || isPlaceholderData) return;
     trackSearchImpression(
       {
         queryText: filters.destination || undefined,
-        categoryCode: activeCategorySlug,
-        resultCount: results.length,
+        categoryCode: categorySlug,
+        resultCount: total ?? results.length,
         locale,
       },
       JSON.stringify({
         destination: filters.destination ?? null,
         categoryId: filters.categoryId ?? null,
+        cityId: filters.cityId ?? null,
         sort: filters.sort ?? null,
         dateFrom: filters.dateFrom ?? null,
         dateTo: filters.dateTo ?? null,
         guests: filters.guests ?? null,
+        priceMin: filters.priceMin ?? null,
+        priceMax: filters.priceMax ?? null,
       }),
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on the same filter fields serialized into the dedup key above, not on `results`/`activeCategorySlug` (recomputing the impression payload every "Load more" page would be wrong, not just redundant).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on the same filter fields serialized into the dedup key above, not on `results`/`total` (recomputing the impression payload every "Load more" page would be wrong, not just redundant).
   }, [
-    isPending,
+    isLoading,
     isError,
+    isPlaceholderData,
     filters.destination,
     filters.categoryId,
+    filters.cityId,
     filters.sort,
     filters.dateFrom,
     filters.dateTo,
     filters.guests,
+    filters.priceMin,
+    filters.priceMax,
     locale,
   ]);
 
@@ -141,7 +158,7 @@ export default function SearchPageContent() {
   });
 
   return (
-    <Section spacing="default">
+    <Section spacing="none" className={styles.page}>
       <PageHeader
         title={t('pages.search.title')}
         breadcrumbs={[
@@ -149,31 +166,49 @@ export default function SearchPageContent() {
           { label: t('pages.search.title'), href: `/${locale}/search` },
         ]}
       />
-      <AiSearchBar onApply={updateFilters} />
-      <SearchFilters
-        filters={filters}
-        onUpdateFilters={updateFilters}
-        onClearFilters={clearFilters}
-        hasActiveFilters={hasActiveFilters}
-      />
-      <DynamicFilterPanel
-        categoryId={filters.categoryId}
-        dynamicFilters={filters.dynamicFilters}
-        onChange={updateDynamicFilter}
-      />
-      <SearchResults
-        results={results}
-        isPending={isPending}
-        isError={isError}
-        onRetry={refetch}
-        hasNextPage={Boolean(hasNextPage)}
-        isFetchingNextPage={isFetchingNextPage}
-        onLoadMore={fetchNextPage}
-        searchContext={{
-          queryText: filters.destination || undefined,
-          categoryCode: activeCategorySlug,
-        }}
-      />
+      <div className={styles.layout}>
+        <SearchFilters
+          filters={filters}
+          categories={categories ?? NO_ITEMS}
+          destinations={destinations ?? NO_ITEMS}
+          onApply={updateFilters}
+          onAiApply={updateFilters}
+        />
+        <ActiveFilters
+          chips={chips}
+          onRemoveChip={removeChip}
+          onClearAll={clearFilters}
+        />
+        <SearchToolbar
+          total={total}
+          isLoading={isLoading}
+          isUpdating={isPlaceholderData}
+          sort={filters.sort}
+          hasKeyword={Boolean(filters.destination)}
+          onSortChange={(sort) => updateFilters({ sort })}
+        />
+        <SearchResults
+          results={results}
+          isPending={isLoading}
+          isError={isError}
+          onRetry={refetch}
+          hasNextPage={Boolean(hasNextPage)}
+          isFetchingNextPage={isFetchingNextPage}
+          onLoadMore={fetchNextPage}
+          isUpdating={isPlaceholderData}
+          emptyDescription={
+            filters.dateFrom ? t('search.results.empty.withDates') : undefined
+          }
+          emptyActionLabel={
+            hasActiveFilters ? t('search.filters.clearAll') : undefined
+          }
+          onEmptyAction={hasActiveFilters ? clearFilters : undefined}
+          searchContext={{
+            queryText: filters.destination || undefined,
+            categoryCode: categorySlug,
+          }}
+        />
+      </div>
     </Section>
   );
 }

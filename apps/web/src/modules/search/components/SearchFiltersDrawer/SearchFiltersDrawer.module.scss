@@ -1,0 +1,95 @@
+// SearchFiltersDrawer — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-6;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-3;
+
+  & + & {
+    padding-top: tokens.$space-6;
+    border-top: 1px solid tokens.$color-gray-200;
+  }
+}
+
+// From Tablet the same fields sit inline above the results
+// (`SearchForm`), so the drawer keeps to price and category filters.
+.primarySection {
+  @include respond.respond(tablet) {
+    display: none;
+
+    & + .section {
+      padding-top: 0;
+      border-top: none;
+    }
+  }
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-body-large;
+  line-height: tokens.$line-height-body-large;
+  color: tokens.$color-gray-900;
+}
+
+.priceFields {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+}
+
+// Bottom-aligned, so the two inputs stay level when one label wraps to a
+// second line (e.g. Armenian "Առավելագույնը (AMD)").
+.priceInputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: tokens.$space-3;
+  align-items: end;
+}
+
+.hint {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+}
+
+.error {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-danger;
+}
+
+// Pinned to the bottom of the sheet/panel so the apply action is always
+// reachable without scrolling past every filter. The Drawer's scrolling
+// body has `$space-6` of padding, and `bottom: 0` would stick inside it
+// with filters showing through underneath; offsetting by the same token
+// seals the footer to the sheet's real bottom edge.
+.footer {
+  position: sticky;
+  bottom: calc(-1 * #{tokens.$space-6});
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: tokens.$space-3;
+
+  // Long labels ("Показать результаты") take a row each rather than
+  // running past the sheet's edge.
+  > * {
+    flex: 1 1 auto;
+  }
+  margin-top: tokens.$space-6;
+  padding-block: tokens.$space-4;
+  border-top: 1px solid tokens.$color-gray-200;
+  background-color: tokens.$color-white;
+}

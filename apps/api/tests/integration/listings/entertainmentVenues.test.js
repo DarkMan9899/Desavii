@@ -292,7 +292,7 @@ describe('CATEGORY_TOP promotion can target Entertainment Venues', () => {
     expect(topRes.body.data.some((l) => l.id === listingId)).toBe(true);
 
     const gridRes = await request(app).get(
-      `/api/v1/search?categoryId=${categoryId}`,
+      `/api/v1/search?categoryId=${categoryId}&excludeCategoryTop=true`,
     );
     expect(gridRes.body.data.some((l) => l.id === listingId)).toBe(false);
   });

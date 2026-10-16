@@ -11,9 +11,15 @@
  * per-row follow-up call here.
  *
  * `staleTime: 60s` matches §14.2's "search results" cache class.
+ *
+ * `keepPreviousResults` (the Search page): while a changed search loads,
+ * the previous results stay on screen (`isPlaceholderData`) instead of
+ * collapsing to a skeleton and back — the page never jumps or blanks
+ * between two result sets. Each new filter set is still its own query
+ * key, so pagination restarts from the first page.
  */
 
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { searchListings } from '../../../api/search.js';
 import searchKeys from '../constants/queryKeys.js';
 import { toSearchQueryParams } from '../schemas/searchParams.js';
@@ -22,11 +28,11 @@ export const SEARCH_RESULTS_LIMIT = 12;
 
 /**
  * @param {{ destination?: string, categoryId?: number, listingType?: string, sort?: string }} filters
- * @param {{ locale?: string, enabled?: boolean }} [options]
+ * @param {{ locale?: string, enabled?: boolean, keepPreviousResults?: boolean }} [options]
  */
 export function useSearchListingsQuery(
   filters,
-  { locale, enabled = true } = {},
+  { locale, enabled = true, keepPreviousResults = false } = {},
 ) {
   const queryParams = toSearchQueryParams(filters, locale);
 
@@ -44,6 +50,7 @@ export function useSearchListingsQuery(
     getNextPageParam: (lastPage) => lastPage.meta?.next_cursor ?? undefined,
     staleTime: 60 * 1000,
     enabled,
+    placeholderData: keepPreviousResults ? keepPreviousData : undefined,
   });
 }
 

@@ -486,8 +486,8 @@
   },
   "search": {
     "filters": {
-      "keywordLabel": "Փնտրել",
-      "keywordPlaceholder": "Փնտրեք ուղղություններ, կեցավայրեր, միջոցառումներ...",
+      "keywordLabel": "Բանալի բառ",
+      "keywordPlaceholder": "Անվանում, զբաղմունք կամ վայր",
       "categoryLabel": "Կատեգորիա",
       "categoryAll": "Բոլոր կատեգորիաները",
       "sortLabel": "Դասավորել ըստ",
@@ -495,16 +495,75 @@
         "newest": "Նորագույն",
         "oldest": "Հին",
         "alphabetical": "Ա–Ֆ",
-        "relevance": "Լավագույն համընկնում"
+        "relevance": "Լավագույն համընկնում",
+        "price_asc": "Գինը՝ աճման կարգով",
+        "price_desc": "Գինը՝ նվազման կարգով"
       },
-      "datesLabel": "Ամսաթվեր",
-      "datesPlaceholder": "Ավելացնել ամսաթվեր",
-      "guestsLabel": "Հյուրեր",
-      "guestsPlaceholder": "Ավելացնել հյուրեր",
-      "guestsCount": "{{count}} հյուր",
       "activeFilters": "Ակտիվ զտիչներ",
       "removeFilter": "Հեռացնել {{label}} զտիչը",
-      "clearAll": "Մաքրել զտիչները"
+      "clearAll": "Մաքրել զտիչները",
+      "destinationLabel": "Ուղղություն",
+      "destinationAll": "Ցանկացած վայր",
+      "destinationOption": "{{name}} ({{count}})",
+      "dates": {
+        "range": {
+          "label": "Ամսաթվեր",
+          "placeholder": "Ավելացնել ամսաթվեր",
+          "endRequired": "Ընտրեք ավարտի ամսաթիվը"
+        },
+        "stay": {
+          "label": "Ժամանում – մեկնում",
+          "placeholder": "Ավելացնել կեցության ամսաթվերը",
+          "endRequired": "Ընտրեք մեկնման ամսաթիվը"
+        },
+        "rental": {
+          "label": "Վերցնել – վերադարձնել",
+          "placeholder": "Ավելացնել վարձույթի ամսաթվերը",
+          "endRequired": "Ընտրեք վերադարձի ամսաթիվը"
+        },
+        "day": {
+          "label": "Ամսաթիվ",
+          "placeholder": "Ավելացնել ամսաթիվ"
+        }
+      },
+      "party": {
+        "guests": "Հյուրեր",
+        "travelers": "Ճանապարհորդներ",
+        "visitors": "Այցելուներ",
+        "participants": "Մասնակիցներ"
+      },
+      "partyCount": {
+        "guests_one": "{{count}} հյուր",
+        "guests_other": "{{count}} հյուր",
+        "travelers_one": "{{count}} ճանապարհորդ",
+        "travelers_other": "{{count}} ճանապարհորդ",
+        "visitors_one": "{{count}} այցելու",
+        "visitors_other": "{{count}} այցելու",
+        "participants_one": "{{count}} մասնակից",
+        "participants_other": "{{count}} մասնակից"
+      },
+      "partyPlaceholder": "Ցանկացած",
+      "submit": "Որոնել",
+      "editSearchSummary": "Փոխել որոնումը՝ {{summary}}",
+      "summaryEverything": "Բոլոր հայտարարությունները",
+      "filtersButton": "Զտիչներ",
+      "filtersButtonActive": "Զտիչներ, ակտիվ՝ {{count}}",
+      "drawerTitle": "Զտիչներ",
+      "sections": {
+        "search": "Որոնում",
+        "price": "Գին"
+      },
+      "price": {
+        "minLabel": "Նվազագույնը (AMD)",
+        "maxLabel": "Առավելագույնը (AMD)",
+        "hint": "Համեմատվում է յուրաքանչյուր հայտարարության մեկնարկային գնի հետ՝ հայկական դրամով։",
+        "invalidRange": "Նվազագույնը չի կարող գերազանցել առավելագույնը։",
+        "chipRange": "{{min}} – {{max}}",
+        "chipMin": "{{min}}-ից",
+        "chipMax": "Մինչև {{max}}"
+      },
+      "keywordChip": "«{{keyword}}»",
+      "apply": "Ցույց տալ արդյունքները"
     },
     "aiSearch": {
       "ariaLabel": "AI-ով որոնում",
@@ -512,7 +571,9 @@
       "placeholder": "օր.՝ էժան հյուրանոցներ լողավազանով Երևանում",
       "submit": "Փնտրել AI-ով",
       "submitting": "Փնտրում է...",
-      "error": "Չհաջողվեց մշակել որոնումը — փորձեք կրկին։"
+      "error": "Չհաջողվեց մշակել որոնումը — փորձեք կրկին։",
+      "toggle": "Նկարագրեք ձեր ճամփորդությունը AI-ին",
+      "hide": "Թաքցնել AI որոնումը"
     },
     "dynamicFilters": {
       "triggerLabel": "Զտիչներ",
@@ -572,16 +633,20 @@
     },
     "results": {
       "loadMore": "Բեռնել ավելին",
-      "count": "{{count}} արդյունք",
       "empty": {
         "title": "Արդյունքներ չեն գտնվել",
-        "description": "Փորձեք փոփոխել որոնումը կամ զտիչները։"
+        "description": "Փորձեք փոփոխել որոնումը կամ զտիչները։",
+        "withDates": "Այս ամսաթվերին համապատասխան տարբերակ չկա։ Փորձեք այլ ամսաթվեր կամ ավելի քիչ զտիչներ։"
       },
       "error": {
         "title": "Արդյունքները հնարավոր չէ բեռնել",
         "description": "Որոնման ընթացքում ինչ-որ բան սխալ գնաց։ Խնդրում ենք փորձել կրկին։",
         "retry": "Փորձել կրկին"
-      }
+      },
+      "count_one": "{{count}} արդյունք",
+      "count_other": "{{count}} արդյունք",
+      "updating": "Արդյունքները թարմացվում են…",
+      "loading": "Որոնում…"
     },
     "card": {
       "viewDetails": "Դիտել {{title}}",

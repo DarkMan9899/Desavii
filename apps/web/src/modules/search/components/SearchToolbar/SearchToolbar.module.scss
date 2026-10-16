@@ -1,0 +1,32 @@
+// SearchToolbar — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: tokens.$space-3;
+}
+
+.status {
+  margin: 0;
+  font-size: tokens.$font-size-body;
+  line-height: tokens.$line-height-body;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
+// Full width under the count on small phones; from Mobile-Large it sits
+// beside the count, sized to the chosen label (never wider than the row).
+.sort {
+  flex: 0 1 auto;
+  min-width: 0;
+  width: 100%;
+
+  @include respond.respond(mobile-large) {
+    width: auto;
+  }
+}

@@ -18,6 +18,13 @@ import { useEffect, useRef } from 'react';
  *  - Locks body scroll and marks every other `document.body` child
  *    `aria-hidden` while open ("background content marked
  *    inert/aria-hidden while open"), restoring both on close.
+ *
+ * `onClose`/`preventClose` are read through refs, so the trap is set up
+ * once per opening. A consumer that re-renders while open (a form inside
+ * a Drawer) naturally passes a new inline `onClose` each time; when the
+ * trap depended on it, every such render tore the trap down and set it
+ * up again — sending focus back to the trigger and then to the first
+ * control, so typing in a field kept only its first character.
  */
 
 const FOCUSABLE_SELECTOR = [
@@ -36,6 +43,13 @@ export default function useFocusTrap({
   preventClose,
 }) {
   const previouslyFocusedRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  const preventCloseRef = useRef(preventClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    preventCloseRef.current = preventClose;
+  });
 
   useEffect(() => {
     if (!isOpen || !containerRef.current) return undefined;
@@ -57,9 +71,9 @@ export default function useFocusTrap({
         // which sits below `document`, so they always run before this
         // listener — an already-handled Escape must only close the
         // nested popup, never the whole Modal/Drawer behind it.
-        if (event.defaultPrevented || preventClose) return;
+        if (event.defaultPrevented || preventCloseRef.current) return;
         event.preventDefault();
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -87,7 +101,7 @@ export default function useFocusTrap({
         previouslyFocusedRef.current.focus();
       }
     };
-  }, [isOpen, onClose, preventClose, containerRef]);
+  }, [isOpen, containerRef]);
 
   useEffect(() => {
     if (!isOpen || !containerRef.current) return undefined;

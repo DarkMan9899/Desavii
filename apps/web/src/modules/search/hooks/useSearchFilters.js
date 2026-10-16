@@ -1,54 +1,101 @@
 /**
- * `useSearchFilters` — the URL is the single source of truth for
- * "classic search" filter state (FRONTEND_ARCHITECTURE.md's URL-sync
- * rule), this hook is the only thing that reads or writes it.
+ * `useSearchFilters` — the URL is the single source of truth for Search
+ * filter state (FRONTEND_ARCHITECTURE.md's URL-sync rule); this hook is
+ * the only thing that reads or writes it.
  *
- * `updateFilters` takes a `{ replace }` option so callers can choose the
- * right history behavior per FRONTEND_ARCHITECTURE.md's Back/Forward
- * requirement: a debounced keystroke in the keyword field should
- * *replace* the current history entry (so Back doesn't have to be
- * pressed once per letter typed), while a discrete choice — picking a
- * category, choosing a sort option, removing one filter chip — should
- * *push* a new entry, so Back meaningfully undoes that one action.
+ * Reading: `parseSearchParams` then `normalizeSearchFilters`
+ * (`schemas/searchParams.js`). Until the catalogs a URL depends on have
+ * loaded (`categories` for a `categoryId`/`?category=` slug,
+ * `destinations` for a `cityId`), `isResolved` is false and the caller
+ * holds the search back, so a deep link never fires one request for the
+ * raw URL and a second for its resolved meaning.
  *
- * `updateDynamicFilter` (Phase 4.2) is the write side of `dynamicFilters`
- * (the generic `attr_*`/`amenityIds` bag `DynamicFilterPanel` owns). It
- * takes a `patch` object (`{ [key]: value }`, possibly several keys at
- * once) rather than one `(key, value)` pair, merged into the existing bag
- * in a single update — a RANGE control writes its `_min`/`_max` keys
- * together for exactly this reason: two separate `updateDynamicFilter`
- * calls in the same event handler would each read the same
- * not-yet-re-rendered `filters.dynamicFilters` snapshot, so the second
- * call would silently overwrite the first's change instead of merging
- * with it. `updateFilters` itself drops the *entire* `dynamicFilters` bag the
- * moment `categoryId` changes to a different category (unless the caller
- * explicitly supplied its own `dynamicFilters` in the same call): a
- * filter selected under the old category's catalog (e.g. `bedrooms`)
- * isn't just hidden under the new one, it's meaningless — leaving it in
- * the URL would silently keep narrowing results by a filter nothing on
- * screen shows as active.
+ * Canonical URL: once resolved, a URL that differs from its canonical
+ * form (a nav slug, a stale past date, a range on a single-day
+ * category, junk params) is replaced in place. The canonical form parses
+ * to the same filters, so the search request it maps to is unchanged —
+ * no second request, no extra history entry.
+ *
+ * Writing: every applied change pushes one history entry (Back undoes
+ * exactly that change); `{ replace: true }` is for corrections that
+ * aren't user actions. `updateFilters` drops the whole `dynamicFilters`
+ * bag the moment the category changes (unless the caller supplies its
+ * own): a filter from the old category's catalog (e.g. `bedrooms`) is
+ * meaningless under the new one, and leaving it would keep narrowing
+ * results by a filter nothing on screen shows. The new category's
+ * date/party rules are applied by normalizing again before writing.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   parseSearchParams,
+  normalizeSearchFilters,
   buildSearchParams,
 } from '../schemas/searchParams.js';
-import {
-  DEFAULT_SORT_KEY,
-  SORT_OPTION_META,
-} from '../../../constants/sortOptions.js';
+import { DEFAULT_SORT_KEY } from '../../../constants/sortOptions.js';
+import { getBusinessToday } from '../../../utils/businessDate.js';
 
-export function useSearchFilters() {
+/** Order-insensitive equality, so a reordered URL is not "different". */
+function isSameSearch(a, b) {
+  const sorted = (params) => {
+    const copy = new URLSearchParams(params);
+    copy.sort();
+    return copy.toString();
+  };
+  return sorted(a) === sorted(b);
+}
+
+export function countActiveFilters(filters) {
+  return (
+    [
+      filters.destination,
+      filters.categoryId,
+      filters.cityId,
+      filters.dateFrom,
+      filters.guests,
+      filters.priceMin !== undefined || filters.priceMax !== undefined,
+    ].filter(Boolean).length + Object.keys(filters.dynamicFilters).length
+  );
+}
+
+/**
+ * @param {{ categories?: Array<object>, destinations?: Array<object> }} catalogs
+ */
+export function useSearchFilters({ categories, destinations } = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const filters = useMemo(
-    () => parseSearchParams(searchParams),
-    [searchParams],
+  const today = getBusinessToday();
+
+  const { filters, categorySlug, isResolved } = useMemo(
+    () =>
+      normalizeSearchFilters(parseSearchParams(searchParams, { today }), {
+        categories,
+        destinations,
+      }),
+    [searchParams, today, categories, destinations],
+  );
+
+  useEffect(() => {
+    if (!isResolved) return;
+    const canonical = buildSearchParams(filters);
+    if (!isSameSearch(canonical, searchParams)) {
+      setSearchParams(canonical, { replace: true });
+    }
+  }, [isResolved, filters, searchParams, setSearchParams]);
+
+  const writeFilters = useCallback(
+    (next, { replace = false } = {}) => {
+      const { filters: normalized } = normalizeSearchFilters(next, {
+        categories,
+        destinations,
+      });
+      setSearchParams(buildSearchParams(normalized), { replace });
+    },
+    [categories, destinations, setSearchParams],
   );
 
   const updateFilters = useCallback(
-    (partial, { replace = false } = {}) => {
+    (partial, options) => {
       const next = { ...filters, ...partial };
       if (
         'categoryId' in partial &&
@@ -57,19 +104,12 @@ export function useSearchFilters() {
       ) {
         next.dynamicFilters = {};
       }
-      // A sort option that `requiresKeyword` (currently only
-      // "relevance") stops meaning anything the moment the keyword it
-      // depends on is gone — downgrading it here keeps the UI's sort
-      // control from showing a choice that would silently do nothing
-      // (the backend itself falls back the same way, server-side).
-      if (SORT_OPTION_META[next.sort]?.requiresKeyword && !next.destination) {
-        next.sort = DEFAULT_SORT_KEY;
-      }
-      setSearchParams(buildSearchParams(next), { replace });
+      writeFilters(next, options);
     },
-    [filters, setSearchParams],
+    [filters, writeFilters],
   );
 
+  /** `patch` is `{ [key]: value }`; an empty value removes that key. */
   const updateDynamicFilter = useCallback(
     (patch) => {
       const nextDynamicFilters = { ...filters.dynamicFilters };
@@ -80,30 +120,32 @@ export function useSearchFilters() {
           delete nextDynamicFilters[key];
         }
       });
-      updateFilters({ dynamicFilters: nextDynamicFilters }, { replace: false });
+      updateFilters({ dynamicFilters: nextDynamicFilters });
     },
     [filters.dynamicFilters, updateFilters],
   );
 
+  // Sort is how results are ordered, not a filter — "Clear filters"
+  // keeps it.
   const clearFilters = useCallback(() => {
-    setSearchParams(new URLSearchParams());
-  }, [setSearchParams]);
+    writeFilters({
+      destination: '',
+      sort: filters.sort ?? DEFAULT_SORT_KEY,
+      dynamicFilters: {},
+    });
+  }, [filters.sort, writeFilters]);
 
-  const hasActiveFilters = Boolean(
-    filters.destination ||
-    filters.categoryId ||
-    filters.sort !== DEFAULT_SORT_KEY ||
-    filters.dateFrom ||
-    filters.guests ||
-    Object.keys(filters.dynamicFilters).length > 0,
-  );
+  const activeFilterCount = countActiveFilters(filters);
 
   return {
     filters,
+    categorySlug,
+    isResolved,
     updateFilters,
     updateDynamicFilter,
     clearFilters,
-    hasActiveFilters,
+    activeFilterCount,
+    hasActiveFilters: activeFilterCount > 0,
   };
 }
 

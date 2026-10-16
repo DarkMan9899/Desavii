@@ -332,3 +332,124 @@ describe('buildSearchListingsQuery — placeholder/parameter alignment', () => {
     expect(countPlaceholders(sql)).toBe(params.length);
   });
 });
+
+describe('buildSearchListingsQuery — Search & Discovery rebuild filters', () => {
+  test('a category filter alone never excludes CATEGORY_TOP promotions; excludeCategoryTop opts in', () => {
+    const plain = buildSearchListingsQuery(
+      { ...baseFilters, categoryId: 5 },
+      resolveSortOption('newest'),
+    );
+    expect(plain.sql).not.toContain('CATEGORY_TOP');
+
+    const grid = buildSearchListingsQuery(
+      { ...baseFilters, categoryId: 5, excludeCategoryTop: true },
+      resolveSortOption('newest'),
+    );
+    expect(grid.sql).toContain("apt.code = 'CATEGORY_TOP'");
+    expect(countPlaceholders(grid.sql)).toBe(grid.params.length);
+  });
+
+  test('excludeCategoryTop without a category is a no-op', () => {
+    const { sql } = buildSearchListingsQuery(
+      { ...baseFilters, excludeCategoryTop: true },
+      resolveSortOption('newest'),
+    );
+    expect(sql).not.toContain('CATEGORY_TOP');
+  });
+
+  test('occupancyGuests (party size, no dates): one undated occupancy EXISTS with its exact params', () => {
+    const { sql, params } = buildSearchListingsQuery(
+      { ...baseFilters, occupancyGuests: 3 },
+      resolveSortOption('newest'),
+    );
+    expect(sql).not.toContain('WITH RECURSIVE');
+    expect(sql).toContain('bu.max_guests >= ?');
+    expect(sql).toContain('bu.capacity >= ?');
+    expect(countPlaceholders(sql)).toBe(params.length);
+    expect(params).toEqual([1, 1, ...TYPES, 3, ...INVENTORY_TYPES, 3, 21]);
+  });
+
+  test('a dated search ignores occupancyGuests (the availability EXISTS already checks the party)', () => {
+    const { sql, params } = buildSearchListingsQuery(
+      {
+        ...baseFilters,
+        availabilityDateFrom: '2026-09-10',
+        availabilityDateTo: '2026-09-10',
+        availabilityLastNight: '2026-09-10',
+        availabilityGuests: 2,
+        occupancyGuests: 2,
+      },
+      resolveSortOption('newest'),
+    );
+    expect(sql).not.toContain('bu.capacity >= ?');
+    expect(countPlaceholders(sql)).toBe(params.length);
+  });
+
+  test('priceMin/priceMax bind against the base-currency price, before the cursor and LIMIT', () => {
+    const cursor = Buffer.from(
+      JSON.stringify({ sortValue: '15000.00', id: 8 }),
+      'utf8',
+    ).toString('base64url');
+    const { sql, params } = buildSearchListingsQuery(
+      { ...baseFilters, priceMin: 10000, priceMax: 20000 },
+      resolveSortOption('price_asc'),
+      { cursor, limit: 5 },
+    );
+    expect(sql).toContain("base.price_currency_code = 'AMD'");
+    expect(sql).toContain('results.price_amount_base >= ?');
+    expect(sql).toContain('results.price_amount_base <= ?');
+    expect(sql).toContain(
+      'ORDER BY results.price_sort_asc ASC, results.id ASC',
+    );
+    expect(countPlaceholders(sql)).toBe(params.length);
+    expect(params).toEqual([1, 1, 10000, 20000, '15000.00', 8, 6]);
+  });
+
+  test('price_desc orders by its own never-NULL sort key', () => {
+    const { sql } = buildSearchListingsQuery(
+      baseFilters,
+      resolveSortOption('price_desc'),
+    );
+    expect(sql).toContain(
+      'ORDER BY results.price_sort_desc DESC, results.id DESC',
+    );
+  });
+
+  test('the count query shares every filter but never the cursor or LIMIT', () => {
+    const cursor = Buffer.from(
+      JSON.stringify({ sortValue: '2026-01-01 00:00:00.000', id: 3 }),
+      'utf8',
+    ).toString('base64url');
+    const { countSql, countParams } = buildSearchListingsQuery(
+      {
+        ...baseFilters,
+        keyword: 'spa',
+        categoryId: 5,
+        occupancyGuests: 2,
+        priceMax: 30000,
+      },
+      resolveSortOption('newest'),
+      { cursor, limit: 10 },
+    );
+    expect(countSql).toContain('SELECT COUNT(*) AS total');
+    expect(countSql).not.toContain('LIMIT ?');
+    expect(countSql).not.toContain('results.id) <');
+    expect(countPlaceholders(countSql)).toBe(countParams.length);
+    expect(countParams[countParams.length - 1]).toBe(30000);
+  });
+
+  test('a dated count query binds the CTE params first, like the page query', () => {
+    const { countSql, countParams } = buildSearchListingsQuery(
+      {
+        ...baseFilters,
+        availabilityDateFrom: '2026-09-10',
+        availabilityDateTo: '2026-09-12',
+        availabilityLastNight: '2026-09-11',
+        availabilityGuests: 2,
+      },
+      resolveSortOption('newest'),
+    );
+    expect(countPlaceholders(countSql)).toBe(countParams.length);
+    expect(countParams.slice(0, 2)).toEqual(['2026-09-10', '2026-09-12']);
+  });
+});

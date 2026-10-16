@@ -360,10 +360,18 @@ describe('Admin promotion lifecycle — Category placement is independent of Hom
     expect(topRes.body.data.some((l) => l.id === listingId)).toBe(true);
 
     const gridRes = await request(app).get(
-      `/api/v1/search?categoryId=${categoryId}`,
+      `/api/v1/search?categoryId=${categoryId}&excludeCategoryTop=true`,
     );
     expect(gridRes.status).toBe(200);
     expect(gridRes.body.data.some((l) => l.id === listingId)).toBe(false);
+  });
+
+  test('plain Search filtered by the same category still lists the promoted listing (no TOP section there to show it in)', async () => {
+    const searchRes = await request(app).get(
+      `/api/v1/search?categoryId=${categoryId}`,
+    );
+    expect(searchRes.status).toBe(200);
+    expect(searchRes.body.data.some((l) => l.id === listingId)).toBe(true);
   });
 
   // Step A3.1: same promotion_id exposure contract as Home Featured,
@@ -382,7 +390,7 @@ describe('Admin promotion lifecycle — Category placement is independent of Hom
       .set('Authorization', `Bearer ${admin.accessToken}`);
 
     const gridRes = await request(app).get(
-      `/api/v1/search?categoryId=${categoryId}`,
+      `/api/v1/search?categoryId=${categoryId}&excludeCategoryTop=true`,
     );
     expect(gridRes.body.data.some((l) => l.id === listingId)).toBe(true);
 

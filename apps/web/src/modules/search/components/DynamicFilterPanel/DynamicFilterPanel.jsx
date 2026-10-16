@@ -14,10 +14,9 @@
  * `Drawer`) — `SearchPageContent` only needs to place this component next
  * to `SearchFilters`, never reach into its internals.
  *
- * A `SINGLE_SELECT`/`MULTI_SELECT` definition with zero resolved options
- * (e.g. the amenities filter before any category is chosen) has nothing
- * meaningful to render, so it's filtered out here — `STEPPER`/`RANGE`
- * never depend on options and always render.
+ * Definitions with nothing to offer are left out by
+ * `useRenderableFilterGroups`, the same hook the Search page's filter
+ * drawer uses.
  */
 
 import { useState } from 'react';
@@ -26,17 +25,10 @@ import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { Button, Badge } from '@desavii/ui/components/primitives';
 import { Drawer } from '@desavii/ui/components/feedback-overlays';
-import { useSearchFilterDefinitionsQuery } from '../../queries/useSearchFilterDefinitionsQuery.js';
+import { useRenderableFilterGroups } from '../../hooks/useRenderableFilterGroups.js';
 import FilterControl from './FilterControl.jsx';
 import { getActiveFilterChips } from './activeFilterChips.js';
 import styles from './DynamicFilterPanel.module.scss';
-
-function isRenderableDefinition(definition) {
-  if (['SINGLE_SELECT', 'MULTI_SELECT'].includes(definition.input_type)) {
-    return definition.options.length > 0;
-  }
-  return true;
-}
 
 export default function DynamicFilterPanel({
   categoryId = undefined,
@@ -45,14 +37,7 @@ export default function DynamicFilterPanel({
 }) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
-  const { data: rawGroups = [] } = useSearchFilterDefinitionsQuery(categoryId);
-
-  const groups = rawGroups
-    .map((group) => ({
-      ...group,
-      definitions: group.definitions.filter(isRenderableDefinition),
-    }))
-    .filter((group) => group.definitions.length > 0);
+  const groups = useRenderableFilterGroups(categoryId);
 
   const activeChips = getActiveFilterChips(groups, dynamicFilters, t);
 

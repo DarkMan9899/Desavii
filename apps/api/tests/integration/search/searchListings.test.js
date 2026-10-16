@@ -666,6 +666,137 @@ describe('GET /search/listings — validation', () => {
   });
 });
 
+describe('GET /search/listings — price filter, price sort and total (Search & Discovery rebuild)', () => {
+  const PRICE_KEYWORD = 'Pricebound';
+  let cheapId;
+  let middleId;
+  let dearId;
+  let unpricedId;
+
+  async function createPricedListing(label, amount) {
+    const listingId = await createListing({
+      title: `${PRICE_KEYWORD} ${label} ${Date.now()}`,
+      listingType: 'HOTEL',
+      categoryId: hotelsCategoryId,
+      cityId: yerevanCityId,
+      description: 'A price filter fixture.',
+    });
+    await publishListing(listingId); // auto-creates one unpriced unit
+    if (amount !== null) {
+      await registerUnit(listingId, {
+        unitLabel: 'Room',
+        basePriceAmount: amount,
+        basePriceCurrency: 'AMD',
+      });
+    }
+    return listingId;
+  }
+
+  beforeAll(async () => {
+    cheapId = await createPricedListing('Cheap', 10000);
+    middleId = await createPricedListing('Middle', 20000);
+    dearId = await createPricedListing('Dear', 30000);
+    unpricedId = await createPricedListing('Unpriced', null);
+  });
+
+  const search = (query) =>
+    request(app).get(
+      `/api/v1/search/listings?keyword=${PRICE_KEYWORD}&${query}`,
+    );
+
+  test('priceMin/priceMax bound the AMD "from" price; an unpriced listing never matches a bound', async () => {
+    const atLeast = await search('priceMin=15000');
+    expect(atLeast.status).toBe(200);
+    expect(new Set(atLeast.body.data.map((r) => r.id))).toEqual(
+      new Set([middleId, dearId]),
+    );
+
+    const atMost = await search('priceMax=15000');
+    expect(atMost.body.data.map((r) => r.id)).toEqual([cheapId]);
+
+    const between = await search('priceMin=20000&priceMax=20000');
+    expect(between.body.data.map((r) => r.id)).toEqual([middleId]);
+  });
+
+  test('price_asc / price_desc order by price with unpriced listings last, across cursor pages', async () => {
+    const walk = async (sort) => {
+      const ids = [];
+      let cursor = '';
+      do {
+        // eslint-disable-next-line no-await-in-loop -- each page needs the previous page's cursor
+        const res = await search(`sort=${sort}&limit=2${cursor}`);
+        expect(res.status).toBe(200);
+        ids.push(...res.body.data.map((r) => r.id));
+        cursor = res.body.meta.next_cursor
+          ? `&cursor=${res.body.meta.next_cursor}`
+          : '';
+      } while (cursor);
+      return ids;
+    };
+
+    expect(await walk('price_asc')).toEqual([
+      cheapId,
+      middleId,
+      dearId,
+      unpricedId,
+    ]);
+    expect(await walk('price_desc')).toEqual([
+      dearId,
+      middleId,
+      cheapId,
+      unpricedId,
+    ]);
+  });
+
+  test('meta.total counts the whole filtered result on the first page only', async () => {
+    const page1 = await search('limit=2');
+    expect(page1.body.meta.total).toBe(4);
+    expect(page1.body.data).toHaveLength(2);
+
+    const page2 = await search(`limit=2&cursor=${page1.body.meta.next_cursor}`);
+    expect(page2.body.meta.total).toBeUndefined();
+
+    const filtered = await search('priceMin=15000&limit=1');
+    expect(filtered.body.meta.total).toBe(2);
+  });
+});
+
+describe('GET /search/listings — malformed input is a 422, never a 500', () => {
+  test.each([
+    ['an impossible calendar date', 'dateFrom=2030-02-30&dateTo=2030-03-01'],
+    ['a non-numeric attribute bound', 'attr_bedrooms_min=abc'],
+    ['a non-numeric option id list', 'attr_star_rating=abc'],
+    ['a repeated attribute key', 'attr_star_rating=1&attr_star_rating=2'],
+    ['a non-numeric amenity id list', 'amenityIds=wifi'],
+    ['a negative price', 'priceMin=-1'],
+    ['a non-integer price', 'priceMax=12.5'],
+    ['priceMin above priceMax', 'priceMin=5000&priceMax=1000'],
+    ['a non-boolean excludeCategoryTop', 'excludeCategoryTop=yes'],
+    ['an unknown sort', 'sort=cheapest'],
+  ])('%s', async (_label, query) => {
+    const res = await request(app).get(`/api/v1/search/listings?${query}`);
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_FAILED');
+  });
+
+  test('a dateFrom before the business date is rejected — it could never be booked', async () => {
+    const res = await request(app).get(
+      '/api/v1/search/listings?dateFrom=2020-01-01&dateTo=2020-01-02',
+    );
+    expect(res.status).toBe(422);
+    expect(res.body.error.details).toEqual([
+      { field: 'dateFrom', issue: 'DATE_IN_PAST' },
+    ]);
+  });
+
+  test('a date bound sent for a numeric attribute is dropped, not bound as NaN', async () => {
+    const res = await request(app).get(
+      '/api/v1/search/listings?attr_bedrooms_min=2030-01-01',
+    );
+    expect(res.status).toBe(200);
+  });
+});
+
 describe('GET /search — alias for GET /search/listings', () => {
   test('returns the same shape as /search/listings', async () => {
     const res = await request(app).get('/api/v1/search?keyword=Boutique');

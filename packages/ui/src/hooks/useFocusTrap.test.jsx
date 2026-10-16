@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { describe, test, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import useFocusTrap from './useFocusTrap.js';
 
 function Harness({ initialOpen = true, preventClose = false }) {
@@ -125,5 +126,58 @@ describe('useFocusTrap', () => {
   test('does nothing when never opened', () => {
     render(<Harness initialOpen={false} />);
     expect(document.body.style.overflow).not.toBe('hidden');
+  });
+});
+
+// A form inside a Drawer re-renders on every keystroke and passes a new
+// inline `onClose` each time; the trap must not be rebuilt by that, or
+// focus jumps away after the first character.
+function TypingHarness() {
+  const [isOpen, setIsOpen] = useState(true);
+  const [text, setText] = useState('');
+  const [closedBy, setClosedBy] = useState('');
+  const containerRef = useRef(null);
+  useFocusTrap({
+    containerRef,
+    isOpen,
+    onClose: () => {
+      setClosedBy(`closed after "${text}"`);
+      setIsOpen(false);
+    },
+  });
+
+  return (
+    <div>
+      <p>{closedBy}</p>
+      {isOpen && (
+        <div ref={containerRef}>
+          <button type="button" aria-label="First" />
+          <input
+            aria-label="Price"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+describe('useFocusTrap — consumers that re-render while open', () => {
+  test('typing in a stateful field keeps focus and every character', async () => {
+    const user = userEvent.setup();
+    render(<TypingHarness />);
+    await user.click(screen.getByRole('textbox', { name: 'Price' }));
+    await user.keyboard('20000');
+    expect(screen.getByRole('textbox', { name: 'Price' })).toHaveValue('20000');
+    expect(screen.getByRole('textbox', { name: 'Price' })).toHaveFocus();
+  });
+
+  test('Escape still calls the latest onClose, not the one from the first render', async () => {
+    const user = userEvent.setup();
+    render(<TypingHarness />);
+    await user.click(screen.getByRole('textbox', { name: 'Price' }));
+    await user.keyboard('42{Escape}');
+    expect(screen.getByText('closed after "42"')).toBeInTheDocument();
   });
 });

@@ -1,0 +1,74 @@
+// PrimarySearchFields — tokens only, consumed from @desavii/ui.
+//
+// `stacked` (the phone drawer): one field per row.
+// `inline` (the Tablet+ form), sized so the longest Armenian and Russian
+// labels and values never wrap inside a control:
+// - Tablet: keyword on its own row, then two fields per row.
+// - Laptop: keyword, destination and category in thirds, then dates
+//   (two thirds) and party.
+// - Desktop: everything in one row.
+// Flex rather than a fixed grid, so a category without a party field
+// simply has one field fewer instead of an empty cell.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+
+$field-gap: tokens.$space-3;
+
+.fields {
+  display: flex;
+  gap: $field-gap;
+  min-width: 0;
+}
+
+.fields--stacked {
+  flex-direction: column;
+  gap: tokens.$space-4;
+}
+
+.fields--inline {
+  flex-wrap: wrap;
+  align-items: flex-start;
+
+  .keyword,
+  .field,
+  .dates {
+    min-width: 0;
+  }
+
+  .keyword {
+    flex: 1 1 100%;
+  }
+
+  .field,
+  .dates {
+    flex: 1 1 calc(50% - #{$field-gap});
+  }
+
+  @include respond.respond(laptop) {
+    .keyword,
+    .field {
+      flex: 1 1 calc(100% / 3 - #{$field-gap});
+    }
+
+    .dates {
+      flex: 2 1 calc(200% / 3 - #{$field-gap});
+    }
+  }
+
+  @include respond.respond(desktop) {
+    flex-wrap: nowrap;
+
+    .keyword {
+      flex: 1.5 1 0;
+    }
+
+    .field {
+      flex: 1 1 0;
+    }
+
+    .dates {
+      flex: 1.4 1 0;
+    }
+  }
+}

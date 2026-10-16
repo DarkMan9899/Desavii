@@ -62,6 +62,11 @@ test.describe('AI Search', () => {
     // Every /ai/* route requires authentication.
     await loginAsDemoCustomer(page);
     await page.goto('/en/search');
+    // Search & Discovery rebuild: AI search sits behind a toggle so the
+    // results start higher on the page.
+    await page
+      .getByRole('button', { name: 'Describe your trip to AI' })
+      .click();
     await page
       .getByLabel("Describe what you're looking for")
       .fill('hotels in Yerevan');

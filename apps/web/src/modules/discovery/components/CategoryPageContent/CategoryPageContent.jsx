@@ -114,15 +114,15 @@ export default function CategoryPageContent() {
   // showing a listings skeleton.
   const { data: listingsData, isPending: isListingsPending } =
     useSearchListingsQuery(
-      { categoryId: category?.id, dynamicFilters },
+      { categoryId: category?.id, dynamicFilters, excludeCategoryTop: true },
       { locale, enabled: Boolean(category?.id) },
     );
   const listings = listingsData?.pages[0]?.results ?? [];
   // Sprint E (Promotion Engine, spec §19): active CATEGORY_TOP listings
   // for this category, shown in their own section before the normal
-  // grid above. The backend already excludes any listing shown here from
-  // `listings` (see `mysqlSearchRepository.js`'s CATEGORY_TOP exclusion)
-  // — never duplicated between the two sections.
+  // grid above. `excludeCategoryTop` asks the backend to leave any
+  // listing shown here out of `listings` (see `mysqlSearchRepository.js`'s
+  // CATEGORY_TOP exclusion) — never duplicated between the two sections.
   const { data: topListings, isPending: isTopPending } =
     usePublicCategoryTopQuery(category?.id, {
       locale,

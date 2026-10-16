@@ -486,8 +486,8 @@
   },
   "search": {
     "filters": {
-      "keywordLabel": "Search",
-      "keywordPlaceholder": "Search destinations, stays, things to do...",
+      "keywordLabel": "Keyword",
+      "keywordPlaceholder": "Name, activity or place",
       "categoryLabel": "Category",
       "categoryAll": "All categories",
       "sortLabel": "Sort by",
@@ -495,16 +495,75 @@
         "newest": "Newest",
         "oldest": "Oldest",
         "alphabetical": "A–Z",
-        "relevance": "Best match"
+        "relevance": "Best match",
+        "price_asc": "Price: low to high",
+        "price_desc": "Price: high to low"
       },
-      "datesLabel": "Dates",
-      "datesPlaceholder": "Add dates",
-      "guestsLabel": "Guests",
-      "guestsPlaceholder": "Add guests",
-      "guestsCount": "{{count}} guests",
       "activeFilters": "Active filters",
       "removeFilter": "Remove {{label}} filter",
-      "clearAll": "Clear filters"
+      "clearAll": "Clear filters",
+      "destinationLabel": "Destination",
+      "destinationAll": "Anywhere",
+      "destinationOption": "{{name}} ({{count}})",
+      "dates": {
+        "range": {
+          "label": "Dates",
+          "placeholder": "Add dates",
+          "endRequired": "Choose an end date"
+        },
+        "stay": {
+          "label": "Check-in – check-out",
+          "placeholder": "Add stay dates",
+          "endRequired": "Choose a check-out date"
+        },
+        "rental": {
+          "label": "Pick-up – return",
+          "placeholder": "Add rental dates",
+          "endRequired": "Choose a return date"
+        },
+        "day": {
+          "label": "Date",
+          "placeholder": "Add a date"
+        }
+      },
+      "party": {
+        "guests": "Guests",
+        "travelers": "Travelers",
+        "visitors": "Visitors",
+        "participants": "Participants"
+      },
+      "partyCount": {
+        "guests_one": "{{count}} guest",
+        "guests_other": "{{count}} guests",
+        "travelers_one": "{{count}} traveler",
+        "travelers_other": "{{count}} travelers",
+        "visitors_one": "{{count}} visitor",
+        "visitors_other": "{{count}} visitors",
+        "participants_one": "{{count}} participant",
+        "participants_other": "{{count}} participants"
+      },
+      "partyPlaceholder": "Any",
+      "submit": "Search",
+      "editSearchSummary": "Edit search: {{summary}}",
+      "summaryEverything": "All listings",
+      "filtersButton": "Filters",
+      "filtersButtonActive": "Filters, {{count}} active",
+      "drawerTitle": "Filters",
+      "sections": {
+        "search": "Search",
+        "price": "Price"
+      },
+      "price": {
+        "minLabel": "Minimum (AMD)",
+        "maxLabel": "Maximum (AMD)",
+        "hint": "Compared with the starting price shown on each listing, in Armenian dram.",
+        "invalidRange": "The minimum can’t be higher than the maximum.",
+        "chipRange": "{{min}} – {{max}}",
+        "chipMin": "From {{min}}",
+        "chipMax": "Up to {{max}}"
+      },
+      "keywordChip": "“{{keyword}}”",
+      "apply": "Show results"
     },
     "aiSearch": {
       "ariaLabel": "AI-powered search",
@@ -512,7 +571,9 @@
       "placeholder": "e.g. cheap hotels with a pool in Yerevan",
       "submit": "Search with AI",
       "submitting": "Searching...",
-      "error": "We couldn't parse that search — please try again."
+      "error": "We couldn't parse that search — please try again.",
+      "toggle": "Describe your trip to AI",
+      "hide": "Hide AI search"
     },
     "dynamicFilters": {
       "triggerLabel": "Filters",
@@ -572,16 +633,20 @@
     },
     "results": {
       "loadMore": "Load more",
-      "count": "{{count}} results",
       "empty": {
         "title": "No results found",
-        "description": "Try adjusting your search or filters."
+        "description": "Try adjusting your search or filters.",
+        "withDates": "Nothing matches these dates. Try other dates or fewer filters."
       },
       "error": {
         "title": "Couldn't load results",
         "description": "Something went wrong while searching. Please try again.",
         "retry": "Try again"
-      }
+      },
+      "count_one": "{{count}} result",
+      "count_other": "{{count}} results",
+      "updating": "Updating results…",
+      "loading": "Searching…"
     },
     "card": {
       "viewDetails": "View {{title}}",
