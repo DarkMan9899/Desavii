@@ -13,7 +13,14 @@
 import { SUPPORTED_LOCALES } from '../translations/supportedLocales.js';
 import { getLastWorkspace } from './workspacePreference.js';
 
-const ADMIN_AREA_ROLES = ['ADMIN', 'SUPER_ADMIN', 'MODERATOR', 'SUPPORT'];
+// The roles whose workspace is `/admin` — also what the admin route group
+// requires (`routes/index.jsx`), so the two can never drift apart.
+export const ADMIN_AREA_ROLES = [
+  'ADMIN',
+  'SUPER_ADMIN',
+  'MODERATOR',
+  'SUPPORT',
+];
 
 /**
  * A `?redirect=` value is used only when it is a path inside this app: a

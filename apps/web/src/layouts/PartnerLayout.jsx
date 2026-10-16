@@ -59,6 +59,7 @@ import {
 } from '../modules/availability/index.js';
 import { usePartnerContext } from '../contexts/PartnerContext.jsx';
 import useNoIndex from '../seo/useNoIndex.js';
+import findActiveNavItemId from '../utils/navigationMatch.js';
 import styles from './PartnerLayout.module.scss';
 
 export default function PartnerLayout() {
@@ -148,20 +149,9 @@ export default function PartnerLayout() {
     },
   ];
 
-  // Longest-matching-prefix, not exact match — mirrors
-  // `CustomerAccountLayout`'s own logic exactly, for the same reason: a
-  // nested route (`partner/bookings/:id`) still highlights its owning
-  // nav item, and reverse order + `find` makes the most specific href
-  // win over `partner/bookings` matching `partner/bookings/:id`'s prefix
-  // (and, at the far end, `dashboard`'s href never wrongly wins since
-  // every other href is checked first).
-  const activeItemId = [...navItems]
-    .reverse()
-    .find(
-      (item) =>
-        location.pathname === item.href ||
-        location.pathname.startsWith(`${item.href}/`),
-    )?.id;
+  // The section owning the current page: the longest matching href, so a
+  // nested route still highlights its parent item (`findActiveNavItemId`).
+  const activeItemId = findActiveNavItemId(navItems, location.pathname);
 
   return (
     <AppLayout

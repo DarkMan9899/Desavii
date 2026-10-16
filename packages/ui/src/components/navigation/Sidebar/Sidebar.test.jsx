@@ -1,4 +1,4 @@
-import { describe, test, expect, vi } from 'vitest';
+import { describe, test, expect, vi, onTestFinished } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Sidebar from './Sidebar.jsx';
@@ -77,5 +77,53 @@ describe('Sidebar (COMPONENT_LIBRARY.md Part II §3 "Sidebar Navigation")', () =
   test('renders no toggle button when onToggleCollapse is omitted', () => {
     render(<Sidebar items={ITEMS} />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+});
+
+// jsdom has no layout: give the bar and its links the geometry of the
+// phone bottom bar (390px wide, scrolling sideways) by hand.
+function mockBarGeometry({ scrollWidth, activeLeft }) {
+  const restore = [
+    vi
+      .spyOn(HTMLElement.prototype, 'scrollWidth', 'get')
+      .mockImplementation(function width() {
+        return this.tagName === 'ASIDE' ? scrollWidth : 0;
+      }),
+    vi
+      .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+      .mockImplementation(function width() {
+        return this.tagName === 'ASIDE' ? 390 : 0;
+      }),
+    vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function rect() {
+        if (this.tagName === 'ASIDE')
+          return { left: 0, right: 390, width: 390 };
+        return { left: activeLeft, right: activeLeft + 100, width: 100 };
+      }),
+  ];
+  onTestFinished(() => restore.forEach((spy) => spy.mockRestore()));
+}
+
+describe('Sidebar — active item in the phone bottom bar', () => {
+  test('an off-screen active item is scrolled into the middle of the bar', () => {
+    mockBarGeometry({ scrollWidth: 2000, activeLeft: 1500 });
+    render(<Sidebar items={ITEMS} activeItemId="listings" />);
+
+    // Item centre 1550 moved to the bar centre 195.
+    expect(screen.getByRole('complementary').scrollLeft).toBe(1355);
+  });
+
+  test('an active item already in view, or a side column that never scrolls sideways, is left alone', () => {
+    mockBarGeometry({ scrollWidth: 2000, activeLeft: 100 });
+    const { unmount } = render(
+      <Sidebar items={ITEMS} activeItemId="listings" />,
+    );
+    expect(screen.getByRole('complementary').scrollLeft).toBe(0);
+    unmount();
+
+    mockBarGeometry({ scrollWidth: 390, activeLeft: 1500 });
+    render(<Sidebar items={ITEMS} activeItemId="listings" />);
+    expect(screen.getByRole('complementary').scrollLeft).toBe(0);
   });
 });

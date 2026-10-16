@@ -45,6 +45,7 @@ import { AiAssistantTrigger } from '../modules/ai/index.js';
 import { AccountIdentityCard } from '../modules/profile/index.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import useNoIndex from '../seo/useNoIndex.js';
+import findActiveNavItemId from '../utils/navigationMatch.js';
 import styles from './CustomerAccountLayout.module.scss';
 
 export default function CustomerAccountLayout() {
@@ -111,17 +112,9 @@ export default function CustomerAccountLayout() {
     },
   ];
 
-  // Longest-matching-prefix, not exact match — a nested route like
-  // `account/bookings/:id` (or any future sub-route) still highlights its
-  // owning nav item. Reverse order + `find` so the most specific href
-  // wins over `account` itself (every path is prefixed by it).
-  const activeItemId = [...navItems]
-    .reverse()
-    .find(
-      (item) =>
-        location.pathname === item.href ||
-        location.pathname.startsWith(`${item.href}/`),
-    )?.id;
+  // The section owning the current page: the longest matching href, so a
+  // nested route still highlights its parent item (`findActiveNavItemId`).
+  const activeItemId = findActiveNavItemId(navItems, location.pathname);
 
   return (
     <AppLayout

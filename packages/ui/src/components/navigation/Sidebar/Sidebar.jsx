@@ -20,8 +20,15 @@
  * API here has no open/close state for a drawer variant, and adding one
  * would be a materially different component; flagged rather than
  * silently built as a mismatched drawer integration.
+ *
+ * In that bottom bar the active item is kept in view: after a reload or
+ * a deep link (`/admin/notifications`, the last of many items) it would
+ * otherwise sit off-screen to the right. Only the bar's own horizontal
+ * scroll moves — never the page — and only while the bar actually
+ * scrolls sideways (the side column at Tablet+ never does).
  */
 
+import { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import Button from '../../primitives/Button/Button.jsx';
 import Badge from '../../primitives/Badge/Badge.jsx';
@@ -72,9 +79,41 @@ export default function Sidebar({
   ]
     .filter(Boolean)
     .join(' ');
+  const barRef = useRef(null);
+
+  // Keep the active item visible in the horizontally scrolling bottom bar
+  // (see the file header); the side column never scrolls sideways. Done
+  // again once web fonts have loaded: they widen the labels and push the
+  // item back out of view after the first pass.
+  useEffect(() => {
+    let isCurrent = true;
+    function revealActiveItem() {
+      const bar = barRef.current;
+      if (!isCurrent || !bar || bar.scrollWidth <= bar.clientWidth) return;
+      const active = bar.querySelector('[aria-current="page"]');
+      if (!active) return;
+      const barRect = bar.getBoundingClientRect();
+      const activeRect = active.getBoundingClientRect();
+      if (
+        activeRect.left >= barRect.left &&
+        activeRect.right <= barRect.right
+      ) {
+        return;
+      }
+      bar.scrollLeft +=
+        activeRect.left +
+        activeRect.width / 2 -
+        (barRect.left + barRect.width / 2);
+    }
+    revealActiveItem();
+    document.fonts?.ready.then(revealActiveItem);
+    return () => {
+      isCurrent = false;
+    };
+  }, [activeItemId]);
 
   return (
-    <aside className={classNames}>
+    <aside className={classNames} ref={barRef}>
       <nav aria-label={ariaLabel} className={styles.nav}>
         {items.map((group) => (
           <div key={group.id} className={styles.group}>

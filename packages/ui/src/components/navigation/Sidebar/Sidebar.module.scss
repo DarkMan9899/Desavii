@@ -153,18 +153,30 @@
   }
 }
 
+// Mobile/Tablet bottom bar: every group sits side by side in one
+// scrolling row, so each group is as wide as its items (`flex: none`). At
+// `width: 100%` a group with more items than fit the bar overflowed its
+// own box and the next group painted over the overflow — a tap on one
+// admin item opened its neighbour, or nothing (the group label was on
+// top).
 .group {
   display: flex;
+  flex: none;
   flex-direction: row;
-  width: 100%;
 
   @include respond.respond(tablet) {
+    flex: initial;
+    width: 100%;
     flex-direction: column;
     padding: spacing.$space-4 spacing.$space-2;
   }
 }
 
+// Section labels belong to the side column; in the one-row bottom bar
+// there is no room above the items for them, and inline they read as a
+// dead, tappable-looking entry between the real ones.
 .groupLabel {
+  display: none;
   margin: 0 0 spacing.$space-2;
   padding-inline: spacing.$space-4;
   font-size: fn.rem(12px);
@@ -180,17 +192,21 @@
   // comment for the same verified figure) and reads identically as a
   // muted section label.
   color: colors.$color-gray-600;
+
+  @include respond.respond(tablet) {
+    display: block;
+  }
 }
 
 .list {
   display: flex;
   flex-direction: row;
-  width: 100%;
   margin: 0;
   padding: 0;
   list-style: none;
 
   @include respond.respond(tablet) {
+    width: 100%;
     flex-direction: column;
     gap: spacing.$space-1;
   }
@@ -217,6 +233,9 @@
     min-width: 0;
     padding: spacing.$space-2 spacing.$space-4;
     border-radius: radius.$radius-md;
+    // The side column has room for a second line, so a long HY/RU label
+    // wraps there instead of being cut off with an ellipsis.
+    white-space: normal;
   }
 
   &:hover {

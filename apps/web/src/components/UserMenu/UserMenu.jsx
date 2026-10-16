@@ -17,6 +17,15 @@
  * `setLastWorkspace` so `LoginForm`'s next redirect remembers it. A
  * plain customer (no partnerships) sees no such section — nothing to
  * switch between.
+ *
+ * Role-aware "My account": it opens the signed-in person's primary
+ * workspace — `resolveHomePath`, the same decision the login redirect
+ * makes (admin-area roles `/admin`, MANAGER `/manager`, MARKETING
+ * `/marketing`, a partner member `/partner` unless they last chose the
+ * customer workspace, everyone else `/account`). It used to always open
+ * the customer `/account`, so an admin who stepped out to the public site
+ * via the logo landed in the customer area. "Profile" and "Settings" stay
+ * the person's own account pages, which every signed-in user has.
  */
 
 import { useState } from 'react';
@@ -27,6 +36,7 @@ import { Popover } from '@desavii/ui/components/navigation';
 import { Stack, Divider } from '@desavii/ui/components/layout';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { setLastWorkspace } from '../../utils/workspacePreference.js';
+import { resolveHomePath } from '../../utils/authDestinations.js';
 import styles from './UserMenu.module.scss';
 
 export default function UserMenu() {
@@ -38,6 +48,7 @@ export default function UserMenu() {
     isAuthenticated,
     isBootstrapping,
     user,
+    roles = [],
     partnerships = [],
     logout,
   } = useAuth();
@@ -134,7 +145,7 @@ export default function UserMenu() {
         )}
         <Link
           role="menuitem"
-          to={`/${locale}/account`}
+          to={resolveHomePath({ roles, partnerships, locale })}
           className={styles.menuItem}
           onClick={() => setIsOpen(false)}
         >

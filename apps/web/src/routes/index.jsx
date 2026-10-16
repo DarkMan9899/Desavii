@@ -45,6 +45,7 @@ import MarketingLayout from '../layouts/MarketingLayout.jsx';
 import ErrorLayout from '../layouts/ErrorLayout.jsx';
 import RequireAuth from '../guards/RequireAuth.jsx';
 import RedirectIfAuthenticated from '../guards/RedirectIfAuthenticated.jsx';
+import { ADMIN_AREA_ROLES } from '../utils/authDestinations.js';
 import RequirePartner from '../guards/RequirePartner.jsx';
 import RequireRole from '../guards/RequireRole.jsx';
 import RequireManager from '../guards/RequireManager.jsx';
@@ -295,8 +296,6 @@ const MarketingPostPreviewPage = lazy(
   () => import('../pages/marketing/MarketingPostPreviewPage.jsx'),
 );
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage.jsx'));
-
-const ADMIN_AREA_ROLES = ['ADMIN', 'SUPER_ADMIN', 'MODERATOR', 'SUPPORT'];
 
 function LocaleValidator({ children }) {
   const { locale } = useParams();

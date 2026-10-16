@@ -23,6 +23,46 @@ function GuestDestination() {
   return <p>{where}</p>;
 }
 
+describe('UserMenu "My account" — the role\'s primary workspace', () => {
+  test.each([
+    ['an admin', ['ADMIN'], [], '/hy/admin'],
+    ['a super admin', ['SUPER_ADMIN'], [], '/hy/admin'],
+    ['a moderator', ['MODERATOR'], [], '/hy/admin'],
+    ['a support agent', ['SUPPORT'], [], '/hy/admin'],
+    ['a manager', ['MANAGER'], [], '/hy/manager'],
+    ['a marketing user', ['MARKETING'], [], '/hy/marketing'],
+    ['a partner member', ['CUSTOMER'], [{ partner_id: 1 }], '/hy/partner'],
+    ['a customer', ['CUSTOMER'], [], '/hy/account'],
+  ])(
+    'sends %s to their workspace, while Profile and Settings stay their own account pages',
+    async (_who, roles, partnerships, expected) => {
+      window.localStorage.clear();
+      useAuth.mockReturnValue({
+        isAuthenticated: true,
+        isBootstrapping: false,
+        user: { id: 1, first_name: 'Ana', last_name: 'Smith' },
+        roles,
+        partnerships,
+        logout: vi.fn(),
+      });
+      const user = userEvent.setup();
+      renderMenu();
+
+      await user.click(screen.getByRole('button', { name: 'Հաշվի ընտրացանկ' }));
+
+      expect(
+        screen.getByRole('menuitem', { name: 'Իմ հաշիվը' }),
+      ).toHaveAttribute('href', expected);
+      expect(
+        screen.getByRole('menuitem', { name: 'Անձնական տվյալներ' }),
+      ).toHaveAttribute('href', '/hy/account/profile');
+      expect(
+        screen.getByRole('menuitem', { name: 'Կարգավորումներ' }),
+      ).toHaveAttribute('href', '/hy/account/settings');
+    },
+  );
+});
+
 describe('UserMenu (apps/web/src/components)', () => {
   test('signed out, "Register" opens customer registration — never partner onboarding — in the current language', async () => {
     useAuth.mockReturnValue({ isAuthenticated: false, isBootstrapping: false });
