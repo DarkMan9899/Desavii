@@ -24,8 +24,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: tokens.$button-height-md;
+  height: tokens.$button-height-md;
   border: 1px solid tokens.$color-gray-200;
   border-radius: tokens.$radius-full;
   background: tokens.$color-white;

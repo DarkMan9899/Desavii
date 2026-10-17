@@ -10,6 +10,15 @@
 
 import { z } from 'zod';
 import { isoDateSchema } from '../../../validation/isoDate.js';
+import { MEAL_PLANS } from '../../../core/domain/roomAttributes.js';
+import {
+  POLICY_PARAM_PREFIX,
+  ROOM_PARAM_PREFIX,
+  ROOM_FILTERS,
+  TOGGLE_ON_VALUE,
+  RATING_MIN,
+  RATING_MAX,
+} from '../../../core/domain/searchComputedFilters.js';
 import { LISTING_STATUSES } from '../../../core/domain/listingStatusTransitions.js';
 import {
   SORT_KEYS,
@@ -33,18 +42,47 @@ const priceBoundSchema = z.coerce
   .max(SEARCH_PRICE_MAX_AMD)
   .optional();
 
+const RATING_STEP = 0.5;
+
 /**
  * Structural shapes for the passthrough keys `SearchService` resolves
- * against the attribute registry: a `_min`/`_max` bound is a number or a
- * real calendar date (DATE attributes); every option list (`attr_{code}`,
- * `amenityIds`) is comma-separated positive ids. Anything else (`abc`,
- * `2026-02-30`, a repeated key arriving as an array) is a 422 here, never
- * a value the query builder could fail on.
+ * against its registries: a `_min`/`_max` bound is a number or a real
+ * calendar date (DATE attributes); every option list (`attr_{code}`,
+ * `amenityIds`) is comma-separated positive ids; a `policy_{code}` is an
+ * option-code list or `true`; `room_*` is a closed set (meal plans,
+ * hourly stays). Anything else (`abc`, `2026-02-30`, an unknown `room_*`,
+ * a repeated key arriving as an array) is a 422 here, never a value the
+ * query builder could fail on.
  */
 const ATTRIBUTE_BOUND_KEY_PATTERN = /^attr_.+_(min|max)$/;
 const ATTRIBUTE_KEY_PATTERN = /^attr_/;
+const POLICY_KEY_PATTERN = new RegExp(
+  `^${POLICY_PARAM_PREFIX}[a-z][a-z0-9_]*$`,
+);
 const ID_LIST_PATTERN = /^\d+(,\d+)*$/;
+const CODE_LIST_PATTERN = /^[A-Z0-9_]+(,[A-Z0-9_]+)*$/;
 const NUMERIC_BOUND_PATTERN = /^-?\d+(\.\d+)?$/;
+
+const ROOM_PARAM_RULES = {
+  [`${ROOM_PARAM_PREFIX}${ROOM_FILTERS.MEAL_PLAN}`]: (value) =>
+    CODE_LIST_PATTERN.test(value) &&
+    value.split(',').every((code) => MEAL_PLANS.includes(code)),
+  [`${ROOM_PARAM_PREFIX}${ROOM_FILTERS.HOURLY_STAYS}`]: (value) =>
+    value === TOGGLE_ON_VALUE,
+};
+
+function isValidPolicyParam(key, value) {
+  return (
+    POLICY_KEY_PATTERN.test(key) &&
+    typeof value === 'string' &&
+    (value === TOGGLE_ON_VALUE || CODE_LIST_PATTERN.test(value))
+  );
+}
+
+function isValidRoomParam(key, value) {
+  const rule = ROOM_PARAM_RULES[key];
+  return Boolean(rule) && typeof value === 'string' && rule(value);
+}
 
 function isValidAttributeBound(value) {
   return (
@@ -65,6 +103,10 @@ function validateDynamicFilterKeys(data, ctx) {
       valid = isValidAttributeBound(value);
     } else if (ATTRIBUTE_KEY_PATTERN.test(key) || key === 'amenityIds') {
       valid = isValidIdList(value);
+    } else if (key.startsWith(POLICY_PARAM_PREFIX)) {
+      valid = isValidPolicyParam(key, value);
+    } else if (key.startsWith(ROOM_PARAM_PREFIX)) {
+      valid = isValidRoomParam(key, value);
     }
     if (!valid) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key] });
@@ -97,6 +139,13 @@ export const searchListingsQuerySchema = z.object({
       // in any other currency never matches a bound.
       priceMin: priceBoundSchema,
       priceMax: priceBoundSchema,
+      // Approved-review average, "this or better", in half-star steps.
+      ratingMin: z.coerce
+        .number()
+        .min(RATING_MIN)
+        .max(RATING_MAX)
+        .multipleOf(RATING_STEP)
+        .optional(),
       // The Category page shows active CATEGORY_TOP promotions in their
       // own section above its grid and asks the grid to leave them out.
       // Plain Search never does, so choosing a category can't hide a
@@ -160,6 +209,8 @@ export const searchDestinationsQuerySchema = z.object({
   params: passthroughParams,
   query: z.object({
     locale: z.string().trim().min(2).max(10).optional(),
+    // Scopes each city's listing count to one category (Search's picker).
+    categoryId: z.coerce.number().int().positive().optional(),
   }),
   body: z.any(),
 });
@@ -177,6 +228,8 @@ export const searchFiltersQuerySchema = z.object({
   params: passthroughParams,
   query: z.object({
     categoryId: z.coerce.number().int().positive().optional(),
+    // Amenity labels are localized server-side.
+    locale: z.string().trim().min(2).max(10).optional(),
   }),
   body: z.any(),
 });

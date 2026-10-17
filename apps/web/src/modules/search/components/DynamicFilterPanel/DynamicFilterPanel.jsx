@@ -28,6 +28,7 @@ import { Drawer } from '@desavii/ui/components/feedback-overlays';
 import { useRenderableFilterGroups } from '../../hooks/useRenderableFilterGroups.js';
 import FilterControl from './FilterControl.jsx';
 import { getActiveFilterChips } from './activeFilterChips.js';
+import { groupLabel, isNamedByGroup } from '../../utils/filterVocabulary.js';
 import styles from './DynamicFilterPanel.module.scss';
 
 export default function DynamicFilterPanel({
@@ -35,11 +36,16 @@ export default function DynamicFilterPanel({
   dynamicFilters,
   onChange,
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
-  const groups = useRenderableFilterGroups(categoryId);
+  const { groups } = useRenderableFilterGroups(categoryId, i18n.language);
 
-  const activeChips = getActiveFilterChips(groups, dynamicFilters, t);
+  const activeChips = getActiveFilterChips(
+    groups,
+    dynamicFilters,
+    t,
+    i18n.language,
+  );
 
   const clearKeys = (keys) => {
     const patch = {};
@@ -106,15 +112,14 @@ export default function DynamicFilterPanel({
         <div className={styles.drawerBody}>
           {groups.map((group) => (
             <section key={group.code} className={styles.group}>
-              <h3 className={styles.groupTitle}>
-                {t(`search.dynamicFilters.groups.${group.code}`, group.code)}
-              </h3>
+              <h3 className={styles.groupTitle}>{groupLabel(t, group.code)}</h3>
               {group.definitions.map((definition) => (
                 <FilterControl
                   key={definition.code}
                   definition={definition}
                   dynamicFilters={dynamicFilters}
                   onChange={onChange}
+                  isTitledBySection={isNamedByGroup(t, group, definition)}
                 />
               ))}
             </section>

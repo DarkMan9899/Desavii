@@ -18,13 +18,21 @@ import { useQuery } from '@tanstack/react-query';
 import { getSearchFilterDefinitions } from '../../../api/search.js';
 import searchKeys from '../constants/queryKeys.js';
 
-export function useSearchFilterDefinitionsQuery(categoryId) {
+export function useSearchFilterDefinitionsQuery(
+  categoryId,
+  locale,
+  { enabled = true } = {},
+) {
   return useQuery({
-    queryKey: searchKeys.filterDefinitions(categoryId),
+    queryKey: searchKeys.filterDefinitions(categoryId, locale),
     queryFn: async () => {
-      const { data } = await getSearchFilterDefinitions({ categoryId });
+      const { data } = await getSearchFilterDefinitions({
+        categoryId,
+        locale,
+      });
       return data.groups;
     },
+    enabled,
     staleTime: 5 * 60 * 1000,
   });
 }

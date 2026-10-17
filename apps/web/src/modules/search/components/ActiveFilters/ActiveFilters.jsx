@@ -1,8 +1,9 @@
 /**
- * ActiveFilters — one removable chip per applied filter
+ * ActiveFilters — "filtered by": one removable chip per applied filter
  * (`utils/activeSearchChips.js`) plus "Clear filters". Removing a chip
  * applies immediately and pushes one history entry, so Back restores
- * it. Renders nothing while no filter is applied.
+ * it. One compact line on phones (chips scroll sideways), wrapping from
+ * Tablet. Renders nothing while no filter is applied.
  */
 
 import PropTypes from 'prop-types';
@@ -38,9 +39,11 @@ export default function ActiveFilters({ chips, onRemoveChip, onClearAll }) {
           </li>
         ))}
       </ul>
-      <Button variant="ghost" size="sm" onClick={onClearAll}>
-        {t('search.filters.clearAll')}
-      </Button>
+      <div className={styles.clearAll}>
+        <Button variant="ghost" size="sm" onClick={onClearAll}>
+          {t('search.filters.clearAll')}
+        </Button>
+      </div>
     </div>
   );
 }

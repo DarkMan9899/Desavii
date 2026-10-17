@@ -65,6 +65,7 @@ export function createSearchController(searchService) {
       try {
         const destinations = await searchService.searchDestinations(
           req.validated.query.locale,
+          req.validated.query.categoryId,
         );
         res.status(200).json({
           success: true,
@@ -98,6 +99,7 @@ export function createSearchController(searchService) {
       try {
         const groups = await searchService.getFilterDefinitions(
           req.validated.query.categoryId,
+          req.validated.query.locale,
         );
         res.status(200).json({
           success: true,

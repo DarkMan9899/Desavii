@@ -26,7 +26,12 @@ export function getCategories(params) {
     .then((response) => response.data);
 }
 
-/** Phase 20 (SEO) — real seeded cities with published-listing counts, backing destination landing pages. */
+/**
+ * Phase 20 (SEO) — real seeded cities with published-listing counts,
+ * backing destination landing pages. With `categoryId`, each count is that
+ * category's listings (Search's destination picker).
+ * @param {{ locale?: string, categoryId?: number }} params
+ */
 export function getDestinations(params) {
   return apiClient
     .get('/search/destinations', { params })
@@ -63,19 +68,23 @@ export function getSuggestions(params) {
  *   guests?: number, priceMin?: number, priceMax?: number,
  *   excludeCategoryTop?: 'true', cursor?: string, limit?: number }} params
  */
-export function searchListings(params) {
-  return apiClient.get('/search', { params }).then((response) => response.data);
+export function searchListings(params, { signal } = {}) {
+  return apiClient
+    .get('/search', { params, signal })
+    .then((response) => response.data);
 }
 
 /**
  * `GET /search/filters` — the dynamic filter metadata endpoint (Phase 4.2).
  * Returns `{ groups: [{ code, definitions: [{ code, input_type,
- * value_source, unit, min, max, is_multi_valued, options: [{ value, code }]
- * }] }] }` — every field the frontend needs to render the right control per
- * filter and to know which query params it accepts, without any filter
- * list ever being hardcoded here. Omitting `categoryId` returns only the
- * catalog's global filters (currently just amenities).
- * @param {{ categoryId?: number }} params
+ * value_source, param, is_advanced, unit, min, max, listing_count,
+ * options: [{ value, code, label, group, count }] }] }] }` — every field
+ * the frontend needs to render the right control per filter, the exact
+ * query param it writes, and how many of the category's visible listings
+ * each option matches — without any filter list ever being hardcoded
+ * here. Amenity `label`s come back in `locale`. Omitting `categoryId`
+ * returns only the catalog's global filters (guest rating).
+ * @param {{ categoryId?: number, locale?: string }} params
  */
 export function getSearchFilterDefinitions(params) {
   return apiClient

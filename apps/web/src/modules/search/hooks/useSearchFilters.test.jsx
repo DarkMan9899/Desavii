@@ -10,6 +10,32 @@ import {
   useNavigate,
 } from 'react-router-dom';
 import { useSearchFilters } from './useSearchFilters.js';
+import { useRenderableFilterGroups } from './useRenderableFilterGroups.js';
+
+vi.mock('./useRenderableFilterGroups.js', () => ({
+  useRenderableFilterGroups: vi.fn(),
+  default: vi.fn(),
+}));
+
+// The filter catalog each category declares (`GET /search/filters`),
+// reduced to the params that matter here: Hotels offers bedrooms,
+// amenities and guest rating; every other category only guest rating.
+const definition = (param, inputType) => ({
+  code: param,
+  param,
+  input_type: inputType,
+  value_source: 'ATTRIBUTE',
+  options: [{ value: 1, code: '1', count: 1 }],
+});
+const RATING = definition('ratingMin', 'SINGLE_SELECT');
+const CATALOG_BY_CATEGORY = {
+  1: [
+    definition('attr_bedrooms', 'STEPPER'),
+    definition('amenityIds', 'MULTI_SELECT'),
+    RATING,
+  ],
+};
+const catalog = { isPending: false };
 
 const CATEGORIES = [
   { id: 1, slug: 'hotels', name: 'Hotels' },
@@ -42,11 +68,14 @@ function Harness({ catalogs }) {
     'set bedrooms': () => updateDynamicFilter({ attr_bedrooms_min: '2' }),
     'set amenities': () => updateDynamicFilter({ amenityIds: '1,2' }),
     'clear bedrooms': () => updateDynamicFilter({ attr_bedrooms_min: '' }),
+    'set rating': () => updateDynamicFilter({ ratingMin: '4' }),
+    'apply nothing new': () => updateFilters({}),
     back: () => navigate(-1),
   };
   return (
     <div>
       <p data-testid="url">{location.search}</p>
+      <p data-testid="historyKey">{location.key}</p>
       <p data-testid="filters">{JSON.stringify(filters)}</p>
       <p data-testid="isResolved">{String(isResolved)}</p>
       <p data-testid="count">{activeFilterCount}</p>
@@ -90,6 +119,18 @@ describe('useSearchFilters (apps/web/src/modules/search)', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-16T10:00:00Z'));
+    catalog.isPending = false;
+    useRenderableFilterGroups.mockImplementation((categoryId) => ({
+      isPending: catalog.isPending,
+      groups: catalog.isPending
+        ? []
+        : [
+            {
+              code: 'ALL',
+              definitions: CATALOG_BY_CATEGORY[categoryId] ?? [RATING],
+            },
+          ],
+    }));
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -169,7 +210,7 @@ describe('useSearchFilters (apps/web/src/modules/search)', () => {
 
   test('updateDynamicFilter merges keys and an empty value removes one', async () => {
     const user = userEvent.setup();
-    renderHarness();
+    renderHarness('/en/search?categoryId=1');
     await user.click(screen.getByRole('button', { name: 'set bedrooms' }));
     await user.click(screen.getByRole('button', { name: 'set amenities' }));
     expect(readFilters().dynamicFilters).toEqual({
@@ -195,6 +236,40 @@ describe('useSearchFilters (apps/web/src/modules/search)', () => {
     await user.click(screen.getByRole('button', { name: 'set bedrooms' }));
     await user.click(screen.getByRole('button', { name: 'set hotels' }));
     expect(readFilters().dynamicFilters).toEqual({ attr_bedrooms_min: '2' });
+  });
+
+  test('a category filter the category does not offer is dropped from the URL', () => {
+    renderHarness('/en/search?categoryId=7&attr_bedrooms_min=2&ratingMin=4');
+    expect(readFilters().dynamicFilters).toEqual({ ratingMin: '4' });
+    expect(readUrl()).toBe('?categoryId=7&ratingMin=4');
+  });
+
+  test('category filters wait for their catalog before the search counts as resolved', () => {
+    catalog.isPending = true;
+    const { unmount } = renderHarness('/en/search?categoryId=1&amenityIds=2');
+    expect(screen.getByTestId('isResolved')).toHaveTextContent('false');
+    unmount();
+    renderHarness('/en/search?categoryId=1');
+    expect(screen.getByTestId('isResolved')).toHaveTextContent('true');
+  });
+
+  test('changing category keeps the guest rating (it applies to every category)', async () => {
+    const user = userEvent.setup();
+    renderHarness('/en/search?categoryId=1&attr_bedrooms_min=2');
+    await user.click(screen.getByRole('button', { name: 'set rating' }));
+    await user.click(screen.getByRole('button', { name: 'set car rentals' }));
+    expect(readFilters()).toMatchObject({
+      categoryId: 7,
+      dynamicFilters: { ratingMin: '4' },
+    });
+  });
+
+  test('a write that changes nothing adds no history entry (and so no request)', async () => {
+    const user = userEvent.setup();
+    renderHarness('/en/search?categoryId=1');
+    const before = screen.getByTestId('historyKey').textContent;
+    await user.click(screen.getByRole('button', { name: 'apply nothing new' }));
+    expect(screen.getByTestId('historyKey')).toHaveTextContent(before);
   });
 
   test('counts each applied filter once (a price range is one filter)', () => {

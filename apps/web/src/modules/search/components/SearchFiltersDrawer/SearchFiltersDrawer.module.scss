@@ -2,72 +2,108 @@
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
+@use 'mixins/focus-ring' as focus;
+
+// Which category's filters these are — the panel's context line.
+.context {
+  margin: 0 0 tokens.$space-4;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: tokens.$color-royal-blue;
+}
 
 .body {
   display: flex;
   flex-direction: column;
-  gap: tokens.$space-6;
+}
+
+// From Tablet the same fields sit in the search bar, so the panel keeps
+// to price and category filters.
+.primarySection {
+  padding-bottom: tokens.$space-6;
+  margin-bottom: tokens.$space-2;
+  border-bottom: 1px solid tokens.$color-gray-200;
+
+  @include respond.respond(tablet) {
+    display: none;
+  }
 }
 
 .section {
-  display: flex;
-  flex-direction: column;
-  gap: tokens.$space-3;
+  border-bottom: 1px solid tokens.$color-gray-200;
+}
 
-  & + & {
-    padding-top: tokens.$space-6;
-    border-top: 1px solid tokens.$color-gray-200;
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: tokens.$space-3;
+  min-height: tokens.$button-height-md;
+  padding-block: tokens.$space-3;
+  list-style: none;
+  cursor: pointer;
+  border-radius: tokens.$radius-sm;
+  @include focus.focus-ring;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  // A chevron that turns as the section opens — drawn with borders so it
+  // needs no icon element inside `summary`.
+  &::after {
+    content: '';
+    flex-shrink: 0;
+    width: tokens.$space-2;
+    height: tokens.$space-2;
+    margin-inline-end: tokens.$space-1;
+    border-right: 2px solid tokens.$color-gray-600;
+    border-bottom: 2px solid tokens.$color-gray-600;
+    transform: rotate(45deg);
+    transition: transform tokens.$motion-micro tokens.$ease-out;
+    @include tokens.reduced-motion-safe;
   }
 }
 
-// From Tablet the same fields sit inline above the results
-// (`SearchForm`), so the drawer keeps to price and category filters.
-.primarySection {
-  @include respond.respond(tablet) {
-    display: none;
-
-    & + .section {
-      padding-top: 0;
-      border-top: none;
-    }
-  }
+.section[open] > .summary::after {
+  transform: rotate(-135deg);
 }
 
 .sectionTitle {
-  margin: 0;
+  flex: 1 1 auto;
   font-family: tokens.$font-heading;
   font-size: tokens.$font-size-body-large;
   line-height: tokens.$line-height-body-large;
   color: tokens.$color-gray-900;
 }
 
-.priceFields {
+.activeCount {
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  color: tokens.$color-royal-blue;
+}
+
+.sectionBody {
   display: flex;
   flex-direction: column;
   gap: tokens.$space-2;
+  padding-bottom: tokens.$space-4;
 }
 
-// Bottom-aligned, so the two inputs stay level when one label wraps to a
-// second line (e.g. Armenian "Առավելագույնը (AMD)").
-.priceInputs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: tokens.$space-3;
-  align-items: end;
+.sectionActions {
+  display: flex;
+  justify-content: flex-end;
 }
 
-.hint {
-  margin: 0;
-  font-size: tokens.$font-size-small;
-  line-height: tokens.$line-height-small;
-  color: tokens.$color-gray-600;
-}
-
-.error {
-  margin: 0;
-  font-size: tokens.$font-size-small;
-  line-height: tokens.$line-height-small;
-  color: tokens.$color-danger;
+// Holds a section's place while a newly chosen category's filters load.
+.sectionPlaceholder {
+  height: tokens.$button-height-md;
+  margin-block: tokens.$space-2;
+  border-radius: tokens.$radius-md;
+  background-color: tokens.$color-gray-100;
 }
 
 // Pinned to the bottom of the sheet/panel so the apply action is always
@@ -82,14 +118,14 @@
   flex-wrap: wrap;
   justify-content: space-between;
   gap: tokens.$space-3;
-
-  // Long labels ("Показать результаты") take a row each rather than
-  // running past the sheet's edge.
-  > * {
-    flex: 1 1 auto;
-  }
   margin-top: tokens.$space-6;
   padding-block: tokens.$space-4;
   border-top: 1px solid tokens.$color-gray-200;
   background-color: tokens.$color-white;
+
+  // Long labels ("Показать 12 результатов") take a row each rather than
+  // running past the sheet's edge.
+  > * {
+    flex: 1 1 auto;
+  }
 }

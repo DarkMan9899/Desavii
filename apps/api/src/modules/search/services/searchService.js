@@ -18,10 +18,18 @@ import { resolveSortOption } from '../../../core/domain/sortOptions.js';
 import { toBusinessDateTime } from '../../../core/domain/bookingTimebase.js';
 import { isoDateSchema } from '../../../validation/isoDate.js';
 import { ValidationError } from '../../../errors/AppError.js';
+import {
+  POLICY_PARAM_PREFIX,
+  ROOM_PARAM_PREFIX,
+  ROOM_FILTERS,
+  TOGGLE_ON_VALUE,
+} from '../../../core/domain/searchComputedFilters.js';
 
 const SUGGESTION_MIN_QUERY_LENGTH = 2;
 const ATTR_RANGE_PATTERN = /^attr_(.+)_(min|max)$/;
 const ATTR_PREFIX = 'attr_';
+const ROOM_MEAL_PLAN_PARAM = `${ROOM_PARAM_PREFIX}${ROOM_FILTERS.MEAL_PLAN}`;
+const ROOM_HOURLY_PARAM = `${ROOM_PARAM_PREFIX}${ROOM_FILTERS.HOURLY_STAYS}`;
 
 function toIdList(value) {
   return String(value)
@@ -92,6 +100,17 @@ function resolveAvailabilityFilter({ dateFrom, dateTo, guests }) {
  * the set of attribute codes is data, not a fixed enum) by attribute code,
  * ready for `#resolveAttributeFilters` to turn into real filter entries.
  */
+/** `{prefix}{code}=value` params, by code (empty values skipped). */
+function extractPrefixedParams(rest, prefix) {
+  const byCode = new Map();
+  Object.entries(rest).forEach(([key, value]) => {
+    if (key.startsWith(prefix) && value !== undefined && value !== '') {
+      byCode.set(key.slice(prefix.length), value);
+    }
+  });
+  return byCode;
+}
+
 function extractAttributeParams(rest) {
   const byCode = new Map();
   Object.entries(rest).forEach(([key, value]) => {
@@ -162,9 +181,11 @@ export class SearchService {
    * consumes — codes not currently registered as `attribute_definitions`
    * are dropped, and a bare `attr_{code}` with no ids (or a `_min`/`_max`
    * pair with neither bound present) is dropped too, since neither can
-   * express a filter.
+   * express a filter. With a `categoryId`, an attribute that category does
+   * not carry (`category_attributes`) is dropped as well — a stale
+   * Hotels-only `attr_bedrooms_min` must never narrow a Restaurant search.
    */
-  async #resolveAttributeFilters(rest) {
+  async #resolveAttributeFilters(rest, categoryId) {
     const paramsByCode = extractAttributeParams(rest);
     if (paramsByCode.size === 0) {
       return undefined;
@@ -177,7 +198,11 @@ export class SearchService {
     const filters = [];
     paramsByCode.forEach((value, code) => {
       const definition = definitions.get(code);
-      if (!definition) {
+      if (
+        !definition ||
+        (categoryId !== undefined &&
+          !definition.categoryIds.includes(categoryId))
+      ) {
         return;
       }
       if (value.optionIds) {
@@ -206,6 +231,45 @@ export class SearchService {
     return filters.length > 0 ? filters : undefined;
   }
 
+  /**
+   * Resolves `policy_{code}` params into `policyFilters`: unknown or
+   * non-filterable policies, policies the searched category does not
+   * carry (`category_policies`), and option codes the policy does not
+   * define are all dropped, like an unknown `attr_*` code. A BOOLEAN
+   * policy only ever filters on "allowed" (`true`).
+   */
+  async #resolvePolicyFilters(rest, categoryId) {
+    const paramsByCode = extractPrefixedParams(rest, POLICY_PARAM_PREFIX);
+    if (paramsByCode.size === 0) {
+      return undefined;
+    }
+    const definitions = await this.#searchRepository.getPolicyDefinitionsByCode(
+      Array.from(paramsByCode.keys()),
+    );
+    const filters = [];
+    paramsByCode.forEach((rawValue, code) => {
+      const definition = definitions.get(code);
+      if (
+        !definition ||
+        (categoryId !== undefined &&
+          !definition.categoryIds.includes(categoryId))
+      ) {
+        return;
+      }
+      const allowed =
+        definition.dataTypeCode === 'BOOLEAN'
+          ? [TOGGLE_ON_VALUE]
+          : definition.optionCodes;
+      const values = String(rawValue)
+        .split(',')
+        .filter((value) => allowed.includes(value));
+      if (values.length > 0) {
+        filters.push({ policyDefinitionId: definition.id, values });
+      }
+    });
+    return filters.length > 0 ? filters : undefined;
+  }
+
   async searchListings(principal, params = {}) {
     const {
       keyword,
@@ -226,6 +290,9 @@ export class SearchService {
       priceMin,
       priceMax,
       excludeCategoryTop,
+      ratingMin,
+      [ROOM_MEAL_PLAN_PARAM]: roomMealPlan,
+      [ROOM_HOURLY_PARAM]: roomHourlyStays,
       ...rest
     } = params;
 
@@ -238,12 +305,17 @@ export class SearchService {
       ]);
     }
 
-    const [visibility, { localeId, defaultLocaleId }, attributeFilters] =
-      await Promise.all([
-        this.#resolveVisibility(principal, { partnerId, status }),
-        this.#searchRepository.resolveLocaleIds(locale),
-        this.#resolveAttributeFilters(rest),
-      ]);
+    const [
+      visibility,
+      { localeId, defaultLocaleId },
+      attributeFilters,
+      policyFilters,
+    ] = await Promise.all([
+      this.#resolveVisibility(principal, { partnerId, status }),
+      this.#searchRepository.resolveLocaleIds(locale),
+      this.#resolveAttributeFilters(rest, categoryId),
+      this.#resolvePolicyFilters(rest, categoryId),
+    ]);
     const sort = resolveSortOption(sortKey, { hasKeyword: Boolean(keyword) });
     const availabilityFilter = resolveAvailabilityFilter({
       dateFrom,
@@ -262,6 +334,10 @@ export class SearchService {
       defaultLocaleId,
       amenityIds: amenityIds ? toIdList(amenityIds) : undefined,
       attributeFilters,
+      policyFilters,
+      roomMealPlans: roomMealPlan ? roomMealPlan.split(',') : undefined,
+      roomHourlyStays: roomHourlyStays === TOGGLE_ON_VALUE,
+      ratingMin,
       priceMin,
       priceMax,
       excludeCategoryTop,
@@ -310,13 +386,17 @@ export class SearchService {
     });
   }
 
-  /** Phase 20 (SEO) — backs the destination landing pages. */
-  async searchDestinations(locale) {
+  /**
+   * Phase 20 (SEO) — backs the destination landing pages; with a
+   * `categoryId`, Search's destination picker (counts scoped to it).
+   */
+  async searchDestinations(locale, categoryId) {
     const { localeId, defaultLocaleId } =
       await this.#searchRepository.resolveLocaleIds(locale);
     return this.#searchRepository.searchDestinations({
       localeId,
       defaultLocaleId,
+      categoryId,
     });
   }
 
@@ -340,11 +420,12 @@ export class SearchService {
   /**
    * Filter metadata is the same catalog for every caller — unlike
    * `searchListings`, there's no per-principal visibility to narrow, so
-   * this is a direct passthrough to the Repository's derived
-   * category-resolution query (§4.1 of the proposal).
+   * this only resolves the locale (amenity labels) and passes through to
+   * the Repository's catalog (`searchFilterCatalog.js`).
    */
-  async getFilterDefinitions(categoryId) {
-    return this.#searchRepository.getFilterDefinitions(categoryId);
+  async getFilterDefinitions(categoryId, locale) {
+    const localeIds = await this.#searchRepository.resolveLocaleIds(locale);
+    return this.#searchRepository.getFilterDefinitions(categoryId, localeIds);
   }
 
   /**

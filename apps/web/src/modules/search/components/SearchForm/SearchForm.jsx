@@ -1,22 +1,20 @@
 /**
- * SearchForm — the Tablet+ inline search: `PrimarySearchFields` over a
- * local draft, applied as one search when the visitor presses Search (or
- * Enter). Nothing reaches the URL while they are still choosing — a
- * half-picked date range stays in the calendar instead of being written,
- * dropped and reset.
+ * SearchForm — the Tablet+ search bar: the primary fields with the Search
+ * button in the same row, aligned to the inputs.
  *
- * Only the primary fields are applied here; price and category filters
- * belong to `SearchFiltersDrawer`. A different category still drops the
- * old category's attribute filters (`useSearchFilters.updateFilters`).
+ * Live: a choice applies at once, typing applies once it pauses, and a
+ * date range applies the moment it is complete. Search (or Enter) applies
+ * whatever is still pending — typed text inside its pause, nothing at all
+ * if the visitor already sees what they asked for — as one change, so it
+ * never sends a duplicate request. A range missing its end date is pointed
+ * out at the date field instead.
  */
 
-import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@desavii/ui/components/primitives';
+import { Search } from 'lucide-react';
 import PrimarySearchFields from '../PrimarySearchFields/PrimarySearchFields.jsx';
 import { useSearchDraft } from '../../hooks/useSearchDraft.js';
-import { fromSearchDraft } from '../../utils/searchDraft.js';
 import { getSearchCapabilities } from '../../utils/categoryFilterCapabilities.js';
 import {
   categoryShape,
@@ -30,26 +28,18 @@ export default function SearchForm({
   categories,
   destinations,
   onApply,
+  isSearching = false,
 }) {
   const { t } = useTranslation();
-  const { draft, errors, updateDraft } = useSearchDraft(filters, categories);
-  const [showErrors, setShowErrors] = useState(false);
-
   const { dateMode } = getSearchCapabilities(
-    categories.find((category) => category.id === draft.categoryId)?.slug,
+    categories.find((category) => category.id === filters.categoryId)?.slug,
   );
+  const draft = useSearchDraft(filters, onApply, { dateMode });
 
-  function handleSubmit(event) {
+  const handleSubmit = (event) => {
     event.preventDefault();
-    if (errors.dates) {
-      setShowErrors(true);
-      return;
-    }
-    setShowErrors(false);
-    const { destination, cityId, categoryId, dateFrom, dateTo, guests } =
-      fromSearchDraft(draft);
-    onApply({ destination, cityId, categoryId, dateFrom, dateTo, guests });
-  }
+    draft.flush();
+  };
 
   return (
     <form
@@ -60,22 +50,23 @@ export default function SearchForm({
       noValidate
     >
       <PrimarySearchFields
+        filters={filters}
         draft={draft}
-        onChange={updateDraft}
+        onApply={onApply}
         categories={categories}
         destinations={destinations}
-        dateError={
-          showErrors && errors.dates
-            ? t(`search.filters.dates.${dateMode}.${errors.dates}`)
-            : undefined
+        layout="bar"
+        action={
+          <button
+            type="submit"
+            className={styles.submit}
+            aria-busy={isSearching || undefined}
+          >
+            <Search size={18} aria-hidden="true" />
+            <span>{t('search.filters.submit')}</span>
+          </button>
         }
-        layout="inline"
       />
-      <div className={styles.actions}>
-        <Button type="submit" variant="primary" size="md">
-          {t('search.filters.submit')}
-        </Button>
-      </div>
     </form>
   );
 }
@@ -85,4 +76,5 @@ SearchForm.propTypes = {
   categories: PropTypes.arrayOf(categoryShape).isRequired,
   destinations: PropTypes.arrayOf(destinationShape).isRequired,
   onApply: PropTypes.func.isRequired,
+  isSearching: PropTypes.bool,
 };

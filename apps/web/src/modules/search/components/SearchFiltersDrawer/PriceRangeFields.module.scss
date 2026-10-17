@@ -1,0 +1,38 @@
+// PriceRangeFields — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+.priceFields {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+}
+
+// Bottom-aligned, so the two inputs stay level when one label wraps to a
+// second line in Armenian or Russian.
+.inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: tokens.$space-3;
+  align-items: end;
+}
+
+.currency {
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  color: tokens.$color-gray-600;
+}
+
+.hint {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+}
+
+.error {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-danger;
+}

@@ -203,27 +203,57 @@ describe('GET /search/filters', () => {
     expect(amenityFilter.options.some((o) => o.code === 'WiFi')).toBe(true);
   });
 
-  test('apartments: returns STEPPER room-count filters, not star_rating', async () => {
+  // Search & Discovery remediation: a filter is offered only when some
+  // listing in scope carries the fact — a room-count filter no apartment
+  // has could only ever return nothing.
+  test('apartments: room-count STEPPERs appear once an apartment carries the fact, never star_rating', async () => {
+    const [[bedrooms]] = await pool.query(
+      "SELECT id FROM attribute_definitions WHERE code = 'bedrooms'",
+    );
+    await pool.query(
+      'INSERT INTO listing_category_listing (listing_id, category_id) VALUES (?, ?)',
+      [plainListingId, apartmentsCategoryId],
+    );
+    await pool.query(
+      'INSERT INTO listing_attribute_values_integer (listing_id, attribute_definition_id, value) VALUES (?, ?, ?)',
+      [plainListingId, bedrooms.id, 3],
+    );
+
     const res = await request(app).get(
       `/api/v1/search/filters?categoryId=${apartmentsCategoryId}`,
     );
     expect(res.status).toBe(200);
     const roomsGroup = res.body.data.groups.find((g) => g.code === 'ROOMS');
-    expect(roomsGroup).toBeDefined();
-    const codes = roomsGroup.definitions.map((d) => d.code).sort();
-    expect(codes).toEqual(['bathrooms', 'bedrooms', 'beds', 'max_guests']);
+    const bedroomsFilter = roomsGroup.definitions.find(
+      (d) => d.code === 'bedrooms',
+    );
+    expect(bedroomsFilter).toMatchObject({
+      input_type: 'STEPPER',
+      param: 'attr_bedrooms',
+    });
+    expect(bedroomsFilter.listing_count).toBeGreaterThanOrEqual(1);
     expect(
       roomsGroup.definitions.every((d) => d.input_type === 'STEPPER'),
     ).toBe(true);
-    expect(res.body.data.groups.some((g) => g.code === 'RATING')).toBe(false);
+    const codes = res.body.data.groups.flatMap((g) =>
+      g.definitions.map((d) => d.code),
+    );
+    expect(codes).not.toContain('star_rating');
   });
 
-  test('no categoryId: only the global amenities filter is returned, with no options', async () => {
+  // Amenities only apply per category (`amenity_category_applicability`),
+  // so "All categories" offers none until a category is chosen — and no
+  // category attribute, policy or room filter either.
+  test('no categoryId: no category-specific filter is offered', async () => {
     const res = await request(app).get('/api/v1/search/filters');
     expect(res.status).toBe(200);
-    expect(res.body.data.groups).toHaveLength(1);
-    expect(res.body.data.groups[0].code).toBe('AMENITIES');
-    expect(res.body.data.groups[0].definitions[0].options).toEqual([]);
+    const sources = res.body.data.groups
+      .flatMap((g) => g.definitions)
+      .map((d) => d.value_source);
+    expect(sources).not.toContain('ATTRIBUTE');
+    expect(sources).not.toContain('POLICY');
+    expect(sources).not.toContain('ROOM');
+    expect(sources).not.toContain('AMENITY');
   });
 });
 

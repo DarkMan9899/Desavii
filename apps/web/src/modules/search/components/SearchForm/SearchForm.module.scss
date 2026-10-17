@@ -1,29 +1,42 @@
 // SearchForm — tokens only, consumed from @desavii/ui.
-//
-// Fields above the Search button at Tablet; one row with the button
-// aligned to the fields' input line at Laptop+.
 
 @use 'tokens' as tokens;
-@use 'mixins/respond' as respond;
+@use 'mixins/focus-ring' as focus;
 
 .form {
-  display: flex;
-  flex-direction: column;
-  gap: tokens.$space-3;
   min-width: 0;
-
-  > :first-child {
-    flex: 1 1 auto;
-  }
-
-  @include respond.respond(laptop) {
-    flex-direction: row;
-    align-items: flex-end;
-  }
 }
 
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  flex-shrink: 0;
+// The Search action is a field-row item: exactly the inputs' height, so
+// its edges line up with theirs. A native button because the shared
+// Button's heights (36/44/52) never match the 48px field height.
+.submit {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: tokens.$space-2;
+  min-width: tokens.$space-24 + tokens.$space-8;
+  height: tokens.$input-height-md;
+  padding-inline: tokens.$space-6;
+  border: none;
+  border-radius: tokens.$radius-md;
+  background-color: tokens.$color-royal-blue;
+  color: tokens.$color-white;
+  font-family: tokens.$font-body;
+  font-size: tokens.$font-size-body;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color tokens.$motion-micro tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
+  @include focus.focus-ring;
+
+  &:hover {
+    background-color: tokens.$color-navy;
+  }
+
+  &[aria-busy='true'] {
+    cursor: progress;
+  }
 }

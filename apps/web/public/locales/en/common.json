@@ -497,7 +497,8 @@
         "alphabetical": "A–Z",
         "relevance": "Best match",
         "price_asc": "Price: low to high",
-        "price_desc": "Price: high to low"
+        "price_desc": "Price: high to low",
+        "rating_desc": "Top rated"
       },
       "activeFilters": "Active filters",
       "removeFilter": "Remove {{label}} filter",
@@ -546,24 +547,37 @@
       "submit": "Search",
       "editSearchSummary": "Edit search: {{summary}}",
       "summaryEverything": "All listings",
-      "filtersButton": "Filters",
-      "filtersButtonActive": "Filters, {{count}} active",
       "drawerTitle": "Filters",
       "sections": {
         "search": "Search",
         "price": "Price"
       },
       "price": {
-        "minLabel": "Minimum (AMD)",
-        "maxLabel": "Maximum (AMD)",
-        "hint": "Compared with the starting price shown on each listing, in Armenian dram.",
+        "minLabel": "Minimum price",
+        "maxLabel": "Maximum price",
+        "hint": "In Armenian dram (AMD), the currency listings are priced in — compared with each listing’s starting price.",
         "invalidRange": "The minimum can’t be higher than the maximum.",
         "chipRange": "{{min}} – {{max}}",
         "chipMin": "From {{min}}",
-        "chipMax": "Up to {{max}}"
+        "chipMax": "Up to {{max}}",
+        "currency": "AMD"
       },
       "keywordChip": "“{{keyword}}”",
-      "apply": "Show results"
+      "apply": "Show results",
+      "quick": {
+        "label": "Quick filters",
+        "price": "Price",
+        "clear": "Clear",
+        "done": "Done",
+        "allFilters": "All filters",
+        "allFiltersActive": "All filters, {{count}} active"
+      },
+      "showResults_one": "Show {{count}} result",
+      "showResults_other": "Show {{count}} results",
+      "selectedCount_one": "{{count}} selected",
+      "selectedCount_other": "{{count}} selected",
+      "findAmenity": "Find an amenity",
+      "noAmenityMatch": "No amenities match."
     },
     "aiSearch": {
       "ariaLabel": "AI-powered search",
@@ -591,22 +605,16 @@
         "DINING": "Dining",
         "EXPERIENCE": "Experience",
         "VEHICLE": "Vehicle",
-        "AMENITIES": "Amenities"
+        "AMENITIES": "Amenities",
+        "PROPERTY": "Property",
+        "BOOKING": "Booking & policies"
       },
       "definitions": {
-        "bedrooms": "Bedrooms",
-        "bathrooms": "Bathrooms",
-        "beds": "Beds",
-        "max_guests": "Max guests",
-        "star_rating": "Star rating",
-        "price_tier": "Price",
-        "cuisine": "Cuisine",
-        "duration_minutes": "Duration",
-        "difficulty": "Difficulty",
-        "max_group_size": "Max group size",
-        "transmission": "Transmission",
-        "seats": "Seats",
-        "amenity_ids": "Amenities"
+        "amenity_ids": "Amenities",
+        "guest_rating": "Guest rating",
+        "meal_plan": "Meal plan",
+        "hourly_stays": "Hourly stays",
+        "price_tier": "Price level"
       },
       "options": {
         "1": "1 star",
@@ -629,7 +637,8 @@
         "CHALLENGING": "Challenging",
         "MANUAL": "Manual",
         "AUTOMATIC": "Automatic"
-      }
+      },
+      "ratingAtLeast": "{{value}}+"
     },
     "results": {
       "loadMore": "Load more",

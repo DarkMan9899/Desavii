@@ -14,6 +14,7 @@ const ROOMS_GROUP = {
   definitions: [
     {
       code: 'bedrooms',
+      param: 'attr_bedrooms',
       input_type: 'STEPPER',
       value_source: 'ATTRIBUTE',
       unit: 'rooms',
@@ -29,6 +30,7 @@ const AMENITIES_EMPTY_GROUP = {
   definitions: [
     {
       code: 'amenity_ids',
+      param: 'amenityIds',
       input_type: 'MULTI_SELECT',
       value_source: 'AMENITY',
       options: [],
@@ -86,7 +88,7 @@ describe('DynamicFilterPanel (apps/web/src/modules/search)', () => {
     });
 
     const chips = screen.getByRole('group', { name: 'Ակտիվ զտիչներ' });
-    const chipLabel = 'Ննջասենյակներ: 2+';
+    const chipLabel = 'Ննջասենյակներ: 2+ սենյակ';
     expect(within(chips).getByText(chipLabel)).toBeInTheDocument();
 
     await user.click(within(chips).getByText(chipLabel).closest('button'));
@@ -106,7 +108,7 @@ describe('DynamicFilterPanel (apps/web/src/modules/search)', () => {
     expect(onChange).toHaveBeenCalledWith({ attr_bedrooms_min: '' });
   });
 
-  test('re-fetches (via a different query key) when categoryId changes', () => {
+  test('re-fetches (via a different query key) when categoryId changes — in the visitor language', () => {
     useSearchFilterDefinitionsQuery.mockReturnValue({ data: [ROOMS_GROUP] });
     const { rerender } = render(
       <DynamicFilterPanel
@@ -115,7 +117,9 @@ describe('DynamicFilterPanel (apps/web/src/modules/search)', () => {
         onChange={vi.fn()}
       />,
     );
-    expect(useSearchFilterDefinitionsQuery).toHaveBeenCalledWith(2);
+    expect(useSearchFilterDefinitionsQuery).toHaveBeenCalledWith(2, 'hy', {
+      enabled: true,
+    });
 
     rerender(
       <DynamicFilterPanel
@@ -124,6 +128,8 @@ describe('DynamicFilterPanel (apps/web/src/modules/search)', () => {
         onChange={vi.fn()}
       />,
     );
-    expect(useSearchFilterDefinitionsQuery).toHaveBeenCalledWith(6);
+    expect(useSearchFilterDefinitionsQuery).toHaveBeenCalledWith(6, 'hy', {
+      enabled: true,
+    });
   });
 });

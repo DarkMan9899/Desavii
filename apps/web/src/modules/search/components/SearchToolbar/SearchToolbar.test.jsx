@@ -38,7 +38,7 @@ describe('SearchToolbar (apps/web/src/modules/search)', () => {
     expect(screen.getByRole('status')).toHaveTextContent(text);
   });
 
-  test('offers every sort, price included, and "Best match" only with a keyword', async () => {
+  test('offers every sort, price and guest rating included, and "Best match" only with a keyword', async () => {
     const { onSortChange, user } = renderToolbar();
     await user.click(
       screen.getByRole('combobox', { name: T.filters.sortLabel }),
@@ -49,6 +49,7 @@ describe('SearchToolbar (apps/web/src/modules/search)', () => {
       T.filters.sort.alphabetical,
       T.filters.sort.price_asc,
       T.filters.sort.price_desc,
+      T.filters.sort.rating_desc,
     ]);
     await user.click(
       screen.getByRole('option', { name: T.filters.sort.price_asc }),

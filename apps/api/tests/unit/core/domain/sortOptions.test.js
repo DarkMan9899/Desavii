@@ -1,7 +1,8 @@
 /**
  * Sprint 8: "Sorting: newest, oldest, alphabetical, relevance (prepare
  * architecture even if initial implementation is simple)." Search &
- * Discovery rebuild: plus price low-to-high / high-to-low.
+ * Discovery rebuild: plus price low-to-high / high-to-low. Remediation:
+ * plus top rated.
  */
 
 import { describe, test, expect } from '@jest/globals';
@@ -65,7 +66,16 @@ describe('resolveSortOption', () => {
     });
   });
 
-  test('SORT_KEYS exposes exactly the six documented sort options', () => {
+  test('rating_desc sorts by the never-NULL rating key and needs no keyword', () => {
+    expect(resolveSortOption('rating_desc')).toEqual({
+      key: 'rating_desc',
+      column: 'rating_sort',
+      direction: 'DESC',
+      requiresKeyword: false,
+    });
+  });
+
+  test('SORT_KEYS exposes exactly the seven documented sort options', () => {
     expect([...SORT_KEYS].sort()).toEqual(
       [
         'newest',
@@ -74,6 +84,7 @@ describe('resolveSortOption', () => {
         'relevance',
         'price_asc',
         'price_desc',
+        'rating_desc',
       ].sort(),
     );
   });

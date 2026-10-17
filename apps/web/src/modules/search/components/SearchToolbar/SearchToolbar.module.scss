@@ -11,22 +11,31 @@
   gap: tokens.$space-3;
 }
 
+// The result count is the headline of the results area.
 .status {
   margin: 0;
-  font-size: tokens.$font-size-body;
-  line-height: tokens.$line-height-body;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-body-large;
+  line-height: tokens.$line-height-body-large;
   font-weight: 600;
   color: tokens.$color-gray-900;
+  font-variant-numeric: tabular-nums;
 }
 
-// Full width under the count on small phones; from Mobile-Large it sits
-// beside the count, sized to the chosen label (never wider than the row).
 .sort {
-  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  gap: tokens.$space-2;
   min-width: 0;
-  width: 100%;
+}
 
-  @include respond.respond(mobile-large) {
-    width: auto;
-  }
+.sortLabel {
+  flex-shrink: 0;
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+}
+
+// Sized to the chosen label, never wider than the row.
+.sortControl {
+  min-width: 0;
 }

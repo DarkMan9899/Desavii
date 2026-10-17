@@ -9,11 +9,11 @@ import { useQuery } from '@tanstack/react-query';
 import { getDestinations } from '../../../api/search.js';
 import searchKeys from '../constants/queryKeys.js';
 
-export function useDestinationsQuery({ locale } = {}) {
+export function useDestinationsQuery({ locale, categoryId } = {}) {
   return useQuery({
-    queryKey: searchKeys.destinations(locale),
+    queryKey: searchKeys.destinations(locale, categoryId),
     queryFn: async () => {
-      const { data } = await getDestinations({ locale });
+      const { data } = await getDestinations({ locale, categoryId });
       return data;
     },
     staleTime: 5 * 60 * 1000,

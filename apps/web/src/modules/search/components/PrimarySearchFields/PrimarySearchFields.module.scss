@@ -1,14 +1,14 @@
 // PrimarySearchFields — tokens only, consumed from @desavii/ui.
 //
-// `stacked` (the phone drawer): one field per row.
-// `inline` (the Tablet+ form), sized so the longest Armenian and Russian
-// labels and values never wrap inside a control:
-// - Tablet: keyword on its own row, then two fields per row.
-// - Laptop: keyword, destination and category in thirds, then dates
-//   (two thirds) and party.
+// `stacked` (the phone filter panel): one field per row.
+// `bar` (the Tablet+ search bar): every item is a flex child with a
+// basis, so a category without a party field simply has one field fewer
+// and the Search button (`.action`) always shares the last row, aligned to
+// the inputs' bottom edge:
+// - Tablet: keyword full width, then two per row, the button last.
+// - Laptop: keyword, destination, category in thirds; then dates, party
+//   and the button.
 // - Desktop: everything in one row.
-// Flex rather than a fixed grid, so a category without a party field
-// simply has one field fewer instead of an empty cell.
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
@@ -26,9 +26,9 @@ $field-gap: tokens.$space-3;
   gap: tokens.$space-4;
 }
 
-.fields--inline {
+.fields--bar {
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: flex-end;
 
   .keyword,
   .field,
@@ -45,14 +45,24 @@ $field-gap: tokens.$space-3;
     flex: 1 1 calc(50% - #{$field-gap});
   }
 
+  .action {
+    flex: 1 1 100%;
+  }
+
   @include respond.respond(laptop) {
     .keyword,
     .field {
       flex: 1 1 calc(100% / 3 - #{$field-gap});
     }
 
+    // A third's basis keeps dates on the second row; it grows into the
+    // room the button leaves.
     .dates {
-      flex: 2 1 calc(200% / 3 - #{$field-gap});
+      flex: 1.5 1 calc(100% / 3 - #{$field-gap});
+    }
+
+    .action {
+      flex: 0 0 auto;
     }
   }
 
@@ -60,7 +70,7 @@ $field-gap: tokens.$space-3;
     flex-wrap: nowrap;
 
     .keyword {
-      flex: 1.5 1 0;
+      flex: 1.4 1 0;
     }
 
     .field {
@@ -71,4 +81,8 @@ $field-gap: tokens.$space-3;
       flex: 1.4 1 0;
     }
   }
+}
+
+.action {
+  display: flex;
 }

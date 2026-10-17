@@ -499,7 +499,8 @@
         "alphabetical": "А–Я",
         "relevance": "Лучшее совпадение",
         "price_asc": "Сначала дешевле",
-        "price_desc": "Сначала дороже"
+        "price_desc": "Сначала дороже",
+        "rating_desc": "Сначала с высоким рейтингом"
       },
       "activeFilters": "Активные фильтры",
       "removeFilter": "Убрать фильтр «{{label}}»",
@@ -556,24 +557,41 @@
       "submit": "Найти",
       "editSearchSummary": "Изменить поиск: {{summary}}",
       "summaryEverything": "Все объявления",
-      "filtersButton": "Фильтры",
-      "filtersButtonActive": "Фильтры, активно: {{count}}",
       "drawerTitle": "Фильтры",
       "sections": {
         "search": "Поиск",
         "price": "Цена"
       },
       "price": {
-        "minLabel": "Минимум (AMD)",
-        "maxLabel": "Максимум (AMD)",
-        "hint": "Сравнивается с начальной ценой каждого объявления, в армянских драмах.",
+        "minLabel": "Минимальная цена",
+        "maxLabel": "Максимальная цена",
+        "hint": "В армянских драмах (AMD) — валюте, в которой указаны цены объявлений; сравнивается с начальной ценой каждого объявления.",
         "invalidRange": "Минимум не может быть больше максимума.",
         "chipRange": "{{min}} – {{max}}",
         "chipMin": "От {{min}}",
-        "chipMax": "До {{max}}"
+        "chipMax": "До {{max}}",
+        "currency": "AMD"
       },
       "keywordChip": "«{{keyword}}»",
-      "apply": "Показать результаты"
+      "apply": "Показать результаты",
+      "quick": {
+        "label": "Быстрые фильтры",
+        "price": "Цена",
+        "clear": "Сбросить",
+        "done": "Готово",
+        "allFilters": "Все фильтры",
+        "allFiltersActive": "Все фильтры, активно: {{count}}"
+      },
+      "showResults_one": "Показать {{count}} результат",
+      "showResults_few": "Показать {{count}} результата",
+      "showResults_many": "Показать {{count}} результатов",
+      "showResults_other": "Показать {{count}} результата",
+      "selectedCount_one": "Выбран {{count}}",
+      "selectedCount_few": "Выбрано {{count}}",
+      "selectedCount_many": "Выбрано {{count}}",
+      "selectedCount_other": "Выбрано {{count}}",
+      "findAmenity": "Найти удобство",
+      "noAmenityMatch": "Подходящих удобств нет."
     },
     "aiSearch": {
       "ariaLabel": "Поиск с помощью ИИ",
@@ -601,22 +619,16 @@
         "DINING": "Кухня",
         "EXPERIENCE": "Впечатление",
         "VEHICLE": "Транспорт",
-        "AMENITIES": "Удобства"
+        "AMENITIES": "Удобства",
+        "PROPERTY": "Объект",
+        "BOOKING": "Бронирование и правила"
       },
       "definitions": {
-        "bedrooms": "Спальни",
-        "bathrooms": "Ванные комнаты",
-        "beds": "Кровати",
-        "max_guests": "Макс. гостей",
-        "star_rating": "Звёздность",
-        "price_tier": "Цена",
-        "cuisine": "Кухня",
-        "duration_minutes": "Длительность",
-        "difficulty": "Сложность",
-        "max_group_size": "Макс. размер группы",
-        "transmission": "Коробка передач",
-        "seats": "Места",
-        "amenity_ids": "Удобства"
+        "amenity_ids": "Удобства",
+        "guest_rating": "Оценка гостей",
+        "meal_plan": "Питание",
+        "hourly_stays": "Почасовое проживание",
+        "price_tier": "Уровень цен"
       },
       "options": {
         "1": "1 звезда",
@@ -639,7 +651,8 @@
         "CHALLENGING": "Сложный",
         "MANUAL": "Механическая",
         "AUTOMATIC": "Автоматическая"
-      }
+      },
+      "ratingAtLeast": "{{value}}+"
     },
     "results": {
       "loadMore": "Показать ещё",

@@ -1,23 +1,49 @@
 // ActiveFilters — tokens only, consumed from @desavii/ui.
 
 @use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
 @use 'mixins/focus-ring' as focus;
 
+// Phones: one line — the chips scroll sideways (never the page) with
+// "Clear filters" kept in view at the end; Tablet+: chips wrap.
 .row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: tokens.$space-2;
+  min-width: 0;
+
+  @include respond.respond(tablet) {
+    flex-wrap: wrap;
+  }
 }
 
 .chips {
   display: flex;
-  flex-wrap: wrap;
+  flex: 0 1 auto;
   gap: tokens.$space-2;
   margin: 0;
   padding: 0;
   list-style: none;
   min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  > li {
+    flex-shrink: 0;
+  }
+
+  @include respond.respond(tablet) {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+.clearAll {
+  flex-shrink: 0;
 }
 
 // The small-button height keeps a comfortable tap target while staying
@@ -26,7 +52,7 @@
   display: inline-flex;
   align-items: center;
   gap: tokens.$space-1;
-  max-width: 100%;
+  max-width: tokens.$space-24 * 3;
   min-height: tokens.$button-height-sm;
   padding: tokens.$space-1 tokens.$space-3;
   border: 1px solid tokens.$color-gray-200;

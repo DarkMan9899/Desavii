@@ -233,10 +233,18 @@ export default async function seedReferenceData(connection) {
     },
   ];
 
+  // Every seeded city carries its Armenian and Russian name — Search's
+  // destination picker shows these as-is, so a city left out here is
+  // shown in Latin script to HY/RU visitors.
   const cityTranslations = {
     yerevan: { hy: 'Երևան', ru: 'Ереван' },
     gyumri: { hy: 'Գյումրի', ru: 'Гюмри' },
+    vanadzor: { hy: 'Վանաձոր', ru: 'Ванадзор' },
     dilijan: { hy: 'Դիլիջան', ru: 'Дилижан' },
+    sevan: { hy: 'Սևան', ru: 'Севан' },
+    goris: { hy: 'Գորիս', ru: 'Горис' },
+    jermuk: { hy: 'Ջերմուկ', ru: 'Джермук' },
+    ejmiatsin: { hy: 'Էջմիածին', ru: 'Эчмиадзин' },
   };
 
   // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order

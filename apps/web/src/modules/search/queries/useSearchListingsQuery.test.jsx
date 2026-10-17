@@ -70,8 +70,11 @@ describe('useSearchListingsQuery (apps/web/src/modules/search)', () => {
     );
     expect(screen.getByTestId('count')).toHaveTextContent('1');
     expect(screen.getByTestId('hasNextPage')).toHaveTextContent('false');
+    // The second argument carries React Query's AbortSignal, so a
+    // superseded search is cancelled rather than landing late.
     expect(searchListings).toHaveBeenCalledWith(
       expect.objectContaining({ sort: 'newest', locale: 'en', limit: 12 }),
+      { signal: expect.any(AbortSignal) },
     );
   });
 
@@ -109,6 +112,7 @@ describe('useSearchListingsQuery (apps/web/src/modules/search)', () => {
     expect(screen.getByTestId('hasNextPage')).toHaveTextContent('false');
     expect(searchListings).toHaveBeenLastCalledWith(
       expect.objectContaining({ cursor: 'cursor-1' }),
+      { signal: expect.any(AbortSignal) },
     );
   });
 
@@ -147,6 +151,7 @@ describe('useSearchListingsQuery (apps/web/src/modules/search)', () => {
     await waitFor(() => expect(searchListings).toHaveBeenCalled());
     expect(searchListings).toHaveBeenCalledWith(
       expect.objectContaining({ keyword: 'yerevan', categoryId: 3 }),
+      { signal: expect.any(AbortSignal) },
     );
   });
 });

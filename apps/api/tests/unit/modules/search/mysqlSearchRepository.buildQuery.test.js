@@ -453,3 +453,102 @@ describe('buildSearchListingsQuery — Search & Discovery rebuild filters', () =
     expect(countParams.slice(0, 2)).toEqual(['2026-09-10', '2026-09-12']);
   });
 });
+
+describe('buildSearchListingsQuery — Search & Discovery remediation filters', () => {
+  test('policyFilters: one EXISTS per policy, OR within its values, params in physical order', () => {
+    const { sql, params } = buildSearchListingsQuery(
+      {
+        ...baseFilters,
+        policyFilters: [
+          { policyDefinitionId: 4, values: ['FLEXIBLE', 'MODERATE'] },
+          { policyDefinitionId: 7, values: ['true'] },
+        ],
+      },
+      resolveSortOption('newest'),
+    );
+    expect(sql.match(/FROM listing_policy_values lpv/g)).toHaveLength(2);
+    expect(sql).toContain('lpv.value IN (?, ?)');
+    expect(sql).toContain('lpv.value IN (?)');
+    expect(countPlaceholders(sql)).toBe(params.length);
+    expect(params.slice(2, 7)).toEqual([4, 'FLEXIBLE', 'MODERATE', 7, 'true']);
+  });
+
+  test('roomMealPlans / roomHourlyStays: room EXISTS over live units only', () => {
+    const { sql, params } = buildSearchListingsQuery(
+      {
+        ...baseFilters,
+        roomMealPlans: ['BREAKFAST_INCLUDED', 'HALF_BOARD'],
+        roomHourlyStays: true,
+      },
+      resolveSortOption('newest'),
+    );
+    expect(sql).toContain('bu_meal.meal_plan IN (?, ?)');
+    expect(sql).toContain('bu_meal.deleted_at IS NULL');
+    expect(sql).toContain('bu_hourly.hourly_enabled = 1');
+    expect(sql).toContain('bu_hourly.deleted_at IS NULL');
+    expect(countPlaceholders(sql)).toBe(params.length);
+    expect(params).toContain('HALF_BOARD');
+  });
+
+  test('roomHourlyStays false adds nothing', () => {
+    const { sql } = buildSearchListingsQuery(
+      { ...baseFilters, roomHourlyStays: false },
+      resolveSortOption('newest'),
+    );
+    expect(sql).not.toContain('bu_hourly');
+  });
+
+  test('ratingMin binds against the approved-review average, on page and count alike', () => {
+    const { sql, params, countSql, countParams } = buildSearchListingsQuery(
+      { ...baseFilters, ratingMin: 4.5 },
+      resolveSortOption('newest'),
+      { limit: 5 },
+    );
+    expect(sql).toContain('results.rating_average >= ?');
+    expect(countSql).toContain('results.rating_average >= ?');
+    expect(countPlaceholders(sql)).toBe(params.length);
+    expect(countPlaceholders(countSql)).toBe(countParams.length);
+    expect(params).toEqual([1, 1, 4.5, 6]);
+    expect(countParams[countParams.length - 1]).toBe(4.5);
+  });
+
+  test('rating_desc orders by the never-NULL rating key with a keyset cursor', () => {
+    const cursor = Buffer.from(
+      JSON.stringify({ sortValue: '4.50', id: 12 }),
+      'utf8',
+    ).toString('base64url');
+    const { sql, params } = buildSearchListingsQuery(
+      baseFilters,
+      resolveSortOption('rating_desc'),
+      { cursor, limit: 5 },
+    );
+    expect(sql).toContain('AS rating_sort');
+    expect(sql).toContain('ORDER BY results.rating_sort DESC, results.id DESC');
+    expect(sql).toContain('(results.rating_sort, results.id) < (?, ?)');
+    expect(countPlaceholders(sql)).toBe(params.length);
+    expect(params).toEqual([1, 1, '4.50', 12, 6]);
+  });
+
+  test('every remediation filter combined with keyword, attributes and price still balances', () => {
+    const { sql, params, countSql, countParams } = buildSearchListingsQuery(
+      {
+        ...baseFilters,
+        keyword: 'spa',
+        categoryId: 1,
+        amenityIds: [1, 2],
+        attributeFilters: [
+          { attributeDefinitionId: 3, dataTypeCode: 'ENUM', optionIds: [9] },
+        ],
+        policyFilters: [{ policyDefinitionId: 4, values: ['FLEXIBLE'] }],
+        roomMealPlans: ['BREAKFAST_INCLUDED'],
+        roomHourlyStays: true,
+        priceMin: 1000,
+        ratingMin: 4,
+      },
+      resolveSortOption('rating_desc'),
+      { limit: 20 },
+    );
+    expect(countPlaceholders(sql)).toBe(params.length);
+    expect(countPlaceholders(countSql)).toBe(countParams.length);
+  });
+});

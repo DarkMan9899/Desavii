@@ -1,14 +1,17 @@
 /**
  * SearchPageContent — the `search` module's page-level content.
  *
- * Reading order, top to bottom: title → the search panel
- * (`SearchFilters`: primary fields inline on Tablet+, a one-line summary
- * plus the filters drawer on phones, AI search behind a toggle) → active
- * filter chips → result count and sort (`SearchToolbar`) → results.
- * The page uses compact spacing (not a marketing `Section`'s 64–96px
- * band) so the first results start on the first screen at every width —
- * the old stack of section padding, an always-open AI panel and five
- * stacked fields pushed them below the fold on phones.
+ * Reading order, top to bottom: title → the navy search console
+ * (`SearchFilters`: the search bar on Tablet+ / a one-line summary on
+ * phones, quick-filter pills, "All filters", AI search behind a toggle) →
+ * result count and sort (`SearchToolbar`) → "filtered by" chips → results.
+ * Compact spacing keeps the first results on the first screen at every
+ * width.
+ *
+ * Live filtering: every control applies as it changes (typing once it
+ * pauses, a date range once complete), each change is one URL entry and
+ * one request; the previous cards stay, dimmed, while the next result set
+ * loads, and a superseded request is aborted.
  *
  * Filter state lives only in the URL (`useSearchFilters`); the
  * categories and destinations catalogs it needs are loaded here, and the
@@ -26,7 +29,6 @@ import { Section } from '@desavii/ui/components/layout';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import useSeo from '../../../../seo/useSeo.js';
 import { useSearchFilters } from '../../hooks/useSearchFilters.js';
-import { useRenderableFilterGroups } from '../../hooks/useRenderableFilterGroups.js';
 import { useSearchListingsQuery } from '../../queries/useSearchListingsQuery.js';
 import { useCategoriesQuery } from '../../queries/useCategoriesQuery.js';
 import { useDestinationsQuery } from '../../queries/useDestinationsQuery.js';
@@ -45,6 +47,8 @@ export default function SearchPageContent() {
   const { t, i18n } = useTranslation();
   const { locale } = useParams();
   const { data: categories } = useCategoriesQuery({ locale: i18n.language });
+  // Unscoped: resolves any city in the URL. The picker's own counts are
+  // scoped to the chosen category (`pickerDestinations` below).
   const { data: destinations } = useDestinationsQuery({
     locale: i18n.language,
   });
@@ -52,12 +56,20 @@ export default function SearchPageContent() {
     filters,
     categorySlug,
     isResolved,
+    filterGroups,
+    isCatalogPending,
     updateFilters,
     updateDynamicFilter,
     clearFilters,
     hasActiveFilters,
-  } = useSearchFilters({ categories, destinations });
-  const groups = useRenderableFilterGroups(filters.categoryId);
+  } = useSearchFilters({ categories, destinations, locale: i18n.language });
+  const { data: categoryDestinations } = useDestinationsQuery({
+    locale: i18n.language,
+    categoryId: filters.categoryId,
+  });
+  const pickerDestinations = filters.categoryId
+    ? (categoryDestinations ?? destinations)
+    : destinations;
   const { party } = getSearchCapabilities(categorySlug);
 
   const {
@@ -86,7 +98,7 @@ export default function SearchPageContent() {
     filters,
     categories: categories ?? NO_ITEMS,
     destinations: destinations ?? NO_ITEMS,
-    groups,
+    groups: filterGroups,
     party,
     t,
     locale: i18n.language,
@@ -170,14 +182,15 @@ export default function SearchPageContent() {
         <SearchFilters
           filters={filters}
           categories={categories ?? NO_ITEMS}
-          destinations={destinations ?? NO_ITEMS}
+          destinations={pickerDestinations ?? NO_ITEMS}
+          filterGroups={filterGroups}
+          isCatalogPending={isCatalogPending}
+          total={total}
+          isSearching={isLoading || isPlaceholderData}
           onApply={updateFilters}
-          onAiApply={updateFilters}
-        />
-        <ActiveFilters
-          chips={chips}
-          onRemoveChip={removeChip}
+          onDynamicChange={updateDynamicFilter}
           onClearAll={clearFilters}
+          onAiApply={updateFilters}
         />
         <SearchToolbar
           total={total}
@@ -186,6 +199,11 @@ export default function SearchPageContent() {
           sort={filters.sort}
           hasKeyword={Boolean(filters.destination)}
           onSortChange={(sort) => updateFilters({ sort })}
+        />
+        <ActiveFilters
+          chips={chips}
+          onRemoveChip={removeChip}
+          onClearAll={clearFilters}
         />
         <SearchResults
           results={results}

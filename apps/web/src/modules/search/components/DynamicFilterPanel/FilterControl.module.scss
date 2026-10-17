@@ -1,0 +1,17 @@
+// FilterControl — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+// An option's name with how many listings in the category have it — the
+// count reads as a quiet aside, never competing with the name.
+.optionLabel {
+  display: inline-flex;
+  align-items: baseline;
+  gap: tokens.$space-2;
+}
+
+.optionCount {
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+  font-variant-numeric: tabular-nums;
+}

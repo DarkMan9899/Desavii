@@ -1,0 +1,164 @@
+// QuickFilters — tokens only, consumed from @desavii/ui.
+//
+// Sits on the navy search console: outlined light pills; an applied
+// filter turns its pill solid white so what is narrowing the results
+// reads at a glance.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+@use 'mixins/focus-ring' as focus;
+
+.quickFilters {
+  min-width: 0;
+}
+
+.row {
+  align-items: center;
+  gap: tokens.$space-2;
+}
+
+// Tablet+: wrapping pills, each with its own panel.
+.row--popovers {
+  display: none;
+  flex-wrap: wrap;
+
+  @include respond.respond(tablet) {
+    display: flex;
+  }
+}
+
+// Phones: one line that scrolls sideways inside the console — never the
+// page.
+.row--scroll {
+  display: flex;
+  overflow-x: auto;
+  padding-block: tokens.$space-1;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  > * {
+    flex-shrink: 0;
+  }
+
+  @include respond.respond(tablet) {
+    display: none;
+  }
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-1;
+  max-width: tokens.$space-24 * 3;
+  min-height: tokens.$button-height-sm;
+  padding: tokens.$space-1 tokens.$space-3;
+  border: 1px solid rgba(tokens.$color-white, 0.4);
+  border-radius: tokens.$radius-full;
+  background-color: transparent;
+  color: tokens.$color-white;
+  font-family: tokens.$font-body;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color tokens.$motion-micro tokens.$ease-out,
+    border-color tokens.$motion-micro tokens.$ease-out;
+  @include tokens.reduced-motion-safe;
+  @include focus.focus-ring;
+
+  &:hover {
+    border-color: tokens.$color-white;
+    background-color: rgba(tokens.$color-white, 0.1);
+  }
+}
+
+.pill--active {
+  border-color: tokens.$color-white;
+  background-color: tokens.$color-white;
+  color: tokens.$color-navy;
+
+  &:hover {
+    background-color: tokens.$color-white;
+  }
+}
+
+.pillLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex-shrink: 0;
+}
+
+.allFilters {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: tokens.$space-2;
+  min-height: tokens.$button-height-sm;
+  padding: tokens.$space-1 tokens.$space-3;
+  border: 1px solid tokens.$color-white;
+  border-radius: tokens.$radius-full;
+  background-color: tokens.$color-white;
+  color: tokens.$color-navy;
+  font-family: tokens.$font-body;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  @include focus.focus-ring;
+
+  &:hover {
+    background-color: tokens.$color-gray-100;
+  }
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: tokens.$icon-size-md;
+  height: tokens.$icon-size-md;
+  padding-inline: tokens.$space-1;
+  border-radius: tokens.$radius-full;
+  background-color: tokens.$color-royal-blue;
+  color: tokens.$color-white;
+  font-size: tokens.$font-size-micro;
+  line-height: tokens.$line-height-micro;
+}
+
+// Holds the row's height while a newly chosen category's filters load.
+.placeholder {
+  display: inline-block;
+  flex-shrink: 0;
+  width: tokens.$space-24;
+  height: tokens.$button-height-sm;
+  border-radius: tokens.$radius-full;
+  background-color: rgba(tokens.$color-white, 0.12);
+}
+
+.panel {
+  width: max-content;
+  max-width: min(tokens.$modal-width-sm, calc(100vw - #{tokens.$space-8}));
+  padding: tokens.$space-4;
+}
+
+.panelBody {
+  min-width: tokens.$space-24 * 2.5;
+}
+
+.panelFooter {
+  display: flex;
+  justify-content: space-between;
+  gap: tokens.$space-3;
+  margin-top: tokens.$space-3;
+  padding-top: tokens.$space-3;
+  border-top: 1px solid tokens.$color-gray-200;
+}

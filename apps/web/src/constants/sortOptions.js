@@ -24,6 +24,7 @@ export const SORT_KEYS = Object.freeze([
   'relevance',
   'price_asc',
   'price_desc',
+  'rating_desc',
 ]);
 
 export const DEFAULT_SORT_KEY = 'newest';
@@ -35,6 +36,7 @@ export const SORT_OPTION_META = Object.freeze({
   relevance: { requiresKeyword: true },
   price_asc: { requiresKeyword: false },
   price_desc: { requiresKeyword: false },
+  rating_desc: { requiresKeyword: false },
 });
 
 export default {

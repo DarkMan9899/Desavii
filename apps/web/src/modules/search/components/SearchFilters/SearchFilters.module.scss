@@ -1,26 +1,39 @@
-// SearchFilters — tokens only, consumed from @desavii/ui.
+// SearchFilters — the navy search console. Tokens only.
 //
-// One elevated panel. Phones: the summary button and Filters share the
-// first row, the AI toggle sits under them — about 120px in all, so the
-// first results show on the first screen. Tablet+: the inline form, then
-// Filters and the AI toggle in one row.
+// One brand surface (`$gradient-navy-royal`) holds the white search card
+// and, under it, the quick-filter pills and the AI toggle in light type —
+// the place every search change happens, clearly set apart from the white
+// results below. No glow, no glass: a flat brand gradient and one shadow.
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
 @use 'mixins/focus-ring' as focus;
 
-.panel {
+.console {
   display: flex;
   flex-direction: column;
   gap: tokens.$space-3;
   padding: tokens.$space-3;
   border-radius: tokens.$radius-xl;
-  background-color: tokens.$color-white;
+  background: tokens.$gradient-navy-royal;
   @include tokens.elevation-2;
 
   @include respond.respond(tablet) {
     gap: tokens.$space-4;
+    padding: tokens.$space-4;
+  }
+
+  @include respond.respond(laptop) {
     padding: tokens.$space-6;
+  }
+}
+
+.searchCard {
+  border-radius: tokens.$radius-lg;
+  background-color: tokens.$color-white;
+
+  @include respond.respond(tablet) {
+    padding: tokens.$space-4;
   }
 }
 
@@ -32,35 +45,23 @@
   }
 }
 
-.bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: tokens.$space-2;
-}
-
 // --- Phone summary --------------------------------------------------------
 
 .summary {
   display: flex;
-  flex: 1 1 0;
   align-items: center;
   gap: tokens.$space-3;
-  min-width: 0;
+  width: 100%;
   min-height: tokens.$input-height-md;
-  padding: tokens.$space-2 tokens.$space-3;
-  border: 1px solid tokens.$color-gray-200;
-  border-radius: tokens.$radius-md;
-  background-color: tokens.$color-white;
+  padding: tokens.$space-2 tokens.$space-4;
+  border: none;
+  border-radius: tokens.$radius-lg;
+  background: none;
   color: tokens.$color-gray-900;
   font-family: tokens.$font-body;
   text-align: start;
   cursor: pointer;
   @include focus.focus-ring;
-
-  &:hover {
-    border-color: tokens.$color-royal-blue;
-  }
 
   @include respond.respond(tablet) {
     display: none;
@@ -97,25 +98,38 @@
   color: tokens.$color-gray-600;
 }
 
-.filtersLabel {
-  display: inline-flex;
-  align-items: center;
-  gap: tokens.$space-2;
-}
+// --- Quick filters + AI toggle --------------------------------------------
 
-// --- AI search toggle -----------------------------------------------------
+.footerRow {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  min-width: 0;
+
+  > :first-child {
+    min-width: 0;
+  }
+
+  @include respond.respond(laptop) {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: tokens.$space-4;
+  }
+}
 
 .aiToggle {
   display: inline-flex;
-  flex-basis: 100%;
+  flex-shrink: 0;
   align-items: center;
+  align-self: flex-start;
   gap: tokens.$space-2;
   min-height: tokens.$button-height-sm;
   padding: 0 tokens.$space-1;
   border: none;
   border-radius: tokens.$radius-md;
   background: none;
-  color: tokens.$color-royal-blue;
+  color: tokens.$color-white;
   font-family: tokens.$font-body;
   font-size: tokens.$font-size-small;
   line-height: tokens.$line-height-small;
@@ -123,19 +137,9 @@
   cursor: pointer;
   @include focus.focus-ring;
 
-  &:hover .aiLabel {
+  &:hover span {
     text-decoration: underline;
   }
-
-  @include respond.respond(tablet) {
-    flex-basis: auto;
-    min-height: tokens.$button-height-md;
-    padding: 0 tokens.$space-2;
-  }
-}
-
-.aiLabel {
-  text-align: start;
 }
 
 .chevron {
@@ -146,4 +150,8 @@
 
 .chevronOpen {
   transform: rotate(180deg);
+}
+
+.aiPanel {
+  border-radius: tokens.$radius-lg;
 }

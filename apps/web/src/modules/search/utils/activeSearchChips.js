@@ -27,7 +27,9 @@ function formatAmd(amount, locale) {
   return formatMoney({ amountAmd: amount, currency: BASE_CURRENCY, locale });
 }
 
-function priceChipLabel({ priceMin, priceMax }, t, locale) {
+/** The applied price range as text ("֏10,000 – ֏20,000"), or undefined when none. */
+export function formatPriceRange({ priceMin, priceMax }, t, locale) {
+  if (priceMin === undefined && priceMax === undefined) return undefined;
   if (priceMin !== undefined && priceMax !== undefined) {
     return t('search.filters.price.chipRange', {
       min: formatAmd(priceMin, locale),
@@ -101,17 +103,19 @@ export function buildActiveSearchChips({
   if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
     chips.push({
       key: 'price',
-      label: priceChipLabel(filters, t, locale),
+      label: formatPriceRange(filters, t, locale),
       patch: { priceMin: undefined, priceMax: undefined },
     });
   }
-  getActiveFilterChips(groups, filters.dynamicFilters, t).forEach((chip) => {
-    chips.push({
-      key: chip.key,
-      label: chip.label,
-      dynamicKeys: chip.keysToClear,
-    });
-  });
+  getActiveFilterChips(groups, filters.dynamicFilters, t, locale).forEach(
+    (chip) => {
+      chips.push({
+        key: chip.key,
+        label: chip.label,
+        dynamicKeys: chip.keysToClear,
+      });
+    },
+  );
   return chips;
 }
 

@@ -1,121 +1,69 @@
 import { describe, test, expect } from 'vitest';
 import {
-  toSearchDraft,
-  applySearchDraftPatch,
-  getSearchDraftErrors,
-  fromSearchDraft,
-  EMPTY_SEARCH_DRAFT,
+  parsePriceInput,
+  priceToText,
+  getPriceError,
+  toDatePatch,
 } from './searchDraft.js';
+import { DATE_MODES } from './categoryFilterCapabilities.js';
 
-const CATEGORIES = [
-  { id: 1, slug: 'hotels' },
-  { id: 6, slug: 'tours' },
-  { id: 7, slug: 'car-rentals' },
-];
-
-const APPLIED = {
-  destination: 'spa',
-  categoryId: 1,
-  cityId: 2,
-  dateFrom: '2026-11-01',
-  dateTo: '2026-11-04',
-  guests: 2,
-  priceMin: 0,
-  priceMax: 30000,
-  sort: 'newest',
-  dynamicFilters: { attr_star_rating: '4' },
-};
-
-describe('searchDraft (apps/web/src/modules/search)', () => {
-  test('a draft round-trips the applied filters it was made from', () => {
-    const draft = toSearchDraft(APPLIED);
-    expect(draft.dateRange).toEqual({ start: '2026-11-01', end: '2026-11-04' });
-    expect(draft.priceMin).toBe('0');
-    const { sort, ...appliedWithoutSort } = APPLIED;
-    expect(fromSearchDraft(draft)).toEqual(appliedWithoutSort);
+describe('searchDraft rules (apps/web/src/modules/search)', () => {
+  test.each([
+    ['5000', 5000],
+    [' 5000 ', 5000],
+    ['0', 0],
+    ['', undefined],
+    ['12.5', undefined],
+    ['abc', undefined],
+    ['1000000001', undefined],
+  ])('price text %j parses to %j', (text, expected) => {
+    expect(parsePriceInput(text)).toBe(expected);
   });
 
-  test('a half-picked range is never applied as dates', () => {
-    const draft = applySearchDraftPatch(
-      toSearchDraft({ dynamicFilters: {} }),
-      { dateRange: { start: '2026-11-01', end: null } },
-      CATEGORIES,
-    );
-    expect(fromSearchDraft(draft)).toMatchObject({
-      dateFrom: undefined,
-      dateTo: undefined,
+  test('an applied price round-trips through its text form', () => {
+    expect(priceToText(undefined)).toBe('');
+    expect(parsePriceInput(priceToText(20000))).toBe(20000);
+  });
+
+  test('a minimum above the maximum is the only price error', () => {
+    expect(getPriceError('9000', '1000')).toBe('invalidRange');
+    expect(getPriceError('1000', '9000')).toBeUndefined();
+    expect(getPriceError('5000', '')).toBeUndefined();
+    expect(getPriceError('', '')).toBeUndefined();
+  });
+
+  describe('toDatePatch', () => {
+    test('a range applies only once both days are picked — never half a range', () => {
+      expect(
+        toDatePatch({ start: '2026-11-01', end: null }, DATE_MODES.STAY),
+      ).toBeNull();
+      expect(
+        toDatePatch(
+          { start: '2026-11-01', end: '2026-11-04' },
+          DATE_MODES.STAY,
+        ),
+      ).toEqual({ dateFrom: '2026-11-01', dateTo: '2026-11-04' });
+      expect(
+        toDatePatch(
+          { start: '2026-11-01', end: '2026-11-03' },
+          DATE_MODES.RENTAL,
+        ),
+      ).toEqual({ dateFrom: '2026-11-01', dateTo: '2026-11-03' });
     });
-    expect(getSearchDraftErrors(draft, CATEGORIES)).toEqual({
-      dates: 'endRequired',
+
+    test('a one-day category applies its single date as a same-day pair', () => {
+      expect(toDatePatch('2026-11-05', DATE_MODES.DAY)).toEqual({
+        dateFrom: '2026-11-05',
+        dateTo: '2026-11-05',
+      });
     });
-  });
 
-  test('a single-day category never reports a missing end date', () => {
-    const draft = toSearchDraft({
-      categoryId: 6,
-      dateFrom: '2026-11-01',
-      dynamicFilters: {},
-    });
-    expect(getSearchDraftErrors(draft, CATEGORIES)).toEqual({});
-  });
-
-  test('switching category drops the old category filters and applies the new rules', () => {
-    const toCars = applySearchDraftPatch(
-      toSearchDraft(APPLIED),
-      { categoryId: 7 },
-      CATEGORIES,
-    );
-    expect(toCars.dynamicFilters).toEqual({});
-    expect(toCars.guests).toBeUndefined();
-
-    const toTours = applySearchDraftPatch(
-      toSearchDraft(APPLIED),
-      { categoryId: 6 },
-      CATEGORIES,
-    );
-    expect(toTours.dateRange).toEqual({
-      start: '2026-11-01',
-      end: '2026-11-01',
-    });
-    expect(toTours.guests).toBe(2);
-  });
-
-  test('a patch that keeps the same category leaves its filters alone', () => {
-    const draft = applySearchDraftPatch(
-      toSearchDraft(APPLIED),
-      { categoryId: 1, destination: 'pool' },
-      CATEGORIES,
-    );
-    expect(draft.dynamicFilters).toEqual({ attr_star_rating: '4' });
-  });
-
-  test('price text must be a whole number, and min above max is an error', () => {
-    const draft = (priceMin, priceMax) =>
-      applySearchDraftPatch(
-        EMPTY_SEARCH_DRAFT,
-        { priceMin, priceMax },
-        CATEGORIES,
+    test('clearing the picker applies "no dates" in every mode', () => {
+      const none = { dateFrom: undefined, dateTo: undefined };
+      expect(toDatePatch(null, DATE_MODES.DAY)).toEqual(none);
+      expect(toDatePatch({ start: null, end: null }, DATE_MODES.RANGE)).toEqual(
+        none,
       );
-    expect(fromSearchDraft(draft(' 5000 ', 'abc'))).toMatchObject({
-      priceMin: 5000,
-      priceMax: undefined,
-    });
-    expect(getSearchDraftErrors(draft('9000', '1000'), CATEGORIES)).toEqual({
-      price: 'invalidRange',
-    });
-  });
-
-  test('the empty draft applies no filter at all', () => {
-    expect(fromSearchDraft(EMPTY_SEARCH_DRAFT)).toEqual({
-      destination: '',
-      cityId: undefined,
-      categoryId: undefined,
-      dateFrom: undefined,
-      dateTo: undefined,
-      guests: undefined,
-      priceMin: undefined,
-      priceMax: undefined,
-      dynamicFilters: {},
     });
   });
 });

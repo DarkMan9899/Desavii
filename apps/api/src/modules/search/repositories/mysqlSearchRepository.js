@@ -35,6 +35,12 @@ import {
 import { ACCOMMODATION_BOOKABLE_UNIT_TYPES } from '../../../core/domain/accommodationDateSemantics.js';
 import { INVENTORY_QUANTITY_BOOKABLE_UNIT_TYPES } from '../../../core/domain/inventoryQuantityUnitTypes.js';
 import { BASE_CURRENCY_CODE } from '../../../core/domain/fxConversion.js';
+import {
+  ENUM_DATA_TYPE_CODES,
+  ATTRIBUTE_VALUE_TABLES,
+} from './attributeValueTables.js';
+import { loadSearchFilterCatalog } from './searchFilterCatalog.js';
+import { FILTERABLE_POLICY_DATA_TYPES } from '../../../core/domain/searchComputedFilters.js';
 
 /** `IN (?, ?)`-shaped placeholder list matching `ACCOMMODATION_BOOKABLE_UNIT_TYPES`'s length — reused everywhere the query needs to branch by accommodation-vs-not without a second, independent type list (DATE semantics only — see `INVENTORY_QUANTITY_TYPE_PLACEHOLDERS` below for the separate capacity-semantics branch). */
 const ACCOMMODATION_TYPE_PLACEHOLDERS = ACCOMMODATION_BOOKABLE_UNIT_TYPES.map(
@@ -80,6 +86,9 @@ const BASE_PRICE_SQL = `CASE WHEN base.price_currency_code = '${BASE_CURRENCY_CO
 /** Never-NULL price sort keys: unpriced listings sort last in either direction (above any real price ascending, below zero descending). */
 const UNPRICED_SORT_KEY_ASC = '999999999999999';
 const UNPRICED_SORT_KEY_DESC = '-1';
+
+/** Never-NULL rating sort key: listings without an approved review sort after every rated one. */
+const UNRATED_SORT_KEY = '-1';
 
 /**
  * A `created_at`-sorted cursor's `sortValue` is a `DATETIME(3)` column,
@@ -303,62 +312,17 @@ function toDestinationResultDomain(row) {
   };
 }
 
+/** A `GROUP_CONCAT` of ids (or NULL) as numbers. */
+function toIdArray(concatenated) {
+  return concatenated ? String(concatenated).split(',').map(Number) : [];
+}
+
 function toSuggestionDomain(row) {
   return {
     id: row.id,
     title: row.title,
     slug: row.slug,
   };
-}
-
-const ENUM_DATA_TYPE_CODES = ['ENUM', 'MULTI_ENUM'];
-
-/** One value table per non-enum primitive (§2.3 of the proposal). */
-const ATTRIBUTE_VALUE_TABLES = {
-  INTEGER: 'listing_attribute_values_integer',
-  DECIMAL: 'listing_attribute_values_decimal',
-  BOOLEAN: 'listing_attribute_values_boolean',
-  STRING: 'listing_attribute_values_string',
-  DATE: 'listing_attribute_values_date',
-};
-
-/**
- * Groups the flat `filter_definitions` join into the `groups[].definitions[]`
- * shape `GET /search/filters` serves, attaching each definition's options
- * (attribute enum values, or category-scoped amenities) resolved separately
- * by the two lookups above it in `getFilterDefinitions`.
- */
-function toFilterGroupsDomain(rows, optionsByAttributeId, amenityOptions) {
-  const groupsByCode = new Map();
-  rows.forEach((row) => {
-    if (!groupsByCode.has(row.group_code)) {
-      groupsByCode.set(row.group_code, {
-        code: row.group_code,
-        sortOrder: row.group_sort_order,
-        definitions: [],
-      });
-    }
-    const isEnum = ENUM_DATA_TYPE_CODES.includes(row.data_type_code);
-    const options =
-      row.value_source === 'AMENITY'
-        ? amenityOptions
-        : (isEnum && optionsByAttributeId.get(row.attribute_definition_id)) ||
-          [];
-
-    groupsByCode.get(row.group_code).definitions.push({
-      code: row.filter_code,
-      inputType: row.input_type_code,
-      valueSource: row.value_source,
-      unit: row.filter_unit,
-      min: row.validation_min !== null ? Number(row.validation_min) : null,
-      max: row.validation_max !== null ? Number(row.validation_max) : null,
-      isMultiValued: Boolean(row.is_multi_valued),
-      options,
-    });
-  });
-  return Array.from(groupsByCode.values()).sort(
-    (a, b) => a.sortOrder - b.sortOrder,
-  );
 }
 
 /**
@@ -410,6 +374,10 @@ export function buildSearchListingsQuery(
     excludeCategoryTop,
     priceMin,
     priceMax,
+    policyFilters,
+    roomMealPlans,
+    roomHourlyStays,
+    ratingMin,
   } = filters;
 
   const innerConditions = [scopeActive('l')];
@@ -523,6 +491,38 @@ export function buildSearchListingsQuery(
       );
       innerParams.push(...subParams);
     });
+  }
+  // Category policies (cancellation policy, pets/children/smoking
+  // allowed): one EXISTS per policy, OR within its own values — the same
+  // AND-across / OR-within contract as `attributeFilters`.
+  if (policyFilters && policyFilters.length > 0) {
+    policyFilters.forEach((filter) => {
+      const placeholders = filter.values.map(() => '?').join(', ');
+      innerConditions.push(
+        `EXISTS (SELECT 1 FROM listing_policy_values lpv
+          WHERE lpv.listing_id = l.id AND lpv.policy_definition_id = ?
+            AND lpv.value IN (${placeholders}))`,
+      );
+      innerParams.push(filter.policyDefinitionId, ...filter.values);
+    });
+  }
+  // Room facts: at least one live room offers one of the meal plans /
+  // can be booked by the hour.
+  if (roomMealPlans && roomMealPlans.length > 0) {
+    const placeholders = roomMealPlans.map(() => '?').join(', ');
+    innerConditions.push(
+      `EXISTS (SELECT 1 FROM bookable_units bu_meal
+        WHERE bu_meal.listing_id = l.id AND bu_meal.deleted_at IS NULL
+          AND bu_meal.meal_plan IN (${placeholders}))`,
+    );
+    innerParams.push(...roomMealPlans);
+  }
+  if (roomHourlyStays) {
+    innerConditions.push(
+      `EXISTS (SELECT 1 FROM bookable_units bu_hourly
+        WHERE bu_hourly.listing_id = l.id AND bu_hourly.deleted_at IS NULL
+          AND bu_hourly.hourly_enabled = 1)`,
+    );
   }
 
   // Real Inventory Engine availability filtering (Phase 17 §Search
@@ -817,7 +817,8 @@ export function buildSearchListingsQuery(
     SELECT base.*,
       ${BASE_PRICE_SQL} AS price_amount_base,
       COALESCE(${BASE_PRICE_SQL}, ${UNPRICED_SORT_KEY_ASC}) AS price_sort_asc,
-      COALESCE(${BASE_PRICE_SQL}, ${UNPRICED_SORT_KEY_DESC}) AS price_sort_desc
+      COALESCE(${BASE_PRICE_SQL}, ${UNPRICED_SORT_KEY_DESC}) AS price_sort_desc,
+      COALESCE(base.rating_average, ${UNRATED_SORT_KEY}) AS rating_sort
     FROM (${innerSql}) AS base
   `;
 
@@ -832,6 +833,12 @@ export function buildSearchListingsQuery(
   if (priceMax !== undefined) {
     filterConditions.push('results.price_amount_base <= ?');
     filterParams.push(priceMax);
+  }
+  // Approved-review average; a listing with no approved review never
+  // matches a rating bound.
+  if (ratingMin !== undefined) {
+    filterConditions.push('results.rating_average >= ?');
+    filterParams.push(ratingMin);
   }
 
   const pageConditions = [...filterConditions];
@@ -1061,14 +1068,23 @@ export class MySqlSearchRepository {
    * `searchCategories`'s exact join/translation-fallback shape for the
    * city equivalent (`cities`/`city_translations` instead of
    * `listing_categories`/`listing_category_translations`).
+   *
+   * With `categoryId`, each count is that category's publicly visible
+   * listings in the city — what Search's destination picker shows once a
+   * category is chosen, so a count always matches the results it leads to.
    */
-  async searchDestinations({ localeId, defaultLocaleId }) {
+  async searchDestinations({ localeId, defaultLocaleId, categoryId }) {
+    const categoryCondition =
+      categoryId !== undefined
+        ? `AND EXISTS (SELECT 1 FROM listing_category_listing lcl_dest
+             WHERE lcl_dest.listing_id = l.id AND lcl_dest.category_id = ?)`
+        : '';
     const [rows] = await this.#pool.query(
       `
       SELECT
         city.id, city.slug, city.latitude, city.longitude,
         COALESCE(ct.name, ct2.name, city.name) AS name,
-        COUNT(DISTINCT CASE WHEN ${scopePubliclyVisibleListing()} AND l.deleted_at IS NULL THEN l.id END) AS listing_count
+        COUNT(DISTINCT CASE WHEN ${scopePubliclyVisibleListing()} AND l.deleted_at IS NULL ${categoryCondition} THEN l.id END) AS listing_count
       FROM cities city
       LEFT JOIN city_translations ct ON ct.city_id = city.id AND ct.language_id = ?
       LEFT JOIN city_translations ct2 ON ct2.city_id = city.id AND ct2.language_id = ?
@@ -1079,7 +1095,9 @@ export class MySqlSearchRepository {
       ORDER BY name ASC
       LIMIT 200
       `,
-      [localeId, defaultLocaleId],
+      categoryId !== undefined
+        ? [categoryId, localeId, defaultLocaleId]
+        : [localeId, defaultLocaleId],
     );
     return rows.map(toDestinationResultDomain);
   }
@@ -1129,121 +1147,91 @@ export class MySqlSearchRepository {
   }
 
   /**
-   * Resolves `attr_{code}` query keys to their attribute definition id +
-   * data type, so `SearchService` can build `attributeFilters` entries
-   * without hand-rolling SQL of its own. Unknown codes are simply absent
-   * from the returned Map — `SearchService` drops them rather than
-   * erroring, the same "narrow, don't leak" tolerance as an unknown
-   * `?locale=`.
+   * Resolves `attr_{code}` query keys to their attribute definition id,
+   * data type and the categories it belongs to (`category_attributes`),
+   * so `SearchService` can build `attributeFilters` entries — and drop an
+   * attribute that does not belong to the searched category — without
+   * hand-rolling SQL of its own. Unknown codes are simply absent from the
+   * returned Map — `SearchService` drops them rather than erroring, the
+   * same "narrow, don't leak" tolerance as an unknown `?locale=`.
    *
    * @param {string[]} codes
-   * @returns {Promise<Map<string, {id: number, dataTypeCode: string}>>}
+   * @returns {Promise<Map<string, {id: number, dataTypeCode: string, categoryIds: number[]}>>}
    */
   async getAttributeDefinitionsByCode(codes) {
     if (codes.length === 0) {
       return new Map();
     }
     const [rows] = await this.#pool.query(
-      `SELECT ad.code, ad.id, adt.code AS data_type_code
+      `SELECT ad.code, ad.id, adt.code AS data_type_code,
+         GROUP_CONCAT(ca.category_id) AS category_ids
        FROM attribute_definitions ad
        JOIN attribute_data_types adt ON adt.id = ad.data_type_id
-       WHERE ad.code IN (?)`,
+       LEFT JOIN category_attributes ca ON ca.attribute_definition_id = ad.id
+       WHERE ad.code IN (?)
+       GROUP BY ad.code, ad.id, adt.code`,
       [codes],
     );
     return new Map(
       rows.map((row) => [
         row.code,
-        { id: row.id, dataTypeCode: row.data_type_code },
+        {
+          id: row.id,
+          dataTypeCode: row.data_type_code,
+          categoryIds: toIdArray(row.category_ids),
+        },
       ]),
     );
   }
 
   /**
-   * `GET /search/filters`'s metadata query — implements the proposal's §4.1
-   * derived resolution rule directly (no bookkeeping "filter applies to
-   * category" table to keep in sync): a filter is visible when it's
-   * `is_global` (e.g. the amenities filter, whose *options* are still
-   * category-scoped below) or its underlying attribute is linked to
-   * `categoryId` via `category_attributes`. Without a `categoryId`, only
-   * global filters show — attribute-sourced filters (bedrooms, cuisine, ...)
-   * are meaningless without a category to scope them to.
+   * Resolves `policy_{code}` query keys to filterable policy definitions
+   * (ENUM/BOOLEAN — see `core/domain/searchComputedFilters.js`), their
+   * option codes and the categories they apply to (`category_policies`).
    *
-   * RANGE/STEPPER bounds come from `attribute_definitions.validation_min/
-   * max` (already seeded per attribute) rather than a live MIN/MAX
-   * aggregation — the proposal's "live observed bounds" variant is a
-   * dedicated-index-era optimization (§7.4: MySQL-direct is the interim),
-   * not required for the filters to work correctly today.
+   * @param {string[]} codes
+   * @returns {Promise<Map<string, {id: number, dataTypeCode: string, optionCodes: string[], categoryIds: number[]}>>}
    */
-  async getFilterDefinitions(categoryId) {
-    const conditions = ['fd.is_global = 1'];
-    const params = [];
-    if (categoryId !== undefined) {
-      conditions.push(
-        `(fd.value_source = 'ATTRIBUTE' AND ad.id IN (
-           SELECT attribute_definition_id FROM category_attributes WHERE category_id = ?
-         ))`,
-      );
-      params.push(categoryId);
+  async getPolicyDefinitionsByCode(codes) {
+    if (codes.length === 0) {
+      return new Map();
     }
-
     const [rows] = await this.#pool.query(
-      `
-      SELECT
-        fg.code AS group_code, fg.sort_order AS group_sort_order,
-        fd.code AS filter_code, fd.sort_order AS filter_sort_order,
-        fd.value_source, fd.unit AS filter_unit,
-        fit.code AS input_type_code,
-        ad.id AS attribute_definition_id, ad.validation_min, ad.validation_max,
-        ad.is_multi_valued, adt.code AS data_type_code
-      FROM filter_definitions fd
-      JOIN filter_groups fg ON fg.id = fd.filter_group_id
-      JOIN filter_input_types fit ON fit.id = fd.input_type_id
-      LEFT JOIN attribute_definitions ad ON ad.id = fd.attribute_definition_id
-      LEFT JOIN attribute_data_types adt ON adt.id = ad.data_type_id
-      WHERE ${conditions.join(' OR ')}
-      ORDER BY fg.sort_order ASC, fd.sort_order ASC
-      `,
-      params,
+      `SELECT pd.code, pd.id, adt.code AS data_type_code,
+         (SELECT GROUP_CONCAT(po.code) FROM policy_options po
+            WHERE po.policy_definition_id = pd.id) AS option_codes,
+         (SELECT GROUP_CONCAT(cp.category_id) FROM category_policies cp
+            WHERE cp.policy_definition_id = pd.id) AS category_ids
+       FROM policy_definitions pd
+       JOIN attribute_data_types adt ON adt.id = pd.data_type_id
+       WHERE pd.code IN (?) AND adt.code IN (?)`,
+      [codes, FILTERABLE_POLICY_DATA_TYPES],
     );
+    return new Map(
+      rows.map((row) => [
+        row.code,
+        {
+          id: row.id,
+          dataTypeCode: row.data_type_code,
+          optionCodes: row.option_codes ? row.option_codes.split(',') : [],
+          categoryIds: toIdArray(row.category_ids),
+        },
+      ]),
+    );
+  }
 
-    const enumAttributeIds = rows
-      .filter((row) => ENUM_DATA_TYPE_CODES.includes(row.data_type_code))
-      .map((row) => row.attribute_definition_id);
-
-    const optionsByAttributeId = new Map();
-    if (enumAttributeIds.length > 0) {
-      const [optionRows] = await this.#pool.query(
-        `SELECT id, attribute_definition_id, code FROM attribute_options
-         WHERE attribute_definition_id IN (?) ORDER BY sort_order ASC`,
-        [enumAttributeIds],
-      );
-      optionRows.forEach((option) => {
-        if (!optionsByAttributeId.has(option.attribute_definition_id)) {
-          optionsByAttributeId.set(option.attribute_definition_id, []);
-        }
-        optionsByAttributeId
-          .get(option.attribute_definition_id)
-          .push({ value: option.id, code: option.code });
-      });
-    }
-
-    let amenityOptions = [];
-    const hasAmenityFilter = rows.some((row) => row.value_source === 'AMENITY');
-    if (hasAmenityFilter && categoryId !== undefined) {
-      const [amenityRows] = await this.#pool.query(
-        `SELECT la.id, la.name FROM listing_amenities la
-         JOIN amenity_category_applicability aca ON aca.amenity_id = la.id
-         WHERE aca.category_id = ?
-         ORDER BY la.name ASC`,
-        [categoryId],
-      );
-      amenityOptions = amenityRows.map((row) => ({
-        value: row.id,
-        code: row.name,
-      }));
-    }
-
-    return toFilterGroupsDomain(rows, optionsByAttributeId, amenityOptions);
+  /**
+   * `GET /search/filters`'s catalog — see `searchFilterCatalog.js`.
+   *
+   * @param {number|undefined} categoryId
+   * @param {{localeId: number|null, defaultLocaleId: number|null}} locale
+   */
+  async getFilterDefinitions(categoryId, { localeId, defaultLocaleId }) {
+    return loadSearchFilterCatalog(this.#pool, {
+      categoryId,
+      localeId,
+      defaultLocaleId,
+    });
   }
 }
 

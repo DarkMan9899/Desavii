@@ -35,8 +35,8 @@ test.describe('Search', () => {
       page.locator('a[href*="/en/listings/"]').first(),
     ).toBeVisible();
 
-    // Search & Discovery rebuild: the form applies on Search, not per
-    // keystroke.
+    // Search & Discovery remediation: typing applies once it pauses, and
+    // Search applies it at once.
     const form = page.getByRole('search');
     const hotelCard = page
       .locator('main a[href*="/en/listings/"]')

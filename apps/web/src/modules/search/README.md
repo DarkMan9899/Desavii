@@ -129,6 +129,44 @@ notes above where they disagree:**
 - **Count:** the toolbar shows the whole filtered total (`meta.total`),
   not the number of cards loaded so far.
 
+**Search & Discovery remediation (2026-10) — supersedes the "Apply
+model" and "Page" notes above:**
+
+- **Page:** a navy search console (`SearchFilters`): the search bar with
+  its Search button in the same row (`SearchForm` from Tablet, a summary
+  button on phones), then `QuickFilters` (Price, the category's quick
+  filters, "All filters") → total + sort → active chips → results.
+- **Live filtering:** a discrete choice (category, destination, party,
+  chip, checkbox, toggle, stepper, rating) applies at once; keyword,
+  price and range sliders apply once input pauses
+  (`hooks/useDebouncedCommit.js`, 400 ms); a date range applies only
+  when complete, a one-day category's date at once. Search / "Show N
+  results" apply whatever is still pending (`useSearchDraft#flush`) and
+  never re-send an unchanged search — `useSearchFilters#writeFilters`
+  skips a URL identical to the current one. Closing the panel discards
+  unapplied typing. Requests are aborted when superseded (the React
+  Query `signal`), and the previous results stay on screen meanwhile.
+- **Filter catalog:** everything after the primary fields comes from
+  `GET /search/filters` for the chosen category and language — attribute
+  filters, localized amenities (`AmenityChecklist`, grouped, searchable),
+  category policies (`policy_*`), room facts (`room_meal_plan`,
+  `room_hourly_stays`) and guest rating (`ratingMin`). The API returns
+  only filters some listing in scope can match, each with its own URL
+  `param`, quick/advanced placement and option counts; an option with no
+  listing is hidden unless an old link already selected it.
+  `useRenderableFilterGroups` is shared with the Category page's
+  `DynamicFilterPanel`.
+- **Vocabulary:** `utils/filterVocabulary.js` is the one place that
+  labels a filter — the partner catalog's own translated attribute,
+  policy, option, meal-plan and unit names (`partner.listingWizard.*`),
+  the API's localized amenity names, and `search.dynamicFilters.*` for
+  Search-only names. No DB-driven record is translated in the frontend.
+- **URL:** `normalizeSearchFilters` also prunes filter keys the chosen
+  category's catalog does not declare (waiting for the catalog first);
+  changing category drops every category filter except the guest rating
+  (`GLOBAL_DYNAMIC_KEYS`).
+- **Sort:** adds `rating_desc`.
+
 **Future AI Search preparation:** `SearchResults` takes a plain
 `results` array plus loading/error/pagination props — it has no
 knowledge of `useSearchListingsQuery`, `useSearchFilters`, or "classic"

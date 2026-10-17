@@ -21,10 +21,25 @@ function isRenderableDefinition(definition) {
   );
 }
 
-/** @returns {Array<{ code: string, definitions: Array<object> }>} */
-export function useRenderableFilterGroups(categoryId) {
-  const { data: rawGroups } = useSearchFilterDefinitionsQuery(categoryId);
-  return useMemo(
+/**
+ * Keyed by category AND locale (amenity names are localized server-side).
+ * While a newly chosen category's catalog loads, `groups` is empty and
+ * `isPending` true — the previous category's filters are never shown in
+ * the meantime.
+ *
+ * @returns {{ groups: Array<{ code: string, definitions: Array<object> }>, isPending: boolean }}
+ */
+export function useRenderableFilterGroups(
+  categoryId,
+  locale,
+  { enabled = true } = {},
+) {
+  const { data: rawGroups, isPending } = useSearchFilterDefinitionsQuery(
+    categoryId,
+    locale,
+    { enabled },
+  );
+  const groups = useMemo(
     () =>
       (rawGroups ?? [])
         .map((group) => ({
@@ -34,6 +49,7 @@ export function useRenderableFilterGroups(categoryId) {
         .filter((group) => group.definitions.length > 0),
     [rawGroups],
   );
+  return { groups, isPending };
 }
 
 export default useRenderableFilterGroups;

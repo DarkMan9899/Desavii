@@ -138,13 +138,24 @@ export function toFilterGroupsResponse(groups) {
         code: definition.code,
         input_type: definition.inputType,
         value_source: definition.valueSource,
+        // The exact `GET /search` param this filter writes (a RANGE/STEPPER
+        // appends `_min`/`_max`).
+        param: definition.param,
+        // `false` = one of the category's quick filters, shown above the
+        // results as well as in the full filter panel.
+        is_advanced: definition.isAdvanced,
         unit: definition.unit,
         min: definition.min,
         max: definition.max,
-        is_multi_valued: definition.isMultiValued,
+        listing_count: definition.listingCount,
         options: definition.options.map((option) => ({
           value: option.value,
           code: option.code,
+          // Localized display name — amenities only (attribute and policy
+          // options are stable codes the web app labels itself).
+          label: option.label ?? null,
+          group: option.group ?? null,
+          count: option.count,
         })),
       })),
     })),

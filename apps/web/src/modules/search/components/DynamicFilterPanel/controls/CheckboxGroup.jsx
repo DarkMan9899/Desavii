@@ -6,6 +6,7 @@
  * handled by `FilterControl.jsx`, not here.
  */
 
+import { useId } from 'react';
 import PropTypes from 'prop-types';
 import { Checkbox } from '@desavii/ui/components/form-controls';
 import styles from './CheckboxGroup.module.scss';
@@ -16,6 +17,7 @@ export default function CheckboxGroup({
   selectedValues,
   onChange,
 }) {
+  const labelId = useId();
   const toggle = (value) => {
     const next = selectedValues.includes(value)
       ? selectedValues.filter((selected) => selected !== value)
@@ -24,8 +26,14 @@ export default function CheckboxGroup({
   };
 
   return (
-    <div className={styles.checkboxGroup}>
-      <span className={styles.label}>{label}</span>
+    <div
+      className={styles.checkboxGroup}
+      role="group"
+      aria-labelledby={labelId}
+    >
+      <span id={labelId} className={styles.label}>
+        {label}
+      </span>
       <div className={styles.options}>
         {options.map((option) => (
           <Checkbox
@@ -45,7 +53,7 @@ CheckboxGroup.propTypes = {
   options: PropTypes.arrayOf(
     PropTypes.shape({
       value: PropTypes.string.isRequired,
-      label: PropTypes.string.isRequired,
+      label: PropTypes.node.isRequired,
     }),
   ).isRequired,
   selectedValues: PropTypes.arrayOf(PropTypes.string).isRequired,

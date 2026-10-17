@@ -1,16 +1,15 @@
 /**
- * SearchToolbar — the summary line above the results and the sort
- * control. The count is the whole filtered result's size
- * (`meta.total` from `GET /search`'s first page), not the number of
- * cards loaded so far. Its line is a polite live region, so a screen
- * reader hears "Searching…" / "Updating results…" / "12 results" as a
- * search runs and settles.
+ * SearchToolbar — the results header: how many listings match (the whole
+ * filtered total, `meta.total` from `GET /search`'s first page — never
+ * the number of cards loaded so far) and how they are sorted. The count
+ * line is a polite live region, so a screen reader hears "Searching…" /
+ * "Updating results…" / "12 results" as live filtering runs and settles.
  *
- * Sort is applied as soon as it is picked (it reorders, it doesn't
- * filter); "Best match" is offered only while there is a keyword to
- * match.
+ * Sort applies as soon as it is picked; "Best match" is offered only while
+ * there is a keyword to match.
  */
 
+import { useId } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Select } from '@desavii/ui/components/form-controls';
@@ -29,6 +28,7 @@ export default function SearchToolbar({
   onSortChange,
 }) {
   const { t } = useTranslation();
+  const sortLabelId = useId();
 
   const sortOptions = SORT_KEYS.filter(
     (key) => !SORT_OPTION_META[key].requiresKeyword || hasKeyword,
@@ -47,13 +47,18 @@ export default function SearchToolbar({
         {status}
       </p>
       <div className={styles.sort}>
-        <Select
-          ariaLabel={t('search.filters.sortLabel')}
-          options={sortOptions}
-          value={sort}
-          onChange={onSortChange}
-          size="sm"
-        />
+        <span id={sortLabelId} className={styles.sortLabel}>
+          {t('search.filters.sortLabel')}
+        </span>
+        <div className={styles.sortControl}>
+          <Select
+            ariaLabel={t('search.filters.sortLabel')}
+            options={sortOptions}
+            value={sort}
+            onChange={onSortChange}
+            size="sm"
+          />
+        </div>
       </div>
     </div>
   );

@@ -16,7 +16,9 @@
  *    destination catalogs (`GET /search/categories` / `/destinations`) to
  *    resolve a `?category=<slug>` nav link to its id, drop an id that
  *    doesn't exist, and apply the chosen category's date/party rules
- *    (`categoryFilterCapabilities.js`).
+ *    (`categoryFilterCapabilities.js`) — and, when category filters are
+ *    present, that category's filter catalog (`GET /search/filters`) to
+ *    drop any the category does not offer.
  *
  * `buildSearchParams` writes the canonical form back; parsing and
  * normalizing that form again yields the same filters, which is what
@@ -27,9 +29,10 @@
  * the primary nav and old bookmarks all link here with them:
  * `destination` is the free-text keyword (the backend's `keyword`),
  * `category` is a nav slug, `cityId` is the real destination (a city).
- * `dynamicFilters` holds the generic `attr_{code}` / `attr_{code}_min` /
- * `attr_{code}_max` / `amenityIds` params `GET /search/filters` declares
- * as data, never a fixed list this file could name in advance.
+ * `dynamicFilters` holds the category-filter params `GET /search/filters`
+ * declares as data — `attr_{code}` (+ `_min`/`_max`), `amenityIds`,
+ * `policy_{code}`, `room_{code}`, `ratingMin` — never a fixed list this
+ * file could name in advance.
  */
 
 import {
@@ -70,6 +73,19 @@ const NUMERIC_BOUND_PATTERN = /^-?\d+(\.\d+)?$/;
 const ATTRIBUTE_BOUND_KEY_PATTERN = /^attr_.+_(min|max)$/;
 const ATTRIBUTE_KEY_PATTERN = /^attr_/;
 const AMENITY_IDS_KEY = 'amenityIds';
+// Computed filters (see the API's `core/domain/searchComputedFilters.js`):
+// category policies, room facts and the guest-rating floor.
+const POLICY_OR_ROOM_KEY_PATTERN = /^(policy|room)_[a-z][a-z0-9_]*$/;
+const CODE_LIST_PATTERN = /^[A-Z0-9_]+(,[A-Z0-9_]+)*$/;
+const TOGGLE_ON = 'true';
+export const RATING_PARAM = 'ratingMin';
+const RATING_PATTERN = /^[1-5](\.[05])?$/;
+
+/**
+ * Category filters that stay meaningful in any category — kept when the
+ * category changes, while every category-specific one is dropped.
+ */
+export const GLOBAL_DYNAMIC_KEYS = Object.freeze([RATING_PARAM]);
 
 /** `YYYY-MM-DD` that is also a real calendar date (rejects `2026-02-30`). */
 export function isCalendarDate(value) {
@@ -102,6 +118,12 @@ function isValidDynamicFilter(key, value) {
   }
   if (ATTRIBUTE_KEY_PATTERN.test(key) || key === AMENITY_IDS_KEY) {
     return ID_LIST_PATTERN.test(value);
+  }
+  if (POLICY_OR_ROOM_KEY_PATTERN.test(key)) {
+    return value === TOGGLE_ON || CODE_LIST_PATTERN.test(value);
+  }
+  if (key === RATING_PARAM) {
+    return RATING_PATTERN.test(value) && Number(value) <= 5;
   }
   return false;
 }
@@ -202,7 +224,7 @@ export function parseSearchParams(
  */
 export function normalizeSearchFilters(
   filters,
-  { categories, destinations } = {},
+  { categories, destinations, filterParamKeys } = {},
 ) {
   const needsCategories =
     filters.categoryId !== undefined || filters.categorySlug !== undefined;
@@ -242,6 +264,22 @@ export function normalizeSearchFilters(
   // falls back the same way), so the URL never claims it.
   if (SORT_OPTION_META[next.sort]?.requiresKeyword && !next.destination) {
     next.sort = DEFAULT_SORT_KEY;
+  }
+
+  // Category filters only mean something in their own category's catalog
+  // (`GET /search/filters`): until it has loaded, a URL carrying any is
+  // not resolved; once it has, a key the catalog does not declare (a
+  // Hotels-only `attr_bedrooms_min` on a Restaurants search) is dropped.
+  const dynamicKeys = Object.keys(next.dynamicFilters);
+  if (dynamicKeys.length > 0) {
+    if (!filterParamKeys) {
+      return { filters: next, categorySlug: category?.slug, isResolved: false };
+    }
+    next.dynamicFilters = Object.fromEntries(
+      Object.entries(next.dynamicFilters).filter(([key]) =>
+        filterParamKeys.has(key),
+      ),
+    );
   }
 
   return { filters: next, categorySlug: category?.slug, isResolved: true };

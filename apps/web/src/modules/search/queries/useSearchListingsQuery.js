@@ -38,12 +38,18 @@ export function useSearchListingsQuery(
 
   return useInfiniteQuery({
     queryKey: searchKeys.results({ ...queryParams }),
-    queryFn: async ({ pageParam }) => {
-      const { data, meta } = await searchListings({
-        ...queryParams,
-        limit: SEARCH_RESULTS_LIMIT,
-        cursor: pageParam ?? undefined,
-      });
+    // `signal`: when the filters change mid-request, React Query aborts
+    // the now-unused request, so a slow, older response can never land
+    // after a newer search (each filter set is also its own key).
+    queryFn: async ({ pageParam, signal }) => {
+      const { data, meta } = await searchListings(
+        {
+          ...queryParams,
+          limit: SEARCH_RESULTS_LIMIT,
+          cursor: pageParam ?? undefined,
+        },
+        { signal },
+      );
       return { results: data, meta };
     },
     initialPageParam: null,

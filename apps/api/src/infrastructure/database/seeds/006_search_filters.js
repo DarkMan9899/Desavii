@@ -196,13 +196,19 @@ const FILTER_INPUT_TYPES = [
   { code: 'STEPPER', name: 'Numeric stepper' },
 ];
 
+// Search & Discovery remediation: groups read top to bottom as the
+// advanced-filter panel's sections. RATING and BOOKING also hold the
+// computed (non-attribute) filters `mysqlSearchRepository.js` adds —
+// guest rating, cancellation/house rules, meal plan, hourly stays.
 const FILTER_GROUPS = [
-  { code: 'ROOMS', name: 'Rooms & Beds', sortOrder: 1 },
-  { code: 'RATING', name: 'Rating', sortOrder: 2 },
-  { code: 'DINING', name: 'Dining', sortOrder: 3 },
-  { code: 'EXPERIENCE', name: 'Experience', sortOrder: 4 },
-  { code: 'VEHICLE', name: 'Vehicle', sortOrder: 5 },
-  { code: 'AMENITIES', name: 'Amenities', sortOrder: 6 },
+  { code: 'RATING', name: 'Rating', sortOrder: 1 },
+  { code: 'ROOMS', name: 'Rooms & Beds', sortOrder: 2 },
+  { code: 'PROPERTY', name: 'Property', sortOrder: 3 },
+  { code: 'DINING', name: 'Dining', sortOrder: 4 },
+  { code: 'EXPERIENCE', name: 'Experience', sortOrder: 5 },
+  { code: 'VEHICLE', name: 'Vehicle', sortOrder: 6 },
+  { code: 'BOOKING', name: 'Booking & policies', sortOrder: 7 },
+  { code: 'AMENITIES', name: 'Amenities', sortOrder: 8 },
 ];
 
 const AMENITY_GROUPS = [
@@ -659,116 +665,112 @@ const CATEGORY_AMENITIES = {
   ],
 };
 
+// `isAdvanced: false` marks a filter as one of its category's quick
+// filters — shown as a pill above the results, not only in the full
+// filter panel. Every attribute here is a real, traveller-facing fact
+// partners author; `total_rooms` (hotel size) is deliberately not
+// offered — it describes the property, not a stay a guest is choosing.
+const attributeFilter = (code, group, inputType, extra = {}) => ({
+  code,
+  group,
+  inputType,
+  valueSource: 'ATTRIBUTE',
+  attributeCode: code,
+  isAdvanced: true,
+  ...extra,
+});
+
 const FILTER_DEFINITIONS = [
-  {
-    code: 'bedrooms',
-    group: 'ROOMS',
-    inputType: 'STEPPER',
-    valueSource: 'ATTRIBUTE',
-    attributeCode: 'bedrooms',
+  attributeFilter('bedrooms', 'ROOMS', 'STEPPER', {
     unit: 'rooms',
     sortOrder: 1,
-  },
-  {
-    code: 'bathrooms',
-    group: 'ROOMS',
-    inputType: 'STEPPER',
-    valueSource: 'ATTRIBUTE',
-    attributeCode: 'bathrooms',
+    isAdvanced: false,
+  }),
+  attributeFilter('bathrooms', 'ROOMS', 'STEPPER', {
     unit: 'rooms',
     sortOrder: 2,
-  },
-  {
-    code: 'beds',
-    group: 'ROOMS',
-    inputType: 'STEPPER',
-    valueSource: 'ATTRIBUTE',
-    attributeCode: 'beds',
-    unit: 'beds',
-    sortOrder: 3,
-  },
-  {
-    code: 'max_guests',
-    group: 'ROOMS',
-    inputType: 'STEPPER',
-    valueSource: 'ATTRIBUTE',
-    attributeCode: 'max_guests',
+  }),
+  attributeFilter('beds', 'ROOMS', 'STEPPER', { unit: 'beds', sortOrder: 3 }),
+  attributeFilter('max_guests', 'ROOMS', 'STEPPER', {
     unit: 'guests',
     sortOrder: 4,
-  },
-  {
-    code: 'star_rating',
-    group: 'RATING',
-    inputType: 'SINGLE_SELECT',
-    valueSource: 'ATTRIBUTE',
-    attributeCode: 'star_rating',
-    sortOrder: 1,
-  },
-  {
-    code: 'price_tier',
-    group: 'DINING',
-    inputType: 'SINGLE_SELECT',
-    valueSource: 'ATTRIBUTE',
-    attributeCode: 'price_tier',
-    sortOrder: 1,
-  },
-  {
-    code: 'cuisine',
-    group: 'DINING',
-    inputType: 'MULTI_SELECT',
-    valueSource: 'ATTRIBUTE',
-    attributeCode: 'cuisine',
+  }),
+  attributeFilter('star_rating', 'RATING', 'SINGLE_SELECT', {
     sortOrder: 2,
-  },
-  {
-    code: 'duration_minutes',
-    group: 'EXPERIENCE',
-    inputType: 'RANGE',
-    valueSource: 'ATTRIBUTE',
-    attributeCode: 'duration_minutes',
+    isAdvanced: false,
+  }),
+  attributeFilter('property_style', 'PROPERTY', 'MULTI_SELECT', {
+    sortOrder: 1,
+  }),
+  attributeFilter('view_type', 'PROPERTY', 'MULTI_SELECT', { sortOrder: 2 }),
+  attributeFilter('floor_area_sqm', 'PROPERTY', 'RANGE', {
+    unit: 'sqm',
+    sortOrder: 3,
+  }),
+  attributeFilter('price_tier', 'DINING', 'SINGLE_SELECT', {
+    sortOrder: 1,
+    isAdvanced: false,
+  }),
+  attributeFilter('cuisine', 'DINING', 'MULTI_SELECT', {
+    sortOrder: 2,
+    isAdvanced: false,
+  }),
+  attributeFilter('duration_minutes', 'EXPERIENCE', 'RANGE', {
     unit: 'minutes',
     sortOrder: 1,
-  },
-  {
-    code: 'difficulty',
-    group: 'EXPERIENCE',
-    inputType: 'SINGLE_SELECT',
-    valueSource: 'ATTRIBUTE',
-    attributeCode: 'difficulty',
+    isAdvanced: false,
+  }),
+  attributeFilter('languages_offered', 'EXPERIENCE', 'MULTI_SELECT', {
     sortOrder: 2,
-  },
-  {
-    code: 'max_group_size',
-    group: 'EXPERIENCE',
-    inputType: 'STEPPER',
-    valueSource: 'ATTRIBUTE',
-    attributeCode: 'max_group_size',
-    unit: 'people',
+    isAdvanced: false,
+  }),
+  attributeFilter('difficulty', 'EXPERIENCE', 'SINGLE_SELECT', {
     sortOrder: 3,
-  },
-  {
-    code: 'transmission',
-    group: 'VEHICLE',
-    inputType: 'SINGLE_SELECT',
-    valueSource: 'ATTRIBUTE',
-    attributeCode: 'transmission',
+  }),
+  attributeFilter('max_group_size', 'EXPERIENCE', 'STEPPER', {
+    unit: 'people',
+    sortOrder: 4,
+  }),
+  attributeFilter('meeting_point_type', 'EXPERIENCE', 'MULTI_SELECT', {
+    sortOrder: 5,
+  }),
+  attributeFilter('transmission', 'VEHICLE', 'SINGLE_SELECT', {
     sortOrder: 1,
-  },
-  {
-    code: 'seats',
-    group: 'VEHICLE',
-    inputType: 'STEPPER',
-    valueSource: 'ATTRIBUTE',
-    attributeCode: 'seats',
+    isAdvanced: false,
+  }),
+  attributeFilter('seats', 'VEHICLE', 'STEPPER', {
     unit: 'seats',
     sortOrder: 2,
-  },
+    isAdvanced: false,
+  }),
+  attributeFilter('fuel_type', 'VEHICLE', 'MULTI_SELECT', {
+    sortOrder: 3,
+    isAdvanced: false,
+  }),
+  attributeFilter('doors', 'VEHICLE', 'STEPPER', {
+    unit: 'doors',
+    sortOrder: 4,
+  }),
+  attributeFilter('luggage_capacity', 'VEHICLE', 'STEPPER', {
+    unit: 'bags',
+    sortOrder: 5,
+  }),
+  attributeFilter('mileage_policy', 'VEHICLE', 'SINGLE_SELECT', {
+    sortOrder: 6,
+  }),
+  // A RANGE so a younger driver can cap it: "minimum driver age up to 21"
+  // keeps only cars that rent to them (`attr_min_driver_age_max=21`).
+  attributeFilter('min_driver_age', 'VEHICLE', 'RANGE', {
+    unit: 'years',
+    sortOrder: 7,
+  }),
   {
     code: 'amenity_ids',
     group: 'AMENITIES',
     inputType: 'MULTI_SELECT',
     valueSource: 'AMENITY',
     isGlobal: true,
+    isAdvanced: true,
     sortOrder: 1,
   },
 ];
@@ -776,8 +778,30 @@ const FILTER_DEFINITIONS = [
 export default async function seedSearchFilters(connection) {
   await upsertByCode(connection, 'attribute_data_types', ATTRIBUTE_DATA_TYPES);
   await upsertByCode(connection, 'filter_input_types', FILTER_INPUT_TYPES);
-  await upsertByCode(connection, 'filter_groups', FILTER_GROUPS);
-  await upsertByCode(connection, 'amenity_groups', AMENITY_GROUPS);
+  // `upsertByCode` writes only `code`/`name` unless told otherwise; the
+  // group order is what the filter panel and amenity lists sort by.
+  const withSortOrder = (groups) =>
+    groups.map(({ code, name, sortOrder }) => ({
+      code,
+      name,
+      sort_order: sortOrder,
+    }));
+  await upsertByCode(
+    connection,
+    'filter_groups',
+    withSortOrder(FILTER_GROUPS),
+    {
+      extraColumns: ['sort_order'],
+    },
+  );
+  await upsertByCode(
+    connection,
+    'amenity_groups',
+    withSortOrder(AMENITY_GROUPS),
+    {
+      extraColumns: ['sort_order'],
+    },
+  );
 
   const [dataTypeRows] = await connection.query(
     'SELECT id, code FROM attribute_data_types',

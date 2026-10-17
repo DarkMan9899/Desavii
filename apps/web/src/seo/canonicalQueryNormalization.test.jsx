@@ -138,6 +138,8 @@ describe('Real page-level canonical output stays clean under dirty query strings
       },
       categorySlug: undefined,
       isResolved: true,
+      filterGroups: [],
+      isCatalogPending: false,
       updateFilters: vi.fn(),
       updateDynamicFilter: vi.fn(),
       clearFilters: vi.fn(),

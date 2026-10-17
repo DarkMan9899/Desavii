@@ -379,6 +379,46 @@ Every response, success or error, shares one envelope:
   results ranked by relevance, with the same cursor-pagination contract
   as Section 11.
 
+### 14.1 Implemented contract — `GET /search` (alias `GET /search/listings`)
+
+The interim MySQL-direct implementation (`apps/api/src/modules/search`)
+accepts exactly these query params; anything malformed is a `422
+VALIDATION_FAILED`, never a 500:
+
+| Param                                                                     | Meaning                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `keyword`                                                                 | FULLTEXT match on title/description (≤ 200 chars)                                                                                                                                                                                                  |
+| `categoryId`, `cityId`, `countryId`, `partnerId`, `listingType`, `status` | exact filters (`status` only widens for the owner/moderators)                                                                                                                                                                                      |
+| `dateFrom` + `dateTo`                                                     | real calendar dates, together, `dateFrom` not before today (Asia/Yerevan), ≤ 90 days apart; availability per unit type — checkout-exclusive nights for `HOTEL_ROOM`/`PROPERTY_UNIT` (hourly holds subtracted), every day inclusive for other types |
+| `guests`                                                                  | 1–50; with dates, checked inside the availability rule; without dates, a unit must be able to hold the party (`max_guests` for rooms, seats for departures; never compared for tables/vehicles)                                                    |
+| `priceMin`, `priceMax`                                                    | whole AMD amounts against the card's "from" price; a listing priced in another currency, or unpriced, never matches a bound                                                                                                                        |
+| `sort`                                                                    | `newest` (default), `oldest`, `alphabetical`, `relevance` (needs `keyword`, else `newest`), `price_asc`, `price_desc` (unpriced last), `rating_desc` (unreviewed last)                                                                             |
+| `excludeCategoryTop`                                                      | `true` only for the Category page grid: leaves out that category's active CATEGORY_TOP promotions, shown in their own section there                                                                                                                |
+| `attr_{code}`, `attr_{code}_min`/`_max`, `amenityIds`                     | category filters from `GET /search/filters`; id lists are comma-separated integers, bounds are numbers or dates; an attribute the chosen category does not have is dropped                                                                         |
+| `policy_{code}`                                                           | a category policy: option codes, comma-separated (OR), for an ENUM policy; `true` for a BOOLEAN one; a policy outside the chosen category, or a value it does not have, is ignored                                                                 |
+| `room_meal_plan`, `room_hourly_stays`                                     | some live room offers one of the meal plans (comma-separated codes) / can be booked by the hour (`true`)                                                                                                                                           |
+| `ratingMin`                                                               | 1–5 in steps of 0.5, against the approved-review average; a listing with no approved review never matches                                                                                                                                          |
+| `locale`, `cursor`, `limit` (≤ 100)                                       | localization and keyset pagination                                                                                                                                                                                                                 |
+
+`meta` carries `next_cursor`, `has_more`, `limit`, and — on the first
+page only (no `cursor`) — `total`, the whole filtered result's size.
+
+**`GET /search/filters?categoryId=&locale=`** — the filters the Search UI
+renders. Only filters some publicly visible listing in scope can match are
+returned (`listing_count > 0`), grouped and ordered by `filter_groups`.
+Each definition carries `code`, `input_type`, `value_source`
+(`ATTRIBUTE`, `AMENITY`, `POLICY`, `ROOM`, `REVIEW`), `param` (the
+`GET /search` key it writes), `is_advanced` (`false` = a quick filter),
+`listing_count`, `unit`/`min`/`max`, and `options` (`value`, `code`,
+`count`; amenities add a localized `label` — requested language, then
+English, then the canonical name — and their `group`). Without
+`categoryId` no category-specific filter (attribute, amenity, policy,
+room) is returned. Counts are scoped to the category.
+
+**`GET /search/destinations?categoryId=&locale=`** — cities with a
+localized `name` (same fallback) and a `listing_count` scoped to the
+category when one is given.
+
 ## 15. Localization
 
 - Every request may carry `Accept-Language: hy | ru | en` (or a

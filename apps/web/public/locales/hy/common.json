@@ -497,7 +497,8 @@
         "alphabetical": "Ա–Ֆ",
         "relevance": "Լավագույն համընկնում",
         "price_asc": "Գինը՝ աճման կարգով",
-        "price_desc": "Գինը՝ նվազման կարգով"
+        "price_desc": "Գինը՝ նվազման կարգով",
+        "rating_desc": "Ամենաբարձր գնահատված"
       },
       "activeFilters": "Ակտիվ զտիչներ",
       "removeFilter": "Հեռացնել {{label}} զտիչը",
@@ -546,24 +547,37 @@
       "submit": "Որոնել",
       "editSearchSummary": "Փոխել որոնումը՝ {{summary}}",
       "summaryEverything": "Բոլոր հայտարարությունները",
-      "filtersButton": "Զտիչներ",
-      "filtersButtonActive": "Զտիչներ, ակտիվ՝ {{count}}",
       "drawerTitle": "Զտիչներ",
       "sections": {
         "search": "Որոնում",
         "price": "Գին"
       },
       "price": {
-        "minLabel": "Նվազագույնը (AMD)",
-        "maxLabel": "Առավելագույնը (AMD)",
-        "hint": "Համեմատվում է յուրաքանչյուր հայտարարության մեկնարկային գնի հետ՝ հայկական դրամով։",
+        "minLabel": "Նվազագույն գին",
+        "maxLabel": "Առավելագույն գին",
+        "hint": "Հայկական դրամով (AMD)՝ այն արժույթով, որով նշված են հայտարարությունների գները, և համեմատվում է յուրաքանչյուրի մեկնարկային գնի հետ։",
         "invalidRange": "Նվազագույնը չի կարող գերազանցել առավելագույնը։",
         "chipRange": "{{min}} – {{max}}",
         "chipMin": "{{min}}-ից",
-        "chipMax": "Մինչև {{max}}"
+        "chipMax": "Մինչև {{max}}",
+        "currency": "AMD"
       },
       "keywordChip": "«{{keyword}}»",
-      "apply": "Ցույց տալ արդյունքները"
+      "apply": "Ցույց տալ արդյունքները",
+      "quick": {
+        "label": "Արագ զտիչներ",
+        "price": "Գին",
+        "clear": "Մաքրել",
+        "done": "Պատրաստ է",
+        "allFilters": "Բոլոր զտիչները",
+        "allFiltersActive": "Բոլոր զտիչները, ակտիվ՝ {{count}}"
+      },
+      "showResults_one": "Ցույց տալ {{count}} արդյունք",
+      "showResults_other": "Ցույց տալ {{count}} արդյունք",
+      "selectedCount_one": "{{count}} ընտրված",
+      "selectedCount_other": "{{count}} ընտրված",
+      "findAmenity": "Գտնել հարմարություն",
+      "noAmenityMatch": "Համապատասխան հարմարություն չկա։"
     },
     "aiSearch": {
       "ariaLabel": "AI-ով որոնում",
@@ -591,22 +605,16 @@
         "DINING": "Ճաշարան",
         "EXPERIENCE": "Փորձառություն",
         "VEHICLE": "Տրանսպորտային միջոց",
-        "AMENITIES": "Հարմարություններ"
+        "AMENITIES": "Հարմարություններ",
+        "PROPERTY": "Օբյեկտ",
+        "BOOKING": "Ամրագրում և կանոններ"
       },
       "definitions": {
-        "bedrooms": "Ննջասենյակներ",
-        "bathrooms": "Լոգարաններ",
-        "beds": "Մահճակալներ",
-        "max_guests": "Հյուրերի առավելագույն թիվ",
-        "star_rating": "Աստղանիշ",
-        "price_tier": "Գին",
-        "cuisine": "Խոհանոց",
-        "duration_minutes": "Տևողություն",
-        "difficulty": "Բարդություն",
-        "max_group_size": "Խմբի առավելագույն չափ",
-        "transmission": "Փոխանցումատուփ",
-        "seats": "Նստատեղեր",
-        "amenity_ids": "Հարմարություններ"
+        "amenity_ids": "Հարմարություններ",
+        "guest_rating": "Հյուրերի գնահատական",
+        "meal_plan": "Սնունդ",
+        "hourly_stays": "Ժամային կեցություն",
+        "price_tier": "Գնային մակարդակ"
       },
       "options": {
         "1": "1 աստղ",
@@ -629,7 +637,8 @@
         "CHALLENGING": "Բարդ",
         "MANUAL": "Մեխանիկական",
         "AUTOMATIC": "Ավտոմատ"
-      }
+      },
+      "ratingAtLeast": "{{value}}+"
     },
     "results": {
       "loadMore": "Բեռնել ավելին",

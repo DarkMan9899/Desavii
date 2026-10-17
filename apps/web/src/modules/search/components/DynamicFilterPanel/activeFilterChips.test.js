@@ -9,7 +9,46 @@ const t = (key, defaultValueOrOptions) => {
   if (defaultValueOrOptions?.label !== undefined) {
     return `${key}:${defaultValueOrOptions.label}`;
   }
-  return key;
+  if (defaultValueOrOptions?.value !== undefined) {
+    return `${key}:${defaultValueOrOptions.value}`;
+  }
+  return Array.isArray(key) ? key[0] : key;
+};
+
+const BOOKING_GROUP = {
+  code: 'BOOKING',
+  definitions: [
+    {
+      code: 'pets_allowed',
+      param: 'policy_pets_allowed',
+      input_type: 'TOGGLE',
+      value_source: 'POLICY',
+      options: [],
+    },
+    {
+      code: 'meal_plan',
+      param: 'room_meal_plan',
+      input_type: 'MULTI_SELECT',
+      value_source: 'ROOM',
+      options: [
+        { value: 'BREAKFAST_INCLUDED', code: 'BREAKFAST_INCLUDED' },
+        { value: 'HALF_BOARD', code: 'HALF_BOARD' },
+      ],
+    },
+  ],
+};
+
+const RATING_GROUP = {
+  code: 'RATING',
+  definitions: [
+    {
+      code: 'guest_rating',
+      param: 'ratingMin',
+      input_type: 'SINGLE_SELECT',
+      value_source: 'REVIEW',
+      options: [{ value: '4', code: '4' }],
+    },
+  ],
 };
 
 const ROOMS_GROUP = {
@@ -138,6 +177,40 @@ describe('getActiveFilterChips (apps/web/src/modules/search/components/DynamicFi
     const chip = chips.find((c) => c.key === 'amenityIds');
     expect(chip.label).toContain('WiFi');
     expect(chip.label).toContain('Parking');
+  });
+
+  test('a policy TOGGLE chip is just the policy name and clears its own param', () => {
+    const [chip] = getActiveFilterChips(
+      [BOOKING_GROUP],
+      { policy_pets_allowed: 'true' },
+      t,
+    );
+    expect(chip).toEqual({
+      key: 'policy_pets_allowed',
+      keysToClear: ['policy_pets_allowed'],
+      label: 'pets_allowed',
+    });
+  });
+
+  test('ROOM meal plans resolve through the meal-plan vocabulary', () => {
+    const [chip] = getActiveFilterChips(
+      [BOOKING_GROUP],
+      { room_meal_plan: 'HALF_BOARD' },
+      t,
+    );
+    expect(chip.key).toBe('room_meal_plan');
+    expect(chip.label).toContain('HALF_BOARD');
+  });
+
+  test('the guest-rating chip formats its threshold in the visitor locale', () => {
+    const [chip] = getActiveFilterChips(
+      [RATING_GROUP],
+      { ratingMin: '4' },
+      t,
+      'en',
+    );
+    expect(chip.key).toBe('ratingMin');
+    expect(chip.label).toContain('search.dynamicFilters.ratingAtLeast:4');
   });
 
   test('a stale/unresolvable id mixed into a multi-select value is dropped, not rendered as "undefined"', () => {
