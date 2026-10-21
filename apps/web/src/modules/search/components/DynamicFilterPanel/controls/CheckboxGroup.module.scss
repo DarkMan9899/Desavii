@@ -12,8 +12,14 @@
   color: tokens.$color-gray-900;
 }
 
+// Columns only where a long HY/RU option name still fits on a line or
+// two: one column in a quick-filter panel or on a phone, two in a wider
+// drawer.
 .options {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(100%, #{tokens.$space-24 * 2}), 1fr)
+  );
   gap: tokens.$space-2;
 }

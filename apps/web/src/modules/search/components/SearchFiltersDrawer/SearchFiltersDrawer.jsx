@@ -109,10 +109,12 @@ export default function SearchFiltersDrawer({
 
   useEffect(() => {
     if (!isOpen || !initialSection) return undefined;
+    // `scrollIntoView?.`: an engine without it (jsdom, older WebViews)
+    // simply opens unscrolled instead of throwing inside the frame.
     const frame = requestAnimationFrame(() =>
       document
         .getElementById(sectionId(initialSection))
-        ?.scrollIntoView({ block: 'start' }),
+        ?.scrollIntoView?.({ block: 'start' }),
     );
     return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per opening; the id prefix is stable

@@ -11,6 +11,7 @@
 import {
   toSearchResultResponse,
   toOwnerSearchResultResponse,
+  toSearchMapResultResponse,
   toCategoryResultResponse,
   toDestinationResultResponse,
   toSuggestionResponse,
@@ -37,6 +38,23 @@ export function createSearchController(searchService) {
         res.status(200).json({
           success: true,
           data: rows.map(toResponse),
+          meta,
+          error: null,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async searchMap(req, res, next) {
+      try {
+        const { rows, meta } = await searchService.searchMap(
+          req.principal,
+          req.validated.query,
+        );
+        res.status(200).json({
+          success: true,
+          data: rows.map(toSearchMapResultResponse),
           meta,
           error: null,
         });

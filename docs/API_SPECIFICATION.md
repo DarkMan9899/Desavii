@@ -398,10 +398,32 @@ VALIDATION_FAILED`, never a 500:
 | `policy_{code}`                                                           | a category policy: option codes, comma-separated (OR), for an ENUM policy; `true` for a BOOLEAN one; a policy outside the chosen category, or a value it does not have, is ignored                                                                 |
 | `room_meal_plan`, `room_hourly_stays`                                     | some live room offers one of the meal plans (comma-separated codes) / can be booked by the hour (`true`)                                                                                                                                           |
 | `ratingMin`                                                               | 1–5 in steps of 0.5, against the approved-review average; a listing with no approved review never matches                                                                                                                                          |
+| `bbox`                                                                    | a map area `west,south,east,north` in degrees (west < east, south < north, within ±180/±90; one value): only listings whose *map point* lies inside — a private stay's map point, never its stored one (see `GET /search/map`)                     |
 | `locale`, `cursor`, `limit` (≤ 100)                                       | localization and keyset pagination                                                                                                                                                                                                                 |
 
 `meta` carries `next_cursor`, `has_more`, `limit`, and — on the first
 page only (no `cursor`) — `total`, the whole filtered result's size.
+
+**`GET /search/map`** — Map Search: the same params as `GET /search`
+(`cursor`/`limit` aside) and the same resolved search — visibility,
+filters, `bbox` and sort — as markers for every match with a point, never
+just one List page. At most 500 markers (`MAP_RESULT_LIMIT`), in the
+List's sort order. Each marker is a lightweight card: `id`, `slug`,
+`title`, `listing_type`, `category_slug`, localized `city_name`,
+`latitude`/`longitude`, `location_precision`, `cover_image_url`,
+`price_amount`, `price_currency_code`, `pricing_model`, `rating_average`,
+`review_count` and the card facts (`star_rating`, `cuisine`, `price_tier`,
+`transmission`, `bedrooms`, `duration_minutes`). `meta` carries `total`
+(every match), `mappable` (matches with a point), `returned` and
+`truncated` (`returned < mappable`). Private-stay location policy: a
+listing linked to `apartments`, `villas` or `guest-houses` (also when it
+is listed under another category too) is placed at the centre of its
+0.01° grid cell (`location_precision: "approximate"`); every other
+listing at its stored point (`"exact"`). The approximate point is
+computed per response, the stored coordinates are never changed, and the
+`bbox` filter uses the same map point, so an area drawn around a stored
+point cannot reveal it. (Listing Detail still returns the stored point
+for every category — tracked separately.)
 
 **`GET /search/filters?categoryId=&locale=`** — the filters the Search UI
 renders. Only filters some publicly visible listing in scope can match are

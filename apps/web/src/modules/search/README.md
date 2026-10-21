@@ -166,6 +166,58 @@ model" and "Page" notes above:**
   changing category drops every category filter except the guest rating
   (`GLOBAL_DYNAMIC_KEYS`).
 - **Sort:** adds `rating_desc`.
+- **Bar geometry:** every control in the search bar is the design
+  system's field height (`$input-height-md`), the Search button included;
+  a long selected value ends in an ellipsis instead of growing its field
+  (the full value stays in the DOM and in the active chips). Tablet: two
+  columns. Laptop and up: three equal columns over two rows — a single
+  row cannot hold real HY/RU values in the ~1120px content width (a RU
+  date range alone needs ~300px), so it is not used.
+- **Dropdowns:** Selects and the calendar use the shared portaled,
+  viewport-clamped panels (a bottom sheet on phones). Quick-filter panels
+  use the shared `Popover`, which keeps itself inside the viewport
+  horizontally and scrolls into view when it opens below the fold.
+  `tests/e2e/searchResponsive.spec.js` asserts both structurally.
+
+**Map Search (2026-10):**
+
+- **View:** `view=map` in the URL (List is the default and never
+  written); the List/Map switch (`ResultsViewToggle`) sits in the
+  toolbar. `view` is never sent to the API.
+- **Data:** `useSearchMapQuery` → `GET /search/map`, built from the same
+  committed filters as the List (`toSearchQueryParams`), so the Map and
+  the List are one search. Up to 500 markers; `meta.truncated` and
+  results without a location are stated on the map.
+- **Area:** "Search this area" appears only after the visitor pans or
+  zooms the map themselves, and commits the visible area as `bbox`
+  (`utils/mapArea.js`: `west,south,east,north`, 5 decimals, so the same
+  area is always the same URL). The area filters the List too, shows as a
+  "Map area" chip, and survives reload, Back/Forward and copied links.
+  "Clear map area" and the chip remove it; "Clear filters" removes it but
+  stays on the Map; a category change keeps it; a destination change
+  drops it.
+- **Markers:** `supercluster` clusters only the current search's markers
+  (a changed search's markers are withdrawn until the new ones arrive).
+  Listings stacked at one point are offered as a list. Markers are
+  keyboard buttons (Enter/Space); private stays are dashed pills at their
+  approximate point (the API's `location_precision`).
+- **Preview:** a marker opens a preview built from the marker's own data
+  (no listing request per marker; facts from `buildCategoryCardMeta`,
+  never invented) — a card over the map on laptop+, a bottom sheet on
+  phones. "Learn more" (`buildListingHref`) opens the listing with the
+  search's `dateFrom`/`dateTo`/`guests`; the listing page re-checks them.
+  Nothing on the map navigates or books by itself.
+- **Layout:** laptop+ — List left, Map right and sticky; the card hovered
+  or focused highlights its marker, and the marker selected outlines and
+  scrolls to its card. Below laptop — the Map alone. Leaflet and the map
+  code load lazily, only when the Map is opened.
+- **Structure:** `useSearchMapResults` holds the state (current markers,
+  the search they belong to, the selection or group); `SearchMapPanel`
+  composes the lazy `SearchMap` (Leaflet + `ClusterLayer`),
+  `MapMessages` and `MapPreview` (card or bottom sheet).
+- **Tests:** `SearchMapPanel.test.jsx`, `MapListingPreview.test.jsx`,
+  `useSearchMapQuery.test.jsx`, `mapArea.test.js`, and end to end
+  `tests/e2e/searchMap.spec.js`.
 
 **Future AI Search preparation:** `SearchResults` takes a plain
 `results` array plus loading/error/pagination props — it has no

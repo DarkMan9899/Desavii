@@ -24,6 +24,10 @@ import {
   ROOM_FILTERS,
   TOGGLE_ON_VALUE,
 } from '../../../core/domain/searchComputedFilters.js';
+import {
+  MAP_RESULT_LIMIT,
+  parseBoundingBox,
+} from '../../../core/domain/searchMap.js';
 
 const SUGGESTION_MIN_QUERY_LENGTH = 2;
 const ATTR_RANGE_PATTERN = /^attr_(.+)_(min|max)$/;
@@ -270,7 +274,13 @@ export class SearchService {
     return filters.length > 0 ? filters : undefined;
   }
 
-  async searchListings(principal, params = {}) {
+  /**
+   * Turns validated `GET /search` params into the repository's filters
+   * and sort — the single resolution List and Map Search share, so a
+   * filter can never mean one thing for the cards and another for the
+   * markers. Pagination stays with the caller.
+   */
+  async #resolveSearchQuery(principal, params) {
     const {
       keyword,
       categoryId,
@@ -281,8 +291,6 @@ export class SearchService {
       status,
       locale,
       sort: sortKey,
-      cursor,
-      limit,
       amenityIds,
       dateFrom,
       dateTo,
@@ -291,6 +299,7 @@ export class SearchService {
       priceMax,
       excludeCategoryTop,
       ratingMin,
+      bbox,
       [ROOM_MEAL_PLAN_PARAM]: roomMealPlan,
       [ROOM_HOURLY_PARAM]: roomHourlyStays,
       ...rest
@@ -341,19 +350,44 @@ export class SearchService {
       priceMin,
       priceMax,
       excludeCategoryTop,
+      bbox: bbox ? parseBoundingBox(bbox) : undefined,
       ...availabilityFilter,
       ...visibility.filters,
     };
+    return { filters, sort, elevated: visibility.elevated };
+  }
 
+  async searchListings(principal, params = {}) {
+    const { filters, sort, elevated } = await this.#resolveSearchQuery(
+      principal,
+      params,
+    );
     const { rows, meta } = await this.#searchRepository.searchListings(
       filters,
       sort,
-      { cursor, limit },
+      { cursor: params.cursor, limit: params.limit },
     );
     // Step B5: threaded through so `searchController` can pick the
     // lifecycle-inclusive DTO only for the exact same elevated population
     // that can already see non-PUBLISHED cards through this endpoint.
-    return { rows, meta, isOwnerView: visibility.elevated };
+    return { rows, meta, isOwnerView: elevated };
+  }
+
+  /**
+   * Map Search: the same resolved search as `searchListings` — same
+   * visibility, filters, area and sort — as markers for every match with a
+   * stored point (up to `MAP_RESULT_LIMIT`), never just the List's
+   * current page. Nothing is geocoded at search time, and a listing
+   * without a point stays List-only. A venue's marker is its stored
+   * point; a private stay's is the centre of its grid cell
+   * (`core/domain/searchMap.js`), computed per response — the stored
+   * point is never changed.
+   */
+  async searchMap(principal, params = {}) {
+    const { filters, sort } = await this.#resolveSearchQuery(principal, params);
+    return this.#searchRepository.searchMap(filters, sort, {
+      limit: MAP_RESULT_LIMIT,
+    });
   }
 
   /**

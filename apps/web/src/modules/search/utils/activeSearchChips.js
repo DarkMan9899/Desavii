@@ -7,13 +7,16 @@
  * so the chip row and its tests share one source.
  */
 
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import { getActiveFilterChips } from '../components/DynamicFilterPanel/activeFilterChips.js';
 import { formatMoney } from '../../../utils/formatMoney.js';
 import { BASE_CURRENCY } from '../../../utils/currencyPolicy.js';
 
 /** `YYYY-MM-DD` dates are calendar days, so they are formatted in UTC — never shifted by the viewer's timezone. */
 export function formatSearchDates(dateFrom, dateTo, locale) {
-  const formatter = new Intl.DateTimeFormat(locale, {
+  // The shared formatter keeps Armenian dates in Armenian on browsers whose `Intl`
+  // has no Armenian data (it would otherwise print English months).
+  const formatter = createDateFormatter(locale, {
     day: 'numeric',
     month: 'short',
     timeZone: 'UTC',
@@ -84,6 +87,13 @@ export function buildActiveSearchChips({
       key: 'categoryId',
       label: category.name,
       patch: { categoryId: undefined },
+    });
+  }
+  if (filters.bbox) {
+    chips.push({
+      key: 'bbox',
+      label: t('search.map.areaChip'),
+      patch: { bbox: undefined },
     });
   }
   if (filters.dateFrom && filters.dateTo) {

@@ -25,6 +25,7 @@ import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import Label from '../Label/Label.jsx';
 import usePortalContainer from '../../../hooks/usePortalContainer.js';
+import { createDateFormatter } from '../../../utils/dateFormat.js';
 import styles from './DatePicker.module.scss';
 
 const PANEL_GAP = 8;
@@ -219,32 +220,27 @@ export default function DatePicker({
     [viewMonth],
   );
 
+  // `createDateFormatter`, not bare `Intl`: a browser without Armenian
+  // ICU data would otherwise render "Nov 20, 2026" for an Armenian visitor.
   const weekdayFormatter = useMemo(
-    () => new Intl.DateTimeFormat(locale, { weekday: 'short' }),
+    () => createDateFormatter(locale, { weekday: 'short' }),
     [locale],
   );
   const monthYearFormatter = useMemo(
-    () => new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }),
+    () => createDateFormatter(locale, { month: 'long', year: 'numeric' }),
     [locale],
   );
+  // The day cells' accessible names and the trigger text share one format.
   const dayFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat(locale, {
+      createDateFormatter(locale, {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
       }),
     [locale],
   );
-  const displayFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      }),
-    [locale],
-  );
+  const displayFormatter = dayFormatter;
 
   const weekdayLabels = useMemo(() => {
     // A fixed reference week (Sun 4 Jan 1970) so this only ever depends

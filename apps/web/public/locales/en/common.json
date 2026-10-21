@@ -672,6 +672,44 @@
       "bedroomsCount_other": "{{count}} bedrooms",
       "durationMinutes": "{{count}} min",
       "durationHours": "{{count}}h"
+    },
+    "view": {
+      "label": "Results view",
+      "list": "List",
+      "map": "Map"
+    },
+    "map": {
+      "region": "Map of search results",
+      "loading": "Loading the map…",
+      "updating": "Updating the map…",
+      "error": {
+        "title": "The map couldn’t load",
+        "description": "Every result is still in the list.",
+        "retry": "Try again"
+      },
+      "empty": {
+        "title": "Nothing to show on the map",
+        "description": "No results match these filters."
+      },
+      "emptyArea": {
+        "title": "No results in this area",
+        "description": "Move the map or clear the area to see more."
+      },
+      "searchArea": "Search this area",
+      "clearArea": "Clear map area",
+      "areaChip": "Map area",
+      "truncated": "Too many results to show on the map. Zoom in or search this area.",
+      "partial_one": "{{count}} result has no location and appears only in the list.",
+      "partial_other": "{{count}} results have no location and appear only in the list.",
+      "cluster_one": "{{count}} listing here",
+      "cluster_other": "{{count}} listings here",
+      "clusterList": "Listings at this point",
+      "preview": {
+        "close": "Close preview",
+        "learnMore": "Learn more",
+        "approximate": "Approximate location",
+        "back": "All listings at this point"
+      }
     }
   },
   "errors": {

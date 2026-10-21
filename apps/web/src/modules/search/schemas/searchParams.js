@@ -33,6 +33,11 @@
  * declares as data — `attr_{code}` (+ `_min`/`_max`), `amenityIds`,
  * `policy_{code}`, `room_{code}`, `ratingMin` — never a fixed list this
  * file could name in advance.
+ *
+ * `bbox` is the committed map area ("Search this area", `utils/mapArea.js`)
+ * — a filter like any other, applied to List and Map alike. `view=map`
+ * only chooses how the results are shown: it is URL state (reload and a
+ * copied link reopen the map) but never part of the search itself.
  */
 
 import {
@@ -45,6 +50,7 @@ import {
   DATE_MODES,
   getSearchCapabilities,
 } from '../utils/categoryFilterCapabilities.js';
+import { canonicalMapArea } from '../utils/mapArea.js';
 
 export const SEARCH_PARAM_KEYS = Object.freeze({
   destination: 'destination',
@@ -57,7 +63,12 @@ export const SEARCH_PARAM_KEYS = Object.freeze({
   guests: 'guests',
   priceMin: 'priceMin',
   priceMax: 'priceMax',
+  bbox: 'bbox',
+  view: 'view',
 });
+
+/** How results are shown; the List is the default and is never written. */
+export const RESULT_VIEWS = Object.freeze({ LIST: 'list', MAP: 'map' });
 
 /** Mirrors the backend's own bounds (`searchValidators.js`). */
 export const MAX_KEYWORD_LENGTH = 200;
@@ -148,7 +159,7 @@ function parseDateRange(dateFromRaw, dateToRaw, today) {
 /**
  * @param {URLSearchParams} searchParams
  * @param {{ today?: string }} [options] - `YYYY-MM-DD` business date
- * @returns {{ destination: string, categoryId?: number, categorySlug?: string, cityId?: number, sort: string, dateFrom?: string, dateTo?: string, guests?: number, priceMin?: number, priceMax?: number, dynamicFilters: Object<string, string> }}
+ * @returns {{ destination: string, categoryId?: number, categorySlug?: string, cityId?: number, sort: string, dateFrom?: string, dateTo?: string, guests?: number, priceMin?: number, priceMax?: number, bbox?: string, view: string, dynamicFilters: Object<string, string> }}
  */
 export function parseSearchParams(
   searchParams,
@@ -190,6 +201,10 @@ export function parseSearchParams(
     priceMax = undefined;
   }
 
+  const bbox = canonicalMapArea(get('bbox'));
+  const view =
+    get('view') === RESULT_VIEWS.MAP ? RESULT_VIEWS.MAP : RESULT_VIEWS.LIST;
+
   const dynamicFilters = {};
   searchParams.forEach((value, key) => {
     if (value && isValidDynamicFilter(key, value)) {
@@ -208,6 +223,8 @@ export function parseSearchParams(
     guests,
     priceMin,
     priceMax,
+    bbox,
+    view,
     dynamicFilters,
   };
 }
@@ -304,6 +321,8 @@ export function buildSearchParams({
   guests,
   priceMin,
   priceMax,
+  bbox,
+  view,
   dynamicFilters = {},
 }) {
   const params = new URLSearchParams();
@@ -325,6 +344,8 @@ export function buildSearchParams({
   Object.entries(dynamicFilters).forEach(([key, value]) => {
     if (value) params.set(key, value);
   });
+  if (bbox) set('bbox', bbox);
+  if (view === RESULT_VIEWS.MAP) set('view', view);
   return params;
 }
 
@@ -350,6 +371,7 @@ export function toSearchQueryParams(
     priceMin,
     priceMax,
     excludeCategoryTop,
+    bbox,
     dynamicFilters = {},
   },
   locale,
@@ -369,12 +391,14 @@ export function toSearchQueryParams(
   if (priceMin !== undefined) query.priceMin = priceMin;
   if (priceMax !== undefined) query.priceMax = priceMax;
   if (excludeCategoryTop) query.excludeCategoryTop = 'true';
+  if (bbox) query.bbox = bbox;
   if (locale) query.locale = locale;
   return query;
 }
 
 export default {
   SEARCH_PARAM_KEYS,
+  RESULT_VIEWS,
   parseSearchParams,
   normalizeSearchFilters,
   buildSearchParams,

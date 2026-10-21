@@ -9,6 +9,7 @@ const T = hy.search;
 
 function renderToolbar(props = {}) {
   const onSortChange = vi.fn();
+  const onViewChange = vi.fn();
   render(
     <SearchToolbar
       total={45}
@@ -17,11 +18,13 @@ function renderToolbar(props = {}) {
       sort="newest"
       hasKeyword={false}
       onSortChange={onSortChange}
+      view="list"
+      onViewChange={onViewChange}
       // eslint-disable-next-line react/jsx-props-no-spreading -- per-test overrides
       {...props}
     />,
   );
-  return { onSortChange, user: userEvent.setup() };
+  return { onSortChange, onViewChange, user: userEvent.setup() };
 }
 
 describe('SearchToolbar (apps/web/src/modules/search)', () => {
@@ -65,5 +68,14 @@ describe('SearchToolbar (apps/web/src/modules/search)', () => {
     expect(
       screen.getByRole('option', { name: T.filters.sort.relevance }),
     ).toBeInTheDocument();
+  });
+
+  test('offers List and Map beside the sort, and reports the choice', async () => {
+    const { onViewChange, user } = renderToolbar();
+    expect(
+      screen.getByRole('group', { name: T.view.label }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: T.view.map }));
+    expect(onViewChange).toHaveBeenCalledWith('map');
   });
 });

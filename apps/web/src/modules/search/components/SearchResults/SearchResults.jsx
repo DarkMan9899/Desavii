@@ -14,8 +14,15 @@
  * (FRONTEND_ARCHITECTURE.md's "future AI Search" extensibility note in
  * the Phase 4 brief: a different query hook could feed this exact same
  * component later without any change here).
+ *
+ * Beside the Map (`layout="split"`) the grid is narrower, and the List and
+ * the Map point at each other: a card hovered or focused reports itself
+ * (`onActiveChange`) so its marker stands out, and the listing selected on
+ * the map (`selectedId`) is outlined and scrolled into view — the link
+ * never depends on hover alone.
  */
 
+import { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import {
@@ -26,6 +33,7 @@ import {
 import { Button } from '@desavii/ui/components/primitives';
 import SearchResultCard from '../SearchResultCard/SearchResultCard.jsx';
 import { PLACEMENTS } from '../../../../analytics/index.js';
+import useReducedMotion from '../../../../hooks/useReducedMotion.js';
 import styles from './SearchResults.module.scss';
 
 const SKELETON_COUNT = 8;
@@ -50,12 +58,29 @@ export default function SearchResults({
   // only ever needs to override `searchContext` (queryText/categoryCode),
   // never `placement` itself.
   searchContext = undefined,
+  layout = 'grid',
+  selectedId = undefined,
+  activeId = undefined,
+  onActiveChange = undefined,
 }) {
   const { t } = useTranslation();
+  const prefersReducedMotion = useReducedMotion();
+  const listRef = useRef(null);
+  const gridClassName = layout === 'split' ? styles.splitGrid : styles.grid;
+
+  useEffect(() => {
+    if (selectedId === undefined) return;
+    listRef.current
+      ?.querySelector(`[data-listing-id="${selectedId}"]`)
+      ?.scrollIntoView({
+        block: 'nearest',
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      });
+  }, [selectedId, prefersReducedMotion]);
 
   if (isPending) {
     return (
-      <div className={styles.grid}>
+      <div className={gridClassName}>
         {Array.from({ length: SKELETON_COUNT }, (_, index) => (
           // Skeleton placeholders are positionally static, non-reorderable.
           // eslint-disable-next-line react/no-array-index-key
@@ -92,16 +117,38 @@ export default function SearchResults({
       className={isUpdating ? styles.updating : undefined}
       aria-busy={isUpdating || undefined}
     >
-      <div className={styles.grid}>
-        {results.map((result, index) => (
-          <SearchResultCard
-            key={result.id}
-            result={result}
-            placement={PLACEMENTS.SEARCH_RESULTS}
-            position={index}
-            searchContext={searchContext}
-          />
-        ))}
+      <div ref={listRef} className={gridClassName}>
+        {results.map((result, index) => {
+          const card = (
+            <SearchResultCard
+              key={result.id}
+              result={result}
+              placement={PLACEMENTS.SEARCH_RESULTS}
+              position={index}
+              searchContext={searchContext}
+            />
+          );
+          if (!onActiveChange) return card;
+          return (
+            <div
+              key={result.id}
+              className={styles.cardSlot}
+              data-listing-id={result.id}
+              data-selected={result.id === selectedId || undefined}
+              data-active={result.id === activeId || undefined}
+              onMouseEnter={() => onActiveChange(result.id)}
+              onMouseLeave={() => onActiveChange(undefined)}
+              onFocus={() => onActiveChange(result.id)}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                  onActiveChange(undefined);
+                }
+              }}
+            >
+              {card}
+            </div>
+          );
+        })}
       </div>
       {hasNextPage && (
         <div className={styles.loadMore}>
@@ -137,4 +184,10 @@ SearchResults.propTypes = {
     queryText: PropTypes.string,
     categoryCode: PropTypes.string,
   }),
+  /** `split`: the narrower grid beside the Map. */
+  layout: PropTypes.oneOf(['grid', 'split']),
+  selectedId: PropTypes.number,
+  activeId: PropTypes.number,
+  /** `(id | undefined)`: the card hovered or focused, for the Map. */
+  onActiveChange: PropTypes.func,
 };

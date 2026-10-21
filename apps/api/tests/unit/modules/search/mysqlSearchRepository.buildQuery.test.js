@@ -8,7 +8,10 @@
  */
 
 import { describe, test, expect } from '@jest/globals';
-import { buildSearchListingsQuery } from '../../../../src/modules/search/repositories/mysqlSearchRepository.js';
+import {
+  buildSearchListingsQuery,
+  buildSearchMapQuery,
+} from '../../../../src/modules/search/repositories/mysqlSearchRepository.js';
 import { resolveSortOption } from '../../../../src/core/domain/sortOptions.js';
 import { ACCOMMODATION_BOOKABLE_UNIT_TYPES } from '../../../../src/core/domain/accommodationDateSemantics.js';
 import { INVENTORY_QUANTITY_BOOKABLE_UNIT_TYPES } from '../../../../src/core/domain/inventoryQuantityUnitTypes.js';
@@ -97,10 +100,10 @@ describe('buildSearchListingsQuery — placeholder/parameter alignment', () => {
     );
 
     // Physical order in the SQL: SELECT's MATCH keyword, then JOIN
-    // lt.language_id, JOIN lt2.language_id, then WHERE's partner_id,
-    // then WHERE's MATCH keyword (again, for the `> 0` filter), then
-    // LIMIT's (limit + 1).
-    expect(params).toEqual(['spa', 3, 1, 42, 'spa', 6]);
+    // lt.language_id, JOIN lt2.language_id, JOIN ct/ct2.language_id (the
+    // localized city name), then WHERE's partner_id, then WHERE's MATCH
+    // keyword (again, for the `> 0` filter), then LIMIT's (limit + 1).
+    expect(params).toEqual(['spa', 3, 1, 3, 1, 42, 'spa', 6]);
   });
 
   test('a cursor contributes exactly two trailing params (sortValue, id) before LIMIT', () => {
@@ -114,7 +117,7 @@ describe('buildSearchListingsQuery — placeholder/parameter alignment', () => {
       { cursor, limit: 20 },
     );
     // localeId, defaultLocaleId, then cursor's (sortValue, id), then limit+1.
-    expect(params).toEqual([1, 1, 'Alpha Hotel', 9, 21]);
+    expect(params).toEqual([1, 1, 1, 1, 'Alpha Hotel', 9, 21]);
   });
 
   test('amenityIds: one EXISTS placeholder per id, balances with params', () => {
@@ -123,7 +126,7 @@ describe('buildSearchListingsQuery — placeholder/parameter alignment', () => {
       resolveSortOption('newest'),
     );
     expect(countPlaceholders(sql)).toBe(params.length);
-    expect(params).toEqual([1, 1, 3, 9, 14, 21]);
+    expect(params).toEqual([1, 1, 1, 1, 3, 9, 14, 21]);
   });
 
   test('attributeFilters: ENUM optionIds expand to one IN(...) placeholder each', () => {
@@ -141,7 +144,7 @@ describe('buildSearchListingsQuery — placeholder/parameter alignment', () => {
       resolveSortOption('newest'),
     );
     expect(countPlaceholders(sql)).toBe(params.length);
-    expect(params).toEqual([1, 1, 16, 17, 21]);
+    expect(params).toEqual([1, 1, 1, 1, 16, 17, 21]);
   });
 
   test('attributeFilters: numeric min/max against a typed value table', () => {
@@ -162,7 +165,7 @@ describe('buildSearchListingsQuery — placeholder/parameter alignment', () => {
     );
     expect(sql).toContain('listing_attribute_values_integer');
     expect(countPlaceholders(sql)).toBe(params.length);
-    expect(params).toEqual([1, 1, 1, 2, 8, 30, 120, 21]);
+    expect(params).toEqual([1, 1, 1, 1, 1, 2, 8, 30, 120, 21]);
   });
 
   test('availability filter (single-day request): CTE params bind first, condition params balance', () => {
@@ -190,6 +193,8 @@ describe('buildSearchListingsQuery — placeholder/parameter alignment', () => {
     expect(params).toEqual([
       '2026-09-10',
       '2026-09-10',
+      1,
+      1,
       1,
       1,
       ...TYPES,
@@ -252,6 +257,8 @@ describe('buildSearchListingsQuery — placeholder/parameter alignment', () => {
     expect(params).toEqual([
       '2026-09-10',
       '2026-09-12',
+      1,
+      1,
       1,
       1,
       ...TYPES,
@@ -366,7 +373,17 @@ describe('buildSearchListingsQuery — Search & Discovery rebuild filters', () =
     expect(sql).toContain('bu.max_guests >= ?');
     expect(sql).toContain('bu.capacity >= ?');
     expect(countPlaceholders(sql)).toBe(params.length);
-    expect(params).toEqual([1, 1, ...TYPES, 3, ...INVENTORY_TYPES, 3, 21]);
+    expect(params).toEqual([
+      1,
+      1,
+      1,
+      1,
+      ...TYPES,
+      3,
+      ...INVENTORY_TYPES,
+      3,
+      21,
+    ]);
   });
 
   test('a dated search ignores occupancyGuests (the availability EXISTS already checks the party)', () => {
@@ -402,7 +419,7 @@ describe('buildSearchListingsQuery — Search & Discovery rebuild filters', () =
       'ORDER BY results.price_sort_asc ASC, results.id ASC',
     );
     expect(countPlaceholders(sql)).toBe(params.length);
-    expect(params).toEqual([1, 1, 10000, 20000, '15000.00', 8, 6]);
+    expect(params).toEqual([1, 1, 1, 1, 10000, 20000, '15000.00', 8, 6]);
   });
 
   test('price_desc orders by its own never-NULL sort key', () => {
@@ -470,7 +487,7 @@ describe('buildSearchListingsQuery — Search & Discovery remediation filters', 
     expect(sql).toContain('lpv.value IN (?, ?)');
     expect(sql).toContain('lpv.value IN (?)');
     expect(countPlaceholders(sql)).toBe(params.length);
-    expect(params.slice(2, 7)).toEqual([4, 'FLEXIBLE', 'MODERATE', 7, 'true']);
+    expect(params.slice(4, 9)).toEqual([4, 'FLEXIBLE', 'MODERATE', 7, 'true']);
   });
 
   test('roomMealPlans / roomHourlyStays: room EXISTS over live units only', () => {
@@ -508,7 +525,7 @@ describe('buildSearchListingsQuery — Search & Discovery remediation filters', 
     expect(countSql).toContain('results.rating_average >= ?');
     expect(countPlaceholders(sql)).toBe(params.length);
     expect(countPlaceholders(countSql)).toBe(countParams.length);
-    expect(params).toEqual([1, 1, 4.5, 6]);
+    expect(params).toEqual([1, 1, 1, 1, 4.5, 6]);
     expect(countParams[countParams.length - 1]).toBe(4.5);
   });
 
@@ -526,7 +543,7 @@ describe('buildSearchListingsQuery — Search & Discovery remediation filters', 
     expect(sql).toContain('ORDER BY results.rating_sort DESC, results.id DESC');
     expect(sql).toContain('(results.rating_sort, results.id) < (?, ?)');
     expect(countPlaceholders(sql)).toBe(params.length);
-    expect(params).toEqual([1, 1, '4.50', 12, 6]);
+    expect(params).toEqual([1, 1, 1, 1, '4.50', 12, 6]);
   });
 
   test('every remediation filter combined with keyword, attributes and price still balances', () => {
@@ -550,5 +567,103 @@ describe('buildSearchListingsQuery — Search & Discovery remediation filters', 
     );
     expect(countPlaceholders(sql)).toBe(params.length);
     expect(countPlaceholders(countSql)).toBe(countParams.length);
+  });
+});
+
+describe('bbox ("Search this area") and Map Search', () => {
+  const AREA = { west: 44.4, south: 40.1, east: 44.6, north: 40.25 };
+
+  test('bbox constrains the public map point, binding south, north, west, east in order', () => {
+    const { sql, params, countSql, countParams } = buildSearchListingsQuery(
+      { ...baseFilters, bbox: AREA },
+      resolveSortOption('newest'),
+      { limit: 5 },
+    );
+    expect(sql).toContain(
+      'results.map_latitude BETWEEN ? AND ? AND results.map_longitude BETWEEN ? AND ?',
+    );
+    expect(countSql).toContain('results.map_latitude BETWEEN ? AND ?');
+    expect(params).toEqual([1, 1, 1, 1, 40.1, 40.25, 44.4, 44.6, 6]);
+    expect(countPlaceholders(countSql)).toBe(countParams.length);
+  });
+
+  test('no bbox adds no area condition', () => {
+    const { sql } = buildSearchListingsQuery(
+      baseFilters,
+      resolveSortOption('newest'),
+    );
+    expect(sql).not.toContain('map_latitude BETWEEN');
+  });
+
+  test('the map query reuses the List result set: identical filter params, then only LIMIT', () => {
+    const filters = {
+      ...baseFilters,
+      categoryId: 1,
+      amenityIds: [3],
+      policyFilters: [{ policyDefinitionId: 4, values: ['FLEXIBLE'] }],
+      priceMax: 50000,
+      ratingMin: 4,
+      bbox: AREA,
+    };
+    const sort = resolveSortOption('newest');
+    const list = buildSearchListingsQuery(filters, sort, { limit: 20 });
+    const map = buildSearchMapQuery(filters, sort, { limit: 500 });
+
+    expect(map.countParams).toEqual(list.countParams);
+    expect(map.params).toEqual([...list.countParams, 500]);
+    expect(countPlaceholders(map.sql)).toBe(map.params.length);
+    expect(countPlaceholders(map.countSql)).toBe(map.countParams.length);
+    // The same predicates, written once: every List condition appears.
+    [
+      'lcl.category_id = ?',
+      'listing_amenity_listing',
+      'listing_policy_values',
+      'results.price_amount_base <= ?',
+      'results.rating_average >= ?',
+      'results.map_latitude BETWEEN ? AND ?',
+    ].forEach((fragment) => {
+      expect(map.sql).toContain(fragment);
+    });
+  });
+
+  test('private stays get a grid-cell map point; the stored point never leaves in a marker', () => {
+    const { sql } = buildSearchMapQuery(
+      baseFilters,
+      resolveSortOption('newest'),
+      { limit: 500 },
+    );
+    expect(sql).toContain(
+      "lc_loc.slug IN ('apartments', 'villas', 'guest-houses')",
+    );
+    expect(sql).toContain(
+      'CASE WHEN base.is_location_approximate THEN FLOOR(base.latitude / 0.01) * 0.01 + 0.005 ELSE base.latitude END AS map_latitude',
+    );
+    const projection = sql.trim().split(' FROM (')[0];
+    expect(projection).toContain('results.map_latitude');
+    expect(projection).not.toMatch(/results\.latitude\b/);
+    expect(projection).not.toMatch(/results\.longitude\b/);
+  });
+
+  test('markers are lightweight, mappable-only, in the List sort order', () => {
+    const { sql, countSql } = buildSearchMapQuery(
+      baseFilters,
+      resolveSortOption('price_asc'),
+      { limit: 500 },
+    );
+    expect(sql.trim()).toMatch(
+      /^SELECT results\.id, results\.slug, results\.title/,
+    );
+    expect(sql).not.toContain('SELECT * FROM');
+    expect(sql).not.toContain('results.summary');
+    expect(sql).not.toContain('results.partner_id');
+    expect(sql).toContain(
+      'results.latitude IS NOT NULL AND results.longitude IS NOT NULL',
+    );
+    expect(sql).toContain(
+      'ORDER BY results.price_sort_asc ASC, results.id ASC',
+    );
+    // The count reports the whole match and how much of it is mappable.
+    expect(countSql).toContain('COUNT(*) AS total');
+    expect(countSql).toContain('AS mappable');
   });
 });

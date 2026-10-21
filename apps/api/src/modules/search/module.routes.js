@@ -13,6 +13,7 @@ import { Router } from 'express';
 import { validate } from '../../validation/validate.js';
 import {
   searchListingsQuerySchema,
+  searchMapQuerySchema,
   searchCategoriesQuerySchema,
   searchDestinationsQuerySchema,
   searchSuggestionsQuerySchema,
@@ -31,6 +32,11 @@ export default function createSearchRoutes({ searchController }) {
     '/listings',
     validate(searchListingsQuerySchema),
     searchController.searchListings,
+  );
+  router.get(
+    '/map',
+    validate(searchMapQuerySchema),
+    searchController.searchMap,
   );
   router.get(
     '/categories',

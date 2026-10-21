@@ -149,4 +149,45 @@ describe('SearchResults (apps/web/src/modules/search)', () => {
     await user.click(screen.getByRole('button'));
     expect(onLoadMore).toHaveBeenCalledTimes(1);
   });
+
+  describe('beside the Map', () => {
+    test('a card hovered or focused tells the Map; leaving it clears that', async () => {
+      const user = userEvent.setup();
+      const onActiveChange = vi.fn();
+      renderResults({ results: RESULTS, layout: 'split', onActiveChange });
+      const [first] = screen.getAllByRole('link');
+      await user.hover(first);
+      expect(onActiveChange).toHaveBeenLastCalledWith(1);
+      await user.unhover(first);
+      expect(onActiveChange).toHaveBeenLastCalledWith(undefined);
+      await user.tab();
+      expect(onActiveChange).toHaveBeenLastCalledWith(1);
+    });
+
+    test('the listing selected on the map is marked and scrolled into view', () => {
+      const scrollIntoView = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoView;
+      const { container } = renderResults({
+        results: RESULTS,
+        layout: 'split',
+        selectedId: 2,
+        activeId: 1,
+        onActiveChange: vi.fn(),
+      });
+      const selected = container.querySelector('[data-listing-id="2"]');
+      expect(selected).toHaveAttribute('data-selected', 'true');
+      expect(container.querySelector('[data-listing-id="1"]')).toHaveAttribute(
+        'data-active',
+        'true',
+      );
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(scrollIntoView.mock.contexts[0]).toBe(selected);
+      delete Element.prototype.scrollIntoView;
+    });
+
+    test('without the Map, cards are not wrapped or linked', () => {
+      const { container } = renderResults({ results: RESULTS });
+      expect(container.querySelector('[data-listing-id]')).toBeNull();
+    });
+  });
 });

@@ -6,6 +6,42 @@
  * precedent ("summary, not full detail" for list endpoints).
  */
 
+/**
+ * A Map Search marker: the point plus exactly what its preview shows —
+ * a subset of the card (same field names, so the card's own fact and
+ * price helpers apply unchanged), never the listing detail. No partner,
+ * status, summary or lifecycle fields: the preview links to the listing
+ * page for everything else.
+ */
+export function toSearchMapResultResponse(result) {
+  return {
+    id: result.id,
+    slug: result.slug,
+    title: result.title,
+    listing_type: result.listingTypeCode,
+    category_slug: result.categorySlug ?? null,
+    city_name: result.cityName ?? null,
+    // The public map point: exact for venues, a grid-cell centre for
+    // private stays (`location_precision: 'approximate'`) — see
+    // `core/domain/searchMap.js`. Never the stored point of a private stay.
+    latitude: result.latitude,
+    longitude: result.longitude,
+    location_precision: result.locationPrecision,
+    cover_image_url: result.coverImageUrl ?? null,
+    price_amount: result.priceAmount ?? null,
+    price_currency_code: result.priceCurrencyCode ?? null,
+    pricing_model: result.pricingModelCode ?? null,
+    rating_average: result.ratingAverage ?? null,
+    review_count: result.reviewCount ?? 0,
+    star_rating: result.starRatingCode ?? null,
+    cuisine: result.cuisineCodes ?? null,
+    price_tier: result.priceTierCode ?? null,
+    transmission: result.transmissionCode ?? null,
+    bedrooms: result.bedroomsValue ?? null,
+    duration_minutes: result.durationMinutesValue ?? null,
+  };
+}
+
 export function toSearchResultResponse(result) {
   return {
     id: result.id,

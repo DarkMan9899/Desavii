@@ -67,6 +67,7 @@ export function countActiveFilters(filters) {
       filters.dateFrom,
       filters.guests,
       filters.priceMin !== undefined || filters.priceMax !== undefined,
+      filters.bbox,
     ].filter(Boolean).length + Object.keys(filters.dynamicFilters).length
   );
 }
@@ -158,6 +159,16 @@ export function useSearchFilters({ categories, destinations, locale } = {}) {
       ) {
         next.dynamicFilters = keepGlobalDynamicFilters(filters.dynamicFilters);
       }
+      // Choosing a destination means "show me that place": a map area drawn
+      // somewhere else would silently hide it, so the area goes. (A new
+      // category keeps the area — same place, another kind of listing.)
+      if (
+        'cityId' in partial &&
+        partial.cityId !== filters.cityId &&
+        !('bbox' in partial)
+      ) {
+        next.bbox = undefined;
+      }
       writeFilters(next, options);
     },
     [filters, writeFilters],
@@ -179,15 +190,16 @@ export function useSearchFilters({ categories, destinations, locale } = {}) {
     [filters.dynamicFilters, updateFilters],
   );
 
-  // Sort is how results are ordered, not a filter — "Clear filters"
-  // keeps it.
+  // Sort and the List/Map view are how results are shown, not filters —
+  // "Clear filters" keeps them (and clears a committed map area).
   const clearFilters = useCallback(() => {
     writeFilters({
       destination: '',
       sort: filters.sort ?? DEFAULT_SORT_KEY,
+      view: filters.view,
       dynamicFilters: {},
     });
-  }, [filters.sort, writeFilters]);
+  }, [filters.sort, filters.view, writeFilters]);
 
   const activeFilterCount = countActiveFilters(filters);
 

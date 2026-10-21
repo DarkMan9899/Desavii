@@ -38,6 +38,23 @@ vi.mock('../../../ai/mutations/useParseSearchQueryMutation.js', () => ({
   default: vi.fn(),
 }));
 
+// The Map itself is covered by its own tests and end to end; here a
+// stand-in shows what the page hands it and commits an area like it.
+const AREA = '44.40000,40.10000,44.60000,40.25000';
+const COMMIT_AREA_LABEL = 'commit area';
+vi.mock('../SearchMap/SearchMapPanel.jsx', () => ({
+  // eslint-disable-next-line react/prop-types
+  default: ({ filters, onAreaChange }) => (
+    <div data-testid="map-panel" data-area={filters.bbox ?? ''}>
+      <button
+        type="button"
+        aria-label={COMMIT_AREA_LABEL}
+        onClick={() => onAreaChange(AREA)}
+      />
+    </div>
+  ),
+}));
+
 // The test harness's i18n instance defaults to Armenian (tests/setup.js).
 const T = hy.search;
 const CATEGORIES = [{ id: 1, slug: 'hotels', name: 'Hotels' }];
@@ -200,5 +217,58 @@ describe('SearchPageContent (apps/web/src/modules/search)', () => {
     renderPage();
     await user.click(screen.getByRole('button', { name: T.results.loadMore }));
     expect(page.fetchNextPage).toHaveBeenCalledTimes(1);
+  });
+
+  describe('List and Map', () => {
+    test('the Map is a URL state that keeps every filter', async () => {
+      const user = userEvent.setup();
+      renderPage('/hy/search?categoryId=1');
+      expect(screen.queryByTestId('map-panel')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: T.view.map }));
+      expect(screen.getByTestId('url')).toHaveTextContent(
+        '?categoryId=1&view=map',
+      );
+      expect(screen.getByTestId('map-panel')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: T.view.list }));
+      expect(screen.getByTestId('url')).toHaveTextContent('?categoryId=1');
+      expect(screen.queryByTestId('map-panel')).not.toBeInTheDocument();
+    });
+
+    test('a committed area filters the List too, and shows as a removable chip', async () => {
+      const user = userEvent.setup();
+      renderPage('/hy/search?view=map&categoryId=1');
+      await user.click(screen.getByRole('button', { name: COMMIT_AREA_LABEL }));
+      expect(screen.getByTestId('url')).toHaveTextContent(
+        `?categoryId=1&bbox=${encodeURIComponent(AREA)}&view=map`,
+      );
+      expect(lastQueryCall()[0]).toMatchObject({ categoryId: 1, bbox: AREA });
+
+      await user.click(
+        screen.getByRole('button', {
+          name: T.filters.removeFilter.replace('{{label}}', T.map.areaChip),
+        }),
+      );
+      expect(screen.getByTestId('url')).toHaveTextContent(
+        '?categoryId=1&view=map',
+      );
+    });
+
+    test('"Clear filters" clears the area but stays on the Map', async () => {
+      const user = userEvent.setup();
+      renderPage(
+        `/hy/search?categoryId=1&bbox=${encodeURIComponent(AREA)}&view=map`,
+      );
+      expect(screen.getByTestId('map-panel')).toHaveAttribute(
+        'data-area',
+        AREA,
+      );
+      const [clearAll] = screen.getAllByRole('button', {
+        name: T.filters.clearAll,
+      });
+      await user.click(clearAll);
+      expect(screen.getByTestId('url')).toHaveTextContent('?view=map');
+      expect(screen.getByTestId('map-panel')).toHaveAttribute('data-area', '');
+    });
   });
 });

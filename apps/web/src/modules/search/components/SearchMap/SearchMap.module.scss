@@ -1,0 +1,167 @@
+// SearchMap — tokens only, consumed from @desavii/ui.
+//
+// Markers are price pills (a listing) and count bubbles (a cluster) in
+// the platform's navy/royal-blue palette; the area controls float over
+// the map's top edge. The Leaflet container is its own stacking context
+// (`isolation`), so its internal panes never paint over the sticky
+// header or these controls.
+
+@use 'tokens' as tokens;
+@use 'mixins/focus-ring' as focus;
+
+.shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+}
+
+.map {
+  isolation: isolate;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  border-radius: tokens.$radius-lg;
+  background-color: tokens.$color-gray-100;
+}
+
+// --- Markers -------------------------------------------------------------
+
+// Anchored by its bottom centre to the point it marks.
+.pill {
+  display: inline-block;
+  max-width: tokens.$space-24 * 1.5;
+  padding: tokens.$space-1 tokens.$space-2;
+  overflow: hidden;
+  transform: translate(-50%, -100%);
+  border: 1px solid tokens.$color-gray-200;
+  border-radius: tokens.$radius-full;
+  background-color: tokens.$color-white;
+  color: tokens.$color-navy;
+  font-family: tokens.$font-body;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  @include tokens.elevation-2;
+}
+
+// A private stay is shown approximately: a lighter, dashed pill.
+.approximate {
+  border-style: dashed;
+  border-color: tokens.$color-gray-600;
+}
+
+// Hovered or focused in the List.
+.pillActive {
+  border-color: tokens.$color-royal-blue;
+  color: tokens.$color-royal-blue;
+}
+
+.pillSelected {
+  border-color: tokens.$color-navy;
+  background-color: tokens.$color-navy;
+  color: tokens.$color-white;
+}
+
+.cluster {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: tokens.$space-12;
+  height: tokens.$space-12;
+  padding-inline: tokens.$space-2;
+  transform: translate(-50%, -50%);
+  border: 3px solid rgba(tokens.$color-white, 0.9);
+  border-radius: tokens.$radius-full;
+  background-color: tokens.$color-royal-blue;
+  color: tokens.$color-white;
+  font-family: tokens.$font-body;
+  font-size: tokens.$font-size-small;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  @include tokens.elevation-2;
+}
+
+// Leaflet puts the keyboard focus on the marker's own element.
+:global(.leaflet-marker-icon) {
+  @include focus.focus-ring;
+}
+
+// The area a private stay is somewhere in.
+.approximateArea {
+  stroke: tokens.$color-navy;
+  stroke-dasharray: 6 6;
+  fill: tokens.$color-royal-blue;
+  fill-opacity: 0.08;
+}
+
+// --- Overlay: area controls and messages -----------------------------------------------------
+
+// The area buttons, and under them the panel's messages. Clicks pass
+// through the overlay's empty space to the map.
+.overlay {
+  position: absolute;
+  inset-block-start: tokens.$space-3;
+  inset-inline: tokens.$space-12;
+  z-index: tokens.$z-dropdown;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: tokens.$space-2;
+  pointer-events: none;
+
+  * {
+    pointer-events: auto;
+  }
+}
+
+.areaButtons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: tokens.$space-2;
+}
+
+%area-button {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-2;
+  min-height: tokens.$button-height-sm;
+  padding-inline: tokens.$space-4;
+  border-radius: tokens.$radius-full;
+  font-family: tokens.$font-body;
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  cursor: pointer;
+  @include tokens.elevation-2;
+  @include focus.focus-ring;
+}
+
+.searchArea {
+  @extend %area-button;
+
+  border: 1px solid tokens.$color-navy;
+  background-color: tokens.$color-navy;
+  color: tokens.$color-white;
+
+  &:hover {
+    background-color: tokens.$color-royal-blue;
+    border-color: tokens.$color-royal-blue;
+  }
+}
+
+.clearArea {
+  @extend %area-button;
+
+  border: 1px solid tokens.$color-gray-200;
+  background-color: tokens.$color-white;
+  color: tokens.$color-navy;
+
+  &:hover {
+    background-color: tokens.$color-gray-100;
+  }
+}

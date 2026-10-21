@@ -88,6 +88,15 @@ describe('activeSearchChips (apps/web/src/modules/search)', () => {
     );
   });
 
+  test('a committed map area is a chip that clears only the area', () => {
+    const [chip] = chipsFor({ bbox: '44.40000,40.10000,44.60000,40.25000' });
+    expect(chip).toEqual({
+      key: 'bbox',
+      label: 'Map area',
+      patch: { bbox: undefined },
+    });
+  });
+
   test('no filters, no chips', () => {
     expect(chipsFor({})).toEqual([]);
   });

@@ -5,6 +5,7 @@ import {
   buildSearchParams,
   toSearchQueryParams,
   isCalendarDate,
+  RESULT_VIEWS,
 } from './searchParams.js';
 
 const TODAY = '2026-10-16';
@@ -41,6 +42,7 @@ describe('searchParams (apps/web/src/modules/search)', () => {
       expect(parse('')).toEqual({
         destination: '',
         sort: 'newest',
+        view: RESULT_VIEWS.LIST,
         dynamicFilters: {},
       });
     });
@@ -60,6 +62,7 @@ describe('searchParams (apps/web/src/modules/search)', () => {
         guests: 4,
         priceMin: 10000,
         priceMax: 50000,
+        view: RESULT_VIEWS.LIST,
         dynamicFilters: {},
       });
     });
@@ -323,6 +326,76 @@ describe('searchParams (apps/web/src/modules/search)', () => {
         toSearchQueryParams({ categoryId: 1, excludeCategoryTop: true }),
       ).toEqual({ categoryId: 1, excludeCategoryTop: 'true' });
       expect(toSearchQueryParams({ categoryId: 1 })).toEqual({ categoryId: 1 });
+    });
+  });
+
+  describe('map state: view and bbox', () => {
+    test('view is "list" unless the URL asks for the map', () => {
+      expect(parse('').view).toBe(RESULT_VIEWS.LIST);
+      expect(parse('view=map').view).toBe(RESULT_VIEWS.MAP);
+      expect(parse('view=satellite').view).toBe(RESULT_VIEWS.LIST);
+    });
+
+    test('a valid bbox is kept in its canonical form; anything else is dropped', () => {
+      expect(parse('bbox=44.4,40.1,44.6,40.25').bbox).toBe(
+        '44.40000,40.10000,44.60000,40.25000',
+      );
+      [
+        'bbox=1,2,3',
+        'bbox=44.6,40.1,44.4,40.25',
+        'bbox=44.4,40.3,44.6,40.25',
+        'bbox=44.4,91,44.6,92',
+        'bbox=NaN,40.1,44.6,40.25',
+      ].forEach((query) => expect(parse(query).bbox).toBeUndefined());
+    });
+
+    test('the URL writes bbox and view=map, never view=list', () => {
+      expect(
+        buildSearchParams({
+          destination: '',
+          sort: 'newest',
+          bbox: '44.40000,40.10000,44.60000,40.25000',
+          view: RESULT_VIEWS.MAP,
+        }).toString(),
+      ).toBe('bbox=44.40000%2C40.10000%2C44.60000%2C40.25000&view=map');
+      expect(
+        buildSearchParams({
+          destination: '',
+          sort: 'newest',
+          view: RESULT_VIEWS.LIST,
+        }).toString(),
+      ).toBe('');
+    });
+
+    test('bbox and view survive normalization and round-trip unchanged', () => {
+      const { filters } = normalizeSearchFilters(
+        parse('categoryId=1&bbox=44.4,40.1,44.6,40.25&view=map'),
+        CATALOGS,
+      );
+      expect(filters).toMatchObject({
+        bbox: '44.40000,40.10000,44.60000,40.25000',
+        view: RESULT_VIEWS.MAP,
+      });
+      const again = normalizeSearchFilters(
+        parseSearchParams(buildSearchParams(filters), { today: TODAY }),
+        CATALOGS,
+      ).filters;
+      expect(again).toEqual(filters);
+    });
+
+    test('the API receives bbox but never the view (List and Map share one search)', () => {
+      const query = toSearchQueryParams(
+        {
+          destination: '',
+          sort: 'newest',
+          bbox: '44.40000,40.10000,44.60000,40.25000',
+          view: RESULT_VIEWS.MAP,
+          dynamicFilters: {},
+        },
+        'hy',
+      );
+      expect(query.bbox).toBe('44.40000,40.10000,44.60000,40.25000');
+      expect(query).not.toHaveProperty('view');
     });
   });
 });

@@ -37,27 +37,7 @@ import {
   PLACEMENTS,
 } from '../../../../analytics/index.js';
 import styles from './SearchResultCard.module.scss';
-
-/**
- * P2.2D: carries the customer's own search selections forward into the
- * listing detail URL — `ListingReservationWidget` reads these same three
- * keys to prefill its date range/guest count (see
- * `reservationSearchContext.js`). Reads straight from this page's own
- * URL rather than threading new props through `SearchResults`/
- * `SearchPageContent`, since the search filters already ARE this page's
- * query params. Omits a key entirely when absent (a plain
- * `/listings/:id` visit, or a keyword-only search with no dates, stays a
- * bare URL — never a "?dateFrom=null"-style artifact).
- */
-function buildSearchContextQuery(searchParams) {
-  const query = new URLSearchParams();
-  ['dateFrom', 'dateTo', 'guests'].forEach((key) => {
-    const value = searchParams.get(key);
-    if (value) query.set(key, value);
-  });
-  const serialized = query.toString();
-  return serialized ? `?${serialized}` : '';
-}
+import { buildListingHref } from '../../utils/searchContextQuery.js';
 
 export default function SearchResultCard({
   result,
@@ -141,7 +121,7 @@ export default function SearchResultCard({
   return (
     <ListingCardBase
       ref={impressionRef}
-      href={`/${locale}/listings/${result.slug ?? result.id}${buildSearchContextQuery(searchParams)}`}
+      href={buildListingHref(locale, result, searchParams)}
       onClick={handleCardClick}
       ariaLabel={t('search.card.viewDetails', { title: result.title })}
       imageUrl={result.cover_image_url}

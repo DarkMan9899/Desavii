@@ -17,6 +17,9 @@ const searchKeys = {
   ],
   suggestions: (query) => [...searchKeys.all, 'suggestions', { query }],
   results: (filters) => [...searchKeys.all, 'results', filters],
+  // The same params as `results` (incl. locale): List and Map of one
+  // search are cached side by side, never mixed.
+  map: (filters) => [...searchKeys.all, 'map', filters],
   // Amenity labels are localized server-side — per category AND locale.
   filterDefinitions: (categoryId, locale) => [
     ...searchKeys.all,

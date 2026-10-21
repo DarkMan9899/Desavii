@@ -34,3 +34,37 @@
   justify-content: center;
   margin-block-start: tokens.$space-8;
 }
+
+// Beside the Map: one column, two from the laptop width up.
+.splitGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: tokens.$space-4;
+
+  @include respond.respond(mobile-large) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+// A card linked to the Map: outlined while its marker is selected, and
+// marked while it is the one hovered or focused.
+.cardSlot {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: tokens.$radius-lg;
+  outline: 2px solid transparent;
+  outline-offset: tokens.$space-1;
+
+  > * {
+    flex: 1;
+  }
+
+  &[data-active] {
+    outline-color: tokens.$color-gray-200;
+  }
+
+  &[data-selected] {
+    outline-color: tokens.$color-royal-blue;
+  }
+}

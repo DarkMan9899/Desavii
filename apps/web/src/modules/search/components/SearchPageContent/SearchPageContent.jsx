@@ -20,15 +20,22 @@
  * from `GET /search` (`useSearchListingsQuery`, cursor pagination via
  * "Load more"), keeping the previous cards on screen while a changed
  * search loads.
+ *
+ * List or Map (`view`, URL state): the Map shows the same search's
+ * markers (`SearchMapPanel`). From the laptop width the List stays beside
+ * it and the two point at each other (the card hovered or focused, the
+ * listing selected on the map); on narrower screens the Map takes the
+ * results area on its own.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Section } from '@desavii/ui/components/layout';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import useSeo from '../../../../seo/useSeo.js';
 import { useSearchFilters } from '../../hooks/useSearchFilters.js';
+import { RESULT_VIEWS } from '../../schemas/searchParams.js';
 import { useSearchListingsQuery } from '../../queries/useSearchListingsQuery.js';
 import { useCategoriesQuery } from '../../queries/useCategoriesQuery.js';
 import { useDestinationsQuery } from '../../queries/useDestinationsQuery.js';
@@ -38,6 +45,7 @@ import SearchFilters from '../SearchFilters/SearchFilters.jsx';
 import ActiveFilters from '../ActiveFilters/ActiveFilters.jsx';
 import SearchToolbar from '../SearchToolbar/SearchToolbar.jsx';
 import SearchResults from '../SearchResults/SearchResults.jsx';
+import SearchMapPanel from '../SearchMap/SearchMapPanel.jsx';
 import { trackSearchImpression } from '../../../../analytics/index.js';
 import styles from './SearchPageContent.module.scss';
 
@@ -71,6 +79,9 @@ export default function SearchPageContent() {
     ? (categoryDestinations ?? destinations)
     : destinations;
   const { party } = getSearchCapabilities(categorySlug);
+  const isMapView = filters.view === RESULT_VIEWS.MAP;
+  const [selectedId, setSelectedId] = useState(undefined);
+  const [activeId, setActiveId] = useState(undefined);
 
   const {
     data,
@@ -169,6 +180,34 @@ export default function SearchPageContent() {
     skipHreflang: true,
   });
 
+  const resultsList = (
+    <SearchResults
+      results={results}
+      isPending={isLoading}
+      isError={isError}
+      onRetry={refetch}
+      hasNextPage={Boolean(hasNextPage)}
+      isFetchingNextPage={isFetchingNextPage}
+      onLoadMore={fetchNextPage}
+      isUpdating={isPlaceholderData}
+      emptyDescription={
+        filters.dateFrom ? t('search.results.empty.withDates') : undefined
+      }
+      emptyActionLabel={
+        hasActiveFilters ? t('search.filters.clearAll') : undefined
+      }
+      onEmptyAction={hasActiveFilters ? clearFilters : undefined}
+      layout={isMapView ? 'split' : 'grid'}
+      selectedId={isMapView ? selectedId : undefined}
+      activeId={isMapView ? activeId : undefined}
+      onActiveChange={isMapView ? setActiveId : undefined}
+      searchContext={{
+        queryText: filters.destination || undefined,
+        categoryCode: categorySlug,
+      }}
+    />
+  );
+
   return (
     <Section spacing="none" className={styles.page}>
       <PageHeader
@@ -199,33 +238,34 @@ export default function SearchPageContent() {
           sort={filters.sort}
           hasKeyword={Boolean(filters.destination)}
           onSortChange={(sort) => updateFilters({ sort })}
+          view={filters.view}
+          onViewChange={(view) => {
+            setSelectedId(undefined);
+            updateFilters({ view });
+          }}
         />
         <ActiveFilters
           chips={chips}
           onRemoveChip={removeChip}
           onClearAll={clearFilters}
         />
-        <SearchResults
-          results={results}
-          isPending={isLoading}
-          isError={isError}
-          onRetry={refetch}
-          hasNextPage={Boolean(hasNextPage)}
-          isFetchingNextPage={isFetchingNextPage}
-          onLoadMore={fetchNextPage}
-          isUpdating={isPlaceholderData}
-          emptyDescription={
-            filters.dateFrom ? t('search.results.empty.withDates') : undefined
-          }
-          emptyActionLabel={
-            hasActiveFilters ? t('search.filters.clearAll') : undefined
-          }
-          onEmptyAction={hasActiveFilters ? clearFilters : undefined}
-          searchContext={{
-            queryText: filters.destination || undefined,
-            categoryCode: categorySlug,
-          }}
-        />
+        {isMapView ? (
+          <div className={styles.split}>
+            <div className={styles.splitList}>{resultsList}</div>
+            <div className={styles.splitMap}>
+              <SearchMapPanel
+                filters={filters}
+                isResolved={isResolved}
+                selectedId={selectedId}
+                activeId={activeId}
+                onSelectedChange={setSelectedId}
+                onAreaChange={(bbox) => updateFilters({ bbox })}
+              />
+            </div>
+          </div>
+        ) : (
+          resultsList
+        )}
       </div>
     </Section>
   );

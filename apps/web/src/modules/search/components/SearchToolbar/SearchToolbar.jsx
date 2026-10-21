@@ -6,7 +6,7 @@
  * "Updating results…" / "12 results" as live filtering runs and settles.
  *
  * Sort applies as soon as it is picked; "Best match" is offered only while
- * there is a keyword to match.
+ * there is a keyword to match. The List/Map switch sits beside it.
  */
 
 import { useId } from 'react';
@@ -17,6 +17,7 @@ import {
   SORT_KEYS,
   SORT_OPTION_META,
 } from '../../../../constants/sortOptions.js';
+import ResultsViewToggle from '../ResultsViewToggle/ResultsViewToggle.jsx';
 import styles from './SearchToolbar.module.scss';
 
 export default function SearchToolbar({
@@ -26,6 +27,8 @@ export default function SearchToolbar({
   sort,
   hasKeyword,
   onSortChange,
+  view,
+  onViewChange,
 }) {
   const { t } = useTranslation();
   const sortLabelId = useId();
@@ -46,18 +49,21 @@ export default function SearchToolbar({
       <p className={styles.status} role="status">
         {status}
       </p>
-      <div className={styles.sort}>
-        <span id={sortLabelId} className={styles.sortLabel}>
-          {t('search.filters.sortLabel')}
-        </span>
-        <div className={styles.sortControl}>
-          <Select
-            ariaLabel={t('search.filters.sortLabel')}
-            options={sortOptions}
-            value={sort}
-            onChange={onSortChange}
-            size="sm"
-          />
+      <div className={styles.controls}>
+        <ResultsViewToggle view={view} onChange={onViewChange} />
+        <div className={styles.sort}>
+          <span id={sortLabelId} className={styles.sortLabel}>
+            {t('search.filters.sortLabel')}
+          </span>
+          <div className={styles.sortControl}>
+            <Select
+              ariaLabel={t('search.filters.sortLabel')}
+              options={sortOptions}
+              value={sort}
+              onChange={onSortChange}
+              size="sm"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -71,4 +77,6 @@ SearchToolbar.propTypes = {
   sort: PropTypes.string.isRequired,
   hasKeyword: PropTypes.bool.isRequired,
   onSortChange: PropTypes.func.isRequired,
+  view: PropTypes.string.isRequired,
+  onViewChange: PropTypes.func.isRequired,
 };

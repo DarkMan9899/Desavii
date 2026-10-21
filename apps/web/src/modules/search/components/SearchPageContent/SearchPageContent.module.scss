@@ -24,3 +24,42 @@
     gap: tokens.$space-6;
   }
 }
+
+// --- Map view -------------------------------------------------------------
+//
+// Phones and tablets: the Map alone, filling the screen below the header.
+// Laptop and up: the List on the left, the Map on the right, sticky, as
+// tall as the screen below the header.
+
+$map-sticky-offset: tokens.$space-16 + tokens.$space-4;
+
+.split {
+  display: block;
+
+  @include respond.respond(laptop) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: tokens.$space-6;
+  }
+}
+
+.splitList {
+  display: none;
+
+  @include respond.respond(laptop) {
+    display: block;
+    min-width: 0;
+  }
+}
+
+.splitMap {
+  height: calc(100vh - #{$map-sticky-offset + tokens.$space-4});
+  height: calc(100svh - #{$map-sticky-offset + tokens.$space-4});
+  min-height: tokens.$space-24 * 4;
+
+  @include respond.respond(laptop) {
+    position: sticky;
+    inset-block-start: $map-sticky-offset;
+  }
+}

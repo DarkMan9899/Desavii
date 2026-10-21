@@ -43,6 +43,8 @@ const CATEGORIES = [
   { id: 7, slug: 'car-rentals', name: 'Car Rentals' },
 ];
 const DESTINATIONS = [{ id: 1, name: 'Yerevan', listing_count: 20 }];
+const AREA = '44.40000,40.10000,44.60000,40.25000';
+const OTHER_AREA = '43.80000,40.70000,43.90000,40.85000';
 
 // A minimal harness rather than `renderHook` — exercises the hook the way
 // the Search page does, through real DOM events driving real URL changes.
@@ -70,6 +72,12 @@ function Harness({ catalogs }) {
     'clear bedrooms': () => updateDynamicFilter({ attr_bedrooms_min: '' }),
     'set rating': () => updateDynamicFilter({ ratingMin: '4' }),
     'apply nothing new': () => updateFilters({}),
+    'set city': () => updateFilters({ cityId: 1 }),
+    'set area': () => updateFilters({ bbox: AREA }),
+    'set other area': () => updateFilters({ bbox: OTHER_AREA }),
+    'clear area': () => updateFilters({ bbox: undefined }),
+    'show map': () => updateFilters({ view: 'map' }),
+    'show list': () => updateFilters({ view: 'list' }),
     back: () => navigate(-1),
   };
   return (
@@ -277,5 +285,54 @@ describe('useSearchFilters (apps/web/src/modules/search)', () => {
       '/en/search?destination=a&categoryId=1&cityId=1&dateFrom=2026-11-01&dateTo=2026-11-03&guests=2&priceMin=1&priceMax=9&amenityIds=1',
     );
     expect(screen.getByTestId('count')).toHaveTextContent('7');
+  });
+
+  describe('map state (view and bbox)', () => {
+    test('the List/Map view and a committed area are URL state, view=list never written', async () => {
+      const user = userEvent.setup();
+      renderHarness('/en/search?categoryId=1');
+      await user.click(screen.getByRole('button', { name: 'show map' }));
+      await user.click(screen.getByRole('button', { name: 'set area' }));
+      expect(readUrl()).toBe(
+        `?categoryId=1&bbox=${encodeURIComponent(AREA)}&view=map`,
+      );
+      await user.click(screen.getByRole('button', { name: 'show list' }));
+      expect(readUrl()).toBe(`?categoryId=1&bbox=${encodeURIComponent(AREA)}`);
+    });
+
+    test('Back restores the previous area; clearing the area removes bbox', async () => {
+      const user = userEvent.setup();
+      renderHarness('/en/search?categoryId=1&view=map');
+      await user.click(screen.getByRole('button', { name: 'set area' }));
+      await user.click(screen.getByRole('button', { name: 'set other area' }));
+      expect(readFilters().bbox).toBe(OTHER_AREA);
+      await user.click(screen.getByRole('button', { name: 'back' }));
+      expect(readFilters().bbox).toBe(AREA);
+      await user.click(screen.getByRole('button', { name: 'clear area' }));
+      expect(readFilters().bbox).toBeUndefined();
+      expect(readUrl()).toBe('?categoryId=1&view=map');
+    });
+
+    test('a new category keeps the area; a new destination clears it', async () => {
+      const user = userEvent.setup();
+      renderHarness(`/en/search?categoryId=1&bbox=${AREA}`);
+      await user.click(screen.getByRole('button', { name: 'set car rentals' }));
+      expect(readFilters()).toMatchObject({ categoryId: 7, bbox: AREA });
+      await user.click(screen.getByRole('button', { name: 'set city' }));
+      expect(readFilters().cityId).toBe(1);
+      expect(readFilters().bbox).toBeUndefined();
+    });
+
+    test('Clear filters drops the area (a filter) but keeps the Map view', async () => {
+      const user = userEvent.setup();
+      renderHarness(`/en/search?categoryId=1&bbox=${AREA}&view=map`);
+      await user.click(screen.getByRole('button', { name: 'clear all' }));
+      expect(readUrl()).toBe('?view=map');
+    });
+
+    test('an area counts as an active filter; the view does not', () => {
+      renderHarness(`/en/search?bbox=${AREA}&view=map`);
+      expect(screen.getByTestId('count')).toHaveTextContent('1');
+    });
   });
 });

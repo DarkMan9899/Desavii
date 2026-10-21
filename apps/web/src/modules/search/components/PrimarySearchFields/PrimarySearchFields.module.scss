@@ -5,10 +5,15 @@
 // basis, so a category without a party field simply has one field fewer
 // and the Search button (`.action`) always shares the last row, aligned to
 // the inputs' bottom edge:
-// - Tablet: keyword full width, then two per row, the button last.
-// - Laptop: keyword, destination, category in thirds; then dates, party
-//   and the button.
-// - Desktop: everything in one row.
+// - Tablet: keyword full width, then two per row, the button full width.
+// - Laptop and up: a three-column rhythm — keyword, destination,
+//   category; then dates, party and the button, one column each (dates
+//   take two columns when the category has no party field). Not one row
+//   at 1440+: the content width caps the bar at ~1120px, and measured
+//   with the web fonts loaded a single row cannot hold real values
+//   (a RU date range alone needs ~300px, RU "12 путешественников"
+//   ~235px), so it would cut picked values short. Two rows of equal
+//   columns show every common value in full in HY, RU and EN.
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
@@ -30,6 +35,29 @@ $field-gap: tokens.$space-3;
   flex-wrap: wrap;
   align-items: flex-end;
 
+  // One control height for the whole bar: the design system's field
+  // height, which Input, DatePicker and the Search button already use. The
+  // shared Select only sets a minimum and wraps a long selected name (right
+  // in a form, wrong in a one-line search bar: "Ցանկացած վայր" made its
+  // field taller than its neighbours), so here every trigger is held to
+  // the field height and its value ends in an ellipsis. The full value
+  // stays in the DOM for assistive technology, in the open list and in
+  // the active-filter chips.
+  :global([role='combobox']),
+  :global(button[aria-haspopup='dialog']) {
+    height: tokens.$input-height-md;
+    min-height: tokens.$input-height-md;
+    padding-block: 0;
+  }
+
+  :global([role='combobox']) > span:first-child,
+  :global(button[aria-haspopup='dialog']) > span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
   .keyword,
   .field,
   .dates {
@@ -50,35 +78,18 @@ $field-gap: tokens.$space-3;
   }
 
   @include respond.respond(laptop) {
-    .keyword,
-    .field {
-      flex: 1 1 calc(100% / 3 - #{$field-gap});
-    }
+    $column: calc((100% - 2 * #{$field-gap}) / 3);
 
-    // A third's basis keeps dates on the second row; it grows into the
-    // room the button leaves.
+    // Three per row, exactly a column each; without a party field the
+    // dates grow across the column it leaves.
+    .keyword,
+    .field,
     .dates {
-      flex: 1.5 1 calc(100% / 3 - #{$field-gap});
+      flex: 1 1 $column;
     }
 
     .action {
-      flex: 0 0 auto;
-    }
-  }
-
-  @include respond.respond(desktop) {
-    flex-wrap: nowrap;
-
-    .keyword {
-      flex: 1.4 1 0;
-    }
-
-    .field {
-      flex: 1 1 0;
-    }
-
-    .dates {
-      flex: 1.4 1 0;
+      flex: 0 0 $column;
     }
   }
 }

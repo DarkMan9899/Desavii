@@ -22,6 +22,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: tokens.$space-3;
+  min-width: 0;
+}
+
 .sort {
   display: flex;
   align-items: center;

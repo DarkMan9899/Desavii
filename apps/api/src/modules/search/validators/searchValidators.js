@@ -20,6 +20,7 @@ import {
   RATING_MAX,
 } from '../../../core/domain/searchComputedFilters.js';
 import { LISTING_STATUSES } from '../../../core/domain/listingStatusTransitions.js';
+import { parseBoundingBox } from '../../../core/domain/searchMap.js';
 import {
   SORT_KEYS,
   DEFAULT_SORT_KEY,
@@ -164,6 +165,16 @@ export const searchListingsQuerySchema = z.object({
       dateFrom: isoDateSchema.optional(),
       dateTo: isoDateSchema.optional(),
       guests: z.coerce.number().int().positive().max(50).optional(),
+      // "Search this area": `west,south,east,north` (see searchMap.js).
+      // A plain string, so a repeated `bbox` (an array) is rejected too.
+      bbox: z
+        .string()
+        .max(100)
+        .refine((value) => parseBoundingBox(value) !== null, {
+          message:
+            'bbox must be "west,south,east,north" in degrees, with south < north and west < east.',
+        })
+        .optional(),
       ...paginationShape,
     })
     .passthrough()
@@ -196,6 +207,13 @@ export const searchListingsQuerySchema = z.object({
     ),
   body: z.any(),
 });
+
+/**
+ * `GET /search/map` takes exactly the List's params — the same filters
+ * mean the same listings on both — so it is the same schema; a `cursor`
+ * or `limit` sent to it is accepted and has no effect.
+ */
+export const searchMapQuerySchema = searchListingsQuerySchema;
 
 export const searchCategoriesQuerySchema = z.object({
   params: passthroughParams,

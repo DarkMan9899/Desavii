@@ -16,6 +16,10 @@
   z-index: z.$z-dropdown;
   margin-top: spacing.$space-2;
   min-width: 200px;
+  // Never wider than the viewport minus Popover.jsx's VIEWPORT_MARGIN on
+  // each side; `--popover-shift-x` (set there) slides it back inside.
+  max-width: calc(100vw - #{spacing.$space-4});
+  translate: var(--popover-shift-x, 0) 0;
   padding: spacing.$space-2;
   background-color: colors.$color-white;
   border-radius: radius.$radius-lg;

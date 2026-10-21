@@ -11,7 +11,12 @@
   // the `wide` Container's zero-padding desktop breakpoint) — clips the
   // rare few-pixel overshoot before it can force a page-level
   // horizontal scrollbar, without affecting any section's own layout.
+  // `clip`, not `hidden`: `hidden` would make the shell a scroll container
+  // and silently disable every `position: sticky` inside a page (Search's
+  // map, Listing Detail's booking panel); `hidden` stays as the fallback
+  // for browsers without `clip`.
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 // Standard accessible skip-link pattern: visually hidden until it

@@ -41,6 +41,11 @@ import {
 } from './attributeValueTables.js';
 import { loadSearchFilterCatalog } from './searchFilterCatalog.js';
 import { FILTERABLE_POLICY_DATA_TYPES } from '../../../core/domain/searchComputedFilters.js';
+import {
+  APPROXIMATE_LOCATION_CATEGORY_SLUGS,
+  APPROXIMATE_GRID_DEGREES,
+  LOCATION_PRECISION,
+} from '../../../core/domain/searchMap.js';
 
 /** `IN (?, ?)`-shaped placeholder list matching `ACCOMMODATION_BOOKABLE_UNIT_TYPES`'s length — reused everywhere the query needs to branch by accommodation-vs-not without a second, independent type list (DATE semantics only — see `INVENTORY_QUANTITY_TYPE_PLACEHOLDERS` below for the separate capacity-semantics branch). */
 const ACCOMMODATION_TYPE_PLACEHOLDERS = ACCOMMODATION_BOOKABLE_UNIT_TYPES.map(
@@ -135,6 +140,25 @@ function fromCursorSortValue(value) {
   }
   return value;
 }
+
+/**
+ * The public map point of a listing (see `searchMap.js`'s location
+ * policy): a private stay's stored point snapped to the centre of its
+ * `APPROXIMATE_GRID_DEGREES` grid cell, every other listing's exact point.
+ * Built from domain constants only — never a request value — so it is
+ * inlined rather than bound.
+ */
+const APPROXIMATE_LOCATION_SQL = `EXISTS (
+        SELECT 1 FROM listing_category_listing lcl_loc
+        JOIN listing_categories lc_loc ON lc_loc.id = lcl_loc.category_id
+        WHERE lcl_loc.listing_id = l.id
+          AND lc_loc.slug IN (${APPROXIMATE_LOCATION_CATEGORY_SLUGS.map((slug) => `'${slug}'`).join(', ')})
+      )`;
+const snappedSql = (column) =>
+  `FLOOR(base.${column} / ${APPROXIMATE_GRID_DEGREES}) * ${APPROXIMATE_GRID_DEGREES} + ${APPROXIMATE_GRID_DEGREES / 2}`;
+const MAP_POINT_SQL = `
+      CASE WHEN base.is_location_approximate THEN ${snappedSql('latitude')} ELSE base.latitude END AS map_latitude,
+      CASE WHEN base.is_location_approximate THEN ${snappedSql('longitude')} ELSE base.longitude END AS map_longitude`;
 
 /**
  * Pass 7 (category-specific visual identity) — three extra card-display
@@ -291,6 +315,37 @@ function toSearchResultDomain(row) {
   };
 }
 
+/** A marker: the card fields a map preview shows, plus the point. */
+function toSearchMapDomain(row) {
+  const card = toSearchResultDomain(row);
+  return {
+    id: card.id,
+    slug: card.slug,
+    title: card.title,
+    listingTypeCode: card.listingTypeCode,
+    categorySlug: card.categorySlug,
+    cityName: card.cityName,
+    // The public map point, never the stored one (see MAP_POINT_SQL).
+    latitude: Number(row.map_latitude),
+    longitude: Number(row.map_longitude),
+    locationPrecision: Number(row.is_location_approximate)
+      ? LOCATION_PRECISION.APPROXIMATE
+      : LOCATION_PRECISION.EXACT,
+    coverImageUrl: card.coverImageUrl,
+    priceAmount: card.priceAmount,
+    priceCurrencyCode: card.priceCurrencyCode,
+    pricingModelCode: card.pricingModelCode,
+    ratingAverage: card.ratingAverage,
+    reviewCount: card.reviewCount,
+    starRatingCode: card.starRatingCode,
+    cuisineCodes: card.cuisineCodes,
+    priceTierCode: card.priceTierCode,
+    transmissionCode: card.transmissionCode,
+    bedroomsValue: card.bedroomsValue,
+    durationMinutesValue: card.durationMinutesValue,
+  };
+}
+
 function toCategoryResultDomain(row) {
   return {
     id: row.id,
@@ -326,7 +381,8 @@ function toSuggestionDomain(row) {
 }
 
 /**
- * Pure SQL/params builder for `searchListings`, extracted so its
+ * Pure SQL/params builder for every Search projection (the List page and
+ * count in `searchListings`, the markers in `searchMap`), extracted so its
  * placeholder/parameter alignment can be unit-tested without a database
  * (`tests/unit/modules/search/mysqlSearchRepository.buildQuery.test.js`) —
  * the single most error-prone part of this file, since MySQL binds `?`
@@ -343,16 +399,14 @@ function toSuggestionDomain(row) {
  *   availabilityDateFrom/availabilityDateTo/availabilityLastNight/
  *   availabilityGuests (dated availability), occupancyGuests (party size
  *   with no dates), excludeCategoryTop (Category page grid only),
- *   priceMin/priceMax (AMD, against the card's "from" price)
- * @param {{key: string, column: string, direction: 'ASC'|'DESC'}} sort
- * @param {{cursor?: string|null, limit?: number}} [paginationOpts]
- * @returns {{sql: string, params: any[], limit: number, countSql: string, countParams: any[]}}
+ *   priceMin/priceMax (AMD, against the card's "from" price), bbox
+ *   ({west, south, east, north}: the committed "Search this area")
+ * @returns {{pricedResultsSql: string, filterConditions: string[], filteredParams: any[]}}
+ *   the whole filtered result set every projection (the List page, its
+ *   count, the Map markers) selects from — the one place a Search
+ *   predicate is written
  */
-export function buildSearchListingsQuery(
-  filters,
-  sort,
-  { cursor = null, limit = 20 } = {},
-) {
+function buildSearchResultSet(filters) {
   const {
     keyword,
     categoryId,
@@ -378,6 +432,7 @@ export function buildSearchListingsQuery(
     roomMealPlans,
     roomHourlyStays,
     ratingMin,
+    bbox,
   } = filters;
 
   const innerConditions = [scopeActive('l')];
@@ -723,7 +778,13 @@ export function buildSearchListingsQuery(
       l.slug,
       COALESCE(lt.title, lt2.title, '') AS title,
       COALESCE(lt.summary, lt2.summary) AS summary,
-      loc.city_id, c.name AS city_name, r.country_id,
+      -- The city in the visitor's language: requested, then default, then
+      -- the canonical name (the same fallback GET /search/destinations uses).
+      loc.city_id, COALESCE(ct.name, ct2.name, c.name) AS city_name, r.country_id,
+      -- The listing's own stored point and whether its category is shown
+      -- only approximately; the outer layer derives the public map point.
+      loc.latitude, loc.longitude,
+      ${APPROXIMATE_LOCATION_SQL} AS is_location_approximate,
       m.url AS cover_image_url,
       -- P2.2D: a "from" price -- the cheapest real per-unit base price
       -- (P2.2A) when the listing's priced units all share one currency.
@@ -803,6 +864,8 @@ export function buildSearchListingsQuery(
     LEFT JOIN regions r ON r.id = c.region_id
     LEFT JOIN listing_translations lt ON lt.listing_id = l.id AND lt.language_id = ?
     LEFT JOIN listing_translations lt2 ON lt2.listing_id = l.id AND lt2.language_id = ?
+    LEFT JOIN city_translations ct ON ct.city_id = c.id AND ct.language_id = ?
+    LEFT JOIN city_translations ct2 ON ct2.city_id = c.id AND ct2.language_id = ?
     LEFT JOIN media m ON m.mediable_type = 'listing' AND m.mediable_id = l.id AND m.is_cover = 1 AND m.deleted_at IS NULL
     LEFT JOIN listing_pricing lp ON lp.listing_id = l.id
     LEFT JOIN currencies cur ON cur.id = lp.currency_id
@@ -818,7 +881,8 @@ export function buildSearchListingsQuery(
       ${BASE_PRICE_SQL} AS price_amount_base,
       COALESCE(${BASE_PRICE_SQL}, ${UNPRICED_SORT_KEY_ASC}) AS price_sort_asc,
       COALESCE(${BASE_PRICE_SQL}, ${UNPRICED_SORT_KEY_DESC}) AS price_sort_desc,
-      COALESCE(base.rating_average, ${UNRATED_SORT_KEY}) AS rating_sort
+      COALESCE(base.rating_average, ${UNRATED_SORT_KEY}) AS rating_sort,
+      ${MAP_POINT_SQL}
     FROM (${innerSql}) AS base
   `;
 
@@ -840,6 +904,56 @@ export function buildSearchListingsQuery(
     filterConditions.push('results.rating_average >= ?');
     filterParams.push(ratingMin);
   }
+  // "Search this area": the listing's PUBLIC map point inside the
+  // committed area — the point the map shows, so List and Map agree, and a
+  // private stay's real point can't be found by probing with tiny areas.
+  // A listing without coordinates can never be inside an area.
+  if (bbox !== undefined) {
+    filterConditions.push(
+      'results.map_latitude BETWEEN ? AND ? AND results.map_longitude BETWEEN ? AND ?',
+    );
+    filterParams.push(bbox.south, bbox.north, bbox.west, bbox.east);
+  }
+
+  return {
+    pricedResultsSql,
+    filterConditions,
+    // Physical placeholder order: the CTE, the SELECT's relevance match,
+    // the title translation joins, the city translation joins, the WHERE
+    // predicates, then the outer price/rating filters.
+    filteredParams: [
+      ...availabilityCteParams,
+      ...selectKeywordParam,
+      localeId,
+      defaultLocaleId,
+      localeId,
+      defaultLocaleId,
+      ...innerParams,
+      ...filterParams,
+    ],
+  };
+}
+
+function toWhere(conditions) {
+  return conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+}
+
+/**
+ * The List page of a search: `buildSearchResultSet`'s rows, keyset
+ * paginated, plus the count of the whole filtered result set.
+ *
+ * @param {object} filters - see `buildSearchResultSet`
+ * @param {{key: string, column: string, direction: 'ASC'|'DESC'}} sort
+ * @param {{cursor?: string|null, limit?: number}} [paginationOpts]
+ * @returns {{sql: string, params: any[], limit: number, countSql: string, countParams: any[]}}
+ */
+export function buildSearchListingsQuery(
+  filters,
+  sort,
+  { cursor = null, limit = 20 } = {},
+) {
+  const { pricedResultsSql, filterConditions, filteredParams } =
+    buildSearchResultSet(filters);
 
   const pageConditions = [...filterConditions];
   const cursorParams = [];
@@ -851,8 +965,6 @@ export function buildSearchListingsQuery(
     );
     cursorParams.push(fromCursorSortValue(decoded.sortValue), decoded.id);
   }
-  const toWhere = (conditions) =>
-    conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const sql = `
     SELECT * FROM (${pricedResultsSql}) AS results
@@ -860,15 +972,6 @@ export function buildSearchListingsQuery(
     ORDER BY results.${sort.column} ${sort.direction}, results.id ${sort.direction}
     LIMIT ?
   `;
-
-  const filteredParams = [
-    ...availabilityCteParams,
-    ...selectKeywordParam,
-    localeId,
-    defaultLocaleId,
-    ...innerParams,
-    ...filterParams,
-  ];
   const params = [...filteredParams, ...cursorParams, limit + 1];
 
   // The whole filtered result set's size, for an honest "N results"
@@ -879,6 +982,71 @@ export function buildSearchListingsQuery(
   `;
 
   return { sql, params, limit, countSql, countParams: filteredParams };
+}
+
+/** The marker fields — never the full card, let alone the listing detail. */
+const MAP_COLUMNS = [
+  'id',
+  'slug',
+  'title',
+  'listing_type_code',
+  'category_slug',
+  'city_name',
+  'map_latitude',
+  'map_longitude',
+  'is_location_approximate',
+  'cover_image_url',
+  'price_amount',
+  'price_currency_code',
+  'pricing_model_code',
+  'rating_average',
+  'review_count',
+  'star_rating_code',
+  'cuisine_codes',
+  'price_tier_code',
+  'transmission_code',
+  'bedrooms_value',
+  'duration_minutes_value',
+]
+  .map((column) => `results.${column}`)
+  .join(', ');
+
+/**
+ * Map Search: the SAME filtered result set the List pages through — every
+ * predicate comes from `buildSearchResultSet`, none is restated here — as
+ * lightweight marker rows for every match that has a stored point, in the
+ * List's own sort order, up to `limit`. The count reports the whole match
+ * and how much of it can be placed on the map, so a capped or partly
+ * unmappable result is never silently presented as complete.
+ *
+ * @param {object} filters - see `buildSearchResultSet`
+ * @param {{key: string, column: string, direction: 'ASC'|'DESC'}} sort
+ * @param {{limit: number}} options
+ * @returns {{sql: string, params: any[], countSql: string, countParams: any[]}}
+ */
+export function buildSearchMapQuery(filters, sort, { limit }) {
+  const { pricedResultsSql, filterConditions, filteredParams } =
+    buildSearchResultSet(filters);
+  const mappable =
+    'results.latitude IS NOT NULL AND results.longitude IS NOT NULL';
+
+  const sql = `
+    SELECT ${MAP_COLUMNS} FROM (${pricedResultsSql}) AS results
+    ${toWhere([...filterConditions, mappable])}
+    ORDER BY results.${sort.column} ${sort.direction}, results.id ${sort.direction}
+    LIMIT ?
+  `;
+  const countSql = `
+    SELECT COUNT(*) AS total, COALESCE(SUM(${mappable}), 0) AS mappable
+    FROM (${pricedResultsSql}) AS results
+    ${toWhere(filterConditions)}
+  `;
+  return {
+    sql,
+    params: [...filteredParams, limit],
+    countSql,
+    countParams: filteredParams,
+  };
 }
 
 export class MySqlSearchRepository {
@@ -951,6 +1119,37 @@ export class MySqlSearchRepository {
   }
 
   /**
+   * Map Search — the same filtered result set as `searchListings`, as
+   * markers (see `buildSearchMapQuery`).
+   *
+   * @param {object} filters - see `buildSearchListingsQuery`
+   * @param {{key: string, column: string, direction: 'ASC'|'DESC'}} sort
+   * @param {{limit: number}} options
+   * @returns {Promise<{rows: object[], meta: {total: number, mappable: number, returned: number, truncated: boolean}}>}
+   */
+  async searchMap(filters, sort, { limit }) {
+    const { sql, params, countSql, countParams } = buildSearchMapQuery(
+      filters,
+      sort,
+      { limit },
+    );
+    const [[rows], [[counts]]] = await Promise.all([
+      this.#pool.query(sql, params),
+      this.#pool.query(countSql, countParams),
+    ]);
+    const mappable = Number(counts.mappable);
+    return {
+      rows: rows.map(toSearchMapDomain),
+      meta: {
+        total: Number(counts.total),
+        mappable,
+        returned: rows.length,
+        truncated: rows.length < mappable,
+      },
+    };
+  }
+
+  /**
    * Sprint E (Promotion Engine): the same card shape `searchListings`
    * already produces (title/cover/price/rating/review_count), for an
    * explicit small set of ids — `SearchService#getListingsByIds`'s only
@@ -976,7 +1175,7 @@ export class MySqlSearchRepository {
         l.slug,
         COALESCE(lt.title, lt2.title, '') AS title,
         COALESCE(lt.summary, lt2.summary) AS summary,
-        loc.city_id, c.name AS city_name, r.country_id,
+        loc.city_id, COALESCE(ct.name, ct2.name, c.name) AS city_name, r.country_id,
         m.url AS cover_image_url,
         COALESCE(
           (SELECT MIN(bu_price.base_price_amount)
@@ -1029,12 +1228,14 @@ export class MySqlSearchRepository {
       LEFT JOIN regions r ON r.id = c.region_id
       LEFT JOIN listing_translations lt ON lt.listing_id = l.id AND lt.language_id = ?
       LEFT JOIN listing_translations lt2 ON lt2.listing_id = l.id AND lt2.language_id = ?
+      LEFT JOIN city_translations ct ON ct.city_id = c.id AND ct.language_id = ?
+      LEFT JOIN city_translations ct2 ON ct2.city_id = c.id AND ct2.language_id = ?
       LEFT JOIN media m ON m.mediable_type = 'listing' AND m.mediable_id = l.id AND m.is_cover = 1 AND m.deleted_at IS NULL
       LEFT JOIN listing_pricing lp ON lp.listing_id = l.id
       LEFT JOIN currencies cur ON cur.id = lp.currency_id
       WHERE ${scopeActive('l')} AND ${scopePubliclyVisibleListing()} AND l.id IN (${placeholders})
       `,
-      [localeId, defaultLocaleId, ...listingIds],
+      [localeId, defaultLocaleId, localeId, defaultLocaleId, ...listingIds],
     );
     return rows.map(toSearchResultDomain);
   }

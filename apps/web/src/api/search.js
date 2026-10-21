@@ -75,6 +75,23 @@ export function searchListings(params, { signal } = {}) {
 }
 
 /**
+ * `GET /search/map` — Map Search: the same params as `GET /search` (the
+ * same filters always describe the same listings), answered with one
+ * lightweight marker per match that has a stored point — `id, slug,
+ * title, listing_type, category_slug, city_name, latitude, longitude,
+ * cover_image_url, price_amount, price_currency_code, pricing_model,
+ * rating_average, review_count` plus the card's headline facts — for the
+ * whole match, not one List page. `meta` is `{ total, mappable, returned,
+ * truncated }`.
+ * @param {object} params - as `searchListings`, plus `bbox`; no paging
+ */
+export function searchMap(params, { signal } = {}) {
+  return apiClient
+    .get('/search/map', { params, signal })
+    .then((response) => response.data);
+}
+
+/**
  * `GET /search/filters` — the dynamic filter metadata endpoint (Phase 4.2).
  * Returns `{ groups: [{ code, definitions: [{ code, input_type,
  * value_source, param, is_advanced, unit, min, max, listing_count,

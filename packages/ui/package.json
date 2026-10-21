@@ -14,7 +14,8 @@
     "./components/navigation": "./src/components/navigation/index.js",
     "./components/data-display": "./src/components/data-display/index.js",
     "./components/listing-media": "./src/components/listing-media/index.js",
-    "./components/dashboard": "./src/components/dashboard/index.js"
+    "./components/dashboard": "./src/components/dashboard/index.js",
+    "./utils/dateFormat": "./src/utils/dateFormat.js"
   },
   "sideEffects": [
     "**/*.scss"
@@ -29,6 +30,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "date-fns": "^4.1.0",
     "lucide-react": "^0.454.0",
     "prop-types": "^15.8.1",
     "recharts": "^3.10.1"
