@@ -2,7 +2,9 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from 'i18next';
-import PricingStep from './PricingStep.jsx';
+import PropTypes from 'prop-types';
+import BookingStep from './BookingStep.jsx';
+import { resolveBookableUnitProfile } from '../../../utils/resolveBookableUnitProfile.js';
 import { useListingMetadataQuery } from '../../../queries/useListingMetadataQuery.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
 
@@ -12,8 +14,38 @@ vi.mock('../../../queries/useListingMetadataQuery.js', () => ({
 vi.mock('../../../mutations/useUpdateListingMutation.js', () => ({
   useUpdateListingMutation: vi.fn(),
 }));
+// The units and blackout sections save themselves and are covered by
+// `BookingStep.availability.test.jsx`; here only the default price.
+vi.mock('../../BookableUnitsManager/BookableUnitsManager.jsx', () => ({
+  default: () => null,
+}));
+vi.mock('./booking/BlackoutDatesSection.jsx', () => ({
+  default: () => null,
+}));
 
-describe('PricingStep (PartnerListingWizard)', () => {
+const UNIT_PROFILE = resolveBookableUnitProfile({
+  listingType: 'HOTEL',
+  categorySlug: 'hotels',
+  pricingModel: 'PER_NIGHT',
+});
+
+/** The Booking & pricing step, seeded with a stored listing price. */
+function BookingPricing({ initialValues = undefined, ...props }) {
+  return (
+    <BookingStep
+      unitProfile={UNIT_PROFILE}
+      initialPricing={initialValues}
+      // eslint-disable-next-line react/jsx-props-no-spreading -- test harness forwards per-test props
+      {...props}
+    />
+  );
+}
+BookingPricing.propTypes = {
+  // eslint-disable-next-line react/forbid-prop-types -- the stored pricing shape under test
+  initialValues: PropTypes.object,
+};
+
+describe('BookingStep — default price (PartnerListingWizard)', () => {
   let mutateAsync;
 
   beforeEach(() => {
@@ -33,7 +65,7 @@ describe('PricingStep (PartnerListingWizard)', () => {
       isError: false,
       data: { pricing_models: [] },
     });
-    render(<PricingStep listingId={7} categoryId={3} onNext={onNext} />);
+    render(<BookingPricing listingId={7} categoryId={3} onNext={onNext} />);
     expect(
       screen.getByText('Այս կատեգորիան գների մոդել չունի։'),
     ).toBeInTheDocument();
@@ -54,7 +86,7 @@ describe('PricingStep (PartnerListingWizard)', () => {
         isError: false,
         data: { pricing_models: [{ code: 'PER_NIGHT' }] },
       });
-      render(<PricingStep listingId={7} categoryId={3} onNext={vi.fn()} />);
+      render(<BookingPricing listingId={7} categoryId={3} onNext={vi.fn()} />);
 
       expect(
         screen.getByText(
@@ -69,7 +101,7 @@ describe('PricingStep (PartnerListingWizard)', () => {
         isError: false,
         data: { pricing_models: [{ code: 'PER_NIGHT' }] },
       });
-      render(<PricingStep listingId={7} categoryId={3} onNext={vi.fn()} />);
+      render(<BookingPricing listingId={7} categoryId={3} onNext={vi.fn()} />);
 
       expect(
         screen.getByText(
@@ -85,7 +117,7 @@ describe('PricingStep (PartnerListingWizard)', () => {
         isError: false,
         data: { pricing_models: [{ code: 'PER_NIGHT' }] },
       });
-      render(<PricingStep listingId={7} categoryId={3} onNext={vi.fn()} />);
+      render(<BookingPricing listingId={7} categoryId={3} onNext={vi.fn()} />);
 
       const [modelTrigger] = screen.getAllByTestId('select-trigger');
       await user.click(modelTrigger);
@@ -103,7 +135,7 @@ describe('PricingStep (PartnerListingWizard)', () => {
       isError: false,
       data: { pricing_models: [{ code: 'PER_NIGHT' }] },
     });
-    render(<PricingStep listingId={7} categoryId={3} onNext={onNext} />);
+    render(<BookingPricing listingId={7} categoryId={3} onNext={onNext} />);
 
     const [modelTrigger, currencyTrigger] =
       screen.getAllByTestId('select-trigger');
@@ -135,7 +167,7 @@ describe('PricingStep (PartnerListingWizard)', () => {
       isError: false,
       data: { pricing_models: [{ code: 'PER_NIGHT' }] },
     });
-    render(<PricingStep listingId={7} categoryId={3} onNext={onNext} />);
+    render(<BookingPricing listingId={7} categoryId={3} onNext={onNext} />);
 
     await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
 
@@ -163,7 +195,7 @@ describe('PricingStep (PartnerListingWizard)', () => {
         isError: false,
         data: { pricing_models: [{ code: 'PER_NIGHT' }] },
       });
-      render(<PricingStep listingId={7} categoryId={3} onNext={onNext} />);
+      render(<BookingPricing listingId={7} categoryId={3} onNext={onNext} />);
 
       await fillModelAndCurrency(user);
       await user.type(screen.getByLabelText('Գումար'), '-50');
@@ -183,7 +215,7 @@ describe('PricingStep (PartnerListingWizard)', () => {
         isError: false,
         data: { pricing_models: [{ code: 'PER_NIGHT' }] },
       });
-      render(<PricingStep listingId={7} categoryId={3} onNext={onNext} />);
+      render(<BookingPricing listingId={7} categoryId={3} onNext={onNext} />);
 
       await fillModelAndCurrency(user);
       await user.type(screen.getByLabelText('Գումար'), '0');
@@ -206,7 +238,7 @@ describe('PricingStep (PartnerListingWizard)', () => {
         isError: false,
         data: { pricing_models: [{ code: 'PER_NIGHT' }] },
       });
-      render(<PricingStep listingId={7} categoryId={3} onNext={onNext} />);
+      render(<BookingPricing listingId={7} categoryId={3} onNext={onNext} />);
 
       await fillModelAndCurrency(user);
       await user.type(screen.getByLabelText('Գումար'), '19.999');
@@ -228,7 +260,7 @@ describe('PricingStep (PartnerListingWizard)', () => {
         isError: false,
         data: { pricing_models: [{ code: 'PER_NIGHT' }] },
       });
-      render(<PricingStep listingId={7} categoryId={3} onNext={onNext} />);
+      render(<BookingPricing listingId={7} categoryId={3} onNext={onNext} />);
 
       await fillModelAndCurrency(user);
       await user.type(screen.getByLabelText('Գումար'), '19.99');
@@ -252,7 +284,7 @@ describe('PricingStep (PartnerListingWizard)', () => {
 // Step L6.2H1: a stored pricing model the category no longer offers (legacy
 // PER_HOUR) is flagged, never silently replaced, and blocks Continue until
 // the Partner knowingly picks a supported one.
-describe('PricingStep — legacy unsupported pricing model (Step L6.2H1)', () => {
+describe('BookingStep — legacy unsupported pricing model (Step L6.2H1)', () => {
   const LEGACY_VALUES = {
     modelCode: 'PER_HOUR',
     amount: 8000,
@@ -277,7 +309,7 @@ describe('PricingStep — legacy unsupported pricing model (Step L6.2H1)', () =>
   test('the model select offers only supported models and starts empty for a legacy listing', async () => {
     const user = userEvent.setup();
     render(
-      <PricingStep
+      <BookingPricing
         listingId={7}
         categoryId={3}
         initialValues={LEGACY_VALUES}
@@ -300,7 +332,7 @@ describe('PricingStep — legacy unsupported pricing model (Step L6.2H1)', () =>
     const user = userEvent.setup();
     const onNext = vi.fn();
     render(
-      <PricingStep
+      <BookingPricing
         listingId={7}
         categoryId={3}
         initialValues={LEGACY_VALUES}
@@ -355,7 +387,7 @@ describe('PricingStep — legacy unsupported pricing model (Step L6.2H1)', () =>
     await i18n.changeLanguage(lng);
     try {
       render(
-        <PricingStep
+        <BookingPricing
           listingId={7}
           categoryId={3}
           initialValues={LEGACY_VALUES}
@@ -378,7 +410,7 @@ describe('PricingStep — legacy unsupported pricing model (Step L6.2H1)', () =>
       data: { pricing_models: [] },
     });
     render(
-      <PricingStep
+      <BookingPricing
         listingId={7}
         categoryId={3}
         initialValues={LEGACY_VALUES}
@@ -394,7 +426,7 @@ describe('PricingStep — legacy unsupported pricing model (Step L6.2H1)', () =>
 
   test('a supported stored model shows no legacy notice', () => {
     render(
-      <PricingStep
+      <BookingPricing
         listingId={7}
         categoryId={3}
         initialValues={{ ...LEGACY_VALUES, modelCode: 'PER_PERSON' }}
@@ -407,7 +439,7 @@ describe('PricingStep — legacy unsupported pricing model (Step L6.2H1)', () =>
 
 // Step L6.2H2B: a restaurant's price is average spend per person — shown to
 // customers, never charged — and the Partner step says so.
-describe('PricingStep — restaurant average spend (Step L6.2H2B)', () => {
+describe('BookingStep — restaurant average spend (Step L6.2H2B)', () => {
   beforeEach(() => {
     useUpdateListingMutation.mockReturnValue({
       mutateAsync: vi.fn().mockResolvedValue({ data: {} }),
@@ -424,7 +456,7 @@ describe('PricingStep — restaurant average spend (Step L6.2H2B)', () => {
   test('the model reads as average spend per person, with a hint that reservations are free', async () => {
     const user = userEvent.setup();
     render(
-      <PricingStep
+      <BookingPricing
         listingId={7}
         categoryId={5}
         listingType="RESTAURANT"
@@ -445,7 +477,7 @@ describe('PricingStep — restaurant average spend (Step L6.2H2B)', () => {
   test('a tour priced per person keeps its per-person wording', async () => {
     const user = userEvent.setup();
     render(
-      <PricingStep
+      <BookingPricing
         listingId={7}
         categoryId={6}
         listingType="TOUR"

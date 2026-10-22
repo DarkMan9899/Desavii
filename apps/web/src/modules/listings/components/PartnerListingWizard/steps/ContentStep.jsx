@@ -20,6 +20,11 @@
  * unlike `BasicInfoStep` — so there's no "before creation" branch here,
  * and the standalone "Save {locale} content" action is always
  * available, not conditionally hidden.
+ *
+ * Partner Listing Wizard rebuild: the itinerary belongs to experiences
+ * (tours, attractions, entertainment venues — `showItinerary`); every
+ * other listing never sees or re-saves it, so a stay or a car is never
+ * offered a step-by-step schedule.
  */
 
 import { useRef, useState } from 'react';
@@ -116,6 +121,7 @@ export default function ContentStep({
   initialItinerarySteps = [],
   initialIncludedItems = [],
   initialFaqs = [],
+  showItinerary = true,
   authoringLocale,
   onAuthoringLocaleChange,
   onBack = undefined,
@@ -192,7 +198,7 @@ export default function ContentStep({
   const completionByLocale = SUPPORTED_LOCALES.reduce((acc, code) => {
     acc[code] =
       highlightsByLocale[code].length > 0 ||
-      itineraryByLocale[code].length > 0 ||
+      (showItinerary && itineraryByLocale[code].length > 0) ||
       includedByLocale[code].length > 0 ||
       faqsByLocale[code].length > 0;
     return acc;
@@ -260,11 +266,12 @@ export default function ContentStep({
           highlights: validHighlights,
           languageCode: authoringLocale,
         }),
-        replaceItinerary.mutateAsync({
-          id: listingId,
-          steps: validSteps,
-          languageCode: authoringLocale,
-        }),
+        showItinerary &&
+          replaceItinerary.mutateAsync({
+            id: listingId,
+            steps: validSteps,
+            languageCode: authoringLocale,
+          }),
         replaceIncludedItems.mutateAsync({
           id: listingId,
           items: validIncludedItems,
@@ -402,100 +409,104 @@ export default function ContentStep({
             </Button>
           </section>
 
-          <section>
-            <h3>{t('partner.listingWizard.content.itineraryTitle')}</h3>
-            <p className={styles.sectionHint}>
-              {t('partner.listingWizard.content.itineraryHint')}
-            </p>
-            <Stack gap="4">
-              {itinerarySteps.map((row, index) => (
-                <div key={row.rowKey} className={styles.stepCard}>
-                  <div className={styles.stepCardHeader}>
-                    <span className={styles.stepNumber}>{index + 1}</span>
-                    <Button
+          {showItinerary && (
+            <section>
+              <h3>{t('partner.listingWizard.content.itineraryTitle')}</h3>
+              <p className={styles.sectionHint}>
+                {t('partner.listingWizard.content.itineraryHint')}
+              </p>
+              <Stack gap="4">
+                {itinerarySteps.map((row, index) => (
+                  <div key={row.rowKey} className={styles.stepCard}>
+                    <div className={styles.stepCardHeader}>
+                      <span className={styles.stepNumber}>{index + 1}</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          removeRow(
+                            setItineraryByLocale,
+                            authoringLocale,
+                            row.rowKey,
+                          )
+                        }
+                      >
+                        {t('partner.listingWizard.content.removeRow')}
+                      </Button>
+                    </div>
+                    <Input
                       size="sm"
-                      variant="ghost"
-                      onClick={() =>
-                        removeRow(
+                      label={t('partner.listingWizard.content.stepTitleLabel')}
+                      value={row.title}
+                      maxLength={ITINERARY_TITLE_MAX_LENGTH}
+                      onChange={(event) =>
+                        updateRow(
                           setItineraryByLocale,
                           authoringLocale,
                           row.rowKey,
+                          'title',
+                          event.target.value,
                         )
                       }
-                    >
-                      {t('partner.listingWizard.content.removeRow')}
-                    </Button>
+                    />
+                    <Textarea
+                      size="sm"
+                      label={t(
+                        'partner.listingWizard.content.stepDescriptionLabel',
+                      )}
+                      value={row.description}
+                      maxLength={ITINERARY_DESCRIPTION_MAX_LENGTH}
+                      onChange={(event) =>
+                        updateRow(
+                          setItineraryByLocale,
+                          authoringLocale,
+                          row.rowKey,
+                          'description',
+                          event.target.value,
+                        )
+                      }
+                    />
+                    <Input
+                      type="number"
+                      size="sm"
+                      label={t(
+                        'partner.listingWizard.content.stepDurationLabel',
+                      )}
+                      value={row.durationMinutes}
+                      min={STEP_DURATION_MIN}
+                      max={STEP_DURATION_MAX}
+                      step={1}
+                      onChange={(event) =>
+                        updateRow(
+                          setItineraryByLocale,
+                          authoringLocale,
+                          row.rowKey,
+                          'durationMinutes',
+                          event.target.value,
+                        )
+                      }
+                    />
                   </div>
-                  <Input
-                    size="sm"
-                    label={t('partner.listingWizard.content.stepTitleLabel')}
-                    value={row.title}
-                    maxLength={ITINERARY_TITLE_MAX_LENGTH}
-                    onChange={(event) =>
-                      updateRow(
-                        setItineraryByLocale,
-                        authoringLocale,
-                        row.rowKey,
-                        'title',
-                        event.target.value,
-                      )
-                    }
-                  />
-                  <Textarea
-                    size="sm"
-                    label={t(
-                      'partner.listingWizard.content.stepDescriptionLabel',
-                    )}
-                    value={row.description}
-                    maxLength={ITINERARY_DESCRIPTION_MAX_LENGTH}
-                    onChange={(event) =>
-                      updateRow(
-                        setItineraryByLocale,
-                        authoringLocale,
-                        row.rowKey,
-                        'description',
-                        event.target.value,
-                      )
-                    }
-                  />
-                  <Input
-                    type="number"
-                    size="sm"
-                    label={t('partner.listingWizard.content.stepDurationLabel')}
-                    value={row.durationMinutes}
-                    min={STEP_DURATION_MIN}
-                    max={STEP_DURATION_MAX}
-                    step={1}
-                    onChange={(event) =>
-                      updateRow(
-                        setItineraryByLocale,
-                        authoringLocale,
-                        row.rowKey,
-                        'durationMinutes',
-                        event.target.value,
-                      )
-                    }
-                  />
-                </div>
-              ))}
-            </Stack>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={itinerarySteps.length >= ITINERARY_MAX}
-              onClick={() =>
-                addRow(
-                  setItineraryByLocale,
-                  authoringLocale,
-                  { title: '', description: '', durationMinutes: '' },
-                  ITINERARY_MAX,
-                  nextKey,
-                )
-              }
-            >
-              {t('partner.listingWizard.content.addStep')}
-            </Button>
-          </section>
+                ))}
+              </Stack>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={itinerarySteps.length >= ITINERARY_MAX}
+                onClick={() =>
+                  addRow(
+                    setItineraryByLocale,
+                    authoringLocale,
+                    { title: '', description: '', durationMinutes: '' },
+                    ITINERARY_MAX,
+                    nextKey,
+                  )
+                }
+              >
+                {t('partner.listingWizard.content.addStep')}
+              </Button>
+            </section>
+          )}
 
           <section>
             <h3>{t('partner.listingWizard.content.includedTitle')}</h3>
@@ -698,6 +709,8 @@ ContentStep.propTypes = {
   initialItinerarySteps: PropTypes.arrayOf(itineraryStepShape),
   initialIncludedItems: PropTypes.arrayOf(includedItemShape),
   initialFaqs: PropTypes.arrayOf(faqShape),
+  /** Experiences only (tours, attractions, entertainment venues). */
+  showItinerary: PropTypes.bool,
   authoringLocale: PropTypes.oneOf(SUPPORTED_LOCALES).isRequired,
   onAuthoringLocaleChange: PropTypes.func.isRequired,
   onBack: PropTypes.func,

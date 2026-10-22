@@ -19,14 +19,59 @@
 
 const NUMERIC_DATA_TYPES = ['INTEGER', 'DECIMAL'];
 
-export function toAttributeValuesPayload(definitions, values) {
+function isEmptyValue(value) {
+  return (
+    value === undefined ||
+    value === null ||
+    value === '' ||
+    (Array.isArray(value) && value.length === 0)
+  );
+}
+
+/**
+ * Whether an attribute applies to the values as they stand — a conditional
+ * attribute (`depends_on`, migration 0055) only while its controlling
+ * attribute holds that option. The API applies the same rule (it rejects a
+ * value it does not apply to, and clears one that stopped applying).
+ */
+export function isAttributeApplicable(definition, values) {
+  const condition = definition.depends_on;
+  if (!condition) return true;
+  const controlling = values[condition.attribute_code];
+  return Array.isArray(controlling)
+    ? controlling.includes(condition.option_code)
+    : controlling === condition.option_code;
+}
+
+/**
+ * The `attributeValues` write for the Wizard's current values. A field the
+ * partner emptied is sent as a removal when it had a stored value
+ * (`initialValues`) — an empty choice as no options, an empty number or
+ * text as `null` — and simply left out otherwise. An attribute that does
+ * not apply right now is never sent; the API clears its stored value.
+ */
+export function toAttributeValuesPayload(
+  definitions,
+  values,
+  initialValues = {},
+) {
   return definitions
-    .filter((definition) => {
-      const value = values[definition.code];
-      return value !== undefined && value !== null && value !== '';
-    })
+    .filter((definition) => isAttributeApplicable(definition, values))
+    .filter(
+      (definition) =>
+        !isEmptyValue(values[definition.code]) ||
+        !isEmptyValue(initialValues[definition.code]),
+    )
     .map((definition) => {
       const value = values[definition.code];
+      const isEnum =
+        definition.data_type === 'ENUM' ||
+        definition.data_type === 'MULTI_ENUM';
+      if (isEmptyValue(value)) {
+        return isEnum
+          ? { code: definition.code, optionCodes: [] }
+          : { code: definition.code, value: null };
+      }
       if (definition.data_type === 'MULTI_ENUM') {
         return { code: definition.code, optionCodes: value };
       }

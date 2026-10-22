@@ -149,6 +149,120 @@ describe('DynamicAttributesStep (PartnerListingWizard)', () => {
     expect(onNext).toHaveBeenCalled();
   });
 
+  // Wizard rebuild: a dependent detail (`depends_on`) shows only under its
+  // controlling answer, and an emptied stored value is sent as a clear.
+  describe('conditional attributes', () => {
+    const CONDITIONAL = [
+      {
+        code: 'meeting_point_type',
+        data_type: 'ENUM',
+        is_required: false,
+        options: [
+          { code: 'HOTEL_PICKUP', name: 'HOTEL_PICKUP' },
+          { code: 'FIXED_LOCATION', name: 'FIXED_LOCATION' },
+        ],
+      },
+      {
+        code: 'pickup_details',
+        data_type: 'STRING',
+        is_required: false,
+        depends_on: {
+          attribute_code: 'meeting_point_type',
+          option_code: 'HOTEL_PICKUP',
+        },
+      },
+    ];
+
+    beforeEach(() => {
+      useListingMetadataQuery.mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: { attributes: CONDITIONAL },
+      });
+    });
+
+    test('a dependent field is hidden until its controlling option is chosen', () => {
+      const { unmount } = render(
+        <DynamicAttributesStep
+          listingId={7}
+          categoryId={3}
+          initialValues={{ meeting_point_type: 'FIXED_LOCATION' }}
+          onNext={vi.fn()}
+        />,
+      );
+      expect(
+        screen.queryByLabelText(/Վերցնելու մանրամասներ/),
+      ).not.toBeInTheDocument();
+      unmount();
+
+      render(
+        <DynamicAttributesStep
+          listingId={7}
+          categoryId={3}
+          initialValues={{ meeting_point_type: 'HOTEL_PICKUP' }}
+          onNext={vi.fn()}
+        />,
+      );
+      expect(
+        screen.getByLabelText(/Վերցնելու մանրամասներ/),
+      ).toBeInTheDocument();
+    });
+
+    test('a hidden dependent is never submitted', async () => {
+      const user = userEvent.setup();
+      render(
+        <DynamicAttributesStep
+          listingId={7}
+          categoryId={3}
+          initialValues={{
+            meeting_point_type: 'FIXED_LOCATION',
+            pickup_details: 'Lobby at 9:00',
+          }}
+          onNext={vi.fn()}
+        />,
+      );
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+      expect(mutateAsync).toHaveBeenCalledWith({
+        id: 7,
+        payload: {
+          attributeValues: [
+            { code: 'meeting_point_type', optionCodes: ['FIXED_LOCATION'] },
+          ],
+        },
+      });
+    });
+
+    test('emptying a stored dependent sends an explicit clear', async () => {
+      const user = userEvent.setup();
+      render(
+        <DynamicAttributesStep
+          listingId={7}
+          categoryId={3}
+          initialValues={{
+            meeting_point_type: 'HOTEL_PICKUP',
+            pickup_details: 'Lobby at 9:00',
+          }}
+          onNext={vi.fn()}
+        />,
+      );
+      await user.clear(screen.getByLabelText(/Վերցնելու մանրամասներ/));
+      await user.click(screen.getByRole('button', { name: 'Շարունակել' }));
+
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+      expect(mutateAsync).toHaveBeenCalledWith({
+        id: 7,
+        payload: {
+          attributeValues: [
+            { code: 'meeting_point_type', optionCodes: ['HOTEL_PICKUP'] },
+            { code: 'pickup_details', value: null },
+          ],
+        },
+      });
+    });
+  });
+
   test('renders an empty-state message when the category has no attributes', () => {
     useListingMetadataQuery.mockReturnValue({
       isPending: false,

@@ -18,6 +18,7 @@ import {
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
 
 let admin;
 let vendor;
@@ -77,7 +78,13 @@ beforeAll(async () => {
   await request(app)
     .patch(`/api/v1/listings/${listingId}`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)
-    .send({ location: { latitude: 40.1772, longitude: 44.5035 } });
+    .send({
+      location: {
+        cityId: YEREVAN_CITY_ID,
+        latitude: 40.1772,
+        longitude: 44.5035,
+      },
+    });
   await request(app)
     .post(`/api/v1/listings/${listingId}/media`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)
@@ -214,7 +221,13 @@ describe('Favorites — Step B4 expiry filtering', () => {
     await request(app)
       .patch(`/api/v1/listings/${expiringListingId}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .send({ location: { latitude: 40.1772, longitude: 44.5035 } });
+      .send({
+        location: {
+          cityId: YEREVAN_CITY_ID,
+          latitude: 40.1772,
+          longitude: 44.5035,
+        },
+      });
     await request(app)
       .post(`/api/v1/listings/${expiringListingId}/media`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)

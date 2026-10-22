@@ -27,6 +27,7 @@ import {
   expectEveryOptionReachable,
   expectNoHorizontalOverflow,
 } from './selectAssertions.js';
+import { YEREVAN_CITY_ID } from './seededCities.js';
 
 const API_BASE = 'http://localhost:4000/api/v1/';
 const VENDOR = { email: 'vendor@travelhub.dev', password: 'DevVendor!2024' };
@@ -124,7 +125,11 @@ async function createThrowawayHotel(vendorToken, adminToken) {
   });
   const listingId = created.json.data.id;
   const updated = await apiCall('patch', `listings/${listingId}`, vendorToken, {
-    location: { latitude: 40.1772, longitude: 44.5035 },
+    location: {
+      cityId: YEREVAN_CITY_ID,
+      latitude: 40.1772,
+      longitude: 44.5035,
+    },
     pricing: { modelCode: 'PER_NIGHT', amount: 25000, currencyCode: 'AMD' },
     policyValues: [
       { code: 'cancellation_policy', value: 'MODERATE' },

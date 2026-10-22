@@ -37,6 +37,8 @@ configureLeafletIcons();
 const ARMENIA_CENTER = [40.0691, 45.0382];
 const ARMENIA_ZOOM = 7;
 const PICKED_ZOOM = 13;
+// A chosen city before any pin: the town, not a street.
+const CITY_ZOOM = 12;
 
 function ClickToPlace({ onPick }) {
   useMapEvents({
@@ -66,9 +68,27 @@ RecenterOnChange.propTypes = {
   position: PropTypes.array,
 };
 
+// Partner Listing Wizard rebuild: choosing a city (with no pin yet) frames
+// that city, so the partner places the pin there instead of searching all
+// of Armenia.
+function FocusCity({ focus = null }) {
+  const map = useMap();
+  const [latitude, longitude] = focus ?? [];
+  useEffect(() => {
+    if (latitude !== undefined) map.setView([latitude, longitude], CITY_ZOOM);
+  }, [map, latitude, longitude]);
+  return null;
+}
+
+FocusCity.propTypes = {
+  // eslint-disable-next-line react/forbid-prop-types -- a plain [lat, lng] tuple or null
+  focus: PropTypes.array,
+};
+
 export default function LocationPicker({
   latitude = undefined,
   longitude = undefined,
+  cityFocus = null,
   onPick,
 }) {
   const { t } = useTranslation();
@@ -96,6 +116,7 @@ export default function LocationPicker({
         />
         <ClickToPlace onPick={onPick} />
         <RecenterOnChange position={position} />
+        {!position && <FocusCity focus={cityFocus} />}
         {position && <Marker position={position} />}
       </MapContainer>
     </div>
@@ -105,5 +126,7 @@ export default function LocationPicker({
 LocationPicker.propTypes = {
   latitude: PropTypes.number,
   longitude: PropTypes.number,
+  /** `[lat, lng]` of the chosen city, framed while no pin is placed. */
+  cityFocus: PropTypes.arrayOf(PropTypes.number),
   onPick: PropTypes.func.isRequired,
 };

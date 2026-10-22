@@ -40,7 +40,7 @@ export function createListingController(
         );
         res.status(201).json({
           success: true,
-          data: toListingResponse(listing),
+          data: toListingResponse(listing, { includePrivateAddress: true }),
           meta: null,
           error: null,
         });
@@ -64,7 +64,10 @@ export function createListingController(
         );
         res.status(200).json({
           success: true,
-          data: toListingResponse(listing, { includeModerationNotes }),
+          data: toListingResponse(listing, {
+            includeModerationNotes,
+            includePrivateAddress: includeModerationNotes,
+          }),
           meta: null,
           error: null,
         });
@@ -169,7 +172,7 @@ export function createListingController(
         );
         res.status(200).json({
           success: true,
-          data: toListingResponse(listing),
+          data: toListingResponse(listing, { includePrivateAddress: true }),
           meta: null,
           error: null,
         });
@@ -188,7 +191,7 @@ export function createListingController(
         );
         res.status(200).json({
           success: true,
-          data: toListingResponse(listing),
+          data: toListingResponse(listing, { includePrivateAddress: true }),
           meta: null,
           error: null,
         });
@@ -241,7 +244,7 @@ export function createListingController(
         });
         res.status(200).json({
           success: true,
-          data: toListingResponse(listing),
+          data: toListingResponse(listing, { includePrivateAddress: true }),
           meta: null,
           error: null,
         });
@@ -278,7 +281,7 @@ export function createListingController(
         );
         res.status(200).json({
           success: true,
-          data: toListingResponse(listing),
+          data: toListingResponse(listing, { includePrivateAddress: true }),
           meta: null,
           error: null,
         });
@@ -293,7 +296,7 @@ export function createListingController(
         const listing = await listingService.archiveListing(req.principal, id);
         res.status(200).json({
           success: true,
-          data: toListingResponse(listing),
+          data: toListingResponse(listing, { includePrivateAddress: true }),
           meta: null,
           error: null,
         });

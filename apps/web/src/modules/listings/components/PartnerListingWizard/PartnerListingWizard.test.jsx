@@ -49,11 +49,8 @@ vi.mock('./steps/AmenitiesStep.jsx', () => ({
 vi.mock('./steps/MediaStep.jsx', () => ({
   default: () => <div>MediaStep</div>,
 }));
-vi.mock('./steps/PricingStep.jsx', () => ({
-  default: () => <div>PricingStep</div>,
-}));
-vi.mock('./steps/AvailabilityStep.jsx', () => ({
-  default: () => <div>AvailabilityStep</div>,
+vi.mock('./steps/BookingStep.jsx', () => ({
+  default: () => <div>BookingStep</div>,
 }));
 vi.mock('./steps/PoliciesStep.jsx', async () => {
   const { useState } = await vi.importActual('react');
@@ -65,7 +62,9 @@ vi.mock('./steps/PoliciesStep.jsx', async () => {
   };
 });
 vi.mock('./steps/ContentStep.jsx', () => ({
-  default: () => <div>ContentStep</div>,
+  default: ({ showItinerary }) => (
+    <div>{`ContentStep itinerary=${showItinerary}`}</div>
+  ),
 }));
 vi.mock('./steps/ReviewStep.jsx', () => ({
   default: () => <div>ReviewStep</div>,
@@ -225,8 +224,51 @@ describe('PartnerListingWizard (orchestrator)', () => {
     useToast.mockReturnValue({ showToast: vi.fn() });
 
     renderWizard('/hy/partner/listings/new?listingId=7&step=content');
-    expect(screen.getByText('ContentStep')).toBeInTheDocument();
+    expect(screen.getByText(/^ContentStep/)).toBeInTheDocument();
   });
+
+  // Wizard rebuild (field-gap X4): only tours and attractions author an
+  // itinerary; a stay, a restaurant or a car never sees that section.
+  test.each([
+    ['TOUR', true],
+    ['ATTRACTION', true],
+    ['HOTEL', false],
+    ['PROPERTY', false],
+    ['RESTAURANT', false],
+    ['CAR_RENTAL', false],
+  ])(
+    'Guest information for a %s listing shows the itinerary: %s',
+    (listingType, shown) => {
+      useListingQuery.mockReturnValue({
+        data: { ...RESUMED_LISTING, listing_type: listingType },
+        isPending: false,
+      });
+      useListingMetadataQuery.mockReturnValue({ data: undefined });
+      useToast.mockReturnValue({ showToast: vi.fn() });
+
+      renderWizard('/hy/partner/listings/new?listingId=7&step=content');
+      expect(
+        screen.getByText(`ContentStep itinerary=${shown}`),
+      ).toBeInTheDocument();
+    },
+  );
+
+  // Pricing and Availability merged into Booking & pricing: an old
+  // bookmarked step URL lands on the merged step.
+  test.each(['booking', 'pricing', 'availability'])(
+    '?step=%s renders the Booking & pricing step',
+    (step) => {
+      useListingQuery.mockReturnValue({
+        data: { ...RESUMED_LISTING, listing_type: 'HOTEL' },
+        isPending: false,
+      });
+      useListingMetadataQuery.mockReturnValue({ data: undefined });
+      useToast.mockReturnValue({ showToast: vi.fn() });
+
+      renderWizard(`/hy/partner/listings/new?listingId=7&step=${step}`);
+      expect(screen.getByText('BookingStep')).toBeInTheDocument();
+    },
+  );
 
   // Step L2 (brief §5): a required-field legend explains the `*` marker
   // on every step except Category, which has no required-field markers
@@ -331,6 +373,6 @@ describe('PartnerListingWizard (orchestrator)', () => {
     useToast.mockReturnValue({ showToast: vi.fn() });
 
     renderWizard('/hy/partner/listings/new');
-    expect(screen.getByText('Քայլ 1 11-ից. Կատեգորիա')).toBeInTheDocument();
+    expect(screen.getByText('Քայլ 1 10-ից. Կատեգորիա')).toBeInTheDocument();
   });
 });

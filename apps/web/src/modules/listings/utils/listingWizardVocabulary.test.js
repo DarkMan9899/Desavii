@@ -24,6 +24,10 @@ import { fileURLToPath } from 'node:url';
  * migration adds a new attribute/policy/option/amenity group, add its
  * code here too; that's what turns "someone forgot the translation" into
  * a failing test instead of a silent raw-code leak in production.
+ *
+ * Partner Listing Wizard rebuild (docs/PARTNER_LISTING_WIZARD_FIELD_GAP.md
+ * §5): the new attributes, options, policies and the `km` unit from
+ * `seeds/006_search_filters.js` and `seeds/007_pricing_and_policies.js`.
  */
 
 const LOCALES_DIR = path.resolve(
@@ -32,29 +36,51 @@ const LOCALES_DIR = path.resolve(
 );
 
 const ATTRIBUTE_CODES = [
+  'attraction_type',
   'bathrooms',
   'bedrooms',
   'beds',
+  'body_type',
+  'check_in_method',
   'cuisine',
+  'daily_distance_limit_km',
+  'dietary_options',
   'difficulty',
+  'dining_style',
   'doors',
+  'dress_code',
+  'drive_type',
   'duration_minutes',
   'floor_area_sqm',
   'fuel_type',
   'languages_offered',
+  'languages_spoken',
   'luggage_capacity',
   'max_group_size',
   'max_guests',
   'meeting_point_type',
   'mileage_policy',
+  'min_age',
   'min_driver_age',
+  'min_group_size',
+  'min_license_years',
+  'pickup_details',
   'price_tier',
   'property_style',
+  'seating_capacity',
   'seats',
+  'setting',
+  'space_type',
   'star_rating',
   'total_rooms',
+  'tour_format',
   'transmission',
+  'vehicle_make',
+  'vehicle_model',
+  'vehicle_year',
+  'venue_type',
   'view_type',
+  'visit_format',
 ];
 
 const POLICY_CODES = [
@@ -62,6 +88,8 @@ const POLICY_CODES = [
   'check_in_time',
   'check_out_time',
   'children_allowed',
+  'fuel_policy',
+  'parties_allowed',
   'pets_allowed',
   'smoking_allowed',
 ];
@@ -91,20 +119,80 @@ const NUMERIC_UNITS = [
   'years',
   'doors',
   'seats',
+  'km',
+  'years_experience',
+];
+
+const LANGUAGE_OPTIONS = [
+  'AR',
+  'DE',
+  'EN',
+  'ES',
+  'FA',
+  'FR',
+  'HY',
+  'IT',
+  'RU',
+  'ZH',
 ];
 
 const ENUM_OPTIONS_BY_ATTRIBUTE = {
+  attraction_type: [
+    'GALLERY',
+    'HISTORIC_SITE',
+    'LANDMARK',
+    'MUSEUM',
+    'NATURE',
+    'PARK',
+    'RELIGIOUS_SITE',
+    'WINERY',
+  ],
+  body_type: [
+    'CONVERTIBLE',
+    'COUPE',
+    'HATCHBACK',
+    'MINIVAN',
+    'PICKUP',
+    'SEDAN',
+    'SUV',
+    'VAN',
+    'WAGON',
+  ],
+  check_in_method: ['IN_PERSON', 'SELF_CHECK_IN'],
   cuisine: [
+    'AMERICAN',
     'ARMENIAN',
     'ASIAN',
+    'CHINESE',
     'EUROPEAN',
+    'FRENCH',
+    'FUSION',
     'GEORGIAN',
+    'INDIAN',
     'ITALIAN',
+    'JAPANESE',
     'MEDITERRANEAN',
+    'MIDDLE_EASTERN',
+    'RUSSIAN',
+    'SEAFOOD',
+    'STEAKHOUSE',
   ],
+  dietary_options: ['GLUTEN_FREE', 'HALAL', 'KOSHER', 'VEGAN', 'VEGETARIAN'],
   difficulty: ['EASY', 'MODERATE', 'CHALLENGING'],
+  dining_style: [
+    'BISTRO',
+    'CAFE',
+    'CASUAL_DINING',
+    'FAST_CASUAL',
+    'FINE_DINING',
+    'PUB',
+    'WINE_BAR',
+  ],
+  dress_code: ['CASUAL', 'FORMAL', 'SMART_CASUAL'],
+  drive_type: ['ALL_WHEEL_DRIVE', 'TWO_WHEEL_DRIVE'],
   fuel_type: ['DIESEL', 'ELECTRIC', 'HYBRID', 'PETROL'],
-  languages_offered: ['EN', 'HY', 'RU'],
+  languages_offered: LANGUAGE_OPTIONS,
+  languages_spoken: LANGUAGE_OPTIONS,
   meeting_point_type: ['FIXED_LOCATION', 'HOTEL_PICKUP'],
   mileage_policy: ['LIMITED', 'UNLIMITED'],
   price_tier: ['$', '$$', '$$$', '$$$$'],
@@ -112,10 +200,26 @@ const ENUM_OPTIONS_BY_ATTRIBUTE = {
   star_rating: ['1', '2', '3', '4', '5'],
   transmission: ['AUTOMATIC', 'MANUAL'],
   view_type: ['CITY', 'GARDEN', 'MOUNTAIN', 'NONE', 'SEA'],
+  setting: ['INDOOR', 'MIXED', 'OUTDOOR'],
+  space_type: ['ENTIRE_PLACE', 'PRIVATE_ROOM', 'SHARED_ROOM'],
+  tour_format: ['PRIVATE', 'SHARED'],
+  venue_type: [
+    'ARCADE',
+    'BILLIARDS',
+    'BOWLING',
+    'CINEMA',
+    'CLUB',
+    'ESCAPE_ROOM',
+    'KARTING',
+    'THEATRE',
+    'VR_ARENA',
+  ],
+  visit_format: ['BOTH', 'GUIDED', 'SELF_GUIDED'],
 };
 
 const ENUM_OPTIONS_BY_POLICY = {
   cancellation_policy: ['FLEXIBLE', 'MODERATE', 'STRICT'],
+  fuel_policy: ['FULL_TO_FULL', 'SAME_TO_SAME'],
 };
 
 function loadLocale(locale) {

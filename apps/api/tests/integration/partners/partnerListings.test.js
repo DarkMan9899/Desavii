@@ -23,6 +23,7 @@ import {
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
 
 let admin;
 let vendor;
@@ -88,7 +89,11 @@ async function createListing({ partnerId, listingType, title, categorySlug }) {
     .patch(`/api/v1/listings/${listingId}`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)
     .send({
-      location: { latitude: 40.1772, longitude: 44.5035 },
+      location: {
+        cityId: YEREVAN_CITY_ID,
+        latitude: 40.1772,
+        longitude: 44.5035,
+      },
       ...(REQUIRED_POLICIES_BY_TYPE[listingType]
         ? { policyValues: REQUIRED_POLICIES_BY_TYPE[listingType] }
         : {}),

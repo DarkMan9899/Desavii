@@ -38,6 +38,13 @@ function toAttributeMetadata(row) {
       row.validation_max !== null ? Number(row.validation_max) : null,
     isMultiValued: Boolean(row.is_multi_valued),
     isRequired: Boolean(row.is_required),
+    // Migration 0055: the choice this attribute only applies after.
+    dependsOn: row.depends_on_attribute_code
+      ? {
+          attributeCode: row.depends_on_attribute_code,
+          optionCode: row.depends_on_option_code,
+        }
+      : null,
     options: [],
   };
 }
@@ -66,10 +73,13 @@ export class MySqlListingMetadataRepository {
       `SELECT
          ad.id, ad.code, adt.code AS data_type_code, ad.unit,
          ad.validation_min, ad.validation_max, ad.is_multi_valued,
-         ca.is_required, ca.sort_order
+         ca.is_required, ca.sort_order,
+         dad.code AS depends_on_attribute_code, dao.code AS depends_on_option_code
        FROM category_attributes ca
        JOIN attribute_definitions ad ON ad.id = ca.attribute_definition_id
        JOIN attribute_data_types adt ON adt.id = ad.data_type_id
+       LEFT JOIN attribute_definitions dad ON dad.id = ca.depends_on_attribute_definition_id
+       LEFT JOIN attribute_options dao ON dao.id = ca.depends_on_attribute_option_id
        WHERE ca.category_id = ?
        ORDER BY ca.sort_order ASC`,
       [categoryId],
@@ -103,6 +113,21 @@ export class MySqlListingMetadataRepository {
     return attributes.map((attribute) => ({
       ...attribute,
       options: optionsByAttributeId.get(attribute.id) ?? [],
+    }));
+  }
+
+  /**
+   * The category's attributes with their required/conditional rules —
+   * what a write or a publish check needs, without amenities or labels.
+   * @returns {Promise<Array<{id: number, code: string, isRequired: boolean, dependsOn: {attributeCode: string, optionCode: string} | null}>>}
+   */
+  async getCategoryAttributeRules(categoryId) {
+    const attributes = await this.#getAttributes(categoryId);
+    return attributes.map(({ id, code, isRequired, dependsOn }) => ({
+      id,
+      code,
+      isRequired,
+      dependsOn,
     }));
   }
 

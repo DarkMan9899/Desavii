@@ -22,6 +22,55 @@ ControlledStepper.propTypes = {
 };
 
 describe('NumberStepperField (PartnerListingWizard)', () => {
+  // A fact not given yet must not look given (e.g. "1990" for a car's year).
+  describe('unset value', () => {
+    function renderUnset(onChange = vi.fn()) {
+      render(
+        <NumberStepperField
+          label="Year"
+          decreaseAriaLabel="Decrease Year"
+          increaseAriaLabel="Increase Year"
+          min={1990}
+          max={2030}
+          value={undefined}
+          onChange={onChange}
+        />,
+      );
+      return onChange;
+    }
+
+    test('shows an empty field, not the minimum', () => {
+      renderUnset();
+      expect(screen.getByLabelText('Year')).toHaveValue(null);
+      expect(
+        screen.getByRole('button', { name: 'Decrease Year' }),
+      ).toBeDisabled();
+    });
+
+    test('+ starts at the minimum', async () => {
+      const user = userEvent.setup();
+      const onChange = renderUnset();
+      await user.click(screen.getByRole('button', { name: 'Increase Year' }));
+      expect(onChange).toHaveBeenCalledWith(1990);
+    });
+  });
+
+  test('clearing the field un-sets the value', () => {
+    const onChange = vi.fn();
+    render(
+      <NumberStepperField
+        label="Seats"
+        decreaseAriaLabel="Decrease Seats"
+        increaseAriaLabel="Increase Seats"
+        min={1}
+        value={4}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText('Seats'), { target: { value: '' } });
+    expect(onChange).toHaveBeenCalledWith(undefined);
+  });
+
   test('label is programmatically associated via htmlFor/id', () => {
     render(
       <ControlledStepper

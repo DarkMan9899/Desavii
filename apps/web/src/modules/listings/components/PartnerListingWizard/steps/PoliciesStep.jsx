@@ -11,13 +11,12 @@ import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
-import { Stack } from '@desavii/ui/components/layout';
 import { useListingMetadataQuery } from '../../../queries/useListingMetadataQuery.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
 import { toPolicyValuesPayload } from '../../../utils/policyValueMapping.js';
 import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import useApiFieldErrors from '../../../../../hooks/useApiFieldErrors.js';
-import MetadataFieldRenderer from '../MetadataFieldRenderer.jsx';
+import MetadataFieldGrid from '../MetadataFieldGrid.jsx';
 import WizardStepActions from '../WizardStepActions.jsx';
 
 export default function PoliciesStep({
@@ -105,21 +104,15 @@ export default function PoliciesStep({
         error={updateListingMutation.error}
         inlinePaths={policies.map((policy) => `policyValues.${policy.code}`)}
       />
-      <Stack gap="4">
-        {policies.map((policy) => (
-          <MetadataFieldRenderer
-            key={policy.code}
-            namespace="policies"
-            definition={policy}
-            value={values[policy.code]}
-            onChange={(value) => setFieldValue(policy.code, value)}
-            error={
-              validationErrors[policy.code] ??
-              fieldError(`policyValues.${policy.code}`)
-            }
-          />
-        ))}
-      </Stack>
+      <MetadataFieldGrid
+        namespace="policies"
+        definitions={policies}
+        values={values}
+        onChange={(code, value) => setFieldValue(code, value)}
+        errorFor={(code) =>
+          validationErrors[code] ?? fieldError(`policyValues.${code}`)
+        }
+      />
       <WizardStepActions
         onBack={onBack}
         onContinue={() => handleContinue()}

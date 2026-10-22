@@ -31,6 +31,7 @@ import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { toBusinessDateTime } from '../../../src/core/domain/bookingTimebase.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
 
 const UNIT_TYPE_BY_LISTING_TYPE = {
   HOTEL: 'HOTEL_ROOM',
@@ -466,7 +467,13 @@ describe('active holds keep the rules they were granted under', () => {
     await request(app)
       .patch(`/api/v1/listings/${listingId}`)
       .set('Authorization', `Bearer ${vendor}`)
-      .send({ location: { latitude: 40.1772, longitude: 44.5035 } });
+      .send({
+        location: {
+          cityId: YEREVAN_CITY_ID,
+          latitude: 40.1772,
+          longitude: 44.5035,
+        },
+      });
     await request(app)
       .post(`/api/v1/listings/${listingId}/media`)
       .set('Authorization', `Bearer ${vendor}`)

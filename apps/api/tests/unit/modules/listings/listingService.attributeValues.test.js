@@ -43,6 +43,7 @@ function buildService(dataTypeCode) {
       .mockResolvedValue({ id: 5, slug: 'x', categoryIds: [CATEGORY_ID] }),
     update: jest.fn(),
     replaceAttributeValues: jest.fn(),
+    deleteAttributeValues: jest.fn(),
   };
   const listingMetadataRepository = {
     getAttributeDefinitionsByCode: jest
@@ -55,6 +56,8 @@ function buildService(dataTypeCode) {
           ],
         ]),
       ),
+    // No conditional attributes in this category.
+    getCategoryAttributeRules: jest.fn().mockResolvedValue([]),
   };
   const service = new ListingService({
     listingRepository,

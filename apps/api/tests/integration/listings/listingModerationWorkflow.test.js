@@ -21,6 +21,7 @@ import {
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
 
 const ONE_PX_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
@@ -105,7 +106,13 @@ async function makePublishable(id, token = vendor.accessToken) {
   await request(app)
     .patch(`/api/v1/listings/${id}`)
     .set('Authorization', `Bearer ${token}`)
-    .send({ location: { latitude: 40.1772, longitude: 44.5035 } });
+    .send({
+      location: {
+        cityId: YEREVAN_CITY_ID,
+        latitude: 40.1772,
+        longitude: 44.5035,
+      },
+    });
   await request(app)
     .post(`/api/v1/listings/${id}/media`)
     .set('Authorization', `Bearer ${token}`)
@@ -561,7 +568,9 @@ describe('Edit policy during/after review (brief §12-14/§18, §29)', () => {
     const res = await request(app)
       .patch(`/api/v1/listings/${id}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .send({ location: { latitude: 40.1, longitude: 44.5 } });
+      .send({
+        location: { cityId: YEREVAN_CITY_ID, latitude: 40.1, longitude: 44.5 },
+      });
     expect(res.status).toBe(200);
   });
 
@@ -570,7 +579,9 @@ describe('Edit policy during/after review (brief §12-14/§18, §29)', () => {
     const res = await request(app)
       .patch(`/api/v1/listings/${id}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .send({ location: { latitude: 40.1, longitude: 44.5 } });
+      .send({
+        location: { cityId: YEREVAN_CITY_ID, latitude: 40.1, longitude: 44.5 },
+      });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('LISTING_UNDER_REVIEW');
 
@@ -583,7 +594,9 @@ describe('Edit policy during/after review (brief §12-14/§18, §29)', () => {
     const res = await request(app)
       .patch(`/api/v1/listings/${id}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .send({ location: { latitude: 40.1, longitude: 44.5 } });
+      .send({
+        location: { cityId: YEREVAN_CITY_ID, latitude: 40.1, longitude: 44.5 },
+      });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('LISTING_PUBLISHED_EDIT_BLOCKED');
 

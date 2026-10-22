@@ -1,0 +1,91 @@
+// Booking & pricing step sections — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-3;
+  padding-block: tokens.$space-6;
+  border-block-start: 1px solid tokens.$color-gray-200;
+
+  // The step intro above it already separates it from the heading.
+  &:first-of-type {
+    padding-block-start: tokens.$space-4;
+    border-block-start: 0;
+  }
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-body-large;
+  line-height: tokens.$line-height-body-large;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
+.sectionIntro {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+}
+
+// Model and amount side by side from the tablet width; currency joins
+// them on one row only from the laptop width, where its column is wide
+// enough for its placeholder.
+.priceRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: tokens.$space-4;
+
+  @include respond.respond(tablet) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  @include respond.respond(laptop) {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
+  }
+}
+
+.rulesGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: tokens.$space-4 tokens.$space-6;
+
+  @include respond.respond(tablet) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.blackouts {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: tokens.$space-3;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.blackoutPicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: tokens.$space-3;
+
+  > :first-child {
+    flex: 1 1 tokens.$space-24 * 3;
+    min-width: 0;
+  }
+}

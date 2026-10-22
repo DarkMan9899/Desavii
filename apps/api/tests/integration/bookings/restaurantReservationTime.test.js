@@ -25,6 +25,7 @@ import { closeRedisConnection } from '../../../src/infrastructure/cache/redisCli
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
 
 let admin;
 let vendor;
@@ -58,7 +59,13 @@ async function createRestaurantListing(title) {
   await request(app)
     .patch(`/api/v1/listings/${listingId}`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)
-    .send({ location: { latitude: 40.1772, longitude: 44.5035 } });
+    .send({
+      location: {
+        cityId: YEREVAN_CITY_ID,
+        latitude: 40.1772,
+        longitude: 44.5035,
+      },
+    });
   await request(app)
     .post(`/api/v1/listings/${listingId}/media`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)

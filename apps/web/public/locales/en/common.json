@@ -803,7 +803,10 @@
       "hourlyOutsideWindow": "These hours are outside the room’s hourly booking times.",
       "hourlyConfigIncomplete": "Required for hourly booking.",
       "hourlyDurationRangeInvalid": "The maximum can't be shorter than the minimum.",
-      "hourlyWindowInvalid": "\"Available until\" must be later than \"Available from\" and leave room for the minimum duration."
+      "hourlyWindowInvalid": "\"Available until\" must be later than \"Available from\" and leave room for the minimum duration.",
+      "CITY_REQUIRED": "Choose the listing's city before publishing.",
+      "unknownCity": "Choose a city from the list.",
+      "attributeNotApplicable": "This doesn't apply with the answer chosen above it."
     },
     "codes": {
       "PARTNER_NOT_VERIFIED": "Your company must be verified before it can create listings.",
@@ -1706,8 +1709,9 @@
         "pricing": "Pricing",
         "availability": "Availability",
         "policies": "Policies",
-        "content": "Content",
-        "review": "Review & Publish"
+        "content": "Guest information",
+        "review": "Review & Publish",
+        "booking": "Booking & pricing"
       },
       "validation": {
         "required": "This field is required.",
@@ -1854,7 +1858,19 @@
         "longitude": "Longitude",
         "mapHint": "Click the map to place a marker at your exact location.",
         "advancedToggle": "Enter coordinates manually",
-        "advancedHint": "Only needed if you already know the exact latitude and longitude — most Partners can just use the map above."
+        "advancedHint": "Only needed if you already know the exact latitude and longitude — most Partners can just use the map above.",
+        "intro": "Choose the city guests search for, then place the pin at the exact spot.",
+        "city": "City or town",
+        "cityPlaceholder": "Select a city",
+        "cityLoading": "Loading cities…",
+        "citySearch": "Search cities",
+        "cityNoMatch": "No city matches",
+        "cityRequired": "Choose the city the listing is in.",
+        "address": "Street address",
+        "addressHintPublic": "Shown to guests so they can find you.",
+        "addressHintPrivate": "Kept private. Guests see an approximate area until they book.",
+        "addressTooLong": "Keep the address under 255 characters.",
+        "privateStayNotice": "For guest privacy and yours, the public map shows an approximate area, not the exact pin."
       },
       "attributes": {
         "loading": "Loading details…",
@@ -1882,7 +1898,29 @@
         "min_driver_age": "Minimum driver age",
         "property_style": "Property style",
         "total_rooms": "Total rooms",
-        "view_type": "View"
+        "view_type": "View",
+        "languages_spoken": "Languages spoken by staff",
+        "space_type": "Type of place",
+        "check_in_method": "Check-in method",
+        "dietary_options": "Dietary options",
+        "dining_style": "Dining style",
+        "seating_capacity": "Seating capacity",
+        "dress_code": "Dress code",
+        "tour_format": "Tour format",
+        "min_age": "Minimum age",
+        "min_group_size": "Minimum group size",
+        "pickup_details": "Pickup details",
+        "vehicle_make": "Make",
+        "vehicle_model": "Model",
+        "vehicle_year": "Year",
+        "body_type": "Body type",
+        "drive_type": "Drive",
+        "daily_distance_limit_km": "Daily distance limit",
+        "min_license_years": "Minimum driving experience",
+        "attraction_type": "Type of attraction",
+        "visit_format": "Visit format",
+        "setting": "Indoor or outdoor",
+        "venue_type": "Type of venue"
       },
       "units": {
         "rooms": "rooms",
@@ -1914,7 +1952,13 @@
         "years_other": "years",
         "doors": "doors",
         "doors_one": "door",
-        "doors_other": "doors"
+        "doors_other": "doors",
+        "km": "km",
+        "km_one": "km",
+        "km_other": "km",
+        "years_experience": "years",
+        "years_experience_one": "year",
+        "years_experience_other": "years"
       },
       "amenities": {
         "loading": "Loading amenities…",
@@ -2103,7 +2147,9 @@
         "children_allowed": "Children allowed",
         "cancellation_policy": "Cancellation policy",
         "check_in_time": "Check-in time",
-        "check_out_time": "Check-out time"
+        "check_out_time": "Check-out time",
+        "parties_allowed": "Parties and events allowed",
+        "fuel_policy": "Fuel policy"
       },
       "options": {
         "cancellation_policy": {
@@ -2122,7 +2168,17 @@
           "EUROPEAN": "European",
           "GEORGIAN": "Georgian",
           "ITALIAN": "Italian",
-          "MEDITERRANEAN": "Mediterranean"
+          "MEDITERRANEAN": "Mediterranean",
+          "MIDDLE_EASTERN": "Middle Eastern",
+          "RUSSIAN": "Russian",
+          "FRENCH": "French",
+          "JAPANESE": "Japanese",
+          "CHINESE": "Chinese",
+          "INDIAN": "Indian",
+          "AMERICAN": "American",
+          "FUSION": "Fusion",
+          "SEAFOOD": "Seafood",
+          "STEAKHOUSE": "Steakhouse"
         },
         "transmission": {
           "AUTOMATIC": "Automatic",
@@ -2131,7 +2187,14 @@
         "languages_offered": {
           "EN": "English",
           "HY": "Armenian",
-          "RU": "Russian"
+          "RU": "Russian",
+          "FR": "French",
+          "DE": "German",
+          "IT": "Italian",
+          "ES": "Spanish",
+          "FA": "Persian",
+          "AR": "Arabic",
+          "ZH": "Chinese"
         },
         "fuel_type": {
           "DIESEL": "Diesel",
@@ -2172,6 +2235,102 @@
           "MOUNTAIN": "Mountain view",
           "NONE": "No view",
           "SEA": "Sea view"
+        },
+        "languages_spoken": {
+          "HY": "Armenian",
+          "RU": "Russian",
+          "EN": "English",
+          "FR": "French",
+          "DE": "German",
+          "IT": "Italian",
+          "ES": "Spanish",
+          "FA": "Persian",
+          "AR": "Arabic",
+          "ZH": "Chinese"
+        },
+        "space_type": {
+          "ENTIRE_PLACE": "Entire place",
+          "PRIVATE_ROOM": "Private room",
+          "SHARED_ROOM": "Shared room"
+        },
+        "check_in_method": {
+          "IN_PERSON": "Met in person",
+          "SELF_CHECK_IN": "Self check-in"
+        },
+        "dietary_options": {
+          "VEGETARIAN": "Vegetarian",
+          "VEGAN": "Vegan",
+          "GLUTEN_FREE": "Gluten-free",
+          "HALAL": "Halal",
+          "KOSHER": "Kosher"
+        },
+        "dining_style": {
+          "FINE_DINING": "Fine dining",
+          "CASUAL_DINING": "Casual dining",
+          "CAFE": "Café",
+          "BISTRO": "Bistro",
+          "WINE_BAR": "Wine bar",
+          "PUB": "Pub",
+          "FAST_CASUAL": "Fast casual"
+        },
+        "dress_code": {
+          "CASUAL": "Casual",
+          "SMART_CASUAL": "Smart casual",
+          "FORMAL": "Formal"
+        },
+        "tour_format": {
+          "PRIVATE": "Private",
+          "SHARED": "Small group"
+        },
+        "body_type": {
+          "SEDAN": "Sedan",
+          "HATCHBACK": "Hatchback",
+          "SUV": "SUV",
+          "MINIVAN": "Minivan",
+          "VAN": "Van",
+          "PICKUP": "Pickup",
+          "COUPE": "Coupé",
+          "CONVERTIBLE": "Convertible",
+          "WAGON": "Estate"
+        },
+        "drive_type": {
+          "TWO_WHEEL_DRIVE": "Two-wheel drive",
+          "ALL_WHEEL_DRIVE": "All-wheel drive"
+        },
+        "attraction_type": {
+          "MUSEUM": "Museum",
+          "HISTORIC_SITE": "Historic site",
+          "RELIGIOUS_SITE": "Religious site",
+          "NATURE": "Nature",
+          "PARK": "Park",
+          "GALLERY": "Gallery",
+          "LANDMARK": "Landmark",
+          "WINERY": "Winery"
+        },
+        "visit_format": {
+          "GUIDED": "Guided",
+          "SELF_GUIDED": "Self-guided",
+          "BOTH": "Guided or self-guided"
+        },
+        "setting": {
+          "INDOOR": "Indoor",
+          "OUTDOOR": "Outdoor",
+          "MIXED": "Indoor and outdoor"
+        },
+        "venue_type": {
+          "ESCAPE_ROOM": "Escape room",
+          "BOWLING": "Bowling",
+          "VR_ARENA": "VR arena",
+          "KARTING": "Karting",
+          "ARCADE": "Arcade",
+          "BILLIARDS": "Billiards",
+          "THEATRE": "Theatre",
+          "CINEMA": "Cinema",
+          "CLUB": "Club"
+        },
+        "fuel_policy": {
+          "FULL_TO_FULL": "Full to full",
+          "SAME_TO_SAME": "Same to same"
         }
       },
       "review": {
@@ -2321,6 +2480,11 @@
         "HALF_BOARD": "Half board (breakfast and dinner)",
         "FULL_BOARD": "Full board (breakfast, lunch and dinner)",
         "ALL_INCLUSIVE": "All inclusive"
+      },
+      "booking": {
+        "intro": "Set up what guests book, the default price and the booking rules.",
+        "defaultPrice": "Default price",
+        "blackoutIntro": "Dates when nothing can be booked, such as a seasonal closure or renovation."
       }
     },
     "listingRooms": {

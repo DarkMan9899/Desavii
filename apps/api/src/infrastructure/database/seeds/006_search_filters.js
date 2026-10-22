@@ -118,12 +118,23 @@ async function upsertCategoryAttribute(
   categoryId,
   attributeDefinitionId,
   sortOrder,
+  { dependsOnDefinitionId = null, dependsOnOptionId = null } = {},
 ) {
   await connection.query(
-    `INSERT INTO category_attributes (category_id, attribute_definition_id, sort_order)
-     VALUES (?, ?, ?)
-     ON DUPLICATE KEY UPDATE sort_order = VALUES(sort_order)`,
-    [categoryId, attributeDefinitionId, sortOrder],
+    `INSERT INTO category_attributes
+       (category_id, attribute_definition_id, sort_order,
+        depends_on_attribute_definition_id, depends_on_attribute_option_id)
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE sort_order = VALUES(sort_order),
+       depends_on_attribute_definition_id = VALUES(depends_on_attribute_definition_id),
+       depends_on_attribute_option_id = VALUES(depends_on_attribute_option_id)`,
+    [
+      categoryId,
+      attributeDefinitionId,
+      sortOrder,
+      dependsOnDefinitionId,
+      dependsOnOptionId,
+    ],
   );
 }
 
@@ -289,6 +300,27 @@ const AMENITIES = [
   ['Toiletries', 'IN_ROOM'],
   ['Step-free Access', 'ACCESSIBILITY_SAFETY'],
   ['Accessible Bathroom', 'ACCESSIBILITY_SAFETY'],
+  // Partner Listing Wizard rebuild (docs/PARTNER_LISTING_WIZARD_FIELD_GAP.md
+  // §4) — services and equipment guests compare on, per category.
+  ['24-hour Front Desk', 'FOOD_SERVICE'],
+  ['Restaurant', 'DINING'],
+  ['Bar', 'DINING'],
+  ['Room Service', 'FOOD_SERVICE'],
+  ['Luggage Storage', 'FOOD_SERVICE'],
+  ['Spa', 'WELLNESS'],
+  ['Laundry Service', 'KITCHEN_LAUNDRY'],
+  ['Dedicated Workspace', 'CONNECTIVITY'],
+  ['Dishwasher', 'KITCHEN_LAUNDRY'],
+  ['Private Dining Room', 'DINING'],
+  ['Takeaway', 'DINING'],
+  ['Kids Menu', 'FAMILY_PETS'],
+  ['High Chairs', 'FAMILY_PETS'],
+  ['GPS Navigation', 'CONNECTIVITY'],
+  ['Bluetooth Audio', 'CONNECTIVITY'],
+  ['Child Seat', 'FAMILY_PETS'],
+  ['Winter Tyres', 'ACCESSIBILITY_SAFETY'],
+  ['Café', 'FOOD_SERVICE'],
+  ['Lockers', 'ACCESSIBILITY_SAFETY'],
 ];
 
 // Feeds listing_amenity_translations, which mysqlListingMetadataRepository's
@@ -298,6 +330,81 @@ const AMENITIES = [
 // (amenities have no stable code, only this free-text `name`).
 const AMENITY_TRANSLATIONS = {
   WiFi: { en: 'WiFi', hy: 'Վայ-ֆայ', ru: 'Wi-Fi' },
+  '24-hour Front Desk': {
+    en: '24-hour front desk',
+    hy: 'Շուրջօրյա ընդունարան',
+    ru: 'Круглосуточная стойка регистрации',
+  },
+  Restaurant: { en: 'Restaurant', hy: 'Ռեստորան', ru: 'Ресторан' },
+  Bar: { en: 'Bar', hy: 'Բար', ru: 'Бар' },
+  'Room Service': {
+    en: 'Room service',
+    hy: 'Սենյակային սպասարկում',
+    ru: 'Обслуживание номеров',
+  },
+  'Luggage Storage': {
+    en: 'Luggage storage',
+    hy: 'Ուղեբեռի պահպանում',
+    ru: 'Хранение багажа',
+  },
+  Spa: { en: 'Spa', hy: 'Սպա', ru: 'Спа' },
+  'Laundry Service': {
+    en: 'Laundry service',
+    hy: 'Լվացքի ծառայություն',
+    ru: 'Услуги прачечной',
+  },
+  'Dedicated Workspace': {
+    en: 'Dedicated workspace',
+    hy: 'Աշխատանքային տարածք',
+    ru: 'Рабочее место',
+  },
+  Dishwasher: {
+    en: 'Dishwasher',
+    hy: 'Աման լվացող մեքենա',
+    ru: 'Посудомоечная машина',
+  },
+  'Private Dining Room': {
+    en: 'Private dining room',
+    hy: 'Առանձնասենյակ',
+    ru: 'Отдельный зал',
+  },
+  Takeaway: { en: 'Takeaway', hy: 'Տանելու պատվեր', ru: 'Еда навынос' },
+  'Kids Menu': {
+    en: 'Kids menu',
+    hy: 'Մանկական ճաշացանկ',
+    ru: 'Детское меню',
+  },
+  'High Chairs': {
+    en: 'High chairs',
+    hy: 'Մանկական աթոռներ',
+    ru: 'Детские стульчики',
+  },
+  'GPS Navigation': {
+    en: 'GPS navigation',
+    hy: 'GPS նավիգացիա',
+    ru: 'GPS-навигация',
+  },
+  'Bluetooth Audio': {
+    en: 'Bluetooth audio',
+    hy: 'Bluetooth աուդիո',
+    ru: 'Bluetooth-аудио',
+  },
+  'Child Seat': {
+    en: 'Child seat available',
+    hy: 'Մանկական նստատեղ',
+    ru: 'Детское кресло',
+  },
+  'Winter Tyres': {
+    en: 'Winter tyres',
+    hy: 'Ձմեռային անվադողեր',
+    ru: 'Зимние шины',
+  },
+  Café: { en: 'Café', hy: 'Սրճարան', ru: 'Кафе' },
+  Lockers: {
+    en: 'Lockers',
+    hy: 'Պահարաններ',
+    ru: 'Шкафчики для вещей',
+  },
   Parking: { en: 'Parking', hy: 'Ավտոկայանատեղի', ru: 'Парковка' },
   Pool: { en: 'Pool', hy: 'Լողավազան', ru: 'Бассейн' },
   'Air Conditioning': {
@@ -467,6 +574,55 @@ const ATTRIBUTE_DEFINITIONS = [
     max: 99,
   },
   { code: 'mileage_policy', dataType: 'ENUM' },
+  // Partner Listing Wizard rebuild — field-gap matrix
+  // (docs/PARTNER_LISTING_WIZARD_FIELD_GAP.md §5). Every one optional.
+  { code: 'languages_spoken', dataType: 'MULTI_ENUM', multi: true },
+  { code: 'space_type', dataType: 'ENUM' },
+  { code: 'check_in_method', dataType: 'ENUM' },
+  { code: 'dietary_options', dataType: 'MULTI_ENUM', multi: true },
+  { code: 'dining_style', dataType: 'ENUM' },
+  {
+    code: 'seating_capacity',
+    dataType: 'INTEGER',
+    unit: 'seats',
+    min: 1,
+    max: 2000,
+  },
+  { code: 'dress_code', dataType: 'ENUM' },
+  { code: 'tour_format', dataType: 'ENUM' },
+  { code: 'min_age', dataType: 'INTEGER', unit: 'years', min: 1, max: 21 },
+  {
+    code: 'min_group_size',
+    dataType: 'INTEGER',
+    unit: 'people',
+    min: 1,
+    max: 50,
+  },
+  { code: 'pickup_details', dataType: 'STRING' },
+  { code: 'vehicle_make', dataType: 'STRING' },
+  { code: 'vehicle_model', dataType: 'STRING' },
+  { code: 'vehicle_year', dataType: 'INTEGER', min: 1990, max: 2030 },
+  { code: 'body_type', dataType: 'ENUM' },
+  { code: 'drive_type', dataType: 'ENUM' },
+  {
+    code: 'daily_distance_limit_km',
+    dataType: 'INTEGER',
+    unit: 'km',
+    min: 10,
+    max: 2000,
+  },
+  {
+    // A duration ("3 years of driving"), not an age: HY words them apart.
+    code: 'min_license_years',
+    dataType: 'INTEGER',
+    unit: 'years_experience',
+    min: 1,
+    max: 20,
+  },
+  { code: 'attraction_type', dataType: 'ENUM' },
+  { code: 'visit_format', dataType: 'ENUM' },
+  { code: 'setting', dataType: 'ENUM' },
+  { code: 'venue_type', dataType: 'ENUM' },
 ];
 
 const ATTRIBUTE_OPTIONS = {
@@ -479,67 +635,182 @@ const ATTRIBUTE_OPTIONS = {
     'MEDITERRANEAN',
     'EUROPEAN',
     'ASIAN',
+    'MIDDLE_EASTERN',
+    'RUSSIAN',
+    'FRENCH',
+    'JAPANESE',
+    'CHINESE',
+    'INDIAN',
+    'AMERICAN',
+    'FUSION',
+    'SEAFOOD',
+    'STEAKHOUSE',
   ],
   difficulty: ['EASY', 'MODERATE', 'CHALLENGING'],
   transmission: ['MANUAL', 'AUTOMATIC'],
   property_style: ['BOUTIQUE', 'BUSINESS', 'RESORT', 'BUDGET'],
   view_type: ['SEA', 'MOUNTAIN', 'CITY', 'GARDEN', 'NONE'],
-  languages_offered: ['EN', 'HY', 'RU'],
+  languages_offered: [
+    'EN',
+    'HY',
+    'RU',
+    'FR',
+    'DE',
+    'IT',
+    'ES',
+    'FA',
+    'AR',
+    'ZH',
+  ],
   meeting_point_type: ['HOTEL_PICKUP', 'FIXED_LOCATION'],
   fuel_type: ['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID'],
   mileage_policy: ['UNLIMITED', 'LIMITED'],
+  languages_spoken: [
+    'HY',
+    'RU',
+    'EN',
+    'FR',
+    'DE',
+    'IT',
+    'ES',
+    'FA',
+    'AR',
+    'ZH',
+  ],
+  space_type: ['ENTIRE_PLACE', 'PRIVATE_ROOM', 'SHARED_ROOM'],
+  check_in_method: ['IN_PERSON', 'SELF_CHECK_IN'],
+  dietary_options: ['VEGETARIAN', 'VEGAN', 'GLUTEN_FREE', 'HALAL', 'KOSHER'],
+  dining_style: [
+    'FINE_DINING',
+    'CASUAL_DINING',
+    'CAFE',
+    'BISTRO',
+    'WINE_BAR',
+    'PUB',
+    'FAST_CASUAL',
+  ],
+  dress_code: ['CASUAL', 'SMART_CASUAL', 'FORMAL'],
+  tour_format: ['PRIVATE', 'SHARED'],
+  body_type: [
+    'SEDAN',
+    'HATCHBACK',
+    'SUV',
+    'MINIVAN',
+    'VAN',
+    'PICKUP',
+    'COUPE',
+    'CONVERTIBLE',
+    'WAGON',
+  ],
+  drive_type: ['TWO_WHEEL_DRIVE', 'ALL_WHEEL_DRIVE'],
+  attraction_type: [
+    'MUSEUM',
+    'HISTORIC_SITE',
+    'RELIGIOUS_SITE',
+    'NATURE',
+    'PARK',
+    'GALLERY',
+    'LANDMARK',
+    'WINERY',
+  ],
+  visit_format: ['GUIDED', 'SELF_GUIDED', 'BOTH'],
+  setting: ['INDOOR', 'OUTDOOR', 'MIXED'],
+  venue_type: [
+    'ESCAPE_ROOM',
+    'BOWLING',
+    'VR_ARENA',
+    'KARTING',
+    'ARCADE',
+    'BILLIARDS',
+    'THEATRE',
+    'CINEMA',
+    'CLUB',
+  ],
 };
 
+// category slug -> attributes in Wizard order. An entry is a code, or
+// `{ code, dependsOn: { attribute, option } }` for a fact that only applies
+// after another choice (migration 0055): the Wizard shows it, the API
+// accepts it and publish readiness asks for it only while the controlling
+// attribute holds that option.
+const PROPERTY_ATTRIBUTES = [
+  'space_type',
+  'bedrooms',
+  'bathrooms',
+  'beds',
+  'max_guests',
+  'view_type',
+  'floor_area_sqm',
+  'check_in_method',
+  'languages_spoken',
+];
+
 const CATEGORY_ATTRIBUTES = {
-  hotels: ['star_rating', 'property_style', 'total_rooms'],
-  apartments: [
-    'bedrooms',
-    'bathrooms',
-    'beds',
-    'max_guests',
-    'view_type',
-    'floor_area_sqm',
+  hotels: ['star_rating', 'property_style', 'total_rooms', 'languages_spoken'],
+  apartments: PROPERTY_ATTRIBUTES,
+  villas: PROPERTY_ATTRIBUTES,
+  'guest-houses': PROPERTY_ATTRIBUTES,
+  restaurants: [
+    'cuisine',
+    'dining_style',
+    'price_tier',
+    'dietary_options',
+    'seating_capacity',
+    'dress_code',
   ],
-  villas: [
-    'bedrooms',
-    'bathrooms',
-    'beds',
-    'max_guests',
-    'view_type',
-    'floor_area_sqm',
-  ],
-  'guest-houses': [
-    'bedrooms',
-    'bathrooms',
-    'beds',
-    'max_guests',
-    'view_type',
-    'floor_area_sqm',
-  ],
-  restaurants: ['cuisine', 'price_tier'],
   tours: [
+    'tour_format',
     'duration_minutes',
     'difficulty',
+    'min_group_size',
     'max_group_size',
+    'min_age',
     'languages_offered',
     'meeting_point_type',
+    {
+      code: 'pickup_details',
+      dependsOn: { attribute: 'meeting_point_type', option: 'HOTEL_PICKUP' },
+    },
   ],
   'car-rentals': [
+    'vehicle_make',
+    'vehicle_model',
+    'vehicle_year',
+    'body_type',
     'transmission',
-    'seats',
+    'drive_type',
     'fuel_type',
+    'seats',
     'doors',
     'luggage_capacity',
     'min_driver_age',
+    'min_license_years',
     'mileage_policy',
+    {
+      code: 'daily_distance_limit_km',
+      dependsOn: { attribute: 'mileage_policy', option: 'LIMITED' },
+    },
   ],
-  attractions: ['duration_minutes', 'languages_offered', 'max_group_size'],
-  // Sprint I: reuses the same attribute definitions Attractions already
-  // uses (an escape room/VR session/bowling lane is the same "scheduled,
-  // capacity-limited experience" shape) — no new attribute_definitions
-  // row. `languages_offered` is dropped: most entertainment venues run a
-  // fixed-language activity, not a guided tour.
-  'entertainment-venues': ['duration_minutes', 'max_group_size'],
+  attractions: [
+    'attraction_type',
+    'visit_format',
+    'setting',
+    'duration_minutes',
+    'min_age',
+    'languages_offered',
+    'max_group_size',
+  ],
+  // Sprint I reused the Attractions shape for entertainment venues; the
+  // Wizard rebuild gives them their own type and, since escape rooms and
+  // shows run in a language, `languages_offered` too.
+  'entertainment-venues': [
+    'venue_type',
+    'setting',
+    'duration_minutes',
+    'min_age',
+    'languages_offered',
+    'max_group_size',
+  ],
 };
 
 const CATEGORY_AMENITIES = {
@@ -587,6 +858,14 @@ const CATEGORY_AMENITIES = {
     // Step L6.1 (locked product decision) — a hotel can accept pets like
     // every other accommodation category already can.
     'Pet Friendly',
+    // Wizard rebuild — the hotel services guests compare on.
+    '24-hour Front Desk',
+    'Restaurant',
+    'Bar',
+    'Room Service',
+    'Luggage Storage',
+    'Spa',
+    'Laundry Service',
   ],
   apartments: [
     'WiFi',
@@ -603,6 +882,14 @@ const CATEGORY_AMENITIES = {
     'Pool',
     'Breakfast Included',
     'Airport Shuttle',
+    // Wizard rebuild — home comforts of a whole-home stay.
+    'Dedicated Workspace',
+    'TV',
+    'Heating',
+    'Dishwasher',
+    'Hair Dryer',
+    'Iron',
+    'Balcony',
   ],
   villas: [
     'WiFi',
@@ -620,6 +907,11 @@ const CATEGORY_AMENITIES = {
     'Family Friendly',
     'Pet Friendly',
     'EV Charger',
+    'Dedicated Workspace',
+    'TV',
+    'Heating',
+    'Dishwasher',
+    'Washing Machine',
   ],
   'guest-houses': [
     'WiFi',
@@ -630,6 +922,9 @@ const CATEGORY_AMENITIES = {
     'Family Friendly',
     'Pet Friendly',
     'Air Conditioning',
+    'TV',
+    'Heating',
+    'Hair Dryer',
   ],
   restaurants: [
     'WiFi',
@@ -640,9 +935,21 @@ const CATEGORY_AMENITIES = {
     'Non-Smoking Rooms',
     'Family Friendly',
     'Wheelchair Accessible',
+    'Private Dining Room',
+    'Takeaway',
+    'Kids Menu',
+    'High Chairs',
+    'Bar',
   ],
   tours: ['Family Friendly', 'Wheelchair Accessible'],
-  'car-rentals': ['EV Charger', 'Air Conditioning'],
+  'car-rentals': [
+    'EV Charger',
+    'Air Conditioning',
+    'GPS Navigation',
+    'Bluetooth Audio',
+    'Child Seat',
+    'Winter Tyres',
+  ],
   // Step L6.1 (locked product decision): WiFi and Air Conditioning added
   // for Attractions; Entertainment Venues below gains WiFi (it already
   // had Air Conditioning).
@@ -652,6 +959,8 @@ const CATEGORY_AMENITIES = {
     'Parking',
     'WiFi',
     'Air Conditioning',
+    'Café',
+    'Lockers',
   ],
   // Sprint I: same amenity set as Attractions plus Air Conditioning —
   // most entertainment venues (escape rooms, VR/gaming centers, bowling)
@@ -662,6 +971,8 @@ const CATEGORY_AMENITIES = {
     'Parking',
     'Air Conditioning',
     'WiFi',
+    'Café',
+    'Lockers',
   ],
 };
 
@@ -703,6 +1014,12 @@ const FILTER_DEFINITIONS = [
     sortOrder: 1,
   }),
   attributeFilter('view_type', 'PROPERTY', 'MULTI_SELECT', { sortOrder: 2 }),
+  // Wizard rebuild: whole place vs. a room is the first thing a stay
+  // search narrows by.
+  attributeFilter('space_type', 'PROPERTY', 'MULTI_SELECT', {
+    sortOrder: 0,
+    isAdvanced: false,
+  }),
   attributeFilter('floor_area_sqm', 'PROPERTY', 'RANGE', {
     unit: 'sqm',
     sortOrder: 3,
@@ -715,6 +1032,10 @@ const FILTER_DEFINITIONS = [
     sortOrder: 2,
     isAdvanced: false,
   }),
+  attributeFilter('dietary_options', 'DINING', 'MULTI_SELECT', {
+    sortOrder: 3,
+  }),
+  attributeFilter('dining_style', 'DINING', 'MULTI_SELECT', { sortOrder: 4 }),
   attributeFilter('duration_minutes', 'EXPERIENCE', 'RANGE', {
     unit: 'minutes',
     sortOrder: 1,
@@ -733,6 +1054,19 @@ const FILTER_DEFINITIONS = [
   }),
   attributeFilter('meeting_point_type', 'EXPERIENCE', 'MULTI_SELECT', {
     sortOrder: 5,
+  }),
+  attributeFilter('tour_format', 'EXPERIENCE', 'SINGLE_SELECT', {
+    sortOrder: 6,
+  }),
+  // The kind of place is how attractions and venues are browsed — a quick
+  // filter wherever some listing carries it.
+  attributeFilter('attraction_type', 'EXPERIENCE', 'MULTI_SELECT', {
+    sortOrder: 0,
+    isAdvanced: false,
+  }),
+  attributeFilter('venue_type', 'EXPERIENCE', 'MULTI_SELECT', {
+    sortOrder: 0,
+    isAdvanced: false,
   }),
   attributeFilter('transmission', 'VEHICLE', 'SINGLE_SELECT', {
     sortOrder: 1,
@@ -758,6 +1092,8 @@ const FILTER_DEFINITIONS = [
   attributeFilter('mileage_policy', 'VEHICLE', 'SINGLE_SELECT', {
     sortOrder: 6,
   }),
+  attributeFilter('body_type', 'VEHICLE', 'MULTI_SELECT', { sortOrder: 8 }),
+  attributeFilter('drive_type', 'VEHICLE', 'SINGLE_SELECT', { sortOrder: 9 }),
   // A RANGE so a younger driver can cap it: "minimum driver age up to 21"
   // keeps only cars that rent to them (`attr_min_driver_age_max=21`).
   attributeFilter('min_driver_age', 'VEHICLE', 'RANGE', {
@@ -897,15 +1233,28 @@ export default async function seedSearchFilters(connection) {
     // eslint-disable-next-line no-await-in-loop -- sequential by design
     const categoryId = await upsertCategoryBySlug(connection, categorySlug);
     // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order
-    for (const [index, attributeCode] of attributeCodes.entries()) {
-      const attributeDefinitionId =
-        attributeDefinitionIdsByCode.get(attributeCode);
+    for (const [index, entry] of attributeCodes.entries()) {
+      const { code, dependsOn } =
+        typeof entry === 'string' ? { code: entry } : entry;
+      const condition = {};
+      if (dependsOn) {
+        condition.dependsOnDefinitionId = attributeDefinitionIdsByCode.get(
+          dependsOn.attribute,
+        );
+        // eslint-disable-next-line no-await-in-loop -- sequential by design
+        const [[option]] = await connection.query(
+          'SELECT id FROM attribute_options WHERE attribute_definition_id = ? AND code = ?',
+          [condition.dependsOnDefinitionId, dependsOn.option],
+        );
+        condition.dependsOnOptionId = option.id;
+      }
       // eslint-disable-next-line no-await-in-loop -- sequential by design
       await upsertCategoryAttribute(
         connection,
         categoryId,
-        attributeDefinitionId,
+        attributeDefinitionIdsByCode.get(code),
         index,
+        condition,
       );
     }
   }

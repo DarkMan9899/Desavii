@@ -23,6 +23,7 @@ import {
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
 
 const ONE_PX_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
@@ -88,7 +89,14 @@ async function createPublishableVenue() {
   const patchRes = await request(app)
     .patch(`/api/v1/listings/${listingId}`)
     .set('Authorization', `Bearer ${vendor}`)
-    .send({ location: { latitude: 40.1872, longitude: 44.5152 } });
+    .send({
+      location: {
+        cityId: YEREVAN_CITY_ID,
+        latitude: 40.1872,
+        longitude: 44.5152,
+      },
+      policyValues: [{ code: 'cancellation_policy', value: 'FLEXIBLE' }],
+    });
   expect(patchRes.status).toBe(200);
   await request(app)
     .post(`/api/v1/listings/${listingId}/media`)

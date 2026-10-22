@@ -56,7 +56,7 @@ test.describe('Partner Listing Wizard — mobile/responsive (CategoryStep + Wiza
 
     // The wizard progress bar states the current step in full,
     // regardless of whether the step row itself needs to scroll.
-    await expect(page.getByText('Step 1 of 11: Category')).toBeVisible();
+    await expect(page.getByText('Step 1 of 10: Category')).toBeVisible();
 
     // The category picker itself is genuinely usable: selecting an
     // option enables Continue.

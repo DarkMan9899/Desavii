@@ -137,8 +137,8 @@ describe('useListingWizardState (PartnerListingWizard)', () => {
   });
 
   test('resuming a draft deep-linked at a later step (?listingId=&step=) marks earlier steps completed', () => {
-    renderHarness('/hy/partner/listings/new?listingId=7&step=pricing');
-    expect(screen.getByTestId('step')).toHaveTextContent('pricing');
+    renderHarness('/hy/partner/listings/new?listingId=7&step=booking');
+    expect(screen.getByTestId('step')).toHaveTextContent('booking');
     const completed = screen.getByTestId('completed').textContent.split(',');
     expect(completed).toEqual(
       expect.arrayContaining([
@@ -151,6 +151,16 @@ describe('useListingWizardState (PartnerListingWizard)', () => {
       ]),
     );
   });
+
+  // The Wizard rebuild merged Pricing and Availability into Booking &
+  // pricing: a bookmarked or in-flight draft URL still lands on it.
+  test.each(['pricing', 'availability'])(
+    'a legacy ?step=%s deep link resumes at the merged booking step',
+    (legacyStep) => {
+      renderHarness(`/hy/partner/listings/new?listingId=7&step=${legacyStep}`);
+      expect(screen.getByTestId('step')).toHaveTextContent('booking');
+    },
+  );
 
   test('goToStep jumps directly to a given step', async () => {
     const user = userEvent.setup();

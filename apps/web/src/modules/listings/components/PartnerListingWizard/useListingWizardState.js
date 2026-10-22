@@ -45,7 +45,7 @@ import { useSearchParams } from 'react-router-dom';
 import { SUPPORTED_LOCALES } from '../../../../translations/i18n.js';
 import { DEFAULT_CONTENT_LOCALE } from '../../utils/getLocalizedItems.js';
 import { DEFAULT_PUBLICATION_PERIOD_DAYS } from '../../constants/publicationPeriod.js';
-import { WIZARD_STEPS } from './wizardSteps.js';
+import { LEGACY_STEP_IDS, WIZARD_STEPS } from './wizardSteps.js';
 
 export function useListingWizardState() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -95,7 +95,8 @@ export function useListingWizardState() {
     [searchParams, setSearchParams],
   );
 
-  const stepParam = searchParams.get('step');
+  const rawStepParam = searchParams.get('step');
+  const stepParam = LEGACY_STEP_IDS[rawStepParam] ?? rawStepParam;
   const currentStepId = WIZARD_STEPS.some((step) => step.id === stepParam)
     ? stepParam
     : WIZARD_STEPS[0].id;

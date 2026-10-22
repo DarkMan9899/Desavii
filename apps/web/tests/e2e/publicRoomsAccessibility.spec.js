@@ -16,6 +16,7 @@
 
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, request as playwrightRequest } from './fixtures.js';
+import { YEREVAN_CITY_ID } from './seededCities.js';
 
 test.use({ reducedMotion: 'reduce' });
 
@@ -135,7 +136,13 @@ async function createStayAwareHotel() {
 
   await ctx.patch(`listings/${listing.id}`, {
     headers: authHeaders,
-    data: { location: { latitude: 40.1772, longitude: 44.5035 } },
+    data: {
+      location: {
+        cityId: YEREVAN_CITY_ID,
+        latitude: 40.1772,
+        longitude: 44.5035,
+      },
+    },
   });
   await ctx.post(`listings/${listing.id}/media`, {
     headers: { ...authHeaders, 'Content-Type': 'image/png' },

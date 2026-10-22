@@ -51,6 +51,24 @@ describe('ListingLocationSection (Listing Details)', () => {
     ).not.toBeInTheDocument();
   });
 
+  test('leads with the street address when the API sends one (a public venue)', () => {
+    render(
+      <ListingLocationSection
+        location={{
+          address_line: '12 Charents St',
+          city_name: 'Garni',
+          country_name: 'Armenia',
+          latitude: null,
+          longitude: null,
+        }}
+        title="Garni Tavern"
+      />,
+    );
+    expect(
+      screen.getByText('12 Charents St, Garni, Armenia'),
+    ).toBeInTheDocument();
+  });
+
   test('renders the map when coordinates are present (ListingMap is lazy-loaded)', async () => {
     render(
       <ListingLocationSection

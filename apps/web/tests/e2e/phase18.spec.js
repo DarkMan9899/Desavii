@@ -179,7 +179,9 @@ test.describe('Phase 18.10 — Partner Content editor', () => {
       `/en/partner/listings/new?listingId=${tourId}&step=content`,
     );
 
-    await expect(page.getByRole('heading', { name: 'Content' })).toBeVisible({
+    await expect(
+      page.getByRole('heading', { name: 'Guest information' }),
+    ).toBeVisible({
       timeout: 10_000,
     });
 

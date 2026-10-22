@@ -56,8 +56,11 @@ describe('GET /listings/metadata', () => {
       'bathrooms',
       'bedrooms',
       'beds',
+      'check_in_method',
       'floor_area_sqm',
+      'languages_spoken',
       'max_guests',
+      'space_type',
       'view_type',
     ]);
     // Phase 18 added `view_type` (ENUM) alongside the original room-count
@@ -96,6 +99,7 @@ describe('GET /listings/metadata', () => {
       'check_in_time',
       'check_out_time',
       'children_allowed',
+      'parties_allowed',
       'pets_allowed',
       'smoking_allowed',
     ]);
@@ -124,6 +128,10 @@ describe('GET /listings/metadata', () => {
       'languages_offered',
       'max_group_size',
       'meeting_point_type',
+      'min_age',
+      'min_group_size',
+      'pickup_details',
+      'tour_format',
     ]);
     // Step L6.2H1: PER_HOUR is no longer offered (not bookable).
     expect(res.body.data.pricing_models.map((m) => m.code)).toEqual([

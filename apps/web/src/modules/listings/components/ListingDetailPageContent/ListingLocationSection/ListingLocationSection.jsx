@@ -7,6 +7,10 @@
  * a screen-reader user with nothing), so it renders even when
  * coordinates are missing and the map itself can't.
  *
+ * The street address (`address_line`) leads that line when the API sends
+ * it — a venue's address is public, while a private stay's is withheld
+ * (`listingDto.toListingResponse`) to match its approximate public map.
+ *
  * `ListingMap` is `lazy()`-loaded rather than statically imported:
  * `pages/ListingDetailPage.jsx` reaches this component through
  * `modules/listings/index.js`'s shared public barrel (FRONTEND_
@@ -39,11 +43,14 @@ export default function ListingLocationSection({
   const cityCountry = [location.city_name, location.country_name]
     .filter(Boolean)
     .join(', ');
+  const fullAddress = [location.address_line, cityCountry]
+    .filter(Boolean)
+    .join(', ');
   const hasCoordinates =
     typeof location.latitude === 'number' &&
     typeof location.longitude === 'number';
 
-  if (!cityCountry && !hasCoordinates) return null;
+  if (!fullAddress && !hasCoordinates) return null;
 
   return (
     <Section
@@ -52,7 +59,7 @@ export default function ListingLocationSection({
     >
       <h2 id={sectionId}>{t('pages.listingDetail.location.heading')}</h2>
       <Stack gap="3">
-        {cityCountry && <p>{cityCountry}</p>}
+        {fullAddress && <p>{fullAddress}</p>}
         {hasCoordinates && (
           <Suspense
             fallback={<Spinner label={t('pages.listingDetail.loading')} />}
@@ -60,7 +67,7 @@ export default function ListingLocationSection({
             <ListingMap
               latitude={location.latitude}
               longitude={location.longitude}
-              popupLabel={[title, cityCountry].filter(Boolean).join(', ')}
+              popupLabel={[title, fullAddress].filter(Boolean).join(', ')}
             />
           </Suspense>
         )}
@@ -71,6 +78,7 @@ export default function ListingLocationSection({
 
 ListingLocationSection.propTypes = {
   location: PropTypes.shape({
+    address_line: PropTypes.string,
     city_name: PropTypes.string,
     country_name: PropTypes.string,
     latitude: PropTypes.number,

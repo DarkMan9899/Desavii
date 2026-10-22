@@ -38,6 +38,7 @@ import {
   UNPRICED_HOLD_QUOTE,
 } from '../helpers/holdQuotes.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
 
 const ONE_PX_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
@@ -70,7 +71,11 @@ async function finishAndPublish(listingId, policyValues = []) {
     .patch(`/api/v1/listings/${listingId}`)
     .set('Authorization', `Bearer ${vendor}`)
     .send({
-      location: { latitude: 40.1772, longitude: 44.5035 },
+      location: {
+        cityId: YEREVAN_CITY_ID,
+        latitude: 40.1772,
+        longitude: 44.5035,
+      },
       policyValues,
     });
   await request(app)

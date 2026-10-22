@@ -67,6 +67,7 @@ function Harness({
   initialItinerarySteps = [],
   initialIncludedItems = [],
   initialFaqs = [],
+  showItinerary = true,
   onNext = vi.fn(),
 }) {
   const [authoringLocale, setAuthoringLocale] = useState(startLocale);
@@ -77,6 +78,7 @@ function Harness({
       initialItinerarySteps={initialItinerarySteps}
       initialIncludedItems={initialIncludedItems}
       initialFaqs={initialFaqs}
+      showItinerary={showItinerary}
       onNext={onNext}
       authoringLocale={authoringLocale}
       onAuthoringLocaleChange={setAuthoringLocale}
@@ -94,6 +96,7 @@ Harness.propTypes = {
   initialIncludedItems: PropTypes.array,
   // eslint-disable-next-line react/forbid-prop-types -- test harness passthrough
   initialFaqs: PropTypes.array,
+  showItinerary: PropTypes.bool,
   onNext: PropTypes.func,
 };
 
@@ -103,6 +106,7 @@ function renderStep({
   initialItinerarySteps = [],
   initialIncludedItems = [],
   initialFaqs = [],
+  showItinerary = true,
   onNext = vi.fn(),
 } = {}) {
   return render(
@@ -113,6 +117,7 @@ function renderStep({
         initialItinerarySteps={initialItinerarySteps}
         initialIncludedItems={initialIncludedItems}
         initialFaqs={initialFaqs}
+        showItinerary={showItinerary}
         onNext={onNext}
       />
     </ToastProvider>,
@@ -215,6 +220,26 @@ describe('ContentStep (PartnerListingWizard)', () => {
       faqs: [{ question: 'Is parking free?', answer: 'Yes, on-site.' }],
       languageCode: 'en',
     });
+    expect(onNext).toHaveBeenCalled();
+  });
+
+  // Wizard rebuild (field-gap X4): an itinerary belongs to tours and
+  // attractions only — a stay, a restaurant or a car never shows or saves one.
+  test('without an itinerary the step neither renders nor replaces one', async () => {
+    const user = userEvent.setup();
+    const onNext = vi.fn();
+    renderStep({
+      initialHighlights: EN_HIGHLIGHTS,
+      initialItinerarySteps: EN_STEPS,
+      showItinerary: false,
+      onNext,
+    });
+
+    expect(screen.queryByDisplayValue('Pickup')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: CONTINUE }));
+
+    expect(highlightsMutateAsync).toHaveBeenCalled();
+    expect(itineraryMutateAsync).not.toHaveBeenCalled();
     expect(onNext).toHaveBeenCalled();
   });
 

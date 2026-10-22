@@ -1,7 +1,8 @@
-// LocationStep — Step L2's advanced/manual-coordinates disclosure.
+// LocationStep — place fields and Step L2's manual-coordinates disclosure.
 
 @use 'tokens' as tokens;
 @use 'mixins/focus-ring' as focus;
+@use 'mixins/respond' as respond;
 
 .advanced {
   border: 1px solid tokens.$color-gray-200;
@@ -28,4 +29,22 @@
 
 .advancedContent {
   margin-top: tokens.$space-3;
+}
+
+// Partner Listing Wizard rebuild — city and street address side by side
+// from the tablet width, stacked on phones.
+
+.intro {
+  margin: 0 0 tokens.$space-4;
+  color: tokens.$color-gray-600;
+}
+
+.placeFields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: tokens.$space-4;
+
+  @include respond.respond(tablet) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
 }

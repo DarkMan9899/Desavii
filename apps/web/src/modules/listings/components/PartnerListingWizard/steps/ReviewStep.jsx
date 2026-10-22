@@ -24,6 +24,10 @@
  * `attributeValues.<code>` path) and offers a jump to the step where it
  * is fixed — the same `goToStep` the stepper itself uses; nothing
  * navigates on its own.
+ *
+ * Location is summarised as the Partner chose it — street address and the
+ * city in the page language (the same city list the Location step offers)
+ * — falling back to the pin's coordinates only when no city is set.
  */
 
 import PropTypes from 'prop-types';
@@ -33,6 +37,7 @@ import { ChipGroup } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import { parseApiError } from '../../../../../utils/apiErrorFeedback.js';
+import { useDestinationsQuery } from '../../../../search/index.js';
 import { usePublishListingMutation } from '../../../mutations/usePublishListingMutation.js';
 import { PartnerAiToolsPanel, AskAiButton } from '../../../../ai/index.js';
 import { PUBLICATION_PERIOD_DAYS_OPTIONS } from '../../../constants/publicationPeriod.js';
@@ -47,7 +52,8 @@ const STEP_ID_BY_ISSUE_ROOT = {
   location: 'location',
   attributeValues: 'attributes',
   media: 'media',
-  bookableUnits: 'availability',
+  bookableUnits: 'booking',
+  pricing: 'booking',
   policyValues: 'policies',
 };
 
@@ -66,10 +72,16 @@ export default function ReviewStep({
   onGoToStep = undefined,
   onPublished,
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const publishMutation = usePublishListingMutation();
+  const { data: cities = [] } = useDestinationsQuery({ locale: i18n.language });
 
   const title = listing.translations[0]?.title;
+  const { location } = listing;
+  const cityName =
+    cities.find((city) => city.id === location?.city_id)?.name ??
+    location?.city_name;
+  const place = [location?.address_line, cityName].filter(Boolean).join(', ');
   const issueFieldLabels = {};
   (parseApiError(publishMutation.error)?.issues ?? []).forEach(({ path }) => {
     const [root, code] = path.split('.');
@@ -141,8 +153,8 @@ export default function ReviewStep({
         <div>
           <dt>{t('partner.listingWizard.review.location')}</dt>
           <dd>
-            {listing.location
-              ? `${listing.location.latitude}, ${listing.location.longitude}`
+            {location
+              ? place || `${location.latitude}, ${location.longitude}`
               : t('partner.listingWizard.review.notSet')}
           </dd>
         </div>
@@ -235,6 +247,9 @@ ReviewStep.propTypes = {
     faqs: PropTypes.arrayOf(localizedRowShape),
     itinerary_steps: PropTypes.arrayOf(localizedRowShape),
     location: PropTypes.shape({
+      city_id: PropTypes.number,
+      city_name: PropTypes.string,
+      address_line: PropTypes.string,
       latitude: PropTypes.number,
       longitude: PropTypes.number,
     }),

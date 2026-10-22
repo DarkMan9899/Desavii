@@ -133,6 +133,14 @@ omitted entirely otherwise, since a partner shouldn't be able to jump
 ahead of validation via this control alone) · `ariaLabel` (default
 `'Listing creation progress'`) · `className`.
 
+**Responsive behaviour:** a container query on the bar's own width (not
+the viewport's, since it usually sits beside a sidebar). Narrower than the
+`laptop` breakpoint, the steps form one horizontally scrolling row, and the
+current step is scrolled into view (inside the row only) whenever it
+changes. At that width or wider, every step gets an equal column with its
+label wrapping (hyphenated in the page's language) under its number, so
+the whole flow is visible at once.
+
 **Usage:**
 
 ```jsx

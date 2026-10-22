@@ -8,6 +8,13 @@
  * steps) since the set of fields is itself dynamic per category —
  * validated on submit against each definition's own `is_required` rather
  * than a static RHF rules object.
+ *
+ * Partner Listing Wizard rebuild: a conditional attribute (`depends_on`)
+ * appears only once its controlling choice is made, and is neither
+ * validated nor sent while it does not apply (the API clears its stored
+ * value). A field the partner empties is saved as empty. Compact fields
+ * (numbers, single choices) share rows; choice groups and text take the
+ * full width.
  */
 
 import { useState } from 'react';
@@ -15,13 +22,15 @@ import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
-import { Stack } from '@desavii/ui/components/layout';
 import { useListingMetadataQuery } from '../../../queries/useListingMetadataQuery.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
-import { toAttributeValuesPayload } from '../../../utils/attributeValueMapping.js';
+import {
+  isAttributeApplicable,
+  toAttributeValuesPayload,
+} from '../../../utils/attributeValueMapping.js';
 import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import useApiFieldErrors from '../../../../../hooks/useApiFieldErrors.js';
-import MetadataFieldRenderer from '../MetadataFieldRenderer.jsx';
+import MetadataFieldGrid from '../MetadataFieldGrid.jsx';
 import WizardStepActions from '../WizardStepActions.jsx';
 
 export default function DynamicAttributesStep({
@@ -63,7 +72,9 @@ export default function DynamicAttributesStep({
     );
   }
 
-  const { attributes } = metadata;
+  const attributes = metadata.attributes.filter((attribute) =>
+    isAttributeApplicable(attribute, values),
+  );
 
   // Step L6: editing a field clears its own client-side error too, not
   // only the server one — the same "error clears on edit" contract.
@@ -95,7 +106,11 @@ export default function DynamicAttributesStep({
       await updateListingMutation.mutateAsync({
         id: listingId,
         payload: {
-          attributeValues: toAttributeValuesPayload(attributes, values),
+          attributeValues: toAttributeValuesPayload(
+            metadata.attributes,
+            values,
+            initialValues,
+          ),
         },
       });
     } catch {
@@ -117,21 +132,15 @@ export default function DynamicAttributesStep({
           (attribute) => `attributeValues.${attribute.code}`,
         )}
       />
-      <Stack gap="4">
-        {attributes.map((attribute) => (
-          <MetadataFieldRenderer
-            key={attribute.code}
-            namespace="attributes"
-            definition={attribute}
-            value={values[attribute.code]}
-            onChange={(value) => setFieldValue(attribute.code, value)}
-            error={
-              validationErrors[attribute.code] ??
-              fieldError(`attributeValues.${attribute.code}`)
-            }
-          />
-        ))}
-      </Stack>
+      <MetadataFieldGrid
+        namespace="attributes"
+        definitions={attributes}
+        values={values}
+        onChange={(code, value) => setFieldValue(code, value)}
+        errorFor={(code) =>
+          validationErrors[code] ?? fieldError(`attributeValues.${code}`)
+        }
+      />
       <WizardStepActions
         onBack={onBack}
         onContinue={() => handleContinue()}

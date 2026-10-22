@@ -1,70 +1,67 @@
 /**
- * LocationStep — step 3. `ListingService.#checkPublishReadiness` only
- * ever checks `location.latitude`/`location.longitude` (never `cityId`/
- * `addressId`) for publish-gating, so those two are this step's only
- * required fields.
+ * LocationStep — where the listing is: its city, its street address and its
+ * exact pin.
  *
- * KNOWN LIMITATION: no city-lookup endpoint (`GET /cities` or similar)
- * exists anywhere in the backend yet for resolving a city name to
- * `cityId` — `api/search.js`'s `searchListings` only ever *consumes* a
- * `cityId` filter, it doesn't expose a way to look one up. Rather than
- * inventing a text-to-id mapping with no real data source behind it,
- * this step only collects latitude/longitude; `cityId`/`addressId`
- * remain unset (both genuinely optional per `locationSchema`).
+ * - **City** (required to publish — `ListingService.#checkPublishReadiness`
+ *   `CITY_REQUIRED`): the localized city list Search's own destination
+ *   picker uses (`GET /search/destinations`, every seeded city), so a
+ *   listing is always findable by the destination guests search for.
+ *   Choosing a city frames it on the map until the pin is placed.
+ * - **Street address** (optional): public for venues, so guests can find
+ *   them; for a private stay (PROPERTY — apartments, villas, guest houses)
+ *   it stays private, matching the approximate public map.
+ * - **Pin**: clicking the map sets both coordinates; the raw numbers sit
+ *   behind a disclosure (Step L2) that opens itself on an error.
  *
  * `LocationPicker` is `lazy()`-loaded for the exact reason
  * `ListingLocationSection.jsx` already lazy-loads `ListingMap`: a static
  * import of `leaflet`/`react-leaflet` (plus its module-level icon-config
  * side effect) would otherwise land in whatever shared chunk this
- * wizard-steps barrel resolves to, bloating every other step (and every
- * other consumer of that barrel) with map code most of them never use.
- *
- * Step L2 (brief §13) — L0 found the map-first design already good, but
- * the raw latitude/longitude number fields sat directly below the map
- * unconditionally, asking every Partner to understand technical
- * coordinates even though clicking the map already sets both (via
- * `handleMapPick`). They now live behind a native `<details>` disclosure
- * (keyboard/screen-reader accessible with zero extra ARIA wiring — no
- * new shared component needed for a two-field reveal), collapsed by
- * default. The underlying react-hook-form values/validation are
- * unchanged either way; the disclosure only controls visibility. It
- * auto-opens the moment either field actually has a validation error
- * (a Partner who never touched the map and hit Continue anyway), so an
- * error can never be silently hidden inside a collapsed section.
+ * wizard-steps barrel resolves to, bloating every other step with map code
+ * most of them never use.
  */
 
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { Input } from '@desavii/ui/components/form-controls';
-import { Skeleton } from '@desavii/ui/components/feedback-overlays';
+import { Input, Select } from '@desavii/ui/components/form-controls';
+import { Alert, Skeleton } from '@desavii/ui/components/feedback-overlays';
 import { Stack } from '@desavii/ui/components/layout';
 import ApiErrorAlert from '../../../../../components/ApiErrorAlert/ApiErrorAlert.jsx';
 import {
   parseApiError,
   getIssueMessage,
 } from '../../../../../utils/apiErrorFeedback.js';
+import { useDestinationsQuery } from '../../../../search/index.js';
 import { useUpdateListingMutation } from '../../../mutations/useUpdateListingMutation.js';
 import WizardStepActions from '../WizardStepActions.jsx';
 import styles from './LocationStep.module.scss';
 
 const LocationPicker = lazy(() => import('./LocationPicker.jsx'));
 
+const ADDRESS_MAX_LENGTH = 255;
+
 // API path -> this form's react-hook-form field name.
 const FORM_FIELD_BY_API_PATH = {
+  'location.cityId': 'cityId',
+  'location.addressLine': 'addressLine',
   'location.latitude': 'latitude',
   'location.longitude': 'longitude',
 };
 
 export default function LocationStep({
   listingId,
+  listingType = null,
   initialValues = {},
   onBack = undefined,
   onNext,
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const updateListingMutation = useUpdateListingMutation();
+  const { data: cities = [], isPending: isCitiesPending } =
+    useDestinationsQuery({ locale: i18n.language });
+  const isPrivateStay = listingType === 'PROPERTY';
 
   const {
     control,
@@ -75,6 +72,8 @@ export default function LocationStep({
     formState: { errors },
   } = useForm({
     defaultValues: {
+      cityId: initialValues.cityId ?? null,
+      addressLine: initialValues.addressLine ?? '',
       latitude: initialValues.latitude ?? '',
       longitude: initialValues.longitude ?? '',
     },
@@ -89,6 +88,11 @@ export default function LocationStep({
     watchedLatitude === '' ? undefined : Number(watchedLatitude);
   const numericLongitude =
     watchedLongitude === '' ? undefined : Number(watchedLongitude);
+  const chosenCity = cities.find((city) => city.id === watch('cityId'));
+  const cityFocus =
+    chosenCity?.latitude != null
+      ? [Number(chosenCity.latitude), Number(chosenCity.longitude)]
+      : null;
 
   const handleMapPick = useCallback(
     (lat, lng) => {
@@ -114,8 +118,8 @@ export default function LocationStep({
     if (hasCoordinateError) setIsAdvancedOpen(true);
   }, [hasCoordinateError]);
 
-  // A server-side coordinate rejection lands on the field itself (RHF's
-  // own error state), which also opens the disclosure above.
+  // A server-side rejection lands on the field itself (RHF's own error
+  // state), which also opens the coordinates disclosure above.
   const serverError = updateListingMutation.error;
   useEffect(() => {
     parseApiError(serverError)?.issues.forEach((issue) => {
@@ -132,10 +136,9 @@ export default function LocationStep({
   async function onSubmit(values) {
     // Step L4 (brief §14-16) — `Number('')` is `0`, a mathematically
     // valid latitude (the equator); RHF's own `required` rule on both
-    // fields already keeps this branch unreachable in normal use (see
-    // this file's own JSDoc header), but that's an indirect guarantee —
-    // this is the direct one, so a blank coordinate can never silently
-    // become "0,0" no matter how this form is reached in the future.
+    // fields already keeps this branch unreachable in normal use, but
+    // this is the direct guarantee that a blank coordinate can never
+    // silently become "0,0".
     const latitude = Number(values.latitude);
     const longitude = Number(values.longitude);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
@@ -144,7 +147,14 @@ export default function LocationStep({
     try {
       await updateListingMutation.mutateAsync({
         id: listingId,
-        payload: { location: { latitude, longitude } },
+        payload: {
+          location: {
+            cityId: values.cityId,
+            addressLine: values.addressLine.trim(),
+            latitude,
+            longitude,
+          },
+        },
       });
     } catch {
       // Rendered from the mutation's own `error` (ApiErrorAlert + fields).
@@ -156,16 +166,86 @@ export default function LocationStep({
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
       <h2>{t('partner.listingWizard.steps.location')}</h2>
+      <p className={styles.intro}>
+        {t('partner.listingWizard.location.intro')}
+      </p>
       <Stack gap="4">
         <ApiErrorAlert
           error={serverError}
           inlinePaths={Object.keys(FORM_FIELD_BY_API_PATH)}
         />
 
+        <div className={styles.placeFields}>
+          <Controller
+            name="cityId"
+            control={control}
+            rules={{
+              required: t('partner.listingWizard.location.cityRequired'),
+            }}
+            render={({ field }) => (
+              <Select
+                label={t('partner.listingWizard.location.city')}
+                placeholder={
+                  isCitiesPending
+                    ? t('partner.listingWizard.location.cityLoading')
+                    : t('partner.listingWizard.location.cityPlaceholder')
+                }
+                options={cities.map((city) => ({
+                  value: city.id,
+                  label: city.name,
+                }))}
+                value={field.value ?? undefined}
+                onChange={field.onChange}
+                error={errors.cityId?.message}
+                searchable
+                searchPlaceholder={t(
+                  'partner.listingWizard.location.citySearch',
+                )}
+                noOptionsMessage={t(
+                  'partner.listingWizard.location.cityNoMatch',
+                )}
+                required
+              />
+            )}
+          />
+
+          <Controller
+            name="addressLine"
+            control={control}
+            rules={{
+              maxLength: {
+                value: ADDRESS_MAX_LENGTH,
+                message: t('partner.listingWizard.location.addressTooLong'),
+              },
+            }}
+            render={({ field }) => (
+              <Input
+                label={t('partner.listingWizard.location.address')}
+                helperText={
+                  isPrivateStay
+                    ? t('partner.listingWizard.location.addressHintPrivate')
+                    : t('partner.listingWizard.location.addressHintPublic')
+                }
+                maxLength={ADDRESS_MAX_LENGTH}
+                error={errors.addressLine?.message}
+                // eslint-disable-next-line react/jsx-props-no-spreading
+                {...field}
+              />
+            )}
+          />
+        </div>
+
+        {isPrivateStay && (
+          <Alert variant="info">
+            {t('partner.listingWizard.location.privateStayNotice')}
+          </Alert>
+        )}
+
         <Suspense fallback={<Skeleton variant="rect" height={280} />}>
           <LocationPicker
             latitude={numericLatitude}
             longitude={numericLongitude}
+            cityFocus={cityFocus}
             onPick={handleMapPick}
           />
         </Suspense>
@@ -250,7 +330,11 @@ export default function LocationStep({
 
 LocationStep.propTypes = {
   listingId: PropTypes.number.isRequired,
+  /** `PROPERTY` (a private stay) keeps the street address private. */
+  listingType: PropTypes.string,
   initialValues: PropTypes.shape({
+    cityId: PropTypes.number,
+    addressLine: PropTypes.string,
     latitude: PropTypes.number,
     longitude: PropTypes.number,
   }),

@@ -28,6 +28,7 @@ import {
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
 
 // 1x1 transparent PNG, a valid image for the publish readiness check.
 const ONE_PX_PNG = Buffer.from(
@@ -389,7 +390,7 @@ describe('search ignores legacy out-of-category amenity links', () => {
     const created = await createHotel({ amenityIds: [amenity('WiFi')] });
     listingId = created.body.data.id;
     await patchListing(listingId, {
-      location: { latitude: 40.18, longitude: 44.5 },
+      location: { cityId: YEREVAN_CITY_ID, latitude: 40.18, longitude: 44.5 },
       policyValues: [
         { code: 'cancellation_policy', value: 'FLEXIBLE' },
         { code: 'check_in_time', value: '14:00' },

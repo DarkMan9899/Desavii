@@ -12,6 +12,8 @@ import {
   toTranslationResponse,
   toLocationResponse,
   toListingResponse,
+  toListingOwnerResponse,
+  toListingAdminDetailResponse,
   toCompanyAttributionResponse,
 } from '../../../../src/modules/listings/dto/listingDto.js';
 
@@ -56,6 +58,7 @@ describe('toLocationResponse', () => {
 
     expect(response).toEqual({
       address_id: null,
+      address_line: null,
       city_id: 1,
       city_name: 'Yerevan',
       country_name: 'Armenia',
@@ -76,6 +79,14 @@ describe('toLocationResponse', () => {
 
     expect(response.city_name).toBeUndefined();
     expect(response.country_name).toBeUndefined();
+  });
+
+  test('the street address is passed through unless withheld', () => {
+    const location = { addressId: 3, addressLine: '5 Abovyan St', cityId: 1 };
+    expect(toLocationResponse(location).address_line).toBe('5 Abovyan St');
+    expect(
+      toLocationResponse(location, { includeAddressLine: false }).address_line,
+    ).toBeNull();
   });
 });
 
@@ -117,6 +128,45 @@ describe('toListingResponse (Phase 9: Partner Dashboard)', () => {
     expect(response.archived_at).toBe('2026-01-10T00:00:00.000Z');
     expect(response.published_at).toBe('2026-01-01T00:00:00.000Z');
     expect(response.unpublished_at).toBe('2026-01-05T00:00:00.000Z');
+  });
+
+  test("a private stay's street address is shown only to those who manage it", () => {
+    const location = {
+      addressId: 3,
+      addressLine: '5 Abovyan St',
+      cityId: 1,
+      latitude: 40.18,
+      longitude: 44.51,
+    };
+    const property = baseListing({ listingTypeCode: 'PROPERTY', location });
+    const hotel = baseListing({ listingTypeCode: 'HOTEL', location });
+
+    // Withheld by default: a caller must opt in to disclose a home address.
+    expect(toListingResponse(property).location.address_line).toBeNull();
+    expect(
+      toListingResponse(property, { includePrivateAddress: false }).location
+        .address_line,
+    ).toBeNull();
+    expect(
+      toListingResponse(property, { includePrivateAddress: true }).location
+        .address_line,
+    ).toBe('5 Abovyan St');
+    // Every other listing type's address is public.
+    expect(toListingResponse(hotel).location.address_line).toBe('5 Abovyan St');
+  });
+
+  test("the owner and admin responses carry a private stay's address", () => {
+    const property = baseListing({
+      listingTypeCode: 'PROPERTY',
+      location: { addressId: 3, addressLine: '5 Abovyan St', cityId: 1 },
+    });
+
+    expect(toListingOwnerResponse(property).location.address_line).toBe(
+      '5 Abovyan St',
+    );
+    expect(toListingAdminDetailResponse(property).location.address_line).toBe(
+      '5 Abovyan St',
+    );
   });
 
   test('archived_at is null for a listing that has never been archived', () => {

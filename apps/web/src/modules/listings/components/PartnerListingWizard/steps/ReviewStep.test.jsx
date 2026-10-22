@@ -4,10 +4,14 @@ import userEvent from '@testing-library/user-event';
 import ApiError from '../../../../../api/ApiError.js';
 import ReviewStep from './ReviewStep.jsx';
 import { usePublishListingMutation } from '../../../mutations/usePublishListingMutation.js';
+import { useDestinationsQuery } from '../../../../search/index.js';
 import { PUBLICATION_PERIOD_DAYS_OPTIONS } from '../../../constants/publicationPeriod.js';
 
 vi.mock('../../../mutations/usePublishListingMutation.js', () => ({
   usePublishListingMutation: vi.fn(),
+}));
+vi.mock('../../../../search/index.js', () => ({
+  useDestinationsQuery: vi.fn(),
 }));
 
 vi.mock('../../../../ai/index.js', () => ({
@@ -69,12 +73,33 @@ describe('ReviewStep (PartnerListingWizard)', () => {
       isPending: false,
       error: null,
     });
+    useDestinationsQuery.mockReturnValue({
+      data: [{ id: 9, name: 'Գառնի' }],
+    });
   });
 
   test('renders a read-only summary of the listing', () => {
     renderReviewStep();
     expect(screen.getByText('Boutique Yerevan Hotel')).toBeInTheDocument();
+    // No city chosen yet: the pin's coordinates stand in.
     expect(screen.getByText('40.18, 44.5')).toBeInTheDocument();
+  });
+
+  test('summarises the location as its street address and city, in the page language', () => {
+    renderReviewStep({
+      listing: {
+        ...LISTING,
+        location: {
+          city_id: 9,
+          city_name: 'Garni',
+          address_line: '12 Charents St',
+          latitude: 40.1124,
+          longitude: 44.7302,
+        },
+      },
+    });
+    expect(screen.getByText('12 Charents St, Գառնի')).toBeInTheDocument();
+    expect(screen.queryByText('40.1124, 44.7302')).not.toBeInTheDocument();
   });
 
   test('renders the pricing model as its translated label, not the raw code', () => {

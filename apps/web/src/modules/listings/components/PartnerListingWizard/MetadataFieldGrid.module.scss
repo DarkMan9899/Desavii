@@ -1,0 +1,22 @@
+// MetadataFieldGrid — tokens only, consumed from @desavii/ui.
+//
+// Compact facts (numbers, single choices, switches, times) sit two to a row
+// from the tablet width; wide data types take the whole row.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+
+.fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: tokens.$space-4 tokens.$space-6;
+  margin-block-start: tokens.$space-4;
+
+  @include respond.respond(tablet) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.wide {
+  grid-column: 1 / -1;
+}

@@ -151,6 +151,7 @@ function toLocationDomain(row) {
   return {
     listingId: row.listing_id,
     addressId: row.address_id,
+    addressLine: row.address_line ?? null,
     cityId: row.city_id,
     cityName: row.city_name,
     countryName: row.country_name,
@@ -291,6 +292,20 @@ export class MySqlListingRepository extends ListingRepositoryPort {
       'DELETE FROM listing_category_listing WHERE listing_id = ?',
       [listingId],
     );
+    await this.insertCategoryLinks(listingId, categoryIds, connection);
+  }
+
+  /**
+   * Links a listing that has no category links yet — insert only. A brand-new
+   * listing must not run `replaceCategoryLinks`: its DELETE on an id with no
+   * rows takes a gap lock, and two Partners creating listings at the same
+   * moment then deadlock on each other's INSERT.
+   */
+  async insertCategoryLinks(
+    listingId,
+    categoryIds = [],
+    connection = this.#pool,
+  ) {
     if (categoryIds.length === 0) return;
     const values = categoryIds.map((categoryId) => [listingId, categoryId]);
     try {
@@ -312,6 +327,15 @@ export class MySqlListingRepository extends ListingRepositoryPort {
       'DELETE FROM listing_amenity_listing WHERE listing_id = ?',
       [listingId],
     );
+    await this.insertAmenityLinks(listingId, amenityIds, connection);
+  }
+
+  /** Insert-only, for a brand-new listing — see `insertCategoryLinks`. */
+  async insertAmenityLinks(
+    listingId,
+    amenityIds = [],
+    connection = this.#pool,
+  ) {
     if (amenityIds.length === 0) return;
     const values = amenityIds.map((amenityId) => [listingId, amenityId]);
     try {
@@ -335,23 +359,30 @@ export class MySqlListingRepository extends ListingRepositoryPort {
    * ENUM/MULTI_ENUM entries carry `optionIds` (replace semantics, scoped
    * to that one attribute only); every other type carries a single
    * `value` (upsert semantics) into its matching typed table.
+   *
+   * `isNewListing` skips the per-attribute option DELETE — a listing being
+   * created has no options to replace, and that DELETE's gap lock
+   * deadlocks concurrent creates (see `insertCategoryLinks`).
    */
   async replaceAttributeValues(
     listingId,
     attributeValues = [],
     connection = this.#pool,
+    { isNewListing = false } = {},
   ) {
     try {
       // eslint-disable-next-line no-restricted-syntax -- sequential by design, same connection/transaction
       for (const entry of attributeValues) {
         if (ENUM_ATTRIBUTE_DATA_TYPES.includes(entry.dataTypeCode)) {
-          // eslint-disable-next-line no-await-in-loop -- sequential by design
-          await connection.query(
-            `DELETE lao FROM listing_attribute_option lao
-             JOIN attribute_options ao ON ao.id = lao.attribute_option_id
-             WHERE lao.listing_id = ? AND ao.attribute_definition_id = ?`,
-            [listingId, entry.attributeDefinitionId],
-          );
+          if (!isNewListing) {
+            // eslint-disable-next-line no-await-in-loop -- sequential by design
+            await connection.query(
+              `DELETE lao FROM listing_attribute_option lao
+               JOIN attribute_options ao ON ao.id = lao.attribute_option_id
+               WHERE lao.listing_id = ? AND ao.attribute_definition_id = ?`,
+              [listingId, entry.attributeDefinitionId],
+            );
+          }
           if (entry.optionIds.length > 0) {
             const values = entry.optionIds.map((optionId) => [
               listingId,
@@ -374,6 +405,97 @@ export class MySqlListingRepository extends ListingRepositoryPort {
           );
         }
       }
+    } catch (err) {
+      throw mapMysqlError(err);
+    }
+  }
+
+  /** Whether a seeded city with this id exists. */
+  async cityExists(cityId, connection = this.#pool) {
+    const [[row]] = await connection.query(
+      'SELECT 1 AS found FROM cities WHERE id = ? LIMIT 1',
+      [cityId],
+    );
+    return Boolean(row);
+  }
+
+  /**
+   * Removes every stored value of these attributes from a listing — a value
+   * the partner cleared, or one whose condition (migration 0055) no longer
+   * holds, so it can never reach Search, Booking or the listing page.
+   */
+  async deleteAttributeValues(
+    listingId,
+    attributeDefinitionIds,
+    connection = this.#pool,
+  ) {
+    if (attributeDefinitionIds.length === 0) return;
+    try {
+      await connection.query(
+        `DELETE lao FROM listing_attribute_option lao
+         JOIN attribute_options ao ON ao.id = lao.attribute_option_id
+         WHERE lao.listing_id = ? AND ao.attribute_definition_id IN (?)`,
+        [listingId, attributeDefinitionIds],
+      );
+      // eslint-disable-next-line no-restricted-syntax -- one statement per typed value table, same connection/transaction
+      for (const table of Object.values(ATTRIBUTE_VALUE_TABLES)) {
+        // eslint-disable-next-line no-await-in-loop -- sequential by design
+        await connection.query(
+          `DELETE FROM ${table} WHERE listing_id = ? AND attribute_definition_id IN (?)`,
+          [listingId, attributeDefinitionIds],
+        );
+      }
+    } catch (err) {
+      throw mapMysqlError(err);
+    }
+  }
+
+  /**
+   * The listing's street address (`addresses`, addressable LISTING), kept in
+   * step with its location's city and pin. Returns the address id, or
+   * `null` once a blank line removes it.
+   */
+  async saveListingAddress(
+    { listingId, line1, cityId = null, latitude = null, longitude = null },
+    connection = this.#pool,
+  ) {
+    try {
+      const [[existing]] = await connection.query(
+        `SELECT a.id FROM listing_locations ll
+         JOIN addresses a ON a.id = ll.address_id
+         WHERE ll.listing_id = ? LIMIT 1`,
+        [listingId],
+      );
+      if (!line1) {
+        if (existing) {
+          await connection.query(
+            'UPDATE listing_locations SET address_id = NULL WHERE listing_id = ?',
+            [listingId],
+          );
+          await connection.query('DELETE FROM addresses WHERE id = ?', [
+            existing.id,
+          ]);
+        }
+        return null;
+      }
+      if (existing) {
+        await connection.query(
+          `UPDATE addresses SET line1 = ?,
+             city_id = COALESCE(?, city_id),
+             latitude = COALESCE(?, latitude),
+             longitude = COALESCE(?, longitude)
+           WHERE id = ?`,
+          [line1, cityId, latitude, longitude, existing.id],
+        );
+        return existing.id;
+      }
+      const [result] = await connection.query(
+        `INSERT INTO addresses
+           (addressable_type, addressable_id, line1, city_id, latitude, longitude)
+         VALUES ('LISTING', ?, ?, ?, ?, ?)`,
+        [listingId, line1, cityId, latitude, longitude],
+      );
+      return result.insertId;
     } catch (err) {
       throw mapMysqlError(err);
     }
@@ -657,8 +779,9 @@ export class MySqlListingRepository extends ListingRepositoryPort {
         [id],
       ),
       connection.query(
-        `SELECT ll.*, c.name AS city_name, co.name AS country_name
+        `SELECT ll.*, a.line1 AS address_line, c.name AS city_name, co.name AS country_name
          FROM listing_locations ll
+         LEFT JOIN addresses a ON a.id = ll.address_id
          LEFT JOIN cities c ON c.id = ll.city_id
          LEFT JOIN regions r ON r.id = c.region_id
          LEFT JOIN countries co ON co.id = r.country_id

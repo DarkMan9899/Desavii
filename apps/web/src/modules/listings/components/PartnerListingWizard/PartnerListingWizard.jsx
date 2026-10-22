@@ -42,12 +42,15 @@ import LocationStep from './steps/LocationStep.jsx';
 import DynamicAttributesStep from './steps/DynamicAttributesStep.jsx';
 import AmenitiesStep from './steps/AmenitiesStep.jsx';
 import MediaStep from './steps/MediaStep.jsx';
-import PricingStep from './steps/PricingStep.jsx';
-import AvailabilityStep from './steps/AvailabilityStep.jsx';
+import BookingStep from './steps/BookingStep.jsx';
 import PoliciesStep from './steps/PoliciesStep.jsx';
 import ContentStep from './steps/ContentStep.jsx';
 import ReviewStep from './steps/ReviewStep.jsx';
 import styles from './PartnerListingWizard.module.scss';
+
+// Listing types whose guests follow a step-by-step schedule — the only
+// ones the Guest information step offers an itinerary to.
+const ITINERARY_LISTING_TYPES = ['TOUR', 'ATTRACTION'];
 
 export default function PartnerListingWizard({ partnerships }) {
   const { t } = useTranslation();
@@ -188,7 +191,13 @@ export default function PartnerListingWizard({ partnerships }) {
         {wizard.currentStepId === 'location' && listing && (
           <LocationStep
             listingId={wizard.listingId}
-            initialValues={listing.location ?? {}}
+            listingType={listing.listing_type}
+            initialValues={{
+              cityId: listing.location?.city_id ?? undefined,
+              addressLine: listing.location?.address_line ?? undefined,
+              latitude: listing.location?.latitude ?? undefined,
+              longitude: listing.location?.longitude ?? undefined,
+            }}
             onBack={wizard.goToPreviousStep}
             onNext={wizard.goToNextStep}
           />
@@ -231,12 +240,13 @@ export default function PartnerListingWizard({ partnerships }) {
           />
         )}
 
-        {wizard.currentStepId === 'pricing' && listing && (
-          <PricingStep
+        {wizard.currentStepId === 'booking' && unitProfile && (
+          <BookingStep
             listingId={wizard.listingId}
             categoryId={categoryId}
             listingType={listing.listing_type}
-            initialValues={
+            unitProfile={unitProfile}
+            initialPricing={
               listing.pricing
                 ? {
                     modelCode: listing.pricing.pricing_model,
@@ -245,17 +255,7 @@ export default function PartnerListingWizard({ partnerships }) {
                   }
                 : {}
             }
-            onBack={wizard.goToPreviousStep}
-            onNext={wizard.goToNextStep}
-          />
-        )}
-
-        {wizard.currentStepId === 'availability' && unitProfile && (
-          <AvailabilityStep
-            listingId={wizard.listingId}
-            categoryId={categoryId}
-            unitProfile={unitProfile}
-            initialValues={
+            initialRules={
               listing.booking_rules
                 ? {
                     minimumStayNights:
@@ -304,6 +304,9 @@ export default function PartnerListingWizard({ partnerships }) {
             initialItinerarySteps={listing.itinerary_steps}
             initialIncludedItems={listing.included_items}
             initialFaqs={listing.faqs}
+            showItinerary={ITINERARY_LISTING_TYPES.includes(
+              listing.listing_type,
+            )}
             authoringLocale={wizard.authoringLocale}
             onAuthoringLocaleChange={wizard.setAuthoringLocale}
             onBack={wizard.goToPreviousStep}

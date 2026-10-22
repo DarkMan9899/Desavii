@@ -26,6 +26,7 @@ import {
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
 
 const ONE_PX_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
@@ -151,7 +152,9 @@ describe('Partner Listing Wizard — full write flow', () => {
     const locationRes = await request(app)
       .patch(`/api/v1/listings/${listingId}`)
       .set('Authorization', `Bearer ${vendor.accessToken}`)
-      .send({ location: { latitude: 40.18, longitude: 44.5 } });
+      .send({
+        location: { cityId: YEREVAN_CITY_ID, latitude: 40.18, longitude: 44.5 },
+      });
     expect(locationRes.status).toBe(200);
 
     // Step 4: Dynamic Attributes — a separate PATCH, no categoryIds resent,

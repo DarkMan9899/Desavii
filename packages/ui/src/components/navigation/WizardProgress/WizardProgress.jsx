@@ -3,8 +3,13 @@
  * progress indicator. Only completed or the current step are clickable
  * (`onStepClick`) — a not-yet-reached step stays disabled, since the
  * wizard's own step order encodes real prerequisites.
+ *
+ * Where the step row scrolls (below `laptop`), the current step is
+ * scrolled into view whenever it changes — horizontally, inside the row
+ * only, so the page itself never jumps.
  */
 
+import { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import styles from './WizardProgress.module.scss';
 
@@ -31,10 +36,24 @@ export default function WizardProgress({
   summaryText,
   stepAriaLabel = (step) => step.label,
 }) {
+  const listRef = useRef(null);
+
+  useEffect(() => {
+    const list = listRef.current;
+    const current = list?.querySelector('[aria-current="step"]');
+    if (!current || list.scrollWidth <= list.clientWidth) return;
+    // Measured against the row itself, never `offsetLeft` (relative to the
+    // nearest positioned ancestor, which beside a sidebar is the page).
+    const listBox = list.getBoundingClientRect();
+    const itemBox = current.closest('li').getBoundingClientRect();
+    const itemStart = itemBox.left - listBox.left + list.scrollLeft;
+    list.scrollLeft = itemStart - (listBox.width - itemBox.width) / 2;
+  }, [currentStepId]);
+
   return (
     <nav aria-label={ariaLabel} className={styles.wizardProgress}>
       <p className={styles.summary}>{summaryText}</p>
-      <ol className={styles.steps}>
+      <ol className={styles.steps} ref={listRef}>
         {steps.map((step, index) => {
           const isCompleted = completedStepIds.includes(step.id);
           const isCurrent = step.id === currentStepId;

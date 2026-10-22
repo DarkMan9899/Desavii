@@ -9,6 +9,11 @@
  * `aria-hidden="true"` (decorative-icon only, per that component's own
  * implementation), so a real +/- button can't live there without
  * becoming a keyboard/screen-reader trap.
+ *
+ * A fact the Partner hasn't given shows an empty field — never the
+ * minimum, which reads as a saved value ("1990", "1 year") that isn't —
+ * and clearing the field un-sets it. `+` on an empty field starts at the
+ * minimum.
  */
 
 import { useId } from 'react';
@@ -45,7 +50,7 @@ export default function NumberStepperField({
 }) {
   const fieldId = useId();
   const errorId = `${fieldId}-error`;
-  const current = value ?? min ?? 0;
+  const isSet = value !== undefined && value !== null;
 
   function clamp(next) {
     if (!Number.isFinite(next)) return;
@@ -65,6 +70,10 @@ export default function NumberStepperField({
   // number the Partner didn't type.
   function handleTypedChange(event) {
     const raw = event.target.value;
+    if (raw === '') {
+      onChange(undefined);
+      return;
+    }
     if (!PLAIN_DECIMAL_STRING_PATTERN.test(raw)) return;
     const next = Number(raw);
     if (integerOnly && Number.isFinite(next) && !Number.isInteger(next)) {
@@ -82,9 +91,9 @@ export default function NumberStepperField({
         <Button
           variant="secondary"
           size="sm"
-          disabled={disabled || (min != null && current <= min)}
+          disabled={disabled || !isSet || (min != null && value <= min)}
           ariaLabel={decreaseAriaLabel}
-          onClick={() => clamp(current - step)}
+          onClick={() => clamp(value - step)}
         >
           −
         </Button>
@@ -92,7 +101,7 @@ export default function NumberStepperField({
           id={fieldId}
           type="number"
           className={styles.input}
-          value={current}
+          value={isSet ? value : ''}
           min={min}
           max={max}
           step={step}
@@ -104,9 +113,9 @@ export default function NumberStepperField({
         <Button
           variant="secondary"
           size="sm"
-          disabled={disabled || (max != null && current >= max)}
+          disabled={disabled || (isSet && max != null && value >= max)}
           ariaLabel={increaseAriaLabel}
-          onClick={() => clamp(current + step)}
+          onClick={() => clamp(isSet ? value + step : (min ?? 0))}
         >
           +
         </Button>

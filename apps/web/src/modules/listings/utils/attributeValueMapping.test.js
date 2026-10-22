@@ -2,6 +2,7 @@ import { describe, test, expect } from 'vitest';
 import {
   toAttributeValuesPayload,
   fromAttributeValuesResponse,
+  isAttributeApplicable,
 } from './attributeValueMapping.js';
 
 const DEFINITIONS = [
@@ -51,6 +52,52 @@ describe('attributeValueMapping', () => {
         view_type: 'sea',
       });
       expect(payload).toEqual([{ code: 'view_type', optionCodes: ['sea'] }]);
+    });
+  });
+
+  describe('clearing and conditions (Wizard rebuild)', () => {
+    const MILEAGE = { code: 'mileage_policy', data_type: 'ENUM' };
+    const LIMIT = {
+      code: 'daily_distance_limit_km',
+      data_type: 'INTEGER',
+      depends_on: { attribute_code: 'mileage_policy', option_code: 'LIMITED' },
+    };
+
+    test('a field emptied after it was stored is sent as a removal', () => {
+      const payload = toAttributeValuesPayload(
+        DEFINITIONS,
+        { notes: '', view_type: null, languages_offered: [] },
+        { notes: 'Old note', view_type: 'sea', languages_offered: ['en'] },
+      );
+      expect(payload).toEqual(
+        expect.arrayContaining([
+          { code: 'notes', value: null },
+          { code: 'view_type', optionCodes: [] },
+          { code: 'languages_offered', optionCodes: [] },
+        ]),
+      );
+      expect(payload).toHaveLength(3);
+    });
+
+    test('a conditional field applies only while its option is chosen', () => {
+      expect(isAttributeApplicable(LIMIT, { mileage_policy: 'LIMITED' })).toBe(
+        true,
+      );
+      expect(
+        isAttributeApplicable(LIMIT, { mileage_policy: 'UNLIMITED' }),
+      ).toBe(false);
+      expect(isAttributeApplicable(MILEAGE, {})).toBe(true);
+    });
+
+    test('a field that does not apply is never sent, even with a value', () => {
+      const payload = toAttributeValuesPayload(
+        [MILEAGE, LIMIT],
+        { mileage_policy: 'UNLIMITED', daily_distance_limit_km: 250 },
+        { mileage_policy: 'LIMITED', daily_distance_limit_km: 250 },
+      );
+      expect(payload).toEqual([
+        { code: 'mileage_policy', optionCodes: ['UNLIMITED'] },
+      ]);
     });
   });
 

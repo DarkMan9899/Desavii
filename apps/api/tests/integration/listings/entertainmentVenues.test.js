@@ -26,6 +26,7 @@ import { closeRedisConnection } from '../../../src/infrastructure/cache/redisCli
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
 
 const ONE_PX_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
@@ -76,8 +77,15 @@ async function publishListing(id) {
     .patch(`/api/v1/listings/${id}`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)
     .send({
-      location: { latitude: 40.1872, longitude: 44.5152 },
-      policyValues: [{ code: 'children_allowed', value: 'true' }],
+      location: {
+        cityId: YEREVAN_CITY_ID,
+        latitude: 40.1872,
+        longitude: 44.5152,
+      },
+      policyValues: [
+        { code: 'children_allowed', value: 'true' },
+        { code: 'cancellation_policy', value: 'MODERATE' },
+      ],
     });
   expect(patchRes.status).toBe(200);
   await request(app)

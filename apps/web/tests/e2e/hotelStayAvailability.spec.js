@@ -22,6 +22,7 @@ import {
   resetRateLimits,
   request as playwrightRequest,
 } from './fixtures.js';
+import { YEREVAN_CITY_ID } from './seededCities.js';
 
 const API_BASE = 'http://localhost:4000/api/v1/';
 const VENDOR = { email: 'vendor@travelhub.dev', password: 'DevVendor!2024' };
@@ -148,7 +149,13 @@ async function createThrowawayHotel() {
 
   await ctx.patch(`listings/${listing.id}`, {
     headers: authHeaders,
-    data: { location: { latitude: 40.1772, longitude: 44.5035 } },
+    data: {
+      location: {
+        cityId: YEREVAN_CITY_ID,
+        latitude: 40.1772,
+        longitude: 44.5035,
+      },
+    },
   });
   await ctx.post(`listings/${listing.id}/media`, {
     headers: { ...authHeaders, 'Content-Type': 'image/png' },

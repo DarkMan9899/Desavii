@@ -41,6 +41,11 @@ import { isValidListingStatusTransition } from '../../../core/domain/listingStat
 import { resolveModerationDecision } from '../../../core/domain/listingModerationDecisions.js';
 import { deriveListingTypeCodeFromCategorySlug } from '../../../core/domain/categoryListingTypeMapping.js';
 import {
+  hasAttributeValue,
+  isAttributeApplicable,
+  mergeAttributeValues,
+} from '../../../core/domain/attributeConditions.js';
+import {
   isValidPublicationPeriodDays,
   isFrozen,
   isPubliclyVisible,
@@ -346,6 +351,18 @@ export class ListingService {
         );
       }
 
+      // Partner Listing Wizard rebuild: `value: null` removes a stored
+      // value (a field the partner emptied) — previously an attribute,
+      // once set, could only ever be overwritten, never cleared.
+      if (entry.value === null && entry.optionCodes === undefined) {
+        resolved.push({
+          attributeDefinitionId: definition.id,
+          clear: true,
+        });
+        // eslint-disable-next-line no-continue -- nothing to validate for a removal
+        continue;
+      }
+
       if (ENUM_ATTRIBUTE_DATA_TYPES.includes(definition.dataTypeCode)) {
         const optionCodes = entry.optionCodes ?? [];
         if (definition.dataTypeCode === 'ENUM' && optionCodes.length > 1) {
@@ -463,6 +480,122 @@ export class ListingService {
       }
     }
     return resolved;
+  }
+
+  /**
+   * Conditional attributes (migration 0055) against the listing as it will
+   * stand after this write: a value sent for an attribute whose condition
+   * does not hold is rejected (a direct API call cannot store what the
+   * Wizard would never show), and a stored value whose condition just
+   * stopped holding is returned for removal — e.g. a daily distance limit
+   * once the mileage policy becomes UNLIMITED.
+   * @returns {Promise<number[]>} attribute definition ids to clear
+   */
+  async #checkAttributeConditions(categoryId, storedValues, submittedValues) {
+    if (!categoryId) return [];
+    const rules =
+      await this.#listingMetadataRepository.getCategoryAttributeRules(
+        categoryId,
+      );
+    const conditional = rules.filter((rule) => rule.dependsOn);
+    if (conditional.length === 0) return [];
+
+    const stored = storedValues ?? [];
+    const effective = mergeAttributeValues(stored, submittedValues);
+    const submittedByCode = new Map(
+      (submittedValues ?? []).map((entry) => [entry.code, entry]),
+    );
+    const storedByCode = new Map(stored.map((entry) => [entry.code, entry]));
+    const clearIds = [];
+    conditional
+      .filter((rule) => !isAttributeApplicable(rule, effective))
+      .forEach((rule) => {
+        if (hasAttributeValue(submittedByCode.get(rule.code))) {
+          throw new ValidationError(
+            `"${rule.code}" only applies when "${rule.dependsOn.attributeCode}" is ${rule.dependsOn.optionCode}.`,
+            [
+              {
+                field: `attributeValues.${rule.code}`,
+                issue: 'ATTRIBUTE_NOT_APPLICABLE',
+              },
+            ],
+          );
+        }
+        if (hasAttributeValue(storedByCode.get(rule.code))) {
+          clearIds.push(rule.id);
+        }
+      });
+    return clearIds;
+  }
+
+  /** Writes resolved attribute values, then removes the cleared ones. */
+  async #writeAttributeValues(
+    listingId,
+    resolved,
+    clearIds,
+    connection,
+    { isNewListing = false } = {},
+  ) {
+    const toWrite = (resolved ?? []).filter((entry) => !entry.clear);
+    const toClear = [
+      ...(resolved ?? [])
+        .filter((entry) => entry.clear)
+        .map((entry) => entry.attributeDefinitionId),
+      ...clearIds,
+    ];
+    if (toWrite.length > 0) {
+      await this.#listingRepository.replaceAttributeValues(
+        listingId,
+        toWrite,
+        connection,
+        { isNewListing },
+      );
+    }
+    await this.#listingRepository.deleteAttributeValues(
+      listingId,
+      toClear,
+      connection,
+    );
+  }
+
+  /** A location's city must be a real, seeded city. */
+  async #assertCity(location) {
+    if (location?.cityId === undefined || location.cityId === null) return;
+    if (!(await this.#listingRepository.cityExists(location.cityId))) {
+      throw new ValidationError('This city does not exist.', [
+        { field: 'location.cityId', issue: 'UNKNOWN_CITY' },
+      ]);
+    }
+  }
+
+  /**
+   * Stores a location: city and pin on `listing_locations`; a street
+   * address (`addressLine`, blank removes it) on `addresses`, kept in step
+   * with them.
+   */
+  async #writeLocation(listingId, location, connection) {
+    const { addressLine, ...place } = location;
+    await this.#listingRepository.upsertLocation(
+      { listingId, ...place },
+      connection,
+    );
+    if (addressLine === undefined) return;
+    const addressId = await this.#listingRepository.saveListingAddress(
+      {
+        listingId,
+        line1: addressLine,
+        cityId: place.cityId,
+        latitude: place.latitude,
+        longitude: place.longitude,
+      },
+      connection,
+    );
+    if (addressId) {
+      await this.#listingRepository.upsertLocation(
+        { listingId, addressId },
+        connection,
+      );
+    }
   }
 
   /**
@@ -715,7 +848,15 @@ export class ListingService {
       this.#resolvePricing(primaryCategoryId, input.pricing),
       // A new listing has no stored amenities: every id must apply.
       this.#assertAmenityWrite(primaryCategoryId, input.amenityIds),
+      this.#assertCity(input.location),
     ]);
+    // A new listing has no stored values: a conditional value sent now
+    // must already have its condition in the same request.
+    await this.#checkAttributeConditions(
+      primaryCategoryId,
+      [],
+      input.attributeValues,
+    );
 
     const listingId = await withTransaction(async (connection) => {
       const newListingId = await this.#listingRepository.insertListing(
@@ -741,30 +882,32 @@ export class ListingService {
       }
 
       if (input.location) {
-        await this.#listingRepository.upsertLocation(
-          { listingId: newListingId, ...input.location },
-          connection,
-        );
+        await this.#writeLocation(newListingId, input.location, connection);
       }
+      // Insert-only: the listing is new, so there is nothing to replace
+      // (a replace's DELETE deadlocks concurrent creates — see the
+      // repository's `insertCategoryLinks`).
       if (input.categoryIds) {
-        await this.#listingRepository.replaceCategoryLinks(
+        await this.#listingRepository.insertCategoryLinks(
           newListingId,
           input.categoryIds,
           connection,
         );
       }
       if (input.amenityIds) {
-        await this.#listingRepository.replaceAmenityLinks(
+        await this.#listingRepository.insertAmenityLinks(
           newListingId,
           input.amenityIds,
           connection,
         );
       }
       if (resolvedAttributeValues) {
-        await this.#listingRepository.replaceAttributeValues(
+        await this.#writeAttributeValues(
           newListingId,
           resolvedAttributeValues,
+          [],
           connection,
+          { isNewListing: true },
         );
       }
       if (resolvedPolicyValues) {
@@ -1595,7 +1738,15 @@ export class ListingService {
             fields.amenityIds,
             listing.amenityIds,
           ),
+          this.#assertCity(fields.location),
         ]);
+      const conditionalClearIds = fields.attributeValues
+        ? await this.#checkAttributeConditions(
+            primaryCategoryId,
+            listing.attributeValues,
+            fields.attributeValues,
+          )
+        : [];
 
       if (nextSlug !== undefined && nextSlug !== listing.slug) {
         await this.#listingRepository.recordSlugHistory(
@@ -1630,10 +1781,7 @@ export class ListingService {
         }
       }
       if (fields.location) {
-        await this.#listingRepository.upsertLocation(
-          { listingId: id, ...fields.location },
-          connection,
-        );
+        await this.#writeLocation(id, fields.location, connection);
       }
       if (fields.amenityIds) {
         await this.#listingRepository.replaceAmenityLinks(
@@ -1643,9 +1791,10 @@ export class ListingService {
         );
       }
       if (resolvedAttributeValues) {
-        await this.#listingRepository.replaceAttributeValues(
+        await this.#writeAttributeValues(
           id,
           resolvedAttributeValues,
+          conditionalClearIds,
           connection,
         );
       }
@@ -1760,15 +1909,19 @@ export class ListingService {
       details.push({ field: 'media', issue: 'AT_LEAST_ONE_IMAGE_REQUIRED' });
     }
 
-    // "Complete" means mappable/bookable — coordinates present.
-    // `addressId`/`cityId` stay optional (nullable in listing_locations):
-    // useful for display, not required to publish.
+    // "Complete" means mappable/bookable — coordinates present. The street
+    // address stays optional (nullable in listing_locations).
     const { location } = listing;
     const hasCompleteLocation = Boolean(
       location && location.latitude !== null && location.longitude !== null,
     );
     if (!hasCompleteLocation) {
       details.push({ field: 'location', issue: 'COMPLETE_LOCATION_REQUIRED' });
+    }
+    // Partner Listing Wizard rebuild: a listing with no city never matches
+    // a destination search and shows no place name on cards or its page.
+    if (!location?.cityId) {
+      details.push({ field: 'location.cityId', issue: 'CITY_REQUIRED' });
     }
 
     const categoryId = listing.categoryIds?.[0];
@@ -1786,10 +1939,15 @@ export class ListingService {
       const providedAttributeCodes = new Set(
         listing.attributeValues.map((entry) => entry.code),
       );
+      const storedAttributeValues = mergeAttributeValues(
+        listing.attributeValues,
+      );
       metadata.attributes
         .filter(
           (attribute) =>
-            attribute.isRequired && !providedAttributeCodes.has(attribute.code),
+            attribute.isRequired &&
+            isAttributeApplicable(attribute, storedAttributeValues) &&
+            !providedAttributeCodes.has(attribute.code),
         )
         .forEach((attribute) => {
           details.push({
@@ -2301,7 +2459,11 @@ export class ListingService {
         media.moderationStatusCode !== 'REJECTED',
     );
     if (!hasImage) required.push('media');
-    if (!listing.location || listing.location.latitude === null) {
+    if (
+      !listing.location ||
+      listing.location.latitude === null ||
+      !listing.location.cityId
+    ) {
       required.push('location');
     }
 
@@ -2316,8 +2478,11 @@ export class ListingService {
       const providedAttributeCodes = new Set(
         listing.attributeValues.map((entry) => entry.code),
       );
+      const storedAttributeValues = mergeAttributeValues(
+        listing.attributeValues,
+      );
       const requiredAttributes = metadata.attributes.filter(
-        (a) => a.isRequired,
+        (a) => a.isRequired && isAttributeApplicable(a, storedAttributeValues),
       );
       totalRequiredChecks += requiredAttributes.length;
       requiredAttributes

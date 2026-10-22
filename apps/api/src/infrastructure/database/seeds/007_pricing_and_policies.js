@@ -122,10 +122,16 @@ const POLICY_DEFINITIONS = [
   { code: 'cancellation_policy', dataType: 'ENUM' },
   { code: 'check_in_time', dataType: 'STRING' },
   { code: 'check_out_time', dataType: 'STRING' },
+  // Partner Listing Wizard rebuild (docs/PARTNER_LISTING_WIZARD_FIELD_GAP.md
+  // §5): a standard house rule (Airbnb, Booking.com) and a car's fuel
+  // return rule, which decides a charge at drop-off.
+  { code: 'parties_allowed', dataType: 'BOOLEAN' },
+  { code: 'fuel_policy', dataType: 'ENUM' },
 ];
 
 const POLICY_OPTIONS = {
   cancellation_policy: ['FLEXIBLE', 'MODERATE', 'STRICT'],
+  fuel_policy: ['FULL_TO_FULL', 'SAME_TO_SAME'],
 };
 
 // category slug -> [{ code, isRequired }]
@@ -133,6 +139,7 @@ const CATEGORY_POLICIES = {
   hotels: [
     { code: 'pets_allowed', isRequired: false },
     { code: 'smoking_allowed', isRequired: false },
+    { code: 'parties_allowed', isRequired: false },
     { code: 'children_allowed', isRequired: false },
     { code: 'cancellation_policy', isRequired: true },
     { code: 'check_in_time', isRequired: true },
@@ -141,6 +148,7 @@ const CATEGORY_POLICIES = {
   apartments: [
     { code: 'pets_allowed', isRequired: false },
     { code: 'smoking_allowed', isRequired: false },
+    { code: 'parties_allowed', isRequired: false },
     { code: 'children_allowed', isRequired: false },
     { code: 'cancellation_policy', isRequired: true },
     { code: 'check_in_time', isRequired: true },
@@ -149,6 +157,7 @@ const CATEGORY_POLICIES = {
   villas: [
     { code: 'pets_allowed', isRequired: false },
     { code: 'smoking_allowed', isRequired: false },
+    { code: 'parties_allowed', isRequired: false },
     { code: 'children_allowed', isRequired: false },
     { code: 'cancellation_policy', isRequired: true },
     { code: 'check_in_time', isRequired: true },
@@ -157,6 +166,7 @@ const CATEGORY_POLICIES = {
   'guest-houses': [
     { code: 'pets_allowed', isRequired: false },
     { code: 'smoking_allowed', isRequired: false },
+    { code: 'parties_allowed', isRequired: false },
     { code: 'children_allowed', isRequired: false },
     { code: 'cancellation_policy', isRequired: true },
     { code: 'check_in_time', isRequired: true },
@@ -172,10 +182,19 @@ const CATEGORY_POLICIES = {
   ],
   'car-rentals': [
     { code: 'smoking_allowed', isRequired: false },
+    { code: 'fuel_policy', isRequired: false },
     { code: 'cancellation_policy', isRequired: true },
   ],
-  attractions: [{ code: 'children_allowed', isRequired: false }],
-  'entertainment-venues': [{ code: 'children_allowed', isRequired: false }],
+  // Wizard rebuild: a paid session books like a tour departure, so the
+  // guest is told the same cancellation terms before paying.
+  attractions: [
+    { code: 'cancellation_policy', isRequired: true },
+    { code: 'children_allowed', isRequired: false },
+  ],
+  'entertainment-venues': [
+    { code: 'cancellation_policy', isRequired: true },
+    { code: 'children_allowed', isRequired: false },
+  ],
 };
 
 export default async function seedPricingAndPolicies(connection) {

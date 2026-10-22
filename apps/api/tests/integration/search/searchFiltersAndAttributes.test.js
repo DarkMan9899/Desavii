@@ -21,6 +21,7 @@ import {
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
 
 const ONE_PX_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
@@ -68,7 +69,7 @@ async function createPublishedHotel(title, categoryId) {
     .patch(`/api/v1/listings/${listingId}`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)
     .send({
-      location: { latitude: 40.18, longitude: 44.5 },
+      location: { cityId: YEREVAN_CITY_ID, latitude: 40.18, longitude: 44.5 },
       // Phase 5: hotels has required policies (seeds/007_pricing_and_policies.js).
       policyValues: [
         { code: 'cancellation_policy', value: 'FLEXIBLE' },

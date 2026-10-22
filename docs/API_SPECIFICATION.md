@@ -996,6 +996,45 @@ authoritative, current database state and is what the Partner Dashboard
 and Admin Panel use — `/search` is what the public-facing search experience
 uses and may lag by seconds (`BOOKING_ENGINE_ARCHITECTURE.md` §16.3).
 
+### 38.1 Implemented contract — location and conditional details (Partner Listing Wizard rebuild)
+
+See `docs/PARTNER_LISTING_WIZARD_FIELD_GAP.md` for the research behind it.
+
+**Location (`POST`/`PATCH /listings`, `location`):** `cityId` (a seeded
+city — `GET /search/destinations` lists them), optional `addressLine`
+(trimmed, at most 255 characters; blank removes it), `latitude`,
+`longitude`.
+
+| Case | Status | `field` / `issue` |
+|---|---|---|
+| `cityId` is not a seeded city | `422` | `location.cityId` / `UNKNOWN_CITY` |
+| Publish without a city | `422` | `location.cityId` / `CITY_REQUIRED` |
+
+`GET /listings/{id}` returns `location.address_line`. For a private stay
+(`listing_type` `PROPERTY` — apartments, villas, guest houses) it is `null`
+unless the caller can manage the listing, matching that listing type's
+approximate public map. Every other listing type's address is public.
+
+**Conditional details (`attributeValues`):** a category attribute may depend
+on another attribute's option. `GET /listings/metadata` returns this as
+`attributes[].depends_on: { attribute_code, option_code }` (otherwise
+`null`). For example, a tour's `pickup_details` depends on
+`meeting_point_type = HOTEL_PICKUP`, and a car's `daily_distance_limit_km`
+depends on `mileage_policy = LIMITED`.
+
+- Submitting a dependent while its condition does not hold returns `422`
+  `attributeValues.<code>` / `ATTRIBUTE_NOT_APPLICABLE`.
+- Changing the controlling answer clears stored dependents that no longer
+  apply.
+- `{ code, value: null }` (or `optionCodes: []`) clears a stored value.
+- A required attribute only counts towards publish readiness while it
+  applies.
+
+**Taxonomy delivery:** new attributes, options, amenities, policies and
+cities are idempotent seed upserts (`seeds/002`, `006`, `007`). Migration
+`0055_category_attribute_conditions` adds the dependency columns. Run
+`npm run db:migrate` and then `npm run db:seed` on deploy.
+
 ## 39. Properties
 
 Base path: `/api/v1/properties`. A convenience, read-only aggregation over

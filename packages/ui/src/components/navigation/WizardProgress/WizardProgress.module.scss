@@ -1,6 +1,6 @@
 // WizardProgress — Phase 5. Tokens only.
 //
-// P2.1: `.steps` has no fixed/known step count (11 in the Partner
+// P2.1: `.steps` has no fixed/known step count (10 in the Partner
 // Listing Wizard) and no wrap/scroll handling existed at all below
 // `tablet` — an 11-step nowrap row overflowed unusably under ~768px,
 // worst at ~390px. Made horizontally scrollable at every width instead
@@ -10,16 +10,39 @@
 // above it (e.g. "Step 3 of 11: Pricing") already states the current
 // step in full regardless of scroll position, so scrolling the step
 // row itself is never the only way to know where you are.
+//
+// Partner Listing Wizard rebuild (field-gap X7): a 10-step row of nowrap
+// labels is wider than the content column, so on desktop it was clipped
+// mid-row with the later steps off-screen. Once the progress bar's *own*
+// width reaches `$fitted-min-width` (a container query — the Partner
+// layout's sidebar makes the viewport width meaningless here) the row
+// becomes an evenly divided stepper: every step gets an equal column, its
+// label wraps (hyphenated in the page's language) under its number, and
+// the connector runs between the numbers, so every step is visible at
+// once. Narrower, the row keeps scrolling and `WizardProgress.jsx` scrolls
+// the current step into view.
 
 @use '../../../tokens/colors' as colors;
 @use '../../../tokens/spacing' as spacing;
 @use '../../../tokens/typography' as typography;
 @use '../../../functions' as fn;
+@use '../../../tokens/breakpoints' as bp;
+
+$step-number-size: 28px;
+// Wide enough for ten columns of wrapped labels in HY/EN/RU.
+$fitted-min-width: bp.$breakpoint-laptop;
+
+@mixin fitted {
+  @container wizard-progress (min-width: #{$fitted-min-width}) {
+    @content;
+  }
+}
 
 .wizardProgress {
   display: flex;
   flex-direction: column;
   gap: spacing.$space-2;
+  container: wizard-progress / inline-size;
 }
 
 .summary {
@@ -38,12 +61,25 @@
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
+
+  @include fitted {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    align-items: start;
+    overflow-x: visible;
+  }
 }
 
 .step {
   display: flex;
   align-items: center;
   flex: 0 0 auto;
+
+  @include fitted {
+    position: relative;
+    justify-content: center;
+  }
 }
 
 .stepButton {
@@ -63,6 +99,13 @@
     outline: 2px solid colors.$color-royal-blue;
     outline-offset: 2px;
   }
+
+  @include fitted {
+    flex-direction: column;
+    gap: spacing.$space-1;
+    padding-inline: spacing.$space-1;
+    text-align: center;
+  }
 }
 
 .stepNumber {
@@ -70,8 +113,8 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: $step-number-size;
+  height: $step-number-size;
   border-radius: 50%;
   background-color: colors.$color-gray-100;
   color: colors.$color-gray-600;
@@ -99,6 +142,13 @@
   font-weight: 600;
   color: colors.$color-gray-600;
   white-space: nowrap;
+
+  @include fitted {
+    font-size: fn.rem(typography.$font-size-micro);
+    white-space: normal;
+    hyphens: auto;
+    overflow-wrap: break-word;
+  }
 }
 
 .stepButton--current .stepLabel {
@@ -114,4 +164,17 @@
   height: 2px;
   margin: 0 spacing.$space-2;
   background-color: colors.$color-gray-200;
+
+  // Between this step's number and the next one's, centred on the numbers.
+  @include fitted {
+    position: absolute;
+    inset-block-start: calc(#{spacing.$space-1} + #{$step-number-size} / 2);
+    inset-inline-start: calc(
+      50% + #{$step-number-size} / 2 + #{spacing.$space-1}
+    );
+    inset-inline-end: calc(
+      -50% + #{$step-number-size} / 2 + #{spacing.$space-1}
+    );
+    margin: 0;
+  }
 }

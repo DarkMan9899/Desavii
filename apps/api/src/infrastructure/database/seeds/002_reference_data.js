@@ -231,6 +231,107 @@ export default async function seedReferenceData(connection) {
       latitude: 40.1608,
       longitude: 44.2934,
     },
+    // Partner Listing Wizard rebuild: the towns and villages where most
+    // tours, attractions and countryside stays actually are — a partner
+    // picks the real place, not the nearest of eight cities.
+    {
+      region: 'Kotayk',
+      name: 'Tsaghkadzor',
+      slug: 'tsaghkadzor',
+      latitude: 40.5326,
+      longitude: 44.7206,
+    },
+    {
+      region: 'Kotayk',
+      name: 'Garni',
+      slug: 'garni',
+      latitude: 40.1194,
+      longitude: 44.73,
+    },
+    {
+      region: 'Kotayk',
+      name: 'Hrazdan',
+      slug: 'hrazdan',
+      latitude: 40.4976,
+      longitude: 44.7663,
+    },
+    {
+      region: 'Kotayk',
+      name: 'Abovyan',
+      slug: 'abovyan',
+      latitude: 40.2739,
+      longitude: 44.6256,
+    },
+    {
+      region: 'Aragatsotn',
+      name: 'Ashtarak',
+      slug: 'ashtarak',
+      latitude: 40.2992,
+      longitude: 44.3622,
+    },
+    {
+      region: 'Lori',
+      name: 'Stepanavan',
+      slug: 'stepanavan',
+      latitude: 41.0089,
+      longitude: 44.3867,
+    },
+    {
+      region: 'Lori',
+      name: 'Alaverdi',
+      slug: 'alaverdi',
+      latitude: 41.0977,
+      longitude: 44.6732,
+    },
+    {
+      region: 'Tavush',
+      name: 'Ijevan',
+      slug: 'ijevan',
+      latitude: 40.8789,
+      longitude: 45.1492,
+    },
+    {
+      region: 'Vayots Dzor',
+      name: 'Yeghegnadzor',
+      slug: 'yeghegnadzor',
+      latitude: 39.7611,
+      longitude: 45.3333,
+    },
+    {
+      region: 'Vayots Dzor',
+      name: 'Areni',
+      slug: 'areni',
+      latitude: 39.7211,
+      longitude: 45.1839,
+    },
+    {
+      region: 'Syunik',
+      name: 'Sisian',
+      slug: 'sisian',
+      latitude: 39.5206,
+      longitude: 46.0322,
+    },
+    {
+      region: 'Syunik',
+      name: 'Tatev',
+      slug: 'tatev',
+      latitude: 39.3803,
+      longitude: 46.2497,
+    },
+    {
+      region: 'Syunik',
+      name: 'Kapan',
+      slug: 'kapan',
+      latitude: 39.2075,
+      longitude: 46.4058,
+    },
+    {
+      region: 'Syunik',
+      name: 'Meghri',
+      slug: 'meghri',
+      latitude: 38.903,
+      longitude: 46.244,
+    },
   ];
 
   // Every seeded city carries its Armenian and Russian name — Search's
@@ -245,6 +346,20 @@ export default async function seedReferenceData(connection) {
     goris: { hy: 'Գորիս', ru: 'Горис' },
     jermuk: { hy: 'Ջերմուկ', ru: 'Джермук' },
     ejmiatsin: { hy: 'Էջմիածին', ru: 'Эчмиадзин' },
+    tsaghkadzor: { hy: 'Ծաղկաձոր', ru: 'Цахкадзор' },
+    garni: { hy: 'Գառնի', ru: 'Гарни' },
+    hrazdan: { hy: 'Հրազդան', ru: 'Раздан' },
+    abovyan: { hy: 'Աբովյան', ru: 'Абовян' },
+    ashtarak: { hy: 'Աշտարակ', ru: 'Аштарак' },
+    stepanavan: { hy: 'Ստեփանավան', ru: 'Степанаван' },
+    alaverdi: { hy: 'Ալավերդի', ru: 'Алаверди' },
+    ijevan: { hy: 'Իջևան', ru: 'Иджеван' },
+    yeghegnadzor: { hy: 'Եղեգնաձոր', ru: 'Ехегнадзор' },
+    areni: { hy: 'Արենի', ru: 'Арени' },
+    sisian: { hy: 'Սիսիան', ru: 'Сисиан' },
+    tatev: { hy: 'Տաթև', ru: 'Татев' },
+    kapan: { hy: 'Կապան', ru: 'Капан' },
+    meghri: { hy: 'Մեղրի', ru: 'Мегри' },
   };
 
   // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order

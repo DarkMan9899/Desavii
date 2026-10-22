@@ -19,10 +19,20 @@ export function toTranslationResponse(translation) {
   };
 }
 
-export function toLocationResponse(location) {
+/**
+ * @param {object|null} location
+ * @param {{ includeAddressLine?: boolean }} [options] - the street address
+ *   is withheld where it would locate someone's home to the public (see
+ *   `toListingResponse`)
+ */
+export function toLocationResponse(
+  location,
+  { includeAddressLine = true } = {},
+) {
   if (!location) return null;
   return {
     address_id: location.addressId,
+    address_line: includeAddressLine ? (location.addressLine ?? null) : null,
     city_id: location.cityId,
     city_name: location.cityName,
     country_name: location.countryName,
@@ -149,9 +159,18 @@ export function toCompanyAttributionResponse(company) {
  * `null`) when `false`, so the key is genuinely absent from the response,
  * not just empty.
  */
+/**
+ * `includePrivateAddress` — a private stay's (PROPERTY: apartments, villas,
+ * guest houses) street address is someone's home, so it is withheld unless
+ * the caller opts in (matching the Search map's approximate-location
+ * policy). Only responses already authorized to manage the listing opt in:
+ * the shared `GET /listings/:idOrSlug` for an owner/moderator
+ * (`ListingService#canManageListing`), the owner's own mutation responses
+ * and the admin detail. Every other listing type's address is public.
+ */
 export function toListingResponse(
   listing,
-  { includeModerationNotes = false } = {},
+  { includeModerationNotes = false, includePrivateAddress = false } = {},
 ) {
   return {
     id: listing.id,
@@ -173,7 +192,10 @@ export function toListingResponse(
     is_indexable: listing.isIndexable,
     is_sitemap_included: listing.isSitemapIncluded,
     translations: listing.translations.map(toTranslationResponse),
-    location: toLocationResponse(listing.location),
+    location: toLocationResponse(listing.location, {
+      includeAddressLine:
+        includePrivateAddress || listing.listingTypeCode !== 'PROPERTY',
+    }),
     category_ids: listing.categoryIds,
     amenity_ids: listing.amenityIds,
     media: listing.media.map(toMediaResponse),
@@ -221,7 +243,7 @@ export function toListingResponse(
  */
 export function toListingOwnerResponse(listing) {
   return {
-    ...toListingResponse(listing),
+    ...toListingResponse(listing, { includePrivateAddress: true }),
     publication_period_days: listing.publicationPeriodDays ?? null,
     expires_at: listing.expiresAt ?? null,
     frozen_at: listing.frozenAt ?? null,
@@ -246,7 +268,7 @@ export function toListingOwnerResponse(listing) {
  */
 export function toListingAdminDetailResponse(listing) {
   return {
-    ...toListingResponse(listing),
+    ...toListingResponse(listing, { includePrivateAddress: true }),
     moderation_notes: listing.moderationNotes ?? null,
     publication_period_days: listing.publicationPeriodDays ?? null,
     expires_at: listing.expiresAt ?? null,
@@ -324,6 +346,13 @@ export function toListingMetadataResponse({
       max: attribute.validationMax,
       is_multi_valued: attribute.isMultiValued,
       is_required: attribute.isRequired,
+      // Shown and accepted only while this choice holds (migration 0055).
+      depends_on: attribute.dependsOn
+        ? {
+            attribute_code: attribute.dependsOn.attributeCode,
+            option_code: attribute.dependsOn.optionCode,
+          }
+        : null,
       options: attribute.options.map(toMetadataOptionResponse),
     })),
     amenity_groups: amenityGroups.map((group) => ({

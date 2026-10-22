@@ -1,9 +1,55 @@
 import { describe, test, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { useState } from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import WizardStepActions from './WizardStepActions.jsx';
 
+// A step whose Continue is refused: it marks its field invalid and stays.
+function RefusingStep() {
+  const [invalid, setInvalid] = useState(false);
+  return (
+    <div>
+      <input aria-label="Title" aria-invalid={invalid ? 'true' : undefined} />
+      <WizardStepActions
+        onContinue={() => setInvalid(true)}
+        backLabel="Back"
+        continueLabel="Continue"
+      />
+    </div>
+  );
+}
+
 describe('WizardStepActions (PartnerListingWizard)', () => {
+  test('a refused Continue moves focus to the first invalid field', async () => {
+    const user = userEvent.setup();
+    render(<RefusingStep />);
+
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await waitFor(() => expect(screen.getByLabelText('Title')).toHaveFocus());
+  });
+
+  test('a Continue that leaves nothing invalid keeps focus where it was', async () => {
+    const user = userEvent.setup();
+    render(
+      <div>
+        <input aria-label="Title" />
+        <WizardStepActions
+          onContinue={vi.fn()}
+          backLabel="Back"
+          continueLabel="Continue"
+        />
+      </div>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await new Promise((resolve) => {
+      window.requestAnimationFrame(resolve);
+    });
+
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveFocus();
+  });
+
   test('renders only the Continue button when onBack is not provided', () => {
     render(
       <WizardStepActions

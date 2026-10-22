@@ -2,7 +2,8 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import AvailabilityStep from './AvailabilityStep.jsx';
+import BookingStep from './BookingStep.jsx';
+import { useListingMetadataQuery } from '../../../queries/useListingMetadataQuery.js';
 import {
   useBookableUnitsQuery,
   useBlackoutsQuery,
@@ -46,14 +47,17 @@ vi.mock('../../../../availability/index.js', async () => ({
 vi.mock('../../../mutations/useUpdateListingMutation.js', () => ({
   useUpdateListingMutation: vi.fn(),
 }));
+vi.mock('../../../queries/useListingMetadataQuery.js', () => ({
+  useListingMetadataQuery: vi.fn(),
+}));
 
-// `AvailabilityStep` reads the URL's `:locale` segment (to pass a
+// `BookingStep` reads the URL's `:locale` segment (to pass a
 // locale-aware `DatePicker`), so every render needs a Router context.
 const profileFor = (listingType, categorySlug, pricingModel) =>
   resolveBookableUnitProfile({ listingType, categorySlug, pricingModel });
 const HOTEL = profileFor('HOTEL', 'hotels', 'PER_NIGHT');
 
-function renderStep(props) {
+function renderStep({ initialValues = undefined, ...props }) {
   return render(
     <MemoryRouter initialEntries={['/hy/partner/listings/new']}>
       <Routes>
@@ -61,7 +65,12 @@ function renderStep(props) {
           path="/:locale/partner/listings/new"
           element={
             // eslint-disable-next-line react/jsx-props-no-spreading -- test harness forwards per-test overrides
-            <AvailabilityStep unitProfile={HOTEL} {...props} />
+            <BookingStep
+              unitProfile={HOTEL}
+              initialRules={initialValues}
+              // eslint-disable-next-line react/jsx-props-no-spreading -- test harness forwards per-test overrides
+              {...props}
+            />
           }
         />
       </Routes>
@@ -69,7 +78,7 @@ function renderStep(props) {
   );
 }
 
-describe('AvailabilityStep (PartnerListingWizard)', () => {
+describe('BookingStep — units, rules and blackout dates (PartnerListingWizard)', () => {
   let registerUnitMutate;
   let updateUnitMutate;
   let createBlackoutMutate;
@@ -111,6 +120,12 @@ describe('AvailabilityStep (PartnerListingWizard)', () => {
       mutateAsync: updateListingMutateAsync,
       isPending: false,
       error: null,
+    });
+    // No default price to set: these cases are about units and rules.
+    useListingMetadataQuery.mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: { pricing_models: [] },
     });
   });
 

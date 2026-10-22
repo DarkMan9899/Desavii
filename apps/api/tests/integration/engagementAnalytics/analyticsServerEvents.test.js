@@ -8,6 +8,7 @@
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
 import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
+import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
 
 let app;
 let up;
@@ -51,7 +52,13 @@ async function createListing(title) {
   await request(app)
     .patch(`/api/v1/listings/${listingId}`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)
-    .send({ location: { latitude: 40.1772, longitude: 44.5035 } });
+    .send({
+      location: {
+        cityId: YEREVAN_CITY_ID,
+        latitude: 40.1772,
+        longitude: 44.5035,
+      },
+    });
   await request(app)
     .post(`/api/v1/listings/${listingId}/media`)
     .set('Authorization', `Bearer ${vendor.accessToken}`)

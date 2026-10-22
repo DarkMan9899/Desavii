@@ -45,6 +45,9 @@ const translationSchema = z.object({
 
 const locationSchema = z.object({
   addressId: z.coerce.number().int().positive().optional(),
+  // Partner Listing Wizard rebuild: the street address, stored on
+  // `addresses`; a blank line removes it.
+  addressLine: z.string().trim().max(255).optional(),
   cityId: z.coerce.number().int().positive().optional(),
   latitude: z.coerce.number().min(-90).max(90).optional(),
   longitude: z.coerce.number().min(-180).max(180).optional(),
@@ -62,7 +65,8 @@ const positiveIdArray = z.array(z.coerce.number().int().positive());
 const attributeValueSchema = z
   .object({
     code: z.string().trim().min(1).max(60),
-    value: z.union([z.string(), z.number(), z.boolean()]).optional(),
+    // `null` removes a stored value (a field the partner emptied).
+    value: z.union([z.string(), z.number(), z.boolean()]).nullable().optional(),
     optionCodes: z.array(z.string().trim().min(1).max(60)).optional(),
   })
   .refine(

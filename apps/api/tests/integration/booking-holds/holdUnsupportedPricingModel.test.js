@@ -28,6 +28,7 @@ import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
 
 const GUEST_CONTACT = { fullName: 'Ada Lovelace', email: 'ada@example.com' };
 const ONE_PX_PNG = Buffer.from(
@@ -248,7 +249,14 @@ describe('booking conversion', () => {
     await request(app)
       .patch(`/api/v1/listings/${listingId}`)
       .set('Authorization', `Bearer ${vendor}`)
-      .send({ location: { latitude: 40.1872, longitude: 44.5152 } });
+      .send({
+        location: {
+          cityId: YEREVAN_CITY_ID,
+          latitude: 40.1872,
+          longitude: 44.5152,
+        },
+        policyValues: [{ code: 'cancellation_policy', value: 'FLEXIBLE' }],
+      });
     await request(app)
       .post(`/api/v1/listings/${listingId}/media`)
       .set('Authorization', `Bearer ${vendor}`)
