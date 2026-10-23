@@ -19,3 +19,11 @@
     height: 320px;
   }
 }
+
+// Same area treatment as Search Map's approximate private stays.
+.approximateArea {
+  stroke: tokens.$color-navy;
+  stroke-dasharray: 6 6;
+  fill: tokens.$color-royal-blue;
+  fill-opacity: 0.08;
+}

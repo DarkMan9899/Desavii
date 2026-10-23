@@ -9,6 +9,11 @@
  * submitted from a completed booking's own detail page
  * (`BookingDetailPageContent`'s review gate) — this section stays
  * display-only, no "write a review" CTA here.
+ *
+ * Listing Detail rebuild: with no review at all (`reviewCount` is the live
+ * count of approved reviews, the same filter the list itself reads) the
+ * section is one quiet line — no empty-state block, and no request for a
+ * list known to be empty.
  */
 
 import PropTypes from 'prop-types';
@@ -16,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { ReviewSummary } from '@desavii/ui/components/data-display';
 import { Section, Stack } from '@desavii/ui/components/layout';
 import { ReviewsList } from '../../../../reviews/index.js';
+import styles from './ListingReviewsSection.module.scss';
 
 export default function ListingReviewsSection({
   listingId,
@@ -38,10 +44,19 @@ export default function ListingReviewsSection({
     >
       <Stack gap="4">
         <h2 id={sectionId}>{t('pages.listingDetail.reviews.heading')}</h2>
-        {ratingAverage !== null && (
-          <ReviewSummary average={ratingAverage} reviewCount={reviewCount} />
+        {reviewCount === 0 ? (
+          <p className={styles.none}>{t('pages.listingDetail.reviews.none')}</p>
+        ) : (
+          <>
+            {ratingAverage !== null && (
+              <ReviewSummary
+                average={ratingAverage}
+                reviewCount={reviewCount}
+              />
+            )}
+            <ReviewsList listingId={listingId} partnerId={partnerId} />
+          </>
         )}
-        <ReviewsList listingId={listingId} partnerId={partnerId} />
       </Stack>
     </Section>
   );

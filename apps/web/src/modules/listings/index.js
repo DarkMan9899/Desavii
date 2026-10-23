@@ -53,6 +53,11 @@ export {
   isRenewEligible,
   resolveDefaultRenewalPeriod,
 } from './utils/listingLifecyclePresentation.js';
+// Listing Detail rebuild: who-can-edit-when, shared by partner and admin.
+export {
+  EDIT_LOCKED_STATUSES,
+  isListingEditable,
+} from './utils/listingEditability.js';
 
 // P2.1 (Admin Listing Detail): the read-only Listing Detail sections,
 // exposed so the admin module can render the same metadata-driven
@@ -64,6 +69,7 @@ export { default as ListingPoliciesSection } from './components/ListingDetailPag
 export { default as ListingItinerarySection } from './components/ListingDetailPageContent/ListingItinerarySection/ListingItinerarySection.jsx';
 export { default as ListingIncludedSection } from './components/ListingDetailPageContent/ListingIncludedSection/ListingIncludedSection.jsx';
 export { default as ListingFaqSection } from './components/ListingDetailPageContent/ListingFaqSection/ListingFaqSection.jsx';
+export { default as ListingGuestNotesSection } from './components/ListingDetailPageContent/ListingGuestNotesSection/ListingGuestNotesSection.jsx';
 export { default as ListingLocationSection } from './components/ListingDetailPageContent/ListingLocationSection/ListingLocationSection.jsx';
 export { default as ListingAboutSection } from './components/ListingDetailPageContent/ListingAboutSection/ListingAboutSection.jsx';
 export { default as getLocalizedTranslation } from './utils/getLocalizedTranslation.js';

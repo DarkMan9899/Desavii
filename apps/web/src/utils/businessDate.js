@@ -24,6 +24,46 @@ export function getBusinessToday(now = new Date()) {
   return BUSINESS_DATE_FORMATTER.format(now);
 }
 
+const BUSINESS_WALL_CLOCK_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: BUSINESS_TIMEZONE,
+  weekday: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+const WEEKDAY_INDEX = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+const MINUTES_PER_HOUR = 60;
+
+/**
+ * The Asia/Yerevan wall clock at `now` — what a venue's opening hours are
+ * kept in. A visitor elsewhere must see whether the place is open by
+ * Yerevan's clock, never by their own.
+ * @returns {{ dayOfWeek: number, minutesSinceMidnight: number }}
+ *   `dayOfWeek` as `Date#getDay()` (0 = Sunday)
+ */
+export function getBusinessWallClock(now = new Date()) {
+  const parts = Object.fromEntries(
+    BUSINESS_WALL_CLOCK_FORMATTER.formatToParts(now).map((part) => [
+      part.type,
+      part.value,
+    ]),
+  );
+  return {
+    dayOfWeek: WEEKDAY_INDEX[parts.weekday],
+    minutesSinceMidnight:
+      Number(parts.hour) * MINUTES_PER_HOUR + Number(parts.minute),
+  };
+}
+
 /**
  * `days` calendar days after (or before, when negative) a `YYYY-MM-DD`
  * date. Date-only arithmetic anchored at UTC midnight, so no timezone can

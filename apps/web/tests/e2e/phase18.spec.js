@@ -64,7 +64,10 @@ test.describe('Phase 18 — category-specific Listing Detail rendering', () => {
     await expect(page.getByRole('heading', { name: 'Amenities' })).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByRole('heading', { name: 'Policies' })).toBeVisible();
+    // Listing Detail rebuild: a stay's policies read as its house rules.
+    await expect(
+      page.getByRole('heading', { name: 'House rules' }),
+    ).toBeVisible();
     // A real partner-authored highlight from seedDemoListingRichContent.js
     // renders in the hero — proves this is real backend content, not a
     // placeholder shell.

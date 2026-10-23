@@ -197,6 +197,17 @@ export function replaceListingIncludedItems(id, items, languageCode) {
     .then((response) => response.data);
 }
 
+/**
+ * `PATCH /listings/:id/guest-notes` — `{ languageCode?, notes: [{ kind,
+ * text }] }`, kind BRING / NOT_ALLOWED / KNOW_BEFORE. Tours, attractions
+ * and car rentals only (the API refuses other categories).
+ */
+export function replaceListingGuestNotes(id, notes, languageCode) {
+  return apiClient
+    .patch(`/listings/${id}/guest-notes`, { languageCode, notes })
+    .then((response) => response.data);
+}
+
 /** `PATCH /listings/:id/faqs` — `{ languageCode?, faqs: [{ question, answer }] }`. */
 export function replaceListingFaqs(id, faqs, languageCode) {
   return apiClient

@@ -88,6 +88,14 @@ describe('GET /listings/metadata', () => {
       g.amenities.map((a) => a.code),
     );
     expect(allAmenityCodes).toContain('Pool');
+    // Listing Detail rebuild (migration 0056): every amenity also carries
+    // its stable, language-independent key — what the page picks icons and
+    // the "popular" order by, never the localized label.
+    const allAmenities = res.body.data.amenity_groups.flatMap(
+      (g) => g.amenities,
+    );
+    expect(allAmenities.every((a) => /^[A-Z0-9_]+$/.test(a.key))).toBe(true);
+    expect(allAmenities.find((a) => a.code === 'Pool').key).toBe('POOL');
 
     expect(res.body.data.pricing_models.map((m) => m.code)).toEqual([
       'PER_NIGHT',

@@ -14,6 +14,7 @@ export { default as AdminPartnersPageContent } from './components/AdminPartnersP
 export { default as AdminPartnerDetailContent } from './components/AdminPartnerDetailContent/AdminPartnerDetailContent.jsx';
 export { default as AdminListingModerationPageContent } from './components/AdminListingModerationPageContent/AdminListingModerationPageContent.jsx';
 export { default as AdminListingDetailContent } from './components/AdminListingDetailContent/AdminListingDetailContent.jsx';
+export { default as AdminListingEditContent } from './components/AdminListingEditContent/AdminListingEditContent.jsx';
 export { default as AdminBookingsPageContent } from './components/AdminBookingsPageContent/AdminBookingsPageContent.jsx';
 export { default as AdminBookingDetailContent } from './components/AdminBookingDetailContent/AdminBookingDetailContent.jsx';
 export { default as AdminMarketplaceConfigPageContent } from './components/AdminMarketplaceConfigPageContent/AdminMarketplaceConfigPageContent.jsx';

@@ -21,6 +21,7 @@
 import { Star, BedDouble, Clock, Settings2, Utensils } from 'lucide-react';
 import { resolveCardConfig } from './categoryCardConfig.js';
 import { resolvePricingModelBasis } from './pricingModelBasis.js';
+import { formatDurationLabel } from './formatDuration.js';
 
 /**
  * One real "headline" metadata fact per category — see
@@ -55,14 +56,11 @@ function buildHeadlineChip(result, categoryVisualKey, t) {
     case 'attractions':
     case 'entertainment-venues': {
       if (!result.duration_minutes) return null;
-      const hours = Math.floor(result.duration_minutes / 60);
-      const label =
-        hours >= 1 && result.duration_minutes % 60 === 0
-          ? t('search.card.durationHours', { count: hours })
-          : t('search.card.durationMinutes', {
-              count: result.duration_minutes,
-            });
-      return { key: 'headline-duration', icon: Clock, label };
+      return {
+        key: 'headline-duration',
+        icon: Clock,
+        label: formatDurationLabel(result.duration_minutes, t),
+      };
     }
     case 'car-rentals':
       return result.transmission

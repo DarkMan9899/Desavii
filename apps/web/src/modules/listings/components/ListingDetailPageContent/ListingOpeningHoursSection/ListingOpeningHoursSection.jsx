@@ -18,6 +18,7 @@ import {
   computeOpenNowStatus,
   buildWeeklyScheduleRows,
 } from '../../../utils/openingHoursStatus.js';
+import { getBusinessWallClock } from '../../../../../utils/businessDate.js';
 import styles from './ListingOpeningHoursSection.module.scss';
 
 export default function ListingOpeningHoursSection({
@@ -30,7 +31,7 @@ export default function ListingOpeningHoursSection({
 
   const status = computeOpenNowStatus(weeklyHours);
   const rows = buildWeeklyScheduleRows(weeklyHours, locale ?? i18n.language);
-  const todayDayOfWeek = new Date().getDay();
+  const todayDayOfWeek = getBusinessWallClock().dayOfWeek;
 
   return (
     <Section

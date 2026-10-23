@@ -19,11 +19,16 @@
  * metadata but never filled in by the partner) is skipped — this section
  * lists what the listing DOES say, not every field a listing of this
  * category COULD have.
+ *
+ * Listing Detail & Admin Information rebuild: an icon specification grid
+ * (label above value) instead of a bare `<dl>` stack, skipping any code
+ * the key facts strip already shows (`excludeCodes`).
  */
 
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { Stack } from '@desavii/ui/components/layout';
+import { resolveAttributeIcon } from '../../utils/attributeIcons.js';
+import styles from './MetadataValueDisplay.module.scss';
 
 const NUMERIC_DATA_TYPES = ['INTEGER', 'DECIMAL'];
 
@@ -64,10 +69,13 @@ export default function MetadataValueDisplay({
   namespace,
   definitions,
   valuesByCode,
+  excludeCodes = [],
 }) {
   const { t } = useTranslation();
+  const excluded = new Set(excludeCodes);
 
   const rows = definitions
+    .filter((definition) => !excluded.has(definition.code))
     .map((definition) => ({
       definition,
       value: valuesByCode[definition.code],
@@ -83,18 +91,30 @@ export default function MetadataValueDisplay({
   if (rows.length === 0) return null;
 
   return (
-    <Stack gap="2" as="dl">
-      {rows.map(({ definition, value }) => (
-        <div key={definition.code}>
-          <dt>
-            {t(`partner.listingWizard.${namespace}.${definition.code}`, {
-              defaultValue: definition.code,
-            })}
-          </dt>
-          <dd>{formatMetadataValue(definition, value, t)}</dd>
-        </div>
-      ))}
-    </Stack>
+    <dl className={styles.grid}>
+      {rows.map(({ definition, value }) => {
+        const Icon = resolveAttributeIcon(definition.code);
+        return (
+          // A `<dl>` group holds only its `<dt>`/`<dd>`; the icon sits
+          // inside the term, positioned beside both lines by the styles.
+          <div className={styles.row} key={definition.code}>
+            <dt className={styles.label}>
+              <Icon
+                className={styles.icon}
+                aria-hidden="true"
+                focusable="false"
+              />
+              {t(`partner.listingWizard.${namespace}.${definition.code}`, {
+                defaultValue: definition.code,
+              })}
+            </dt>
+            <dd className={styles.value}>
+              {formatMetadataValue(definition, value, t)}
+            </dd>
+          </div>
+        );
+      })}
+    </dl>
   );
 }
 
@@ -115,4 +135,6 @@ MetadataValueDisplay.propTypes = {
   ).isRequired,
   // eslint-disable-next-line react/forbid-prop-types -- domain value shape varies by data_type (string/number/boolean/array), same as MetadataFieldRenderer's own `value` prop
   valuesByCode: PropTypes.object.isRequired,
+  // Codes already shown elsewhere on the page (the key facts strip).
+  excludeCodes: PropTypes.arrayOf(PropTypes.string),
 };

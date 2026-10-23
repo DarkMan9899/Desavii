@@ -6,18 +6,24 @@
  * domainValue}` map `MetadataFieldRenderer` renders from, then hands it
  * to `MetadataValueDisplay` for the actual label+value formatting.
  * Never branches on category — `metadata.attributes` is whatever the
- * category declares, nothing here names one.
+ * category declares, nothing here names one. A conditional attribute
+ * whose condition no longer holds (`depends_on`) is not shown.
  */
 
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Section } from '@desavii/ui/components/layout';
-import { fromAttributeValuesResponse } from '../../../utils/attributeValueMapping.js';
+import {
+  fromAttributeValuesResponse,
+  isAttributeApplicable,
+} from '../../../utils/attributeValueMapping.js';
 import MetadataValueDisplay from '../MetadataValueDisplay.jsx';
 
 export default function ListingAttributesSection({
   attributes = [],
   listing,
+  excludeCodes = [],
+  headingKey = 'pages.listingDetail.attributes.heading',
   sectionId = undefined,
 }) {
   const { t } = useTranslation();
@@ -28,7 +34,12 @@ export default function ListingAttributesSection({
     attributes,
     listing.attribute_values,
   );
-  const hasAnyValue = attributes.some((definition) => {
+  const excluded = new Set(excludeCodes);
+  const applicable = attributes.filter((definition) =>
+    isAttributeApplicable(definition, valuesByCode),
+  );
+  const hasAnyValue = applicable.some((definition) => {
+    if (excluded.has(definition.code)) return false;
     const value = valuesByCode[definition.code];
     return (
       value !== undefined &&
@@ -39,16 +50,15 @@ export default function ListingAttributesSection({
   });
   if (!hasAnyValue) return null;
 
+  const heading = t(headingKey);
   return (
-    <Section
-      spacing="none"
-      aria-label={t('pages.listingDetail.attributes.heading')}
-    >
-      <h2 id={sectionId}>{t('pages.listingDetail.attributes.heading')}</h2>
+    <Section spacing="none" aria-label={heading}>
+      <h2 id={sectionId}>{heading}</h2>
       <MetadataValueDisplay
         namespace="attributes"
-        definitions={attributes}
+        definitions={applicable}
         valuesByCode={valuesByCode}
+        excludeCodes={excludeCodes}
       />
     </Section>
   );
@@ -72,5 +82,10 @@ ListingAttributesSection.propTypes = {
     // eslint-disable-next-line react/forbid-prop-types -- passthrough to fromAttributeValuesResponse, whose own entry shape varies by data_type
     attribute_values: PropTypes.array,
   }).isRequired,
+  // Codes the key facts strip already shows; the public page passes them,
+  // Admin (which wants every value) does not.
+  excludeCodes: PropTypes.arrayOf(PropTypes.string),
+  // "Details", or a category's own wording ("Vehicle specifications").
+  headingKey: PropTypes.string,
   sectionId: PropTypes.string,
 };

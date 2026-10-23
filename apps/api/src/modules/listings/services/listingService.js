@@ -40,6 +40,7 @@ import { isoDateSchema } from '../../../validation/isoDate.js';
 import { isValidListingStatusTransition } from '../../../core/domain/listingStatusTransitions.js';
 import { resolveModerationDecision } from '../../../core/domain/listingModerationDecisions.js';
 import { deriveListingTypeCodeFromCategorySlug } from '../../../core/domain/categoryListingTypeMapping.js';
+import { acceptsGuestNotes } from '../../../core/domain/listingGuestNotes.js';
 import {
   hasAttributeValue,
   isAttributeApplicable,
@@ -2404,6 +2405,37 @@ export class ListingService {
       items,
       principal.userId,
       localeId,
+    );
+  }
+
+  /**
+   * Guest guidance notes — only for the categories they mean something in
+   * (`acceptsGuestNotes`); elsewhere refused, never silently stored.
+   * Written in one transaction (delete + inserts).
+   */
+  async replaceGuestNotes(principal, listingId, notes, languageCode) {
+    const listing = await this.#listingRepository.findById(listingId);
+    if (!listing) throw new NotFoundError('Listing not found.');
+    await this.#assertOwnerOrPermission(
+      principal,
+      listing.partnerId,
+      'listing.update',
+    );
+    if (!acceptsGuestNotes(listing.listingTypeCode)) {
+      throw new ValidationError(
+        'Guest notes are not offered for this listing category.',
+        [{ field: 'notes', issue: 'GUEST_NOTES_NOT_APPLICABLE' }],
+      );
+    }
+    const { localeId } = await resolveLocaleIds(languageCode);
+    return withTransaction((connection) =>
+      this.#listingRepository.replaceGuestNotes(
+        listingId,
+        notes,
+        principal.userId,
+        localeId,
+        connection,
+      ),
     );
   }
 

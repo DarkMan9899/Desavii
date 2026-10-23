@@ -50,6 +50,27 @@ export const LOCATION_PRECISION = Object.freeze({
   APPROXIMATE: 'approximate',
 });
 
+// Coordinates are stored as DECIMAL(10,7): scaled to integers at that
+// precision, the grid arithmetic is exact, the same as MySQL's DECIMAL
+// arithmetic in `mysqlSearchRepository.js` (a float division would put
+// e.g. 40.18 into the 40.17 cell).
+const COORDINATE_SCALE = 10_000_000;
+const GRID_CELL_UNITS = Math.round(APPROXIMATE_GRID_DEGREES * COORDINATE_SCALE);
+
+/**
+ * The public point of an approximately shown listing: the centre of the
+ * fixed grid cell its stored coordinate falls in — exactly what Search Map
+ * shows, so Listing Detail can never reveal a closer point than the map.
+ * @param {number | null} coordinate - a stored latitude or longitude
+ * @returns {number | null}
+ */
+export function approximateCoordinate(coordinate) {
+  if (coordinate === null || coordinate === undefined) return null;
+  const units = Math.round(Number(coordinate) * COORDINATE_SCALE);
+  const cellStart = Math.floor(units / GRID_CELL_UNITS) * GRID_CELL_UNITS;
+  return (cellStart + GRID_CELL_UNITS / 2) / COORDINATE_SCALE;
+}
+
 const LATITUDE_LIMIT = 90;
 const LONGITUDE_LIMIT = 180;
 const NUMBER_PATTERN = /^-?\d{1,3}(\.\d+)?$/;

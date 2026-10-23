@@ -12,12 +12,22 @@
  * explicitly (a well-known Leaflet+bundler interaction, not specific to
  * this app) — done once here since this is the only place Leaflet is
  * used.
+ *
+ * `isApproximate` (a private stay, `location.location_precision`): the
+ * API already sends the Search Map's grid-cell centre, never the home's
+ * stored point; the map draws that whole area — the same dashed circle
+ * Search Map draws — instead of a pin that would look exact.
  */
 
 import PropTypes from 'prop-types';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { Circle, MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import configureLeafletIcons from '../../../../../utils/configureLeafletIcons.js';
+import {
+  APPROXIMATE_RADIUS_METERS,
+  OSM_ATTRIBUTION,
+  OSM_TILE_URL,
+} from '../../../../../utils/mapPresentation.js';
 import styles from './ListingMap.module.scss';
 
 configureLeafletIcons();
@@ -28,6 +38,7 @@ export default function ListingMap({
   latitude,
   longitude,
   popupLabel = undefined,
+  isApproximate = false,
 }) {
   const position = [latitude, longitude];
 
@@ -43,13 +54,19 @@ export default function ListingMap({
         scrollWheelZoom={false}
         className={styles.map}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <Marker position={position}>
-          <Popup>{popupLabel}</Popup>
-        </Marker>
+        <TileLayer attribution={OSM_ATTRIBUTION} url={OSM_TILE_URL} />
+        {isApproximate ? (
+          <Circle
+            center={position}
+            radius={APPROXIMATE_RADIUS_METERS}
+            interactive={false}
+            pathOptions={{ className: styles.approximateArea }}
+          />
+        ) : (
+          <Marker position={position}>
+            <Popup>{popupLabel}</Popup>
+          </Marker>
+        )}
       </MapContainer>
     </div>
   );
@@ -59,4 +76,5 @@ ListingMap.propTypes = {
   latitude: PropTypes.number.isRequired,
   longitude: PropTypes.number.isRequired,
   popupLabel: PropTypes.string,
+  isApproximate: PropTypes.bool,
 };

@@ -9,7 +9,10 @@
  *
  * The street address (`address_line`) leads that line when the API sends
  * it — a venue's address is public, while a private stay's is withheld
- * (`listingDto.toListingResponse`) to match its approximate public map.
+ * (`listingDto.toListingResponse`). For a private stay the API also sends
+ * only the Search Map's approximate point (`location_precision:
+ * 'approximate'`): the map draws that area and a short note says why, so
+ * the page never implies an exact pin.
  *
  * `ListingMap` is `lazy()`-loaded rather than statically imported:
  * `pages/ListingDetailPage.jsx` reaches this component through
@@ -28,12 +31,14 @@ import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Section, Stack } from '@desavii/ui/components/layout';
 import { Spinner } from '@desavii/ui/components/feedback-overlays';
+import styles from './ListingLocationSection.module.scss';
 
 const ListingMap = lazy(() => import('../ListingMap/ListingMap.jsx'));
 
 export default function ListingLocationSection({
   location = null,
   title = undefined,
+  headingKey = 'pages.listingDetail.location.heading',
   sectionId = undefined,
 }) {
   const { t } = useTranslation();
@@ -52,14 +57,19 @@ export default function ListingLocationSection({
 
   if (!fullAddress && !hasCoordinates) return null;
 
+  const heading = t(headingKey);
+  const isApproximate = location.location_precision === 'approximate';
+
   return (
-    <Section
-      spacing="none"
-      aria-label={t('pages.listingDetail.location.heading')}
-    >
-      <h2 id={sectionId}>{t('pages.listingDetail.location.heading')}</h2>
+    <Section spacing="none" aria-label={heading}>
+      <h2 id={sectionId}>{heading}</h2>
       <Stack gap="3">
         {fullAddress && <p>{fullAddress}</p>}
+        {isApproximate && (
+          <p className={styles.note}>
+            {t('pages.listingDetail.location.approximateNote')}
+          </p>
+        )}
         {hasCoordinates && (
           <Suspense
             fallback={<Spinner label={t('pages.listingDetail.loading')} />}
@@ -68,6 +78,7 @@ export default function ListingLocationSection({
               latitude={location.latitude}
               longitude={location.longitude}
               popupLabel={[title, fullAddress].filter(Boolean).join(', ')}
+              isApproximate={isApproximate}
             />
           </Suspense>
         )}
@@ -83,7 +94,10 @@ ListingLocationSection.propTypes = {
     country_name: PropTypes.string,
     latitude: PropTypes.number,
     longitude: PropTypes.number,
+    location_precision: PropTypes.oneOf(['exact', 'approximate']),
   }),
   title: PropTypes.string,
+  // "Location", or a category's own wording (a car's "Pickup location").
+  headingKey: PropTypes.string,
   sectionId: PropTypes.string,
 };

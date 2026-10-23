@@ -23,6 +23,7 @@ import {
   ListingItinerarySection,
   ListingIncludedSection,
   ListingFaqSection,
+  ListingGuestNotesSection,
 } from '../../../listings/index.js';
 
 export default function LocalizedContentPanel({ listing, reviewLocale }) {
@@ -41,12 +42,14 @@ export default function LocalizedContentPanel({ listing, reviewLocale }) {
     reviewLocale,
   );
   const faqs = getLocalizedItemsExact(listing.faqs, reviewLocale);
+  const guestNotes = getLocalizedItemsExact(listing.guest_notes, reviewLocale);
 
   const hasAnyContent =
     translation ||
     highlights.length > 0 ||
     itinerarySteps.length > 0 ||
     includedItems.length > 0 ||
+    guestNotes.length > 0 ||
     faqs.length > 0;
 
   if (!hasAnyContent) {
@@ -110,6 +113,12 @@ export default function LocalizedContentPanel({ listing, reviewLocale }) {
           sectionId={`included-${reviewLocale}`}
         />
       )}
+      {guestNotes.length > 0 && (
+        <ListingGuestNotesSection
+          notes={guestNotes}
+          sectionId={`guest-notes-${reviewLocale}`}
+        />
+      )}
       {faqs.length > 0 && (
         <ListingFaqSection faqs={faqs} sectionId={`faq-${reviewLocale}`} />
       )}
@@ -133,6 +142,7 @@ LocalizedContentPanel.propTypes = {
     itinerary_steps: PropTypes.arrayOf(localizedRowShape),
     included_items: PropTypes.arrayOf(localizedRowShape),
     faqs: PropTypes.arrayOf(localizedRowShape),
+    guest_notes: PropTypes.arrayOf(localizedRowShape),
   }).isRequired,
   reviewLocale: PropTypes.string.isRequired,
 };

@@ -134,7 +134,7 @@ export class MySqlListingMetadataRepository {
   async #getAmenityGroups(categoryId, { localeId, defaultLocaleId }) {
     const [rows] = await this.#pool.query(
       `SELECT
-         la.id, COALESCE(lat.name, lat2.name, la.name) AS name,
+         la.id, la.code AS amenity_code, COALESCE(lat.name, lat2.name, la.name) AS name,
          ag.code AS group_code, ag.name AS group_name, ag.sort_order AS group_sort_order
        FROM amenity_category_applicability aca
        JOIN listing_amenities la ON la.id = aca.amenity_id
@@ -159,6 +159,7 @@ export class MySqlListingMetadataRepository {
       groupsByCode.get(groupCode).amenities.push({
         value: row.id,
         code: row.name,
+        key: row.amenity_code,
       });
     });
 
@@ -254,14 +255,18 @@ export class MySqlListingMetadataRepository {
    */
   async #getAmenityCatalog({ localeId, defaultLocaleId }) {
     const [rows] = await this.#pool.query(
-      `SELECT la.id, COALESCE(lat.name, lat2.name, la.name) AS name
+      `SELECT la.id, la.code AS amenity_code, COALESCE(lat.name, lat2.name, la.name) AS name
        FROM listing_amenities la
        LEFT JOIN listing_amenity_translations lat ON lat.listing_amenity_id = la.id AND lat.language_id = ?
        LEFT JOIN listing_amenity_translations lat2 ON lat2.listing_amenity_id = la.id AND lat2.language_id = ?
        ORDER BY name ASC`,
       [localeId, defaultLocaleId],
     );
-    return rows.map((row) => ({ value: row.id, code: row.name }));
+    return rows.map((row) => ({
+      value: row.id,
+      code: row.name,
+      key: row.amenity_code,
+    }));
   }
 
   // --- Write-side code resolution (ListingService validates/resolves the

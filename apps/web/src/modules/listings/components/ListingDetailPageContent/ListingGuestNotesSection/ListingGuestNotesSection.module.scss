@@ -1,0 +1,57 @@
+// ListingGuestNotesSection — tokens only. Up to three short lists side by
+// side from tablet (stacked on a phone), each under an icon heading; no
+// cards, the same quiet editorial rhythm as the other detail sections.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+
+.groups {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: tokens.$space-6;
+
+  // One equal column per kind present (one to three), whatever the count.
+  @include respond.respond(tablet) {
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+  }
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-3;
+  min-width: 0;
+}
+
+.groupHeading {
+  display: flex;
+  align-items: center;
+  gap: tokens.$space-2;
+  margin: 0;
+  font-size: tokens.$font-size-body;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
+.icon {
+  flex-shrink: 0;
+  width: tokens.$icon-size-lg;
+  height: tokens.$icon-size-lg;
+  color: tokens.$color-navy;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  padding-inline-start: tokens.$space-6;
+  margin: 0;
+  color: tokens.$color-gray-900;
+  overflow-wrap: anywhere;
+}
+
+.item::marker {
+  color: tokens.$color-gray-400;
+}

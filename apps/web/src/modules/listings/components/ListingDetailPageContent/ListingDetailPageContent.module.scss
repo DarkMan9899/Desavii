@@ -10,6 +10,7 @@
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
+@use 'detailLayout' as layout;
 
 .layout {
   display: flex;
@@ -40,6 +41,8 @@
   // `<h2>` one level deeper inside its own `Stack`, never as a direct
   // child of the `<section>` root.
   h2 {
+    // An in-page nav jump lands the heading just below the pinned nav.
+    scroll-margin-top: layout.$sticky-sidebar-top;
     margin: 0 0 tokens.$space-4;
     font-family: tokens.$font-heading;
     font-size: tokens.$font-size-h3;
@@ -47,26 +50,12 @@
     color: tokens.$color-gray-900;
   }
 
-  // Prose/dense-data sections (About, Details, Availability, Location,
-  // Reviews) — genuinely benefit from a card's visual grouping.
-  > .sectionCard > section {
-    padding: tokens.$space-6;
-    border-radius: tokens.$radius-xl;
-    background-color: tokens.$color-white;
-    @include tokens.elevation-1;
-
-    @include respond.respond(laptop) {
-      padding: tokens.$space-8;
-    }
-  }
-
-  // Structured, already-self-organizing content (Amenities/Included/
-  // Policies/FAQ) — each is already its own tight list, comparison, or
-  // accordion; boxing it in a second layer of card chrome added visual
-  // weight without adding information. A subtle top rule and generous
-  // vertical rhythm read as one continuous, editorially-paced page
-  // instead of a stack of boxes, per section, all the way down.
-  > .sectionEditorial > section {
+  // Every section reads as one continuous, editorially paced page: a
+  // subtle top rule and generous vertical rhythm, never a stack of boxed
+  // cards (the owner-rejected "card per section" look). Content that is
+  // genuinely a set of objects — rooms, menu items — keeps its own cards
+  // inside its section.
+  > .section > section {
     padding: tokens.$space-4 0;
     border-top: 1px solid tokens.$color-gray-200;
 
@@ -78,7 +67,7 @@
   // The very first section (always "About", since it's the only one
   // guaranteed present) shouldn't carry a redundant top rule directly
   // under the hero/section-nav.
-  > .sectionEditorial:first-child > section {
+  > .section:first-child > section {
     border-top: none;
     padding-top: 0;
   }
@@ -95,8 +84,9 @@
     display: block;
     flex: 0 0 360px;
     position: sticky;
-    // Below the app header so the widget never hides under it while pinned.
-    top: tokens.$space-6;
+    // Below the pinned section nav, so the widget's price never slides
+    // under it while scrolling.
+    top: layout.$sticky-sidebar-top;
   }
 }
 

@@ -7,6 +7,11 @@
  * the Controller.
  */
 
+import {
+  approximateCoordinate,
+  LOCATION_PRECISION,
+} from '../../../core/domain/searchMap.js';
+
 export function toTranslationResponse(translation) {
   return {
     language_id: translation.languageId,
@@ -21,23 +26,26 @@ export function toTranslationResponse(translation) {
 
 /**
  * @param {object|null} location
- * @param {{ includeAddressLine?: boolean }} [options] - the street address
- *   is withheld where it would locate someone's home to the public (see
- *   `toListingResponse`)
+ * @param {{ isPublicPrecise?: boolean }} [options] - `false` where the
+ *   exact place would locate someone's home to the public (see
+ *   `toListingResponse`): the street address is withheld and the point is
+ *   the Search Map's approximate grid-cell centre (`approximateCoordinate`)
+ *   instead of the stored coordinates.
  */
-export function toLocationResponse(
-  location,
-  { includeAddressLine = true } = {},
-) {
+export function toLocationResponse(location, { isPublicPrecise = true } = {}) {
   if (!location) return null;
+  const toPoint = isPublicPrecise ? (value) => value : approximateCoordinate;
   return {
-    address_id: location.addressId,
-    address_line: includeAddressLine ? (location.addressLine ?? null) : null,
+    address_id: isPublicPrecise ? location.addressId : null,
+    address_line: isPublicPrecise ? (location.addressLine ?? null) : null,
     city_id: location.cityId,
     city_name: location.cityName,
     country_name: location.countryName,
-    latitude: location.latitude,
-    longitude: location.longitude,
+    latitude: toPoint(location.latitude),
+    longitude: toPoint(location.longitude),
+    location_precision: isPublicPrecise
+      ? LOCATION_PRECISION.EXACT
+      : LOCATION_PRECISION.APPROXIMATE,
   };
 }
 
@@ -120,6 +128,15 @@ export function toIncludedItemResponse(item) {
   };
 }
 
+export function toGuestNoteResponse(note) {
+  return {
+    id: note.id,
+    language_code: note.languageCode,
+    kind: note.kind,
+    text: note.text,
+  };
+}
+
 export function toFaqResponse(faq) {
   return {
     id: faq.id,
@@ -160,13 +177,15 @@ export function toCompanyAttributionResponse(company) {
  * not just empty.
  */
 /**
- * `includePrivateAddress` — a private stay's (PROPERTY: apartments, villas,
- * guest houses) street address is someone's home, so it is withheld unless
- * the caller opts in (matching the Search map's approximate-location
- * policy). Only responses already authorized to manage the listing opt in:
- * the shared `GET /listings/:idOrSlug` for an owner/moderator
+ * `includePrivateAddress` — a private stay (PROPERTY: apartments, villas,
+ * guest houses) is someone's home, so its street address is withheld and
+ * its map point approximated to the Search Map grid cell unless the caller
+ * opts in — the same approximate-location policy Search Map applies, so
+ * Listing Detail never pins a home more precisely than the map does. Only
+ * responses already authorized to manage the listing opt in: the shared
+ * `GET /listings/:idOrSlug` for an owner/moderator
  * (`ListingService#canManageListing`), the owner's own mutation responses
- * and the admin detail. Every other listing type's address is public.
+ * and the admin detail. Every other listing type's place is public.
  */
 export function toListingResponse(
   listing,
@@ -193,7 +212,7 @@ export function toListingResponse(
     is_sitemap_included: listing.isSitemapIncluded,
     translations: listing.translations.map(toTranslationResponse),
     location: toLocationResponse(listing.location, {
-      includeAddressLine:
+      isPublicPrecise:
         includePrivateAddress || listing.listingTypeCode !== 'PROPERTY',
     }),
     category_ids: listing.categoryIds,
@@ -217,6 +236,7 @@ export function toListingResponse(
       toItineraryStepResponse,
     ),
     included_items: (listing.includedItems ?? []).map(toIncludedItemResponse),
+    guest_notes: (listing.guestNotes ?? []).map(toGuestNoteResponse),
     faqs: (listing.faqs ?? []).map(toFaqResponse),
     // Step A3 (Listing → Company Linking): `undefined` (not fetched by a
     // caller that never asked, e.g. some other DTO reusing `listing`'s
@@ -325,6 +345,15 @@ function toMetadataOptionResponse(option) {
 }
 
 /**
+ * An amenity's `code` is its localized display name (amenities predate
+ * stable codes); `key` is the stable machine code (migration 0056) the
+ * page uses for its icon — `null` for an amenity no seed has named.
+ */
+function toMetadataAmenityResponse(amenity) {
+  return { ...toMetadataOptionResponse(amenity), key: amenity.key ?? null };
+}
+
+/**
  * `GET /listings/metadata` response. Like `search.dynamicFilters.*`'s DTO,
  * every label-bearing field is a stable `code` — the frontend's own i18n
  * (`partner.listingWizard.*`) owns display labels, not this response
@@ -357,11 +386,11 @@ export function toListingMetadataResponse({
     })),
     amenity_groups: amenityGroups.map((group) => ({
       code: group.code,
-      amenities: group.amenities.map(toMetadataOptionResponse),
+      amenities: group.amenities.map(toMetadataAmenityResponse),
     })),
     // Step L6.1: labels only (see `#getAmenityCatalog`) — what the Partner
     // UI can SELECT is always `amenity_groups`.
-    amenity_catalog: amenityCatalog.map(toMetadataOptionResponse),
+    amenity_catalog: amenityCatalog.map(toMetadataAmenityResponse),
     pricing_models: pricingModels.map((model) => ({
       code: model.code,
     })),

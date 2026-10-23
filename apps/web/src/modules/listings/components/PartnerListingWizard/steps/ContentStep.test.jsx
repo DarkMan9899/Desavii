@@ -9,6 +9,7 @@ import { useReplaceListingHighlightsMutation } from '../../../mutations/useRepla
 import { useReplaceListingItineraryMutation } from '../../../mutations/useReplaceListingItineraryMutation.js';
 import { useReplaceListingIncludedItemsMutation } from '../../../mutations/useReplaceListingIncludedItemsMutation.js';
 import { useReplaceListingFaqsMutation } from '../../../mutations/useReplaceListingFaqsMutation.js';
+import { useReplaceListingGuestNotesMutation } from '../../../mutations/useReplaceListingGuestNotesMutation.js';
 
 vi.mock('../../../mutations/useReplaceListingHighlightsMutation.js', () => ({
   useReplaceListingHighlightsMutation: vi.fn(),
@@ -22,6 +23,9 @@ vi.mock('../../../mutations/useReplaceListingIncludedItemsMutation.js', () => ({
 vi.mock('../../../mutations/useReplaceListingFaqsMutation.js', () => ({
   useReplaceListingFaqsMutation: vi.fn(),
 }));
+vi.mock('../../../mutations/useReplaceListingGuestNotesMutation.js', () => ({
+  useReplaceListingGuestNotesMutation: vi.fn(),
+}));
 
 // This project's test setup defaults i18next to Armenian (hy) — mirrors
 // the exact locale-string convention every other wizard-step test file
@@ -32,6 +36,9 @@ const ADD_FAQ = 'Ավելացնել հարց';
 const QUESTION_LABEL = 'Հարց';
 const CONTINUE = 'Շարունակել';
 const REQUIRED_ERROR = 'Այս դաշտը պարտադիր է։';
+const GUEST_NOTES_TITLE = 'Օգտակար է իմանալ';
+const ADD_BRING_NOTE = 'Ավելացնել «Ինչ վերցնել» ցանկում';
+const BRING_LABEL = 'Ինչ վերցնել';
 
 // One locale's worth of real, persisted content per collection — same
 // shape `GET /listings/:id` returns (flat arrays across all locales,
@@ -58,6 +65,9 @@ const EN_FAQS = [
     answer: 'Yes, on-site.',
   },
 ];
+const EN_GUEST_NOTES = [
+  { language_code: 'en', kind: 'NOT_ALLOWED', text: 'Drones' },
+];
 
 // A real Wizard lifts `authoringLocale` — this harness mirrors that
 // contract instead of hardcoding a fixed prop.
@@ -67,7 +77,9 @@ function Harness({
   initialItinerarySteps = [],
   initialIncludedItems = [],
   initialFaqs = [],
+  initialGuestNotes = [],
   showItinerary = true,
+  showGuestNotes = false,
   onNext = vi.fn(),
 }) {
   const [authoringLocale, setAuthoringLocale] = useState(startLocale);
@@ -78,7 +90,9 @@ function Harness({
       initialItinerarySteps={initialItinerarySteps}
       initialIncludedItems={initialIncludedItems}
       initialFaqs={initialFaqs}
+      initialGuestNotes={initialGuestNotes}
       showItinerary={showItinerary}
+      showGuestNotes={showGuestNotes}
       onNext={onNext}
       authoringLocale={authoringLocale}
       onAuthoringLocaleChange={setAuthoringLocale}
@@ -96,7 +110,10 @@ Harness.propTypes = {
   initialIncludedItems: PropTypes.array,
   // eslint-disable-next-line react/forbid-prop-types -- test harness passthrough
   initialFaqs: PropTypes.array,
+  // eslint-disable-next-line react/forbid-prop-types -- test harness passthrough
+  initialGuestNotes: PropTypes.array,
   showItinerary: PropTypes.bool,
+  showGuestNotes: PropTypes.bool,
   onNext: PropTypes.func,
 };
 
@@ -106,7 +123,9 @@ function renderStep({
   initialItinerarySteps = [],
   initialIncludedItems = [],
   initialFaqs = [],
+  initialGuestNotes = [],
   showItinerary = true,
+  showGuestNotes = false,
   onNext = vi.fn(),
 } = {}) {
   return render(
@@ -117,7 +136,9 @@ function renderStep({
         initialItinerarySteps={initialItinerarySteps}
         initialIncludedItems={initialIncludedItems}
         initialFaqs={initialFaqs}
+        initialGuestNotes={initialGuestNotes}
         showItinerary={showItinerary}
+        showGuestNotes={showGuestNotes}
         onNext={onNext}
       />
     </ToastProvider>,
@@ -129,12 +150,14 @@ describe('ContentStep (PartnerListingWizard)', () => {
   let itineraryMutateAsync;
   let includedItemsMutateAsync;
   let faqsMutateAsync;
+  let guestNotesMutateAsync;
 
   beforeEach(() => {
     highlightsMutateAsync = vi.fn().mockResolvedValue({ data: {} });
     itineraryMutateAsync = vi.fn().mockResolvedValue({ data: {} });
     includedItemsMutateAsync = vi.fn().mockResolvedValue({ data: {} });
     faqsMutateAsync = vi.fn().mockResolvedValue({ data: {} });
+    guestNotesMutateAsync = vi.fn().mockResolvedValue({ data: [] });
 
     useReplaceListingHighlightsMutation.mockReturnValue({
       mutateAsync: highlightsMutateAsync,
@@ -153,6 +176,11 @@ describe('ContentStep (PartnerListingWizard)', () => {
     });
     useReplaceListingFaqsMutation.mockReturnValue({
       mutateAsync: faqsMutateAsync,
+      isPending: false,
+      error: null,
+    });
+    useReplaceListingGuestNotesMutation.mockReturnValue({
+      mutateAsync: guestNotesMutateAsync,
       isPending: false,
       error: null,
     });
@@ -240,6 +268,52 @@ describe('ContentStep (PartnerListingWizard)', () => {
 
     expect(highlightsMutateAsync).toHaveBeenCalled();
     expect(itineraryMutateAsync).not.toHaveBeenCalled();
+    expect(onNext).toHaveBeenCalled();
+  });
+
+  // Listing Detail rebuild: "Good to know" belongs to experiences and car
+  // rentals only — elsewhere it is neither shown nor saved.
+  test('without guest notes the step neither renders nor replaces them', async () => {
+    const user = userEvent.setup();
+    renderStep({ initialGuestNotes: EN_GUEST_NOTES });
+
+    expect(
+      screen.queryByRole('heading', { name: GUEST_NOTES_TITLE }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: CONTINUE }));
+    expect(guestNotesMutateAsync).not.toHaveBeenCalled();
+  });
+
+  test('guest notes are edited per kind and saved for the active language, blank rows dropped', async () => {
+    const user = userEvent.setup();
+    const onNext = vi.fn();
+    renderStep({
+      initialGuestNotes: EN_GUEST_NOTES,
+      showGuestNotes: true,
+      onNext,
+    });
+
+    expect(
+      screen.getByRole('heading', { name: GUEST_NOTES_TITLE }),
+    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Drones')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: ADD_BRING_NOTE }));
+    await user.type(
+      screen.getByRole('textbox', { name: BRING_LABEL }),
+      '  Walking shoes ',
+    );
+    await user.click(screen.getByRole('button', { name: ADD_BRING_NOTE }));
+    await user.click(screen.getByRole('button', { name: CONTINUE }));
+
+    expect(guestNotesMutateAsync).toHaveBeenCalledWith({
+      id: 7,
+      notes: [
+        { kind: 'NOT_ALLOWED', text: 'Drones' },
+        { kind: 'BRING', text: 'Walking shoes' },
+      ],
+      languageCode: 'en',
+    });
     expect(onNext).toHaveBeenCalled();
   });
 

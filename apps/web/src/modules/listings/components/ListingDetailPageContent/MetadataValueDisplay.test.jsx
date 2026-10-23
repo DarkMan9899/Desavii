@@ -97,4 +97,25 @@ describe('MetadataValueDisplay (Listing Details)', () => {
     expect(screen.getByText('present')).toBeInTheDocument();
     expect(screen.queryByText('sample_b')).not.toBeInTheDocument();
   });
+
+  // Listing Detail rebuild: a value already shown in the key facts strip
+  // is not repeated in the specification grid.
+  test('codes passed in excludeCodes are not shown', () => {
+    render(
+      <MetadataValueDisplay
+        namespace="attributes"
+        definitions={[
+          { code: 'sample_shown', data_type: 'STRING' },
+          { code: 'sample_in_key_facts', data_type: 'STRING' },
+        ]}
+        valuesByCode={{
+          sample_shown: 'Shown',
+          sample_in_key_facts: 'Already above',
+        }}
+        excludeCodes={['sample_in_key_facts']}
+      />,
+    );
+    expect(screen.getByText('Shown')).toBeInTheDocument();
+    expect(screen.queryByText('Already above')).not.toBeInTheDocument();
+  });
 });

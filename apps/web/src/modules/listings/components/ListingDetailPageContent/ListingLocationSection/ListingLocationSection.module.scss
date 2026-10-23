@@ -1,0 +1,9 @@
+// ListingLocationSection — tokens only.
+
+@use 'tokens' as tokens;
+
+.note {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+}

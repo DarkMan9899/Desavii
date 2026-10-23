@@ -32,6 +32,25 @@
   }
 }
 
+// Guest notes (`GuestNotesEditor`): text and its remove action.
+.noteRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: end;
+  gap: tokens.$space-3;
+
+  @include respond.respond(tablet) {
+    grid-template-columns: 1fr auto;
+  }
+}
+
+.subheading {
+  margin: 0;
+  font-size: tokens.$font-size-body;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
 .stepCard {
   display: flex;
   flex-direction: column;

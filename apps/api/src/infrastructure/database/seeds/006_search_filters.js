@@ -33,8 +33,7 @@ async function upsertCategoryBySlug(connection, slug) {
 
 async function upsertAmenityByName(
   connection,
-  name,
-  groupCode,
+  { name, groupCode, code },
   groupIdsByCode,
 ) {
   const groupId = groupCode ? groupIdsByCode.get(groupCode) : null;
@@ -44,16 +43,26 @@ async function upsertAmenityByName(
   );
   if (existing.length > 0) {
     await connection.query(
-      'UPDATE listing_amenities SET amenity_group_id = ? WHERE id = ?',
-      [groupId, existing[0].id],
+      'UPDATE listing_amenities SET amenity_group_id = ?, code = ? WHERE id = ?',
+      [groupId, code, existing[0].id],
     );
     return existing[0].id;
   }
   const [result] = await connection.query(
-    'INSERT INTO listing_amenities (name, amenity_group_id) VALUES (?, ?)',
-    [name, groupId],
+    'INSERT INTO listing_amenities (name, amenity_group_id, code) VALUES (?, ?, ?)',
+    [name, groupId, code],
   );
   return result.insertId;
+}
+
+/** Drops a retired amenity group once no amenity (seeded or admin-created) still uses it. */
+async function removeRetiredAmenityGroups(connection, codes) {
+  await connection.query(
+    `DELETE ag FROM amenity_groups ag
+     LEFT JOIN listing_amenities la ON la.amenity_group_id = ag.id
+     WHERE ag.code IN (?) AND la.id IS NULL`,
+    [codes],
+  );
 }
 
 async function upsertAmenityTranslation(
@@ -222,105 +231,107 @@ const FILTER_GROUPS = [
   { code: 'AMENITIES', name: 'Amenities', sortOrder: 8 },
 ];
 
+// Listing Detail & Admin Information rebuild
+// (docs/LISTING_DETAIL_FIELD_GAP.md §6): groups a guest scans by, the
+// questions a traveller asks (is there parking, what is in the bathroom,
+// can I work here), instead of the earlier mixed buckets (Air
+// Conditioning under Connectivity, Parking under Accessibility). The
+// Wizard's Amenities step, the room amenity picker and the public page
+// all read these same groups. Codes still in use keep their rows; retired
+// codes are removed below once no amenity references them.
 const AMENITY_GROUPS = [
-  { code: 'WELLNESS', name: 'Wellness', sortOrder: 1 },
-  { code: 'OUTDOOR', name: 'Outdoor', sortOrder: 2 },
-  { code: 'KITCHEN_LAUNDRY', name: 'Kitchen & Laundry', sortOrder: 3 },
-  { code: 'CONNECTIVITY', name: 'Connectivity', sortOrder: 4 },
-  {
-    code: 'ACCESSIBILITY_SAFETY',
-    name: 'Accessibility & Safety',
-    sortOrder: 5,
-  },
-  { code: 'FAMILY_PETS', name: 'Family & Pets', sortOrder: 6 },
-  { code: 'FOOD_SERVICE', name: 'Food & Service', sortOrder: 7 },
-  { code: 'DINING', name: 'Dining', sortOrder: 8 },
-  // Sprint C-1 (Accommodation room-level product data) — room-specific
-  // amenities (`bookable_unit_amenity_listing`), grouped separately from
-  // the listing/hotel-level groups above purely for the Partner room
-  // authoring UI's own grouping; the amenities themselves still live in
-  // the one shared `listing_amenities` catalog (some, like Air
-  // Conditioning/Balcony/Washing Machine below, are reused verbatim from
-  // their existing listing-level group — a room genuinely having its own
-  // AC unit is not a modeling conflict with a building having central AC).
-  { code: 'IN_ROOM', name: 'In-Room', sortOrder: 9 },
+  { code: 'INTERNET_WORK', name: 'Internet & work', sortOrder: 1 },
+  { code: 'CLIMATE', name: 'Heating & cooling', sortOrder: 2 },
+  { code: 'BEDROOM_LIVING', name: 'Bedroom & living', sortOrder: 3 },
+  { code: 'BATHROOM', name: 'Bathroom', sortOrder: 4 },
+  { code: 'KITCHEN_LAUNDRY', name: 'Kitchen & laundry', sortOrder: 5 },
+  { code: 'FOOD_DRINK', name: 'Food & drink', sortOrder: 6 },
+  { code: 'SERVICES', name: 'Services', sortOrder: 7 },
+  { code: 'WELLNESS', name: 'Wellness', sortOrder: 8 },
+  { code: 'OUTDOOR', name: 'Outdoor', sortOrder: 9 },
+  { code: 'PARKING_TRANSPORT', name: 'Parking & transport', sortOrder: 10 },
+  { code: 'FAMILY_PETS', name: 'Family & pets', sortOrder: 11 },
+  { code: 'ACCESSIBILITY', name: 'Accessibility', sortOrder: 12 },
+  { code: 'SAFETY_SECURITY', name: 'Safety & security', sortOrder: 13 },
+  { code: 'ENTERTAINMENT', name: 'Entertainment', sortOrder: 14 },
+  { code: 'VEHICLE', name: 'Vehicle features', sortOrder: 15 },
 ];
 
-// name -> amenity group code. The 8 names already seeded by
-// 003_taxonomy_and_products.js are included so they get grouped too —
-// `upsertAmenityByName` updates in place rather than duplicating.
+const RETIRED_AMENITY_GROUP_CODES = [
+  'CONNECTIVITY',
+  'ACCESSIBILITY_SAFETY',
+  'FOOD_SERVICE',
+  'DINING',
+  'IN_ROOM',
+];
+
+// [name, group code, stable amenity code]. `name` stays the natural key
+// `upsertAmenityByName` matches on, so ids (and every listing, room and
+// search-filter reference to them) never change; `code` (migration 0056)
+// is the stable identifier the public page keys its icons on.
 const AMENITIES = [
-  ['WiFi', 'CONNECTIVITY'],
-  ['Parking', 'ACCESSIBILITY_SAFETY'],
-  ['Pool', 'WELLNESS'],
-  ['Air Conditioning', 'CONNECTIVITY'],
-  ['Breakfast Included', 'FOOD_SERVICE'],
-  ['Pet Friendly', 'FAMILY_PETS'],
-  ['Airport Shuttle', 'FOOD_SERVICE'],
-  ['Non-Smoking Rooms', 'FOOD_SERVICE'],
-  ['Jacuzzi', 'WELLNESS'],
-  ['Sauna', 'WELLNESS'],
-  ['Gym', 'WELLNESS'],
-  ['Garden', 'OUTDOOR'],
-  ['BBQ', 'OUTDOOR'],
-  ['Terrace', 'OUTDOOR'],
-  ['Balcony', 'OUTDOOR'],
-  ['Fireplace', 'OUTDOOR'],
-  ['Kitchen', 'KITCHEN_LAUNDRY'],
-  ['Washing Machine', 'KITCHEN_LAUNDRY'],
-  ['Elevator', 'ACCESSIBILITY_SAFETY'],
-  ['Security', 'ACCESSIBILITY_SAFETY'],
-  ['Wheelchair Accessible', 'ACCESSIBILITY_SAFETY'],
-  ['EV Charger', 'ACCESSIBILITY_SAFETY'],
-  ['Family Friendly', 'FAMILY_PETS'],
-  ['Business Center', 'FOOD_SERVICE'],
-  ['Outdoor Seating', 'DINING'],
-  ['Live Music', 'DINING'],
-  // Sprint C-1 — new room-specific amenities (see AMENITY_GROUPS' own
-  // IN_ROOM comment above for why this is a separate group, not a
-  // separate catalog).
-  ['Minibar', 'IN_ROOM'],
-  ['TV', 'IN_ROOM'],
-  ['Kettle', 'IN_ROOM'],
-  ['Desk', 'IN_ROOM'],
-  ['Safe', 'IN_ROOM'],
-  ['Kitchenette', 'IN_ROOM'],
-  // Step L6.3A — the remaining room-level comfort, bathroom and
-  // accessibility features a guest compares rooms by. Catalog entries like
-  // every other room amenity (never new columns), so a Partner ticks them
-  // per room and the public room card/detail lists them.
-  ['Heating', 'IN_ROOM'],
-  ['Coffee Maker', 'IN_ROOM'],
-  ['Soundproofing', 'IN_ROOM'],
-  ['Wardrobe', 'IN_ROOM'],
-  ['Iron', 'IN_ROOM'],
-  ['Shower', 'IN_ROOM'],
-  ['Bathtub', 'IN_ROOM'],
-  ['Hair Dryer', 'IN_ROOM'],
-  ['Toiletries', 'IN_ROOM'],
-  ['Step-free Access', 'ACCESSIBILITY_SAFETY'],
-  ['Accessible Bathroom', 'ACCESSIBILITY_SAFETY'],
-  // Partner Listing Wizard rebuild (docs/PARTNER_LISTING_WIZARD_FIELD_GAP.md
-  // §4) — services and equipment guests compare on, per category.
-  ['24-hour Front Desk', 'FOOD_SERVICE'],
-  ['Restaurant', 'DINING'],
-  ['Bar', 'DINING'],
-  ['Room Service', 'FOOD_SERVICE'],
-  ['Luggage Storage', 'FOOD_SERVICE'],
-  ['Spa', 'WELLNESS'],
-  ['Laundry Service', 'KITCHEN_LAUNDRY'],
-  ['Dedicated Workspace', 'CONNECTIVITY'],
-  ['Dishwasher', 'KITCHEN_LAUNDRY'],
-  ['Private Dining Room', 'DINING'],
-  ['Takeaway', 'DINING'],
-  ['Kids Menu', 'FAMILY_PETS'],
-  ['High Chairs', 'FAMILY_PETS'],
-  ['GPS Navigation', 'CONNECTIVITY'],
-  ['Bluetooth Audio', 'CONNECTIVITY'],
-  ['Child Seat', 'FAMILY_PETS'],
-  ['Winter Tyres', 'ACCESSIBILITY_SAFETY'],
-  ['Café', 'FOOD_SERVICE'],
-  ['Lockers', 'ACCESSIBILITY_SAFETY'],
+  ['WiFi', 'INTERNET_WORK', 'WIFI'],
+  ['Dedicated Workspace', 'INTERNET_WORK', 'DEDICATED_WORKSPACE'],
+  ['Business Center', 'INTERNET_WORK', 'BUSINESS_CENTER'],
+  ['Air Conditioning', 'CLIMATE', 'AIR_CONDITIONING'],
+  ['Heating', 'CLIMATE', 'HEATING'],
+  ['Fireplace', 'CLIMATE', 'FIREPLACE'],
+  ['TV', 'BEDROOM_LIVING', 'TV'],
+  ['Desk', 'BEDROOM_LIVING', 'DESK'],
+  ['Wardrobe', 'BEDROOM_LIVING', 'WARDROBE'],
+  ['Safe', 'BEDROOM_LIVING', 'SAFE'],
+  ['Soundproofing', 'BEDROOM_LIVING', 'SOUNDPROOFING'],
+  ['Iron', 'BEDROOM_LIVING', 'IRON'],
+  ['Minibar', 'BEDROOM_LIVING', 'MINIBAR'],
+  ['Shower', 'BATHROOM', 'SHOWER'],
+  ['Bathtub', 'BATHROOM', 'BATHTUB'],
+  ['Hair Dryer', 'BATHROOM', 'HAIR_DRYER'],
+  ['Toiletries', 'BATHROOM', 'TOILETRIES'],
+  ['Kitchen', 'KITCHEN_LAUNDRY', 'KITCHEN'],
+  ['Kitchenette', 'KITCHEN_LAUNDRY', 'KITCHENETTE'],
+  ['Coffee Maker', 'KITCHEN_LAUNDRY', 'COFFEE_MAKER'],
+  ['Kettle', 'KITCHEN_LAUNDRY', 'KETTLE'],
+  ['Dishwasher', 'KITCHEN_LAUNDRY', 'DISHWASHER'],
+  ['Washing Machine', 'KITCHEN_LAUNDRY', 'WASHING_MACHINE'],
+  ['Breakfast Included', 'FOOD_DRINK', 'BREAKFAST_INCLUDED'],
+  ['Restaurant', 'FOOD_DRINK', 'RESTAURANT'],
+  ['Bar', 'FOOD_DRINK', 'BAR'],
+  ['Café', 'FOOD_DRINK', 'CAFE'],
+  ['Room Service', 'FOOD_DRINK', 'ROOM_SERVICE'],
+  ['Outdoor Seating', 'FOOD_DRINK', 'OUTDOOR_SEATING'],
+  ['Private Dining Room', 'FOOD_DRINK', 'PRIVATE_DINING_ROOM'],
+  ['Takeaway', 'FOOD_DRINK', 'TAKEAWAY'],
+  ['24-hour Front Desk', 'SERVICES', 'FRONT_DESK_24H'],
+  ['Luggage Storage', 'SERVICES', 'LUGGAGE_STORAGE'],
+  ['Laundry Service', 'SERVICES', 'LAUNDRY_SERVICE'],
+  ['Non-Smoking Rooms', 'SERVICES', 'NON_SMOKING_ROOMS'],
+  ['Pool', 'WELLNESS', 'POOL'],
+  ['Spa', 'WELLNESS', 'SPA'],
+  ['Sauna', 'WELLNESS', 'SAUNA'],
+  ['Jacuzzi', 'WELLNESS', 'JACUZZI'],
+  ['Gym', 'WELLNESS', 'GYM'],
+  ['Garden', 'OUTDOOR', 'GARDEN'],
+  ['Terrace', 'OUTDOOR', 'TERRACE'],
+  ['Balcony', 'OUTDOOR', 'BALCONY'],
+  ['BBQ', 'OUTDOOR', 'BBQ'],
+  ['Parking', 'PARKING_TRANSPORT', 'PARKING'],
+  ['EV Charger', 'PARKING_TRANSPORT', 'EV_CHARGER'],
+  ['Airport Shuttle', 'PARKING_TRANSPORT', 'AIRPORT_SHUTTLE'],
+  ['Family Friendly', 'FAMILY_PETS', 'FAMILY_FRIENDLY'],
+  ['Pet Friendly', 'FAMILY_PETS', 'PET_FRIENDLY'],
+  ['Kids Menu', 'FAMILY_PETS', 'KIDS_MENU'],
+  ['High Chairs', 'FAMILY_PETS', 'HIGH_CHAIRS'],
+  ['Child Seat', 'FAMILY_PETS', 'CHILD_SEAT'],
+  ['Wheelchair Accessible', 'ACCESSIBILITY', 'WHEELCHAIR_ACCESSIBLE'],
+  ['Step-free Access', 'ACCESSIBILITY', 'STEP_FREE_ACCESS'],
+  ['Accessible Bathroom', 'ACCESSIBILITY', 'ACCESSIBLE_BATHROOM'],
+  ['Elevator', 'ACCESSIBILITY', 'ELEVATOR'],
+  ['Security', 'SAFETY_SECURITY', 'SECURITY'],
+  ['Lockers', 'SAFETY_SECURITY', 'LOCKERS'],
+  ['Live Music', 'ENTERTAINMENT', 'LIVE_MUSIC'],
+  ['GPS Navigation', 'VEHICLE', 'GPS_NAVIGATION'],
+  ['Bluetooth Audio', 'VEHICLE', 'BLUETOOTH_AUDIO'],
+  ['Winter Tyres', 'VEHICLE', 'WINTER_TYRES'],
 ];
 
 // Feeds listing_amenity_translations, which mysqlListingMetadataRepository's
@@ -1171,12 +1182,11 @@ export default async function seedSearchFilters(connection) {
   ]);
   const amenityIdsByName = new Map();
   // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order
-  for (const [name, groupCode] of AMENITIES) {
+  for (const [name, groupCode, code] of AMENITIES) {
     // eslint-disable-next-line no-await-in-loop -- sequential by design
     const id = await upsertAmenityByName(
       connection,
-      name,
-      groupCode,
+      { name, groupCode, code },
       amenityGroupIdsByCode,
     );
     amenityIdsByName.set(name, id);
@@ -1192,6 +1202,7 @@ export default async function seedSearchFilters(connection) {
       });
     }
   }
+  await removeRetiredAmenityGroups(connection, RETIRED_AMENITY_GROUP_CODES);
 
   // Attribute definitions.
   const attributeDefinitionIdsByCode = new Map();

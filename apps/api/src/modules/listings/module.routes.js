@@ -30,6 +30,7 @@ import {
   replaceHighlightsSchema,
   replaceItineraryStepsSchema,
   replaceIncludedItemsSchema,
+  replaceGuestNotesSchema,
   replaceFaqsSchema,
   listingCompletenessSchema,
 } from './validators/listingValidators.js';
@@ -266,6 +267,13 @@ export default function createListingRoutes({
     requireAuth,
     validate(replaceIncludedItemsSchema),
     listingController.replaceIncludedItems,
+  );
+
+  router.patch(
+    '/:id/guest-notes',
+    requireAuth,
+    validate(replaceGuestNotesSchema),
+    listingController.replaceGuestNotes,
   );
 
   router.patch(

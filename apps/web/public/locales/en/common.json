@@ -1800,7 +1800,15 @@
           "airport": "Airport",
           "gift": "Gift",
           "star": "Top rated"
-        }
+        },
+        "guestNotesTitle": "Good to know",
+        "guestNotesHint": "Short practical notes shown on your listing: what guests should bring, what is not allowed, and what to know before they come (up to 10 per list).",
+        "guestNoteKinds": {
+          "BRING": "What to bring",
+          "NOT_ALLOWED": "Not allowed",
+          "KNOW_BEFORE": "Know before you go"
+        },
+        "addGuestNote": "Add to “{{kind}}”"
       },
       "completeness": {
         "title": "Listing completeness",
@@ -1993,13 +2001,19 @@
         "OUTDOOR": "Outdoor",
         "OTHER": "Other",
         "WELLNESS": "Wellness",
-        "KITCHEN_LAUNDRY": "Kitchen & Laundry",
-        "CONNECTIVITY": "Connectivity",
-        "ACCESSIBILITY_SAFETY": "Accessibility & Safety",
-        "FAMILY_PETS": "Family & Pets",
-        "FOOD_SERVICE": "Food & Service",
-        "DINING": "Dining",
-        "IN_ROOM": "In-Room"
+        "KITCHEN_LAUNDRY": "Kitchen & laundry",
+        "FAMILY_PETS": "Family & pets",
+        "INTERNET_WORK": "Internet & work",
+        "CLIMATE": "Heating & cooling",
+        "BEDROOM_LIVING": "Bedroom & living",
+        "BATHROOM": "Bathroom",
+        "FOOD_DRINK": "Food & drink",
+        "SERVICES": "Services",
+        "PARKING_TRANSPORT": "Parking & transport",
+        "ACCESSIBILITY": "Accessibility",
+        "SAFETY_SECURITY": "Safety & security",
+        "ENTERTAINMENT": "Entertainment",
+        "VEHICLE": "Vehicle features"
       },
       "media": {
         "atLeastOneRequired": "Add at least one photo before continuing.",
@@ -2926,7 +2940,15 @@
         "submittedForReview": "Submitted for review"
       },
       "viewInventoryAction": "View inventory",
-      "managePromotionAction": "Manage Promotion"
+      "managePromotionAction": "Manage Promotion",
+      "edit": {
+        "action": "Edit listing",
+        "heading": "Edit: {{title}}",
+        "locked": {
+          "PUBLISHED": "Published listings can’t be edited. Unpublish it first, then edit and submit it for review again.",
+          "PENDING_REVIEW": "This listing is under review and can’t be edited until it is approved or returned for changes."
+        }
+      }
     },
     "promotions": {
       "heading": "Promotions",
@@ -3989,16 +4011,40 @@
         "showLess": "Show less"
       },
       "attributes": {
-        "heading": "Details"
+        "heading": "Details",
+        "headingProperty": "Property details",
+        "headingSpace": "About the space",
+        "headingRestaurant": "Restaurant details",
+        "headingTour": "Tour details",
+        "headingVehicle": "Vehicle specifications",
+        "headingVisit": "Visit details",
+        "headingVenue": "Venue details"
       },
       "policies": {
         "heading": "Policies",
-        "cancellationDisclaimer": "refund requests are reviewed individually, not calculated automatically from this label"
+        "cancellationDisclaimer": "Refund requests are reviewed individually. The amount is not calculated automatically from this label.",
+        "headingHouseRules": "House rules",
+        "headingRental": "Rental terms",
+        "allowed": "Allowed",
+        "notAllowed": "Not allowed",
+        "titles": {
+          "check_in_time": "Check-in",
+          "check_out_time": "Check-out",
+          "cancellation_policy": "Cancellation",
+          "children_allowed": "Children",
+          "pets_allowed": "Pets",
+          "smoking_allowed": "Smoking",
+          "parties_allowed": "Parties and events",
+          "fuel_policy": "Fuel"
+        }
       },
       "amenities": {
         "heading": "Amenities",
         "showAll": "Show all amenities",
-        "showLess": "Show less"
+        "showLess": "Show less",
+        "showAllCount_one": "Show all {{count}} amenity",
+        "showAllCount_other": "Show all {{count}} amenities",
+        "headingVehicle": "Features & equipment"
       },
       "itinerary": {
         "heading": "Itinerary",
@@ -4063,7 +4109,9 @@
         }
       },
       "location": {
-        "heading": "Location"
+        "heading": "Location",
+        "approximateNote": "Approximate location. The map shows the neighbourhood, not the exact home, to protect the owner's privacy.",
+        "headingPickup": "Pickup location"
       },
       "gallery": {
         "heading": "Gallery",
@@ -4191,7 +4239,67 @@
         "heading": "You might also like"
       },
       "reviews": {
-        "heading": "Reviews"
+        "heading": "Reviews",
+        "none": "No reviews yet. Reviews are written by guests after a completed booking."
+      },
+      "keyFacts": {
+        "heading": "Key facts",
+        "labels": {
+          "star_rating": "Stars",
+          "check_in": "Check-in",
+          "check_out": "Check-out",
+          "room_types": "Rooms",
+          "languages_spoken": "Staff speak",
+          "property_style": "Style",
+          "space_type": "Space",
+          "max_guests": "Guests",
+          "bedrooms": "Bedrooms",
+          "beds": "Beds",
+          "bathrooms": "Bathrooms",
+          "floor_area_sqm": "Size",
+          "cuisine": "Cuisine",
+          "dining_style": "Style",
+          "price_tier": "Price",
+          "opening_today": "Open today",
+          "reservation": "Reservations",
+          "dietary_options": "Diets",
+          "duration_minutes": "Duration",
+          "tour_format": "Format",
+          "group_size": "Group size",
+          "languages_offered": "Languages",
+          "difficulty": "Difficulty",
+          "min_age": "Minimum age",
+          "vehicle": "Vehicle",
+          "transmission": "Transmission",
+          "fuel_type": "Fuel",
+          "seats": "Seats",
+          "doors": "Doors",
+          "mileage": "Mileage",
+          "attraction_type": "Type",
+          "visit_format": "Visit",
+          "setting": "Setting",
+          "venue_type": "Type"
+        },
+        "values": {
+          "roomTypes_one": "{{count}} room type",
+          "roomTypes_other": "{{count}} room types",
+          "freeReservation": "Free to reserve",
+          "groupRange": "{{min}}–{{max}} people",
+          "groupUpTo_one": "Up to {{count}} person",
+          "groupUpTo_other": "Up to {{count}} people",
+          "groupFrom_one": "From {{count}} person",
+          "groupFrom_other": "From {{count}} people",
+          "distancePerDay_one": "{{count}} km per day",
+          "distancePerDay_other": "{{count}} km per day"
+        }
+      },
+      "guestNotes": {
+        "heading": "Good to know",
+        "kinds": {
+          "BRING": "What to bring",
+          "NOT_ALLOWED": "Not allowed",
+          "KNOW_BEFORE": "Know before you go"
+        }
       }
     }
   },

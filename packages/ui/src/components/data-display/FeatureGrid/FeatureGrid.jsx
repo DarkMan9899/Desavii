@@ -3,7 +3,9 @@
  * (`ListingAmenitiesSection.jsx`), replacing an earlier flat, icon-less
  * Badge list. Groups are always fully shown; only the flattened item
  * count is what collapses behind `showAllLabel`/`showLessLabel`, so a
- * short list never shows a pointless toggle.
+ * short list never shows a pointless toggle. `collapsible={false}` shows
+ * everything with no toggle — for a caller that already presents the full
+ * list on its own surface (e.g. a "Show all amenities" dialog).
  */
 
 import { useMemo, useState } from 'react';
@@ -12,14 +14,19 @@ import styles from './FeatureGrid.module.scss';
 
 const COLLAPSED_ITEM_LIMIT = 10;
 
-export default function FeatureGrid({ groups, showAllLabel, showLessLabel }) {
+export default function FeatureGrid({
+  groups,
+  showAllLabel = undefined,
+  showLessLabel = undefined,
+  collapsible = true,
+}) {
   const [expanded, setExpanded] = useState(false);
 
   const totalItems = useMemo(
     () => groups.reduce((sum, group) => sum + group.items.length, 0),
     [groups],
   );
-  const needsToggle = totalItems > COLLAPSED_ITEM_LIMIT;
+  const needsToggle = collapsible && totalItems > COLLAPSED_ITEM_LIMIT;
 
   const visibleGroups = useMemo(() => {
     if (expanded || !needsToggle) return groups;
@@ -84,6 +91,8 @@ FeatureGrid.propTypes = {
       items: PropTypes.arrayOf(featureItemShape).isRequired,
     }),
   ).isRequired,
-  showAllLabel: PropTypes.string.isRequired,
-  showLessLabel: PropTypes.string.isRequired,
+  // Required while `collapsible` (the default) — the toggle's two labels.
+  showAllLabel: PropTypes.string,
+  showLessLabel: PropTypes.string,
+  collapsible: PropTypes.bool,
 };

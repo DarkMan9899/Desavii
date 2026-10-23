@@ -490,6 +490,89 @@ describe('AdminListingDetailContent (apps/web/src/modules/admin)', () => {
     ).not.toBeInTheDocument();
   });
 
+  test('the localized review shows the guest notes of the reviewed language only', () => {
+    useAuth.mockReturnValue({ permissions: ['listing.moderate'] });
+    useAdminListingDetailQuery.mockReturnValue({
+      data: {
+        ...BASE_LISTING,
+        listing_type: 'TOUR',
+        guest_notes: [
+          { id: 1, language_code: 'hy', kind: 'BRING', text: 'Ջուր' },
+          { id: 2, language_code: 'en', kind: 'BRING', text: 'Water' },
+        ],
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderPage();
+
+    expect(
+      screen.getByRole('heading', { name: 'Օգտակար է իմանալ' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Ջուր')).toBeInTheDocument();
+    expect(screen.queryByText('Water')).not.toBeInTheDocument();
+  });
+
+  // Listing Detail rebuild: an admin with listing.update edits a listing in
+  // the shared Wizard — exactly when the API would accept the edit.
+  describe('Edit listing', () => {
+    const EDIT = 'Խմբագրել հայտարարությունը';
+
+    test('an editable listing links to the admin editor', () => {
+      useAuth.mockReturnValue({ permissions: ['listing.update'] });
+      useAdminListingDetailQuery.mockReturnValue({
+        data: { ...BASE_LISTING, status: 'DRAFT' },
+        isPending: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      expect(screen.getByRole('link', { name: EDIT })).toHaveAttribute(
+        'href',
+        '/hy/admin/listings/1/edit',
+      );
+    });
+
+    test.each([
+      ['PUBLISHED', /Հրապարակված հայտարարությունը հնարավոր չէ խմբագրել/],
+      ['PENDING_REVIEW', /Հայտարարությունը ստուգման մեջ է/],
+    ])(
+      'a %s listing explains the lock instead of offering Edit',
+      (status, text) => {
+        useAuth.mockReturnValue({ permissions: ['listing.update'] });
+        useAdminListingDetailQuery.mockReturnValue({
+          data: { ...BASE_LISTING, status },
+          isPending: false,
+          isError: false,
+          refetch: vi.fn(),
+        });
+        renderPage();
+
+        expect(
+          screen.queryByRole('link', { name: EDIT }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText(text)).toBeInTheDocument();
+      },
+    );
+
+    test('a role without listing.update sees neither', () => {
+      useAuth.mockReturnValue({ permissions: ['listing.moderate'] });
+      useAdminListingDetailQuery.mockReturnValue({
+        data: { ...BASE_LISTING, status: 'DRAFT' },
+        isPending: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      expect(
+        screen.queryByRole('link', { name: EDIT }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   describe('action set matches the backend decision matrix (brief §9-10)', () => {
     test('PENDING_REVIEW shows Approve + Return for changes', () => {
       useAuth.mockReturnValue({ permissions: ['listing.moderate'] });

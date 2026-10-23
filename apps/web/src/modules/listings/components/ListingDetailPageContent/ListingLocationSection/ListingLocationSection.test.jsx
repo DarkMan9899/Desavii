@@ -69,6 +69,50 @@ describe('ListingLocationSection (Listing Details)', () => {
     ).toBeInTheDocument();
   });
 
+  // Listing Detail rebuild: a private stay's public point is the same
+  // approximate area the Search map shows, and the page says so.
+  test('explains an approximate location and never shows an exact one as approximate', () => {
+    const location = {
+      city_name: 'Yerevan',
+      country_name: 'Armenia',
+      latitude: null,
+      longitude: null,
+    };
+    const { rerender } = render(
+      <ListingLocationSection
+        location={{ ...location, location_precision: 'approximate' }}
+        title="Villa"
+      />,
+    );
+    expect(screen.getByText(/^Մոտավոր վայր։/)).toBeInTheDocument();
+
+    rerender(
+      <ListingLocationSection
+        location={{ ...location, location_precision: 'exact' }}
+        title="Villa"
+      />,
+    );
+    expect(screen.queryByText(/^Մոտավոր վայր։/)).not.toBeInTheDocument();
+  });
+
+  test('uses the category heading when one is given', () => {
+    render(
+      <ListingLocationSection
+        location={{
+          city_name: 'Yerevan',
+          country_name: 'Armenia',
+          latitude: null,
+          longitude: null,
+        }}
+        title="RAV4"
+        headingKey="pages.listingDetail.location.headingPickup"
+      />,
+    );
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Վերցնելու վայրը' }),
+    ).toBeInTheDocument();
+  });
+
   test('renders the map when coordinates are present (ListingMap is lazy-loaded)', async () => {
     render(
       <ListingLocationSection

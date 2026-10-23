@@ -34,6 +34,7 @@ export default function Button({
   type = 'button',
   onClick = undefined,
   ariaLabel = undefined,
+  ariaHasPopup = undefined,
 }) {
   const iconOnly = !children && (iconLeft || iconRight);
 
@@ -55,6 +56,7 @@ export default function Button({
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       aria-label={ariaLabel}
+      aria-haspopup={ariaHasPopup}
       onClick={onClick}
     >
       <span className={styles.content}>
@@ -91,6 +93,9 @@ Button.propTypes = {
   type: PropTypes.oneOf(['button', 'submit']),
   onClick: PropTypes.func,
   ariaLabel: PropTypes.string,
+  // The kind of popup this button opens (WAI-ARIA `aria-haspopup`), e.g. a
+  // "Show all" button that opens a dialog.
+  ariaHasPopup: PropTypes.oneOf(['dialog', 'menu', 'listbox']),
 };
 
 export { VARIANTS as BUTTON_VARIANTS, SIZES as BUTTON_SIZES };

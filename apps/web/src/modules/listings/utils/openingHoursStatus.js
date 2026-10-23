@@ -10,13 +10,15 @@
  * as the backend's `listing_opening_hours.day_of_week` does — no day-index
  * translation table on either side.
  *
- * Computed client-side (never by the backend) so "is it open right now"
- * always reflects the VIEWER's own clock, with no server-timezone concept
- * to get wrong — the same "never reinterpret a wall-clock string as an
- * absolute instant" rule `formatTimeRange.js` already documents. This is
- * therefore only ever as fresh as the moment the page rendered, same as
- * every other non-live-updating status this app shows.
+ * "Is it open right now" is judged by the venue's own clock — Asia/
+ * Yerevan, where every listing's hours are kept (`getBusinessWallClock`) —
+ * never the viewer's: a visitor in New York at 16:00 must see a Yerevan
+ * restaurant as it is at midnight there. Computed client-side, so it is
+ * only as fresh as the moment the page rendered, like every other
+ * non-live-updating status this app shows.
  */
+
+import { getBusinessWallClock } from '../../../utils/businessDate.js';
 
 // 2023-01-01 was a Sunday — used purely as a stable Sunday reference date
 // to resolve a locale's own real weekday name; UTC avoids any local-
@@ -76,8 +78,7 @@ function isOpenAt(weeklyHours, dayOfWeek, minutesSinceMidnight) {
  */
 export function computeOpenNowStatus(weeklyHours, now = new Date()) {
   if (!weeklyHours || weeklyHours.length === 0) return 'UNKNOWN';
-  const dayOfWeek = now.getDay();
-  const minutesSinceMidnight = now.getHours() * 60 + now.getMinutes();
+  const { dayOfWeek, minutesSinceMidnight } = getBusinessWallClock(now);
   return isOpenAt(weeklyHours, dayOfWeek, minutesSinceMidnight)
     ? 'OPEN'
     : 'CLOSED';
@@ -90,6 +91,20 @@ export function getWeekdayName(dayOfWeek, locale, style = 'long') {
     weekday: style,
     timeZone: 'UTC',
   }).format(date);
+}
+
+/**
+ * Today's authored hours by the venue's clock: `{ isClosed, opensAt,
+ * closesAt }`, or `null` when nothing is published for today.
+ */
+export function findTodaysHours(weeklyHours, now = new Date()) {
+  const day = findDay(weeklyHours ?? [], getBusinessWallClock(now).dayOfWeek);
+  if (!day) return null;
+  return {
+    isClosed: day.is_closed,
+    opensAt: day.opens_at,
+    closesAt: day.closes_at,
+  };
 }
 
 /** Rows for a full-week display, Monday-first (the common convention this app's DatePicker already follows), each day either its authored hours, closed, or "not published" when no row exists at all. */
@@ -110,6 +125,7 @@ export function buildWeeklyScheduleRows(weeklyHours, locale) {
 
 export default {
   computeOpenNowStatus,
+  findTodaysHours,
   getWeekdayName,
   buildWeeklyScheduleRows,
 };

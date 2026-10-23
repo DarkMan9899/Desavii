@@ -546,6 +546,28 @@ describe('publish rules', () => {
     expect(publicRead.body.data.location.address_line).toBeNull();
     expect(publicRead.body.data.location.city_id).toBe(cityIds.yerevan);
 
+    // Listing Detail places the home exactly where Search Map does — the
+    // grid-cell centre the search SQL computes — never at the stored point.
+    const mapRead = ensure(
+      await request(app).get(
+        `/api/v1/search/map?categoryId=${categoryIds.apartments}`,
+      ),
+      200,
+    );
+    const marker = mapRead.body.data.find((result) => result.id === id);
+    const publicPoint = publicRead.body.data.location;
+    expect(publicPoint.location_precision).toBe('approximate');
+    expect(marker.location_precision).toBe('approximate');
+    expect(Number(publicPoint.latitude)).toBeCloseTo(
+      Number(marker.latitude),
+      7,
+    );
+    expect(Number(publicPoint.longitude)).toBeCloseTo(
+      Number(marker.longitude),
+      7,
+    );
+    expect(publicPoint.latitude).not.toBeCloseTo(POINT.latitude, 4);
+
     // No public read anywhere discloses it: by slug, as a signed-in
     // customer, in the plain list, in Search, on the partner's page.
     const publicReads = [
@@ -570,6 +592,10 @@ describe('publish rules', () => {
     // Those who manage it still see it.
     const ownerRead = ensure(await getAsVendor(id), 200);
     expect(ownerRead.body.data.location.address_line).toBe(homeAddress);
+    expect(ownerRead.body.data.location.latitude).toBeCloseTo(
+      POINT.latitude,
+      7,
+    );
     const adminRead = ensure(
       await request(app)
         .get(`/api/v1/listings/admin/${id}`)

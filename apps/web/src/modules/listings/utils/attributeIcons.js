@@ -1,0 +1,102 @@
+/**
+ * attributeIcons — one icon per category attribute code (`GET
+ * /listings/metadata` attributes, seeded in `006_search_filters.js`), for
+ * the key facts strip and the specification grid. An attribute without an
+ * entry falls back to a neutral info icon, so a newly seeded attribute
+ * still renders.
+ */
+
+import {
+  Star,
+  Building2,
+  DoorOpen,
+  Languages,
+  Home,
+  BedDouble,
+  Bed,
+  Bath,
+  Users,
+  Mountain,
+  Ruler,
+  KeyRound,
+  UtensilsCrossed,
+  Store,
+  BadgeDollarSign,
+  Salad,
+  Armchair,
+  Shirt,
+  Map,
+  Clock,
+  Gauge,
+  Users2,
+  Baby,
+  MapPin,
+  CarFront,
+  Calendar,
+  Car,
+  Settings2,
+  Waypoints,
+  Fuel,
+  Briefcase,
+  IdCard,
+  Route,
+  Landmark,
+  Footprints,
+  CloudSun,
+  Ticket,
+  Info,
+} from 'lucide-react';
+
+const ICONS_BY_ATTRIBUTE_CODE = {
+  star_rating: Star,
+  property_style: Building2,
+  total_rooms: DoorOpen,
+  languages_spoken: Languages,
+  space_type: Home,
+  bedrooms: BedDouble,
+  beds: Bed,
+  bathrooms: Bath,
+  max_guests: Users,
+  view_type: Mountain,
+  floor_area_sqm: Ruler,
+  check_in_method: KeyRound,
+  cuisine: UtensilsCrossed,
+  dining_style: Store,
+  price_tier: BadgeDollarSign,
+  dietary_options: Salad,
+  seating_capacity: Armchair,
+  dress_code: Shirt,
+  tour_format: Map,
+  duration_minutes: Clock,
+  difficulty: Gauge,
+  min_group_size: Users2,
+  max_group_size: Users2,
+  min_age: Baby,
+  languages_offered: Languages,
+  meeting_point_type: MapPin,
+  pickup_details: MapPin,
+  vehicle_make: CarFront,
+  vehicle_model: CarFront,
+  vehicle_year: Calendar,
+  body_type: Car,
+  transmission: Settings2,
+  drive_type: Waypoints,
+  fuel_type: Fuel,
+  seats: Armchair,
+  doors: DoorOpen,
+  luggage_capacity: Briefcase,
+  min_driver_age: IdCard,
+  min_license_years: IdCard,
+  mileage_policy: Route,
+  daily_distance_limit_km: Route,
+  attraction_type: Landmark,
+  visit_format: Footprints,
+  setting: CloudSun,
+  venue_type: Ticket,
+};
+
+export function resolveAttributeIcon(attributeCode) {
+  return ICONS_BY_ATTRIBUTE_CODE[attributeCode] ?? Info;
+}
+
+export default resolveAttributeIcon;

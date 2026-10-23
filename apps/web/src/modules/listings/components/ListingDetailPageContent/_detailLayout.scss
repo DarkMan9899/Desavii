@@ -1,0 +1,8 @@
+// Listing Detail page layout values shared by its sticky pieces: the
+// in-page section nav pins to the top at this height, and the booking
+// sidebar pins just below it, so the two never overlap.
+
+@use 'tokens' as tokens;
+
+$section-nav-height: tokens.$input-height-lg;
+$sticky-sidebar-top: $section-nav-height + tokens.$space-4;

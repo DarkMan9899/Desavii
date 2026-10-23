@@ -106,4 +106,20 @@ describe('Button (COMPONENT_LIBRARY.md Part II §1)', () => {
       'submit',
     );
   });
+
+  test('announces the popup it opens only when asked to', () => {
+    render(
+      <>
+        <Button ariaHasPopup="dialog">Show all</Button>
+        <Button>Save</Button>
+      </>,
+    );
+    expect(screen.getByRole('button', { name: 'Show all' })).toHaveAttribute(
+      'aria-haspopup',
+      'dialog',
+    );
+    expect(screen.getByRole('button', { name: 'Save' })).not.toHaveAttribute(
+      'aria-haspopup',
+    );
+  });
 });

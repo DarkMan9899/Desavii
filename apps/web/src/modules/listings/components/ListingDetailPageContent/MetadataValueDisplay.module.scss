@@ -1,0 +1,53 @@
+// MetadataValueDisplay — tokens only. A specification grid: one column on
+// a phone, two from tablet, three from laptop; each fact is an icon with
+// its label above its value.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: tokens.$space-4 tokens.$space-6;
+  margin: 0;
+
+  @include respond.respond(tablet) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @include respond.respond(laptop) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+// The icon lives inside the `<dt>` (a `<dl>` group may hold nothing else)
+// and is placed in the row's own leading gutter, beside label and value.
+.row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-1;
+  min-width: 0;
+  padding-inline-start: tokens.$icon-size-md + tokens.$space-3;
+}
+
+.icon {
+  position: absolute;
+  inset-block-start: tokens.$space-1;
+  inset-inline-start: 0;
+  width: tokens.$icon-size-md;
+  height: tokens.$icon-size-md;
+  color: tokens.$color-royal-blue;
+}
+
+.label {
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+}
+
+.value {
+  margin: 0;
+  font-weight: 500;
+  color: tokens.$color-gray-900;
+  overflow-wrap: anywhere;
+}

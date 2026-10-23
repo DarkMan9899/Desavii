@@ -3,6 +3,7 @@ import {
   BUSINESS_TIMEZONE,
   addBusinessDays,
   getBusinessToday,
+  getBusinessWallClock,
 } from './businessDate.js';
 
 // Fixed UTC instants — the result never depends on the machine's timezone.
@@ -77,5 +78,26 @@ describe('addBusinessDays', () => {
 
   test('can step backwards', () => {
     expect(addBusinessDays('2026-03-01', -1)).toBe('2026-02-28');
+  });
+});
+
+// Listing Detail rebuild: "open now" and today's hours are Yerevan
+// business hours, whatever timezone the viewer is in.
+describe('getBusinessWallClock', () => {
+  test.each([
+    ['Wednesday noon in Yerevan', '2026-08-05T12:00:00+04:00', 3, 720],
+    ['Yerevan midnight is the next day already', '2026-08-05T20:00:00Z', 4, 0],
+    [
+      'late evening UTC is past midnight in Yerevan',
+      '2026-08-08T21:30:00Z',
+      0,
+      90,
+    ],
+    ['one minute before Yerevan midnight', '2026-08-05T19:59:00Z', 3, 1439],
+  ])('%s', (_label, instant, dayOfWeek, minutesSinceMidnight) => {
+    expect(getBusinessWallClock(new Date(instant))).toEqual({
+      dayOfWeek,
+      minutesSinceMidnight,
+    });
   });
 });

@@ -19,6 +19,10 @@
  * `listingId` yet) is likewise redirected back to `category` — Basic
  * Information's own creation submit no longer asks for `listingType`
  * (§8), so it has no fallback if the category was skipped entirely.
+ *
+ * The same Wizard serves the partner, manager and admin workspaces;
+ * `exitPath` is where each returns after publishing (the partner
+ * dashboard by default).
  */
 
 import { useEffect, useState } from 'react';
@@ -30,6 +34,7 @@ import { Container } from '@desavii/ui/components/layout';
 import PageLoader from '../../../../components/PageLoader/PageLoader.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
 import { useListingWizardState } from './useListingWizardState.js';
+import { acceptsGuestNotes } from '../../constants/guestNotes.js';
 import { useListingQuery } from '../../queries/useListingQuery.js';
 import { useListingMetadataQuery } from '../../queries/useListingMetadataQuery.js';
 import { useBookableUnitProfile } from '../../hooks/useBookableUnitProfile.js';
@@ -52,7 +57,10 @@ import styles from './PartnerListingWizard.module.scss';
 // ones the Guest information step offers an itinerary to.
 const ITINERARY_LISTING_TYPES = ['TOUR', 'ATTRACTION'];
 
-export default function PartnerListingWizard({ partnerships }) {
+export default function PartnerListingWizard({
+  partnerships,
+  exitPath = undefined,
+}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { locale } = useParams();
@@ -114,7 +122,7 @@ export default function PartnerListingWizard({ partnerships }) {
     showToast(t('partner.listingWizard.publishSuccess'), {
       variant: 'success',
     });
-    navigate(`/${locale}/partner`);
+    navigate(exitPath ?? `/${locale}/partner`);
   }
 
   const metadataStepKey = hasMetadata ? 'metadata-ready' : 'metadata-pending';
@@ -304,9 +312,11 @@ export default function PartnerListingWizard({ partnerships }) {
             initialItinerarySteps={listing.itinerary_steps}
             initialIncludedItems={listing.included_items}
             initialFaqs={listing.faqs}
+            initialGuestNotes={listing.guest_notes}
             showItinerary={ITINERARY_LISTING_TYPES.includes(
               listing.listing_type,
             )}
+            showGuestNotes={acceptsGuestNotes(listing.listing_type)}
             authoringLocale={wizard.authoringLocale}
             onAuthoringLocaleChange={wizard.setAuthoringLocale}
             onBack={wizard.goToPreviousStep}
@@ -336,4 +346,5 @@ const partnershipShape = PropTypes.shape({
 
 PartnerListingWizard.propTypes = {
   partnerships: PropTypes.arrayOf(partnershipShape).isRequired,
+  exitPath: PropTypes.string,
 };

@@ -25,6 +25,10 @@
  * (tours, attractions, entertainment venues — `showItinerary`); every
  * other listing never sees or re-saves it, so a stay or a car is never
  * offered a step-by-step schedule.
+ *
+ * Listing Detail rebuild: the "Good to know" lists (`GuestNotesEditor`,
+ * `showGuestNotes`) for tours, attractions, entertainment venues and car
+ * rentals — saved per language with the other collections.
  */
 
 import { useRef, useState } from 'react';
@@ -43,6 +47,8 @@ import { useReplaceListingHighlightsMutation } from '../../../mutations/useRepla
 import { useReplaceListingItineraryMutation } from '../../../mutations/useReplaceListingItineraryMutation.js';
 import { useReplaceListingIncludedItemsMutation } from '../../../mutations/useReplaceListingIncludedItemsMutation.js';
 import { useReplaceListingFaqsMutation } from '../../../mutations/useReplaceListingFaqsMutation.js';
+import { useReplaceListingGuestNotesMutation } from '../../../mutations/useReplaceListingGuestNotesMutation.js';
+import GuestNotesEditor from './GuestNotesEditor.jsx';
 import { HIGHLIGHT_ICON_CODES } from '../../../utils/highlightIcons.js';
 import { getLocalizedItemsExact } from '../../../utils/getLocalizedItems.js';
 import { SUPPORTED_LOCALES } from '../../../../../translations/i18n.js';
@@ -68,6 +74,7 @@ const SECTION_TITLE_KEY_BY_ISSUE_ROOT = {
   steps: 'partner.listingWizard.content.itineraryTitle',
   items: 'partner.listingWizard.content.includedTitle',
   faqs: 'partner.listingWizard.content.faqsTitle',
+  notes: 'partner.listingWizard.content.guestNotesTitle',
 };
 
 // listingValidators.js itinerary durationMinutes: int, 1..1440.
@@ -121,7 +128,9 @@ export default function ContentStep({
   initialItinerarySteps = [],
   initialIncludedItems = [],
   initialFaqs = [],
+  initialGuestNotes = [],
   showItinerary = true,
+  showGuestNotes = false,
   authoringLocale,
   onAuthoringLocaleChange,
   onBack = undefined,
@@ -133,6 +142,7 @@ export default function ContentStep({
   const replaceItinerary = useReplaceListingItineraryMutation();
   const replaceIncludedItems = useReplaceListingIncludedItemsMutation();
   const replaceFaqs = useReplaceListingFaqsMutation();
+  const replaceGuestNotes = useReplaceListingGuestNotesMutation();
 
   const nextKeyRef = useRef(0);
   function nextKey() {
@@ -188,18 +198,27 @@ export default function ContentStep({
       nextKey,
     ),
   );
+  const [guestNotesByLocale, setGuestNotesByLocale] = useState(() =>
+    buildRowsByLocale(
+      initialGuestNotes,
+      (row, key) => ({ rowKey: key(), kind: row.kind, text: row.text }),
+      nextKey,
+    ),
+  );
   const [faqErrors, setFaqErrors] = useState({});
 
   const highlights = highlightsByLocale[authoringLocale];
   const itinerarySteps = itineraryByLocale[authoringLocale];
   const includedItems = includedByLocale[authoringLocale];
   const faqs = faqsByLocale[authoringLocale];
+  const guestNotes = guestNotesByLocale[authoringLocale];
 
   const completionByLocale = SUPPORTED_LOCALES.reduce((acc, code) => {
     acc[code] =
       highlightsByLocale[code].length > 0 ||
       (showItinerary && itineraryByLocale[code].length > 0) ||
       includedByLocale[code].length > 0 ||
+      (showGuestNotes && guestNotesByLocale[code].length > 0) ||
       faqsByLocale[code].length > 0;
     return acc;
   }, {});
@@ -256,6 +275,10 @@ export default function ContentStep({
         isIncluded: row.isIncluded,
       }));
 
+    const validGuestNotes = guestNotes
+      .filter((row) => row.text.trim().length > 0)
+      .map((row) => ({ kind: row.kind, text: row.text.trim() }));
+
     const validFaqs = validFaqsOrNull();
     if (validFaqs === null) return;
 
@@ -282,6 +305,12 @@ export default function ContentStep({
           faqs: validFaqs,
           languageCode: authoringLocale,
         }),
+        showGuestNotes &&
+          replaceGuestNotes.mutateAsync({
+            id: listingId,
+            notes: validGuestNotes,
+            languageCode: authoringLocale,
+          }),
       ]);
     } catch {
       // Rendered from the mutations' own `error` (ApiErrorAlert).
@@ -304,12 +333,14 @@ export default function ContentStep({
     replaceHighlights.isPending ||
     replaceItinerary.isPending ||
     replaceIncludedItems.isPending ||
-    replaceFaqs.isPending;
+    replaceFaqs.isPending ||
+    replaceGuestNotes.isPending;
   const mutationError =
     replaceHighlights.error ||
     replaceItinerary.error ||
     replaceIncludedItems.error ||
-    replaceFaqs.error;
+    replaceFaqs.error ||
+    replaceGuestNotes.error;
   const sectionLabels = {};
   (parseApiError(mutationError)?.issues ?? []).forEach(({ path }) => {
     const titleKey = SECTION_TITLE_KEY_BY_ISSUE_ROOT[path.split('.')[0]];
@@ -582,6 +613,27 @@ export default function ContentStep({
             </Button>
           </section>
 
+          {showGuestNotes && (
+            <GuestNotesEditor
+              rows={guestNotes}
+              onRowsChange={(rows) =>
+                setGuestNotesByLocale((current) => ({
+                  ...current,
+                  [authoringLocale]: rows,
+                }))
+              }
+              onAddRow={(kind) =>
+                setGuestNotesByLocale((current) => ({
+                  ...current,
+                  [authoringLocale]: [
+                    ...current[authoringLocale],
+                    { rowKey: nextKey(), kind, text: '' },
+                  ],
+                }))
+              }
+            />
+          )}
+
           <section>
             <h3>{t('partner.listingWizard.content.faqsTitle')}</h3>
             <p className={styles.sectionHint}>
@@ -711,6 +763,14 @@ ContentStep.propTypes = {
   initialFaqs: PropTypes.arrayOf(faqShape),
   /** Experiences only (tours, attractions, entertainment venues). */
   showItinerary: PropTypes.bool,
+  initialGuestNotes: PropTypes.arrayOf(
+    PropTypes.shape({
+      language_code: PropTypes.string.isRequired,
+      kind: PropTypes.string.isRequired,
+      text: PropTypes.string.isRequired,
+    }),
+  ),
+  showGuestNotes: PropTypes.bool,
   authoringLocale: PropTypes.oneOf(SUPPORTED_LOCALES).isRequired,
   onAuthoringLocaleChange: PropTypes.func.isRequired,
   onBack: PropTypes.func,

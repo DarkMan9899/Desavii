@@ -1838,7 +1838,15 @@
           "airport": "Аэропорт",
           "gift": "Подарок",
           "star": "Высокий рейтинг"
-        }
+        },
+        "guestNotesTitle": "Полезно знать",
+        "guestNotesHint": "Короткие практические заметки на странице вашего объявления: что взять с собой, что запрещено и что важно знать заранее (до 10 в каждом списке).",
+        "guestNoteKinds": {
+          "BRING": "Что взять с собой",
+          "NOT_ALLOWED": "Запрещено",
+          "KNOW_BEFORE": "Важно знать заранее"
+        },
+        "addGuestNote": "Добавить в «{{kind}}»"
       },
       "completeness": {
         "title": "Полнота объявления",
@@ -2055,13 +2063,19 @@
         "OUTDOOR": "На открытом воздухе",
         "OTHER": "Прочее",
         "WELLNESS": "Оздоровление",
-        "KITCHEN_LAUNDRY": "Кухня и прачечная",
-        "CONNECTIVITY": "Интернет и связь",
-        "ACCESSIBILITY_SAFETY": "Доступность и безопасность",
+        "KITCHEN_LAUNDRY": "Кухня и стирка",
         "FAMILY_PETS": "Семья и питомцы",
-        "FOOD_SERVICE": "Питание и обслуживание",
-        "DINING": "Кухня",
-        "IN_ROOM": "В номере"
+        "INTERNET_WORK": "Интернет и работа",
+        "CLIMATE": "Отопление и кондиционер",
+        "BEDROOM_LIVING": "Спальня и гостиная",
+        "BATHROOM": "Ванная",
+        "FOOD_DRINK": "Еда и напитки",
+        "SERVICES": "Услуги",
+        "PARKING_TRANSPORT": "Парковка и транспорт",
+        "ACCESSIBILITY": "Доступность",
+        "SAFETY_SECURITY": "Безопасность",
+        "ENTERTAINMENT": "Развлечения",
+        "VEHICLE": "Оснащение автомобиля"
       },
       "media": {
         "atLeastOneRequired": "Добавьте хотя бы одну фотографию, чтобы продолжить.",
@@ -2990,7 +3004,15 @@
         "submittedForReview": "Отправлено на проверку"
       },
       "viewInventoryAction": "Открыть склад",
-      "managePromotionAction": "Управлять продвижением"
+      "managePromotionAction": "Управлять продвижением",
+      "edit": {
+        "action": "Редактировать объявление",
+        "heading": "Редактирование: {{title}}",
+        "locked": {
+          "PUBLISHED": "Опубликованное объявление нельзя редактировать. Сначала снимите его с публикации, затем отредактируйте и снова отправьте на проверку.",
+          "PENDING_REVIEW": "Объявление на проверке: его нельзя редактировать, пока оно не будет одобрено или возвращено на доработку."
+        }
+      }
     },
     "promotions": {
       "heading": "Продвижение",
@@ -4053,16 +4075,42 @@
         "showLess": "Показать меньше"
       },
       "attributes": {
-        "heading": "Характеристики"
+        "heading": "Характеристики",
+        "headingProperty": "Об отеле",
+        "headingSpace": "О жилье",
+        "headingRestaurant": "О ресторане",
+        "headingTour": "О туре",
+        "headingVehicle": "Характеристики автомобиля",
+        "headingVisit": "О посещении",
+        "headingVenue": "О месте"
       },
       "policies": {
         "heading": "Правила",
-        "cancellationDisclaimer": "заявки на возврат средств рассматриваются индивидуально, а не рассчитываются автоматически на основе этой метки"
+        "cancellationDisclaimer": "Заявки на возврат рассматриваются индивидуально. Сумма не рассчитывается автоматически на основе этой метки.",
+        "headingHouseRules": "Правила проживания",
+        "headingRental": "Условия аренды",
+        "allowed": "Разрешено",
+        "notAllowed": "Запрещено",
+        "titles": {
+          "check_in_time": "Заезд",
+          "check_out_time": "Выезд",
+          "cancellation_policy": "Отмена",
+          "children_allowed": "Дети",
+          "pets_allowed": "Животные",
+          "smoking_allowed": "Курение",
+          "parties_allowed": "Вечеринки и мероприятия",
+          "fuel_policy": "Топливо"
+        }
       },
       "amenities": {
         "heading": "Удобства",
         "showAll": "Показать все удобства",
-        "showLess": "Показать меньше"
+        "showLess": "Показать меньше",
+        "showAllCount_one": "Показать {{count}} удобство",
+        "showAllCount_other": "Показать все удобства ({{count}})",
+        "showAllCount_few": "Показать все удобства ({{count}})",
+        "showAllCount_many": "Показать все удобства ({{count}})",
+        "headingVehicle": "Оснащение"
       },
       "itinerary": {
         "heading": "Маршрут",
@@ -4137,7 +4185,9 @@
         }
       },
       "location": {
-        "heading": "Местоположение"
+        "heading": "Местоположение",
+        "approximateNote": "Примерное расположение. Карта показывает район, а не точное место дома, чтобы защитить конфиденциальность владельца.",
+        "headingPickup": "Место получения"
       },
       "gallery": {
         "heading": "Галерея",
@@ -4289,7 +4339,75 @@
         "heading": "Вам также может понравиться"
       },
       "reviews": {
-        "heading": "Отзывы"
+        "heading": "Отзывы",
+        "none": "Отзывов пока нет. Отзывы оставляют гости после завершённого бронирования."
+      },
+      "keyFacts": {
+        "heading": "Главное",
+        "labels": {
+          "star_rating": "Звёзды",
+          "check_in": "Заезд",
+          "check_out": "Выезд",
+          "room_types": "Номера",
+          "languages_spoken": "Персонал говорит",
+          "property_style": "Стиль",
+          "space_type": "Тип жилья",
+          "max_guests": "Гости",
+          "bedrooms": "Спальни",
+          "beds": "Кровати",
+          "bathrooms": "Ванные",
+          "floor_area_sqm": "Площадь",
+          "cuisine": "Кухня",
+          "dining_style": "Формат",
+          "price_tier": "Цены",
+          "opening_today": "Сегодня",
+          "reservation": "Бронирование",
+          "dietary_options": "Особое питание",
+          "duration_minutes": "Длительность",
+          "tour_format": "Формат",
+          "group_size": "Размер группы",
+          "languages_offered": "Языки",
+          "difficulty": "Сложность",
+          "min_age": "Возраст от",
+          "vehicle": "Автомобиль",
+          "transmission": "Коробка передач",
+          "fuel_type": "Топливо",
+          "seats": "Мест",
+          "doors": "Двери",
+          "mileage": "Пробег",
+          "attraction_type": "Тип",
+          "visit_format": "Посещение",
+          "setting": "Где проходит",
+          "venue_type": "Тип"
+        },
+        "values": {
+          "roomTypes_one": "{{count}} тип номера",
+          "roomTypes_other": "{{count}} типа номеров",
+          "roomTypes_few": "{{count}} типа номеров",
+          "roomTypes_many": "{{count}} типов номеров",
+          "freeReservation": "Бесплатно",
+          "groupRange": "{{min}}–{{max}} чел.",
+          "groupUpTo_one": "До {{count}} человека",
+          "groupUpTo_other": "До {{count}} человек",
+          "groupUpTo_few": "До {{count}} человек",
+          "groupUpTo_many": "До {{count}} человек",
+          "groupFrom_one": "От {{count}} человека",
+          "groupFrom_other": "От {{count}} человек",
+          "groupFrom_few": "От {{count}} человек",
+          "groupFrom_many": "От {{count}} человек",
+          "distancePerDay_one": "{{count}} км в день",
+          "distancePerDay_other": "{{count}} км в день",
+          "distancePerDay_few": "{{count}} км в день",
+          "distancePerDay_many": "{{count}} км в день"
+        }
+      },
+      "guestNotes": {
+        "heading": "Полезно знать",
+        "kinds": {
+          "BRING": "Что взять с собой",
+          "NOT_ALLOWED": "Запрещено",
+          "KNOW_BEFORE": "Важно знать заранее"
+        }
       }
     }
   },

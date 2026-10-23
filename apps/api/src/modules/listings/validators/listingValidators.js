@@ -13,6 +13,11 @@
 
 import { z } from 'zod';
 import { LISTING_STATUSES } from '../../../core/domain/listingStatusTransitions.js';
+import {
+  GUEST_NOTE_KINDS,
+  GUEST_NOTE_TEXT_MAX_LENGTH,
+  GUEST_NOTES_PER_KIND_MAX,
+} from '../../../core/domain/listingGuestNotes.js';
 import { decimalMoneyAmountSchema } from '../../../validation/decimalMoneyAmount.js';
 import {
   SMALLINT_UNSIGNED_MAX,
@@ -433,6 +438,39 @@ export const replaceIncludedItemsSchema = z.object({
         }),
       )
       .max(40),
+  }),
+});
+
+// Listing Detail rebuild: guest guidance notes (what to bring / not
+// allowed / know before you go), same full-replace, per-language shape.
+// Each kind is capped on its own, so one long list cannot crowd out the
+// other two.
+export const replaceGuestNotesSchema = z.object({
+  params: idParams,
+  query: passthroughQuery,
+  body: z.object({
+    languageCode: z.enum(['en', 'hy', 'ru']).optional(),
+    notes: z
+      .array(
+        z.object({
+          kind: z.enum(Object.values(GUEST_NOTE_KINDS)),
+          text: z.string().trim().min(1).max(GUEST_NOTE_TEXT_MAX_LENGTH),
+        }),
+      )
+      .superRefine((notes, ctx) => {
+        Object.values(GUEST_NOTE_KINDS).forEach((kind) => {
+          const count = notes.filter((note) => note.kind === kind).length;
+          if (count > GUEST_NOTES_PER_KIND_MAX) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.too_big,
+              type: 'array',
+              maximum: GUEST_NOTES_PER_KIND_MAX,
+              inclusive: true,
+              message: `At most ${GUEST_NOTES_PER_KIND_MAX} ${kind} notes.`,
+            });
+          }
+        });
+      }),
   }),
 });
 

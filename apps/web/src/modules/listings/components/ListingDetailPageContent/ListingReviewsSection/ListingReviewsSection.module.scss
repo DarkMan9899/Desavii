@@ -1,0 +1,9 @@
+// ListingReviewsSection — tokens only. The "no reviews yet" line reads as
+// secondary text, not as an empty-state block.
+
+@use 'tokens' as tokens;
+
+.none {
+  margin: 0;
+  color: tokens.$color-gray-600;
+}

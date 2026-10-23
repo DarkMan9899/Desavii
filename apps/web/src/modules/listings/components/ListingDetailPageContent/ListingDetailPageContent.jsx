@@ -64,8 +64,10 @@ import ListingRoomsSection from './ListingRoomsSection/ListingRoomsSection.jsx';
 import ListingReservationWidget from './ListingReservationWidget/ListingReservationWidget.jsx';
 import MobileBookingBar from './MobileBookingBar/MobileBookingBar.jsx';
 import ListingAttributesSection from './ListingAttributesSection/ListingAttributesSection.jsx';
+import ListingKeyFacts from './ListingKeyFacts/ListingKeyFacts.jsx';
 import ListingItinerarySection from './ListingItinerarySection/ListingItinerarySection.jsx';
 import ListingIncludedSection from './ListingIncludedSection/ListingIncludedSection.jsx';
+import ListingGuestNotesSection from './ListingGuestNotesSection/ListingGuestNotesSection.jsx';
 import ListingAmenitiesSection from './ListingAmenitiesSection/ListingAmenitiesSection.jsx';
 import ListingPoliciesSection from './ListingPoliciesSection/ListingPoliciesSection.jsx';
 import ListingAvailabilitySection from './ListingAvailabilitySection/ListingAvailabilitySection.jsx';
@@ -85,12 +87,15 @@ import {
   resolveBookingCtaKey,
 } from '../../utils/categoryPresentation.js';
 import { resolveDetailEmphasisSectionId } from '../../../../utils/categoryMotionConfig.js';
+import { resolveListingKeyFacts } from '../../utils/listingKeyFacts.js';
+import { resolveSectionHeadingKey } from '../../utils/listingSectionHeadings.js';
 import styles from './ListingDetailPageContent.module.scss';
 
 const SECTION_ABOUT = 'about';
 const SECTION_ROOMS = 'rooms';
 const SECTION_ITINERARY = 'itinerary';
 const SECTION_INCLUDED = 'included';
+const SECTION_GUEST_NOTES = 'guestNotes';
 const SECTION_ATTRIBUTES = 'attributes';
 const SECTION_AMENITIES = 'amenities';
 const SECTION_POLICIES = 'policies';
@@ -101,23 +106,11 @@ const SECTION_FAQ = 'faq';
 const SECTION_MENU = 'menu';
 const SECTION_OPENING_HOURS = 'openingHours';
 
-// 2026 stabilization audit — the lower page previously read as a long
-// stack of identical giant white cards (every section shared one blanket
-// `.main > section` treatment). Structured, browsable content —
-// Amenities/Included/Policies/FAQ, each already its own tight list or
-// accordion — reads better with editorial rhythm (typography + a subtle
-// rule, no card chrome) than boxed in yet another elevated card; the
-// remaining sections (About, Attributes, Availability, Location,
-// Reviews) genuinely are prose/dense-data blocks that still benefit from
-// a card's visual grouping.
-const EDITORIAL_SECTION_IDS = new Set([
-  SECTION_INCLUDED,
-  SECTION_AMENITIES,
-  SECTION_POLICIES,
-  SECTION_FAQ,
-  SECTION_MENU,
-  SECTION_OPENING_HOURS,
-]);
+// Sections the in-page navigation does not link to: Availability is a
+// one-line status next to the facts it qualifies, not a destination
+// (docs/LISTING_DETAIL_FIELD_GAP.md §3 — navigation lists sections worth
+// jumping to).
+const UNLISTED_SECTION_IDS = new Set([SECTION_AVAILABILITY]);
 
 export default function ListingDetailPageContent() {
   const { t } = useTranslation();
@@ -240,6 +233,9 @@ export default function ListingDetailPageContent() {
     ? getLocalizedItems(listing.included_items, locale)
     : [];
   const faqs = listing ? getLocalizedItems(listing.faqs, locale) : [];
+  const guestNotes = listing
+    ? getLocalizedItems(listing.guest_notes, locale)
+    : [];
 
   // Canonicalizes on the slug: a visit via the legacy numeric-id URL (or
   // any URL that no longer matches the listing's current slug, e.g. after
@@ -371,6 +367,22 @@ export default function ListingDetailPageContent() {
   const title = translation?.title ?? listing.slug;
   const description = translation?.summary ?? translation?.description;
 
+  // Pass 7 (category-specific visual identity): keyed by the real category
+  // slug, not just `listing_type` — `listing_type` alone can't tell
+  // Apartments/Villas/Guest Houses (all PROPERTY) or Attractions/
+  // Entertainment (both ATTRACTION) apart. `resolveCategoryVisualKey`
+  // falls back to the coarser group while `category` is still loading.
+  const categoryVisualKey = resolveCategoryVisualKey({
+    listingType: listing.listing_type,
+    categorySlug: category?.slug,
+  });
+  const headingKey = (section) =>
+    resolveSectionHeadingKey(categoryVisualKey, section);
+  const keyFacts = resolveListingKeyFacts(
+    { categoryVisualKey, metadata, listing, units, weeklyHours },
+    t,
+  );
+
   const sections = [
     description && {
       id: SECTION_ABOUT,
@@ -396,9 +408,13 @@ export default function ListingDetailPageContent() {
       id: SECTION_INCLUDED,
       label: t('pages.listingDetail.included.heading'),
     },
+    guestNotes.length > 0 && {
+      id: SECTION_GUEST_NOTES,
+      label: t('pages.listingDetail.guestNotes.heading'),
+    },
     metadata?.attributes?.length > 0 && {
       id: SECTION_ATTRIBUTES,
-      label: t('pages.listingDetail.attributes.heading'),
+      label: t(headingKey('attributes')),
     },
     // Step L6.1: only when an amenity is actually shown — a stored legacy
     // amenity outside the category is hidden by the section itself, so a
@@ -410,11 +426,11 @@ export default function ListingDetailPageContent() {
         t,
       ).length > 0 && {
         id: SECTION_AMENITIES,
-        label: t('pages.listingDetail.amenities.heading'),
+        label: t(headingKey('amenities')),
       },
     metadata?.policies?.length > 0 && {
       id: SECTION_POLICIES,
-      label: t('pages.listingDetail.policies.heading'),
+      label: t(headingKey('policies')),
     },
     {
       id: SECTION_AVAILABILITY,
@@ -422,7 +438,7 @@ export default function ListingDetailPageContent() {
     },
     listing.location && {
       id: SECTION_LOCATION,
-      label: t('pages.listingDetail.location.heading'),
+      label: t(headingKey('location')),
     },
     { id: SECTION_REVIEWS, label: t('pages.listingDetail.reviews.heading') },
     faqs.length > 0 && {
@@ -432,23 +448,13 @@ export default function ListingDetailPageContent() {
   ].filter(Boolean);
 
   // Phase 18.7 (Category-Specific Detail Experiences) — same sections,
-  // same components, no per-category markup fork: only the reading order
-  // (and the reservation panel's CTA copy, see `bookingCtaKey` below)
-  // adapts to what actually matters first for this listing's type.
-  //
-  // Pass 7 (category-specific visual identity): keyed by the real category
-  // slug (already resolved above as `category`), not just `listing_type` —
-  // `listing_type` alone can't tell Apartments/Villas/Guest Houses (all
-  // PROPERTY) or Attractions/Entertainment (both ATTRACTION) apart, which
-  // is exactly why those pairs previously read identically here.
-  // `resolveCategoryVisualKey` falls back to the coarser group when
-  // `category` hasn't resolved yet (e.g. mid-fetch), so this never regresses
-  // the existing group-based behavior.
-  const categoryVisualKey = resolveCategoryVisualKey({
-    listingType: listing.listing_type,
-    categorySlug: category?.slug,
-  });
+  // same components, no per-category markup fork: the reading order, the
+  // reservation panel's CTA copy (`bookingCtaKey` below) and each
+  // section's heading (`headingKey`) adapt to the listing's category.
   const orderedSections = reorderSections(sections, categoryVisualKey);
+  const navigableSections = orderedSections.filter(
+    (section) => !UNLISTED_SECTION_IDS.has(section.id),
+  );
   const bookingCtaKey = resolveBookingCtaKey(categoryVisualKey);
   // Pass 7B (category motion completion, brief §5/§6) — the ONE section
   // that IS this category's "product comes first" section (see
@@ -491,10 +497,18 @@ export default function ListingDetailPageContent() {
         sectionId={SECTION_INCLUDED}
       />
     ),
+    [SECTION_GUEST_NOTES]: (
+      <ListingGuestNotesSection
+        notes={guestNotes}
+        sectionId={SECTION_GUEST_NOTES}
+      />
+    ),
     [SECTION_ATTRIBUTES]: metadata && (
       <ListingAttributesSection
         attributes={metadata.attributes}
         listing={listing}
+        excludeCodes={keyFacts.consumedAttributeCodes}
+        headingKey={headingKey('attributes')}
         sectionId={SECTION_ATTRIBUTES}
       />
     ),
@@ -502,6 +516,7 @@ export default function ListingDetailPageContent() {
       <ListingAmenitiesSection
         amenityGroups={metadata.amenity_groups}
         amenityIds={listing.amenity_ids}
+        headingKey={headingKey('amenities')}
         sectionId={SECTION_AMENITIES}
       />
     ),
@@ -509,6 +524,7 @@ export default function ListingDetailPageContent() {
       <ListingPoliciesSection
         policies={metadata.policies}
         listing={listing}
+        headingKey={headingKey('policies')}
         sectionId={SECTION_POLICIES}
       />
     ),
@@ -522,6 +538,7 @@ export default function ListingDetailPageContent() {
       <ListingLocationSection
         location={listing.location}
         title={title}
+        headingKey={headingKey('location')}
         sectionId={SECTION_LOCATION}
       />
     ),
@@ -581,14 +598,16 @@ export default function ListingDetailPageContent() {
         }
       />
 
+      <ListingKeyFacts facts={keyFacts.facts} />
+
       <CompanyAttribution company={listing.company} locale={locale} />
 
-      <ListingSectionNav sections={orderedSections} />
+      <ListingSectionNav sections={navigableSections} />
 
       <div className={styles.layout}>
         <div className={styles.main}>
           {isMetadataPending && (
-            <div className={styles.sectionCard}>
+            <div className={styles.section}>
               <Section
                 spacing="none"
                 aria-label={t('pages.listingDetail.loading')}
@@ -609,11 +628,7 @@ export default function ListingDetailPageContent() {
             <ScrollReveal
               key={sectionId}
               variant={sectionId === detailEmphasisSectionId ? 'depth' : 'fade'}
-              className={
-                EDITORIAL_SECTION_IDS.has(sectionId)
-                  ? styles.sectionEditorial
-                  : styles.sectionCard
-              }
+              className={styles.section}
             >
               {sectionElements[sectionId]}
             </ScrollReveal>

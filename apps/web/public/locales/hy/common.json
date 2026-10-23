@@ -1792,7 +1792,15 @@
           "airport": "Օդանավակայան",
           "gift": "Նվեր",
           "star": "Բարձր վարկանիշ"
-        }
+        },
+        "guestNotesTitle": "Օգտակար է իմանալ",
+        "guestNotesHint": "Կարճ գործնական նշումներ, որոնք ցուցադրվում են ձեր հայտարարությունում՝ ինչ վերցնել, ինչն է արգելված և ինչ իմանալ նախապես (յուրաքանչյուր ցանկում՝ մինչև 10)։",
+        "guestNoteKinds": {
+          "BRING": "Ինչ վերցնել",
+          "NOT_ALLOWED": "Արգելված է",
+          "KNOW_BEFORE": "Ինչ իմանալ նախապես"
+        },
+        "addGuestNote": "Ավելացնել «{{kind}}» ցանկում"
       },
       "completeness": {
         "title": "Հայտարարության ամբողջականություն",
@@ -1984,14 +1992,20 @@
         "GENERAL": "Ընդհանուր",
         "OUTDOOR": "Բացօթյա",
         "OTHER": "Այլ",
-        "WELLNESS": "Առողջություն",
-        "KITCHEN_LAUNDRY": "Խոհանոց և լվացքատուն",
-        "CONNECTIVITY": "Ինտերնետ և կապ",
-        "ACCESSIBILITY_SAFETY": "Հասանելիություն և անվտանգություն",
+        "WELLNESS": "Առողջություն և հանգիստ",
+        "KITCHEN_LAUNDRY": "Խոհանոց և լվացք",
         "FAMILY_PETS": "Ընտանիք և ընտանի կենդանիներ",
-        "FOOD_SERVICE": "Սնունդ և սպասարկում",
-        "DINING": "Ճաշարան",
-        "IN_ROOM": "Սենյակում"
+        "INTERNET_WORK": "Ինտերնետ և աշխատանք",
+        "CLIMATE": "Ջեռուցում և հովացում",
+        "BEDROOM_LIVING": "Ննջասենյակ և հյուրասենյակ",
+        "BATHROOM": "Լոգարան",
+        "FOOD_DRINK": "Սնունդ և ըմպելիքներ",
+        "SERVICES": "Ծառայություններ",
+        "PARKING_TRANSPORT": "Կայանատեղի և տրանսպորտ",
+        "ACCESSIBILITY": "Մատչելիություն",
+        "SAFETY_SECURITY": "Անվտանգություն",
+        "ENTERTAINMENT": "Ժամանց",
+        "VEHICLE": "Մեքենայի հագեցվածություն"
       },
       "media": {
         "atLeastOneRequired": "Շարունակելուց առաջ ավելացրեք առնվազն մեկ լուսանկար։",
@@ -2918,7 +2932,15 @@
         "submittedForReview": "Ներկայացվել է վերանայման"
       },
       "viewInventoryAction": "Դիտել գույքագրումը",
-      "managePromotionAction": "Կառավարել առաջխաղացումը"
+      "managePromotionAction": "Կառավարել առաջխաղացումը",
+      "edit": {
+        "action": "Խմբագրել հայտարարությունը",
+        "heading": "Խմբագրում՝ {{title}}",
+        "locked": {
+          "PUBLISHED": "Հրապարակված հայտարարությունը հնարավոր չէ խմբագրել։ Նախ հանեք այն հրապարակումից, ապա խմբագրեք և կրկին ուղարկեք ստուգման։",
+          "PENDING_REVIEW": "Հայտարարությունը ստուգման մեջ է և հնարավոր չէ խմբագրել, մինչև այն չհաստատվի կամ չվերադարձվի փոփոխությունների համար։"
+        }
+      }
     },
     "promotions": {
       "heading": "Առաջխաղացումներ",
@@ -3981,16 +4003,40 @@
         "showLess": "Ցույց տալ ավելի քիչ"
       },
       "attributes": {
-        "heading": "Մանրամասներ"
+        "heading": "Մանրամասներ",
+        "headingProperty": "Հյուրանոցի մասին",
+        "headingSpace": "Տարածքի մասին",
+        "headingRestaurant": "Ռեստորանի մասին",
+        "headingTour": "Տուրի մանրամասներ",
+        "headingVehicle": "Մեքենայի բնութագրեր",
+        "headingVisit": "Այցի մանրամասներ",
+        "headingVenue": "Վայրի մասին"
       },
       "policies": {
         "heading": "Կանոններ",
-        "cancellationDisclaimer": "վերադարձի հայտերը դիտարկվում են առանձին-առանձին, չեն հաշվարկվում ինքնաշխատ այս պիտակի հիման վրա"
+        "cancellationDisclaimer": "Վերադարձի հայտերը դիտարկվում են առանձին-առանձին։ Գումարը ինքնաշխատ չի հաշվարկվում այս պիտակի հիման վրա։",
+        "headingHouseRules": "Կացության կանոններ",
+        "headingRental": "Վարձակալության պայմաններ",
+        "allowed": "Թույլատրվում է",
+        "notAllowed": "Չի թույլատրվում",
+        "titles": {
+          "check_in_time": "Մուտք",
+          "check_out_time": "Ելք",
+          "cancellation_policy": "Չեղարկում",
+          "children_allowed": "Երեխաներ",
+          "pets_allowed": "Ընտանի կենդանիներ",
+          "smoking_allowed": "Ծխել",
+          "parties_allowed": "Երեկույթներ և միջոցառումներ",
+          "fuel_policy": "Վառելիք"
+        }
       },
       "amenities": {
         "heading": "Հարմարություններ",
         "showAll": "Ցույց տալ բոլոր հարմարությունները",
-        "showLess": "Ցույց տալ ավելի քիչ"
+        "showLess": "Ցույց տալ ավելի քիչ",
+        "showAllCount_one": "Ցույց տալ բոլոր {{count}} հարմարությունը",
+        "showAllCount_other": "Ցույց տալ բոլոր {{count}} հարմարությունները",
+        "headingVehicle": "Հագեցվածություն"
       },
       "itinerary": {
         "heading": "Երթուղի",
@@ -4055,7 +4101,9 @@
         }
       },
       "location": {
-        "heading": "Տեղադրություն"
+        "heading": "Տեղադրություն",
+        "approximateNote": "Մոտավոր վայր։ Քարտեզը ցույց է տալիս թաղամասը, ոչ թե տան ճշգրիտ տեղը՝ սեփականատիրոջ գաղտնիությունը պաշտպանելու համար։",
+        "headingPickup": "Վերցնելու վայրը"
       },
       "gallery": {
         "heading": "Պատկերասրահ",
@@ -4183,7 +4231,67 @@
         "heading": "Ձեզ նաև կարող է հետաքրքրել"
       },
       "reviews": {
-        "heading": "Կարծիքներ"
+        "heading": "Կարծիքներ",
+        "none": "Կարծիքներ դեռ չկան։ Կարծիք են գրում հյուրերը՝ ավարտված ամրագրումից հետո։"
+      },
+      "keyFacts": {
+        "heading": "Հիմնական փաստեր",
+        "labels": {
+          "star_rating": "Աստղեր",
+          "check_in": "Մուտք",
+          "check_out": "Ելք",
+          "room_types": "Սենյակներ",
+          "languages_spoken": "Անձնակազմը խոսում է",
+          "property_style": "Ոճ",
+          "space_type": "Տարածք",
+          "max_guests": "Հյուրեր",
+          "bedrooms": "Ննջասենյակներ",
+          "beds": "Մահճակալներ",
+          "bathrooms": "Լոգարաններ",
+          "floor_area_sqm": "Մակերես",
+          "cuisine": "Խոհանոց",
+          "dining_style": "Ոճ",
+          "price_tier": "Գին",
+          "opening_today": "Այսօր բաց է",
+          "reservation": "Ամրագրում",
+          "dietary_options": "Սննդակարգեր",
+          "duration_minutes": "Տևողություն",
+          "tour_format": "Ձևաչափ",
+          "group_size": "Խմբի չափ",
+          "languages_offered": "Լեզուներ",
+          "difficulty": "Բարդություն",
+          "min_age": "Նվազագույն տարիք",
+          "vehicle": "Մեքենա",
+          "transmission": "Փոխանցման տուփ",
+          "fuel_type": "Վառելիք",
+          "seats": "Նստատեղեր",
+          "doors": "Դռներ",
+          "mileage": "Վազք",
+          "attraction_type": "Տեսակ",
+          "visit_format": "Այց",
+          "setting": "Վայր",
+          "venue_type": "Տեսակ"
+        },
+        "values": {
+          "roomTypes_one": "{{count}} սենյակի տեսակ",
+          "roomTypes_other": "{{count}} սենյակի տեսակ",
+          "freeReservation": "Անվճար ամրագրում",
+          "groupRange": "{{min}}–{{max}} մարդ",
+          "groupUpTo_one": "Մինչև {{count}} մարդ",
+          "groupUpTo_other": "Մինչև {{count}} մարդ",
+          "groupFrom_one": "{{count}} մարդուց",
+          "groupFrom_other": "{{count}} մարդուց",
+          "distancePerDay_one": "{{count}} կմ օրական",
+          "distancePerDay_other": "{{count}} կմ օրական"
+        }
+      },
+      "guestNotes": {
+        "heading": "Օգտակար է իմանալ",
+        "kinds": {
+          "BRING": "Ինչ վերցնել",
+          "NOT_ALLOWED": "Արգելված է",
+          "KNOW_BEFORE": "Ինչ իմանալ նախապես"
+        }
       }
     }
   },

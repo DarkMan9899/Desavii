@@ -422,8 +422,9 @@ is listed under another category too) is placed at the centre of its
 listing at its stored point (`"exact"`). The approximate point is
 computed per response, the stored coordinates are never changed, and the
 `bbox` filter uses the same map point, so an area drawn around a stored
-point cannot reveal it. (Listing Detail still returns the stored point
-for every category — tracked separately.)
+point cannot reveal it. `GET /listings/{id}` applies the same policy to a
+private stay's public `location` (see §38.2), so the Detail map and the
+Search map always show the same point.
 
 **`GET /search/filters?categoryId=&locale=`** — the filters the Search UI
 renders. Only filters some publicly visible listing in scope can match are
@@ -1034,6 +1035,70 @@ depends on `mileage_policy = LIMITED`.
 cities are idempotent seed upserts (`seeds/002`, `006`, `007`). Migration
 `0055_category_attribute_conditions` adds the dependency columns. Run
 `npm run db:migrate` and then `npm run db:seed` on deploy.
+
+### 38.2 Implemented contract — Listing Detail information (Listing Detail rebuild)
+
+See `docs/LISTING_DETAIL_FIELD_GAP.md` for the research and field matrix
+behind these additions.
+
+**Public location precision:** `GET /listings/{id}` returns
+`location.location_precision` (`"exact"` or `"approximate"`). A private
+stay (`listing_type` `PROPERTY`) seen by a caller who cannot manage it
+gets the centre of its 0.01° grid cell — the same point `GET /search/map`
+returns — with `address_id` and `address_line` set to `null`. Its
+partner, its managers and an admin (`listing.update`) get the stored point
+and address (`"exact"`), which is what the Wizard edits. Every other
+listing type is `"exact"` for everyone. The stored coordinates are never
+changed.
+
+**Amenity keys:** every amenity in `GET /listings/metadata`
+(`amenity_groups[].amenities[]`, `amenity_catalog[]`) carries `key`, a
+stable, language-independent code (`WIFI`, `POOL`, `GPS_NAVIGATION`…;
+migration `0056`, column `listing_amenities.code`) next to the localized
+label in `code`. Clients pick icons and ordering by `key`, never by the
+label. Amenity groups are `INTERNET_WORK`, `CLIMATE`, `BEDROOM_LIVING`,
+`BATHROOM`, `KITCHEN_LAUNDRY`, `FOOD_DRINK`, `SERVICES`, `WELLNESS`,
+`OUTDOOR`, `PARKING_TRANSPORT`, `FAMILY_PETS`, `ACCESSIBILITY`,
+`SAFETY_SECURITY`, `ENTERTAINMENT` and `VEHICLE` — the same codes appear
+as `group` on the `amenity_ids` options of `GET /search/filters`. Amenity
+ids do not change.
+
+**Guest notes — `PATCH /listings/{id}/guest-notes`** (auth; owner, or
+`listing.update`): replaces one language's "good to know" notes for a
+tour, an attraction / entertainment venue, or a car rental.
+
+```json
+{
+  "languageCode": "en",
+  "notes": [
+    { "kind": "BRING", "text": "Comfortable walking shoes" },
+    { "kind": "NOT_ALLOWED", "text": "Drones" },
+    { "kind": "KNOW_BEFORE", "text": "The monastery asks for covered shoulders" }
+  ]
+}
+```
+
+- `kind`: `BRING` (what to bring), `NOT_ALLOWED`, `KNOW_BEFORE` (know
+  before you go). `text`: trimmed, 1–200 characters. At most 10 notes per
+  kind. `languageCode` (`en`/`hy`/`ru`) defaults like the other
+  per-language content endpoints. An empty `notes` array clears that
+  language; other languages are untouched. Notes keep the order sent,
+  within their kind.
+- The replace runs in one transaction. `200` returns the language's notes
+  (`id`, `language_code`, `kind`, `text`).
+
+| Case | Status | `field` / `issue` |
+|---|---|---|
+| The listing's type takes no guest notes (hotels, stays, restaurants) | `422` | `notes` / `GUEST_NOTES_NOT_APPLICABLE` |
+| Unknown `kind`, blank or over-long `text`, more than 10 of one kind | `422` | validation error |
+| Not signed in | `401` | |
+| Neither the owner nor `listing.update` | `403` / `404` | |
+
+`GET /listings/{id}` returns `guest_notes`: every language's notes, each
+tagged `language_code` (like `highlights`, `faqs` and `included_items`);
+the client picks the current language. Migration
+`0056_listing_detail_information` adds `listing_amenities.code` and the
+`listing_guest_notes` table.
 
 ## 39. Properties
 

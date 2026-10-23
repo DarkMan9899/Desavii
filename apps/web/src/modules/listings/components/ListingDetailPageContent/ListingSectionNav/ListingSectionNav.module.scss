@@ -2,6 +2,7 @@
 
 @use 'tokens' as tokens;
 @use 'mixins/glass' as glass;
+@use '../detailLayout' as layout;
 
 // Redesign phase (2026) — frosted glass rather than a flat white bar:
 // this nav sits pinned over whatever section content scrolls beneath it,
@@ -12,6 +13,9 @@
   position: sticky;
   top: 0;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  height: layout.$section-nav-height;
   border-bottom: 1px solid tokens.$color-gray-200;
   @include glass.glass-surface(0.85, 12px);
 }
@@ -19,8 +23,9 @@
 .list {
   display: flex;
   gap: tokens.$space-4;
+  width: 100%;
   margin: 0;
-  padding: tokens.$space-3 0;
+  padding: 0;
   list-style: none;
   overflow-x: auto;
 }

@@ -422,7 +422,7 @@ describe('GET /search/filters — the catalog offers only real, countable filter
       const amenities = findDefinition(res, 'amenity_ids');
       expect(amenities.param).toBe('amenityIds');
       const wifi = amenities.options.find((o) => o.value === wifiAmenityId);
-      expect(wifi).toMatchObject({ label: wifiLabel, group: 'CONNECTIVITY' });
+      expect(wifi).toMatchObject({ label: wifiLabel, group: 'INTERNET_WORK' });
       expect(wifi.count).toBeGreaterThanOrEqual(1);
     },
   );

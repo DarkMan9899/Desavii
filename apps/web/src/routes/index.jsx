@@ -215,6 +215,9 @@ const AdminListingModerationPage = lazy(
 const AdminListingDetailPage = lazy(
   () => import('../pages/admin/AdminListingDetailPage.jsx'),
 );
+const AdminListingEditPage = lazy(
+  () => import('../pages/admin/AdminListingEditPage.jsx'),
+);
 const AdminReviewModerationPage = lazy(
   () => import('../pages/admin/AdminReviewModerationPage.jsx'),
 );
@@ -742,6 +745,10 @@ export default function AppRoutes() {
               <Route
                 path="admin/listings/:id"
                 element={<AdminListingDetailPage />}
+              />
+              <Route
+                path="admin/listings/:id/edit"
+                element={<AdminListingEditPage />}
               />
               <Route
                 path="admin/reviews"

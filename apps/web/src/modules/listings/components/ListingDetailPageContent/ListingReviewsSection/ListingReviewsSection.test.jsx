@@ -8,7 +8,7 @@ vi.mock('../../../../reviews/index.js', () => ({
 }));
 
 describe('ListingReviewsSection (Phase 18)', () => {
-  test('shows an honest "no reviews" state instead of a fabricated summary when ratingAverage is null', () => {
+  test('with no review, one quiet line — no fabricated summary and no list request', () => {
     render(
       <ListingReviewsSection
         listingId={5}
@@ -22,7 +22,8 @@ describe('ListingReviewsSection (Phase 18)', () => {
       'reviews',
     );
     expect(screen.queryByText('0.0')).not.toBeInTheDocument();
-    expect(screen.getByText('Reviews for 5')).toBeInTheDocument();
+    expect(screen.getByText(/^Կարծիքներ դեռ չկան/)).toBeInTheDocument();
+    expect(screen.queryByText('Reviews for 5')).not.toBeInTheDocument();
   });
 
   test('shows the ReviewSummary primitive when a real aggregate exists', () => {
@@ -34,5 +35,6 @@ describe('ListingReviewsSection (Phase 18)', () => {
       />,
     );
     expect(screen.getByText('4.2')).toBeInTheDocument();
+    expect(screen.getByText('Reviews for 5')).toBeInTheDocument();
   });
 });

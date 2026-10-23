@@ -15,6 +15,7 @@ import {
   toListingOwnerResponse,
   toListingAdminDetailResponse,
   toCompanyAttributionResponse,
+  toGuestNoteResponse,
 } from '../../../../src/modules/listings/dto/listingDto.js';
 
 describe('toTranslationResponse', () => {
@@ -64,6 +65,7 @@ describe('toLocationResponse', () => {
       country_name: 'Armenia',
       latitude: 40.1772,
       longitude: 44.5035,
+      location_precision: 'exact',
     });
   });
 
@@ -81,12 +83,32 @@ describe('toLocationResponse', () => {
     expect(response.country_name).toBeUndefined();
   });
 
-  test('the street address is passed through unless withheld', () => {
-    const location = { addressId: 3, addressLine: '5 Abovyan St', cityId: 1 };
-    expect(toLocationResponse(location).address_line).toBe('5 Abovyan St');
+  test('the precise place is public unless withheld, then address and point are hidden', () => {
+    const location = {
+      addressId: 3,
+      addressLine: '5 Abovyan St',
+      cityId: 1,
+      latitude: 40.1772,
+      longitude: 44.5035,
+    };
+    expect(toLocationResponse(location)).toMatchObject({
+      address_id: 3,
+      address_line: '5 Abovyan St',
+      latitude: 40.1772,
+      longitude: 44.5035,
+      location_precision: 'exact',
+    });
+    // The Search Map's grid-cell centre, never the stored point.
     expect(
-      toLocationResponse(location, { includeAddressLine: false }).address_line,
-    ).toBeNull();
+      toLocationResponse(location, { isPublicPrecise: false }),
+    ).toMatchObject({
+      address_id: null,
+      address_line: null,
+      city_id: 1,
+      latitude: 40.175,
+      longitude: 44.505,
+      location_precision: 'approximate',
+    });
   });
 });
 
@@ -155,6 +177,28 @@ describe('toListingResponse (Phase 9: Partner Dashboard)', () => {
     expect(toListingResponse(hotel).location.address_line).toBe('5 Abovyan St');
   });
 
+  test("a private stay's public point is approximate; its managers see the exact one", () => {
+    const location = { cityId: 1, latitude: 40.18, longitude: 44.51 };
+    const property = baseListing({ listingTypeCode: 'PROPERTY', location });
+
+    expect(toListingResponse(property).location).toMatchObject({
+      latitude: 40.185,
+      longitude: 44.515,
+      location_precision: 'approximate',
+    });
+    expect(
+      toListingResponse(property, { includePrivateAddress: true }).location,
+    ).toMatchObject({
+      latitude: 40.18,
+      longitude: 44.51,
+      location_precision: 'exact',
+    });
+    expect(
+      toListingResponse(baseListing({ listingTypeCode: 'HOTEL', location }))
+        .location.location_precision,
+    ).toBe('exact');
+  });
+
   test("the owner and admin responses carry a private stay's address", () => {
     const property = baseListing({
       listingTypeCode: 'PROPERTY',
@@ -182,6 +226,49 @@ describe('toListingResponse (Phase 9: Partner Dashboard)', () => {
   test('company is null when the field was never fetched (undefined)', () => {
     const response = toListingResponse(baseListing());
     expect(response.company).toBeNull();
+  });
+
+  test('carries the guest notes of every language, and an empty list when none were fetched', () => {
+    const response = toListingResponse(
+      baseListing({
+        listingTypeCode: 'TOUR',
+        guestNotes: [
+          {
+            id: 4,
+            languageId: 1,
+            languageCode: 'en',
+            kind: 'BRING',
+            text: 'Water',
+            sortOrder: 0,
+          },
+        ],
+      }),
+    );
+    expect(response.guest_notes).toEqual([
+      { id: 4, language_code: 'en', kind: 'BRING', text: 'Water' },
+    ]);
+    expect(toListingResponse(baseListing()).guest_notes).toEqual([]);
+  });
+});
+
+describe('toGuestNoteResponse', () => {
+  test('exposes only the public fields — no audit columns or internal ids', () => {
+    expect(
+      toGuestNoteResponse({
+        id: 9,
+        languageId: 2,
+        languageCode: 'hy',
+        kind: 'NOT_ALLOWED',
+        text: 'Դրոններ',
+        sortOrder: 1,
+        createdBy: 7,
+      }),
+    ).toEqual({
+      id: 9,
+      language_code: 'hy',
+      kind: 'NOT_ALLOWED',
+      text: 'Դրոններ',
+    });
   });
 });
 

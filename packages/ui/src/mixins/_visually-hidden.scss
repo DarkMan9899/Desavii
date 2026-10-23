@@ -1,0 +1,15 @@
+// Shared visually-hidden mixin — present to assistive technology (and,
+// for a real form control, to the browser's own input handling), removed
+// from visual layout. One definition for every component that needs it.
+
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

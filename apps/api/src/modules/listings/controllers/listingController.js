@@ -19,6 +19,7 @@ import {
   toHighlightResponse,
   toItineraryStepResponse,
   toIncludedItemResponse,
+  toGuestNoteResponse,
   toFaqResponse,
 } from '../dto/listingDto.js';
 // Step M3.1: reused as-is — the response shape this endpoint returns is
@@ -435,6 +436,26 @@ export function createListingController(
         res.status(200).json({
           success: true,
           data: steps.map(toItineraryStepResponse),
+          meta: null,
+          error: null,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async replaceGuestNotes(req, res, next) {
+      try {
+        const { id } = req.validated.params;
+        const notes = await listingService.replaceGuestNotes(
+          req.principal,
+          id,
+          req.validated.body.notes,
+          req.validated.body.languageCode,
+        );
+        res.status(200).json({
+          success: true,
+          data: notes.map(toGuestNoteResponse),
           meta: null,
           error: null,
         });

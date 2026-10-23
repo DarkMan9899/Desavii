@@ -1,4 +1,5 @@
 // Chart — COMPONENT_LIBRARY.md Part II §5. Tokens only.
+@use '../../../mixins/visually-hidden' as visually-hidden;
 
 .chart {
   width: 100%;
@@ -8,13 +9,5 @@
 // from visual layout — the accessible data-table counterpart to the
 // SVG chart above (COMPONENT_LIBRARY.md's Chart accessibility clause).
 .visuallyHiddenTable {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+  @include visually-hidden.visually-hidden;
 }

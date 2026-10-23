@@ -1,6 +1,11 @@
 /**
- * PolicyList — one card per policy (icon + title + description),
- * replacing an earlier plain `<dl>` (`ListingPoliciesSection.jsx`).
+ * PolicyList — a compact, scannable list of rules (icon · title · short
+ * value), the "Things to know" pattern rather than one large card per
+ * value: most policies are a single word ("Not allowed", "14:00").
+ *
+ * A policy may carry `details` — a longer explanation shown behind a
+ * native disclosure (`<details>`), keyboard-operable with no script, so
+ * the list stays one line per rule.
  */
 
 import PropTypes from 'prop-types';
@@ -11,19 +16,26 @@ export default function PolicyList({ policies }) {
     <ul className={styles.list}>
       {policies.map((policy) => {
         const Icon = policy.icon;
+        const icon = Icon && (
+          <Icon className={styles.icon} aria-hidden="true" focusable="false" />
+        );
+        const summary = (
+          <>
+            {icon}
+            <span className={styles.title}>{policy.title}</span>
+            <span className={styles.value}>{policy.description}</span>
+          </>
+        );
         return (
-          <li className={styles.card} key={policy.title}>
-            {Icon && (
-              <Icon
-                className={styles.icon}
-                aria-hidden="true"
-                focusable="false"
-              />
+          <li className={styles.item} key={policy.title}>
+            {policy.details ? (
+              <details className={styles.details}>
+                <summary className={styles.row}>{summary}</summary>
+                <p className={styles.explanation}>{policy.details}</p>
+              </details>
+            ) : (
+              <div className={styles.row}>{summary}</div>
             )}
-            <div className={styles.content}>
-              <h3 className={styles.title}>{policy.title}</h3>
-              <p className={styles.description}>{policy.description}</p>
-            </div>
           </li>
         );
       })}
@@ -36,7 +48,10 @@ PolicyList.propTypes = {
     PropTypes.shape({
       icon: PropTypes.elementType,
       title: PropTypes.string.isRequired,
+      // The short value ("Not allowed", "14:00", "Moderate").
       description: PropTypes.string.isRequired,
+      // Optional longer explanation, behind a disclosure.
+      details: PropTypes.string,
     }),
   ).isRequired,
 };

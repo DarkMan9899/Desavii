@@ -1,51 +1,83 @@
-// PolicyList — Listing detail policies. Tokens only.
+// PolicyList — tokens only. Rows separated by hairlines (no card per
+// value): one column on a phone, two from tablet. Title and value share a
+// line and wrap cleanly for long Armenian/Russian titles.
 
 @use '../../../tokens/colors' as colors;
 @use '../../../tokens/spacing' as spacing;
-@use '../../../tokens/radius' as radius;
 @use '../../../tokens/sizes' as sizes;
 @use '../../../tokens/typography' as typography;
+@use '../../../mixins/respond' as respond;
 @use '../../../functions' as fn;
 
 .list {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: spacing.$space-4;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: spacing.$space-8;
   padding: 0;
   margin: 0;
   list-style: none;
+
+  @include respond.respond(tablet) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-.card {
+.item {
+  border-bottom: 1px solid colors.$color-gray-200;
+}
+
+.row {
   display: flex;
-  gap: spacing.$space-3;
-  padding: spacing.$space-4;
-  background-color: colors.$color-gray-100;
-  border-radius: radius.$radius-lg;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: spacing.$space-1 spacing.$space-3;
+  padding-block: spacing.$space-3;
+  min-width: 0;
 }
 
 .icon {
   flex-shrink: 0;
-  width: sizes.$icon-size-lg;
-  height: sizes.$icon-size-lg;
+  width: sizes.$icon-size-md;
+  height: sizes.$icon-size-md;
   color: colors.$color-royal-blue;
 }
 
-.content {
-  display: flex;
-  flex-direction: column;
-  gap: spacing.$space-1;
-}
-
 .title {
-  margin: 0;
   font-size: fn.rem(typography.$font-size-body);
-  font-weight: 600;
   color: colors.$color-gray-900;
 }
 
-.description {
+.value {
+  margin-inline-start: auto;
+  font-size: fn.rem(typography.$font-size-body);
+  font-weight: 600;
+  color: colors.$color-gray-900;
+  text-align: end;
+}
+
+.details summary {
+  cursor: pointer;
+  list-style: none;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid colors.$color-royal-blue;
+    outline-offset: 2px;
+  }
+
+  .value {
+    text-decoration: underline;
+    text-decoration-color: colors.$color-gray-400;
+    text-underline-offset: spacing.$space-1;
+  }
+}
+
+.explanation {
   margin: 0;
+  padding-block-end: spacing.$space-3;
   font-size: fn.rem(typography.$font-size-small);
   color: colors.$color-gray-600;
 }

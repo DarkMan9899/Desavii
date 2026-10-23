@@ -1,0 +1,16 @@
+// ListingAvailabilitySection — tokens only. Heading and status badges on
+// one row, wrapping on a narrow screen.
+
+@use 'tokens' as tokens;
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: tokens.$space-2 tokens.$space-4;
+
+  // Two classes: outranks the page's generic `.main h2` margin.
+  .heading {
+    margin: 0;
+  }
+}

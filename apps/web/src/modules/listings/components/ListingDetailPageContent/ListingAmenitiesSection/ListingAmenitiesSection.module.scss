@@ -1,0 +1,47 @@
+// ListingAmenitiesSection — tokens only. Amenities read as a quiet icon
+// grid (no card per item): two columns on a phone, three on a tablet,
+// four from laptop.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+
+.amenities {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: tokens.$space-6;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: tokens.$space-4 tokens.$space-6;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+
+  @include respond.respond(tablet) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @include respond.respond(laptop) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: tokens.$space-3;
+  min-width: 0;
+  color: tokens.$color-gray-900;
+  overflow-wrap: anywhere;
+}
+
+.icon {
+  flex-shrink: 0;
+  width: tokens.$icon-size-lg;
+  height: tokens.$icon-size-lg;
+  color: tokens.$color-navy;
+}

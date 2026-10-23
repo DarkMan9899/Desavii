@@ -768,6 +768,7 @@ export class MySqlListingRepository extends ListingRepositoryPort {
       highlights,
       itinerarySteps,
       includedItems,
+      guestNotes,
       faqs,
       company,
     ] = await Promise.all([
@@ -816,6 +817,7 @@ export class MySqlListingRepository extends ListingRepositoryPort {
       this.listHighlights(id, connection),
       this.listItinerarySteps(id, connection),
       this.listIncludedItems(id, connection),
+      this.listGuestNotes(id, connection),
       this.listFaqs(id, connection),
       this.getPublicCompanySummary(listing.partnerId, connection),
     ]);
@@ -840,6 +842,7 @@ export class MySqlListingRepository extends ListingRepositoryPort {
       highlights,
       itinerarySteps,
       includedItems,
+      guestNotes,
       faqs,
       company,
     };
@@ -1887,6 +1890,47 @@ export class MySqlListingRepository extends ListingRepositoryPort {
       );
     }
     return this.listIncludedItems(listingId, connection);
+  }
+
+  async listGuestNotes(listingId, connection = this.#pool) {
+    const [rows] = await connection.query(
+      `SELECT lgn.id, lgn.language_id, lang.code AS language_code, lgn.note_kind, lgn.note_text, lgn.sort_order
+       FROM listing_guest_notes lgn
+       JOIN languages lang ON lang.id = lgn.language_id
+       WHERE lgn.listing_id = ? ORDER BY lgn.language_id ASC, lgn.note_kind ASC, lgn.sort_order ASC, lgn.id ASC`,
+      [listingId],
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      languageId: row.language_id,
+      languageCode: row.language_code,
+      kind: row.note_kind,
+      text: row.note_text,
+      sortOrder: row.sort_order,
+    }));
+  }
+
+  /**
+   * Full replace of one language's guest notes. The caller passes a
+   * transaction connection: the DELETE and the INSERTs land together or
+   * not at all, so a failure never leaves half a list.
+   */
+  async replaceGuestNotes(listingId, notes, userId, languageId, connection) {
+    await connection.query(
+      'DELETE FROM listing_guest_notes WHERE listing_id = ? AND language_id = ?',
+      [listingId, languageId],
+    );
+    // eslint-disable-next-line no-restricted-syntax -- ordered insert, must preserve sequence
+    for (const [index, note] of notes.entries()) {
+      // eslint-disable-next-line no-await-in-loop -- sequential by design
+      await connection.query(
+        `INSERT INTO listing_guest_notes
+           (listing_id, language_id, note_kind, note_text, sort_order, created_by, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [listingId, languageId, note.kind, note.text, index, userId, userId],
+      );
+    }
+    return this.listGuestNotes(listingId, connection);
   }
 
   async listFaqs(listingId, connection = this.#pool) {

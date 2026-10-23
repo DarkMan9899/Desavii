@@ -3,6 +3,7 @@ import {
   parseBoundingBox,
   formatBoundingBox,
   MAP_RESULT_LIMIT,
+  approximateCoordinate,
 } from '../../../../src/core/domain/searchMap.js';
 
 describe('searchMap — bbox parsing', () => {
@@ -63,5 +64,26 @@ describe('searchMap — bbox parsing', () => {
 
   test('the map universe is capped, not unbounded', () => {
     expect(MAP_RESULT_LIMIT).toBeGreaterThan(0);
+  });
+});
+
+describe('searchMap — approximate public point', () => {
+  test.each([
+    [40.1772, 40.175],
+    [44.5035, 44.505],
+    // A coordinate exactly on a cell edge belongs to the cell it starts:
+    // float division would put 40.18 into the 40.17 cell, MySQL never does.
+    [40.18, 40.185],
+    [44.51, 44.515],
+    [40.1899999, 40.185],
+    [-0.0001, -0.005],
+  ])('%p is shown at its grid-cell centre %p', (stored, shown) => {
+    expect(approximateCoordinate(stored)).toBeCloseTo(shown, 7);
+  });
+
+  test('accepts the DECIMAL string MySQL returns, and keeps a missing point missing', () => {
+    expect(approximateCoordinate('40.1772000')).toBeCloseTo(40.175, 7);
+    expect(approximateCoordinate(null)).toBeNull();
+    expect(approximateCoordinate(undefined)).toBeNull();
   });
 });

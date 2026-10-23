@@ -121,7 +121,7 @@ describe('FilterControl (apps/web/src/modules/search/components/DynamicFilterPan
           value: 1,
           code: 'wifi',
           label: 'Անվճար Wi-Fi',
-          group: 'CONNECTIVITY',
+          group: 'INTERNET_WORK',
           count: 5,
         },
         {
@@ -133,7 +133,7 @@ describe('FilterControl (apps/web/src/modules/search/components/DynamicFilterPan
         },
       ],
     });
-    expect(screen.getByText('Ինտերնետ և կապ')).toBeInTheDocument();
+    expect(screen.getByText('Ինտերնետ և աշխատանք')).toBeInTheDocument();
     await user.click(screen.getByRole('checkbox', { name: /Կայանատեղի/ }));
     expect(onChange).toHaveBeenCalledWith({ amenityIds: '2' });
   });

@@ -1,0 +1,63 @@
+// ListingKeyFacts — tokens only. A quiet band between hairline rules, not
+// a card: two facts per row on a phone, three on a tablet, all six in one
+// row from laptop. Long Armenian/Russian values wrap inside their column.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+@use 'mixins/visually-hidden' as visually-hidden;
+
+.keyFacts {
+  padding-block: tokens.$space-4;
+  border-block: 1px solid tokens.$color-gray-200;
+}
+
+.heading {
+  @include visually-hidden.visually-hidden;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: tokens.$space-4 tokens.$space-6;
+  margin: 0;
+
+  @include respond.respond(tablet) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @include respond.respond(laptop) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+// The icon lives inside the `<dt>` (a `<dl>` group may hold nothing else)
+// and is placed in the fact's own leading gutter, beside label and value.
+.fact {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-1;
+  min-width: 0;
+  padding-inline-start: tokens.$icon-size-lg + tokens.$space-3;
+}
+
+.icon {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  width: tokens.$icon-size-lg;
+  height: tokens.$icon-size-lg;
+  color: tokens.$color-royal-blue;
+}
+
+.label {
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+}
+
+.value {
+  margin: 0;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+  overflow-wrap: anywhere;
+}

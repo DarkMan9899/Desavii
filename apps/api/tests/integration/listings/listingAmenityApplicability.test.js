@@ -173,8 +173,11 @@ describe('applicability decisions (L6.1 seed)', () => {
       `/api/v1/listings/metadata?categoryId=${hotelsCategoryId}`,
     );
     const catalog = res.body.data.amenity_catalog;
+    // Listing Detail rebuild: each entry also carries its stable `key`.
     expect(catalog).toEqual(
-      expect.arrayContaining([{ value: amenity('Jacuzzi'), code: 'Jacuzzi' }]),
+      expect.arrayContaining([
+        { value: amenity('Jacuzzi'), code: 'Jacuzzi', key: 'JACUZZI' },
+      ]),
     );
   });
 });

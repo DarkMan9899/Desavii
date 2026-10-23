@@ -36,6 +36,14 @@
 
 .container--wide {
   max-width: container.$container-wide;
+
+  // Its max width IS the desktop breakpoint, so from 1440px up the content
+  // would sit flush against both viewport edges (exactly at 1440, nearly so
+  // just above it). The wide container keeps its laptop gutter instead of
+  // inheriting the zero padding the narrower sizes can afford.
+  @include respond.respond(desktop) {
+    padding-inline: grid.$grid-margin-laptop;
+  }
 }
 
 .container--narrow {

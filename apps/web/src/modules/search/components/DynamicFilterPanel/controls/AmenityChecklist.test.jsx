@@ -15,7 +15,7 @@ const option = (value, text, group, count = 1) => ({
   count,
 });
 const SHORT_LIST = [
-  option(1, 'Անվճար Wi-Fi', 'CONNECTIVITY', 5),
+  option(1, 'Անվճար Wi-Fi', 'INTERNET_WORK', 5),
   option(2, 'Կայանատեղի', 'GENERAL', 3),
 ];
 const LONG_LIST = [
@@ -25,7 +25,7 @@ const LONG_LIST = [
   option(5, 'Խոհանոց', 'KITCHEN_LAUNDRY'),
   option(6, 'Լվացքի մեքենա', 'KITCHEN_LAUNDRY'),
   option(7, 'Այգի', 'OUTDOOR'),
-  option(8, 'Թեքահարթակ', 'ACCESSIBILITY_SAFETY'),
+  option(8, 'Թեքահարթակ', 'ACCESSIBILITY'),
 ];
 
 function renderChecklist(options, selectedValues = [], isLabelHidden = false) {
@@ -45,7 +45,7 @@ function renderChecklist(options, selectedValues = [], isLabelHidden = false) {
 describe('AmenityChecklist (apps/web/src/modules/search)', () => {
   test('groups amenities under their localized catalog group, with counts', () => {
     renderChecklist(SHORT_LIST);
-    expect(screen.getByText(GROUPS.CONNECTIVITY)).toBeInTheDocument();
+    expect(screen.getByText(GROUPS.INTERNET_WORK)).toBeInTheDocument();
     expect(screen.getByText(GROUPS.GENERAL)).toBeInTheDocument();
     expect(
       screen.getByRole('checkbox', { name: /Անվճար Wi-Fi/ }),

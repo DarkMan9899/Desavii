@@ -134,6 +134,48 @@ describe('categoryPresentation', () => {
     });
   });
 
+  // Listing Detail rebuild: "Good to know" sits right after what's
+  // included for experiences and with the rental terms for a car, and an
+  // attraction's itinerary no longer falls to the end of the page.
+  describe('reorderSections — guest notes and experience content', () => {
+    const sections = (ids) => ids.map((id) => ({ id, label: id }));
+    const order = (ids, key) =>
+      reorderSections(sections(ids), key).map((section) => section.id);
+
+    test('tours: itinerary, included, then good to know', () => {
+      expect(
+        order(['faq', 'guestNotes', 'included', 'itinerary', 'about'], 'tours'),
+      ).toEqual(['about', 'itinerary', 'included', 'guestNotes', 'faq']);
+    });
+
+    test('car rentals: good to know follows the rental terms', () => {
+      expect(
+        order(
+          ['guestNotes', 'policies', 'attributes', 'location'],
+          'car-rentals',
+        ),
+      ).toEqual(['attributes', 'policies', 'guestNotes', 'location']);
+    });
+
+    test('attractions and entertainment place itinerary, included and good to know before the FAQ', () => {
+      const ids = ['faq', 'guestNotes', 'included', 'itinerary', 'about'];
+      expect(order(ids, 'attractions')).toEqual([
+        'about',
+        'itinerary',
+        'included',
+        'guestNotes',
+        'faq',
+      ]);
+      expect(order(ids, 'entertainment-venues')).toEqual([
+        'about',
+        'itinerary',
+        'included',
+        'guestNotes',
+        'faq',
+      ]);
+    });
+  });
+
   describe('resolveBookingCtaKey', () => {
     test('returns a group-scoped i18n key, never literal copy', () => {
       expect(resolveBookingCtaKey(PRESENTATION_GROUPS.ACCOMMODATION)).toBe(

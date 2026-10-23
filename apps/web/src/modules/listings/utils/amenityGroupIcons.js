@@ -1,41 +1,49 @@
 /**
- * amenityGroupIcons — resolves an `amenity_groups.code` (the stable
- * machine code, e.g. `CONNECTIVITY` — the group-level identifier, since
- * individual amenity rows only ever carry a free-text, already-localized
- * `name`, never a stable per-item code; see `ListingAmenitiesSection.jsx`'s
- * own header for why) to a `lucide-react` icon. Every code seeded in
- * `006_search_filters.js`'s `AMENITY_GROUPS` is covered; an unseeded
- * future group code still renders sensibly via the fallback.
+ * amenityGroupIcons — resolves an `amenity_groups.code` (seeded in
+ * `006_search_filters.js`'s `AMENITY_GROUPS`) to a `lucide-react` icon.
+ * Used for a group heading, and as the icon of an amenity that has no
+ * stable code of its own (one an admin added in Marketplace configuration
+ * — see `amenityIcons.js`). An unknown group still renders via the
+ * fallback.
  */
 
 import {
-  Sparkles as WellnessIcon,
-  TreePine,
-  UtensilsCrossed,
   Wifi,
-  Accessibility,
-  PawPrint,
+  AirVent,
+  BedDouble,
+  Bath,
+  CookingPot,
+  UtensilsCrossed,
   ConciergeBell,
-  Soup,
-  Tv,
-  HelpCircle,
+  Sparkles,
+  Flower2,
+  SquareParking,
+  PawPrint,
+  Accessibility,
+  ShieldCheck,
+  Music,
+  Car,
+  CircleCheck,
 } from 'lucide-react';
 
 const ICONS_BY_GROUP_CODE = {
-  WELLNESS: WellnessIcon,
-  OUTDOOR: TreePine,
-  KITCHEN_LAUNDRY: UtensilsCrossed,
-  CONNECTIVITY: Wifi,
-  ACCESSIBILITY_SAFETY: Accessibility,
+  INTERNET_WORK: Wifi,
+  CLIMATE: AirVent,
+  BEDROOM_LIVING: BedDouble,
+  BATHROOM: Bath,
+  KITCHEN_LAUNDRY: CookingPot,
+  FOOD_DRINK: UtensilsCrossed,
+  SERVICES: ConciergeBell,
+  WELLNESS: Sparkles,
+  OUTDOOR: Flower2,
+  PARKING_TRANSPORT: SquareParking,
   FAMILY_PETS: PawPrint,
-  FOOD_SERVICE: ConciergeBell,
-  DINING: Soup,
-  // Sprint C-1's room-amenities catalog addition (Minibar/TV/Kettle/Desk/
-  // Safe/Kitchenette) — Sprint C-2 is the first surface to actually
-  // render this group publicly.
-  IN_ROOM: Tv,
+  ACCESSIBILITY: Accessibility,
+  SAFETY_SECURITY: ShieldCheck,
+  ENTERTAINMENT: Music,
+  VEHICLE: Car,
 };
 
 export default function resolveAmenityGroupIcon(groupCode) {
-  return ICONS_BY_GROUP_CODE[groupCode] ?? HelpCircle;
+  return ICONS_BY_GROUP_CODE[groupCode] ?? CircleCheck;
 }

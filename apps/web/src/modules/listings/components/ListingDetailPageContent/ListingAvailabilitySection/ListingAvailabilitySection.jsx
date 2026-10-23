@@ -23,6 +23,9 @@
  * Calendar Excellence: the 30-day window starts at today's Asia/Yerevan
  * date (`getBusinessToday`), never the UTC date.
  *
+ * Listing Detail rebuild: the heading and the status badges share one
+ * row — a one-line status, not a heading over a lone badge.
+ *
  * The day-granular count is only computable unambiguously for a
  * single-bookable-unit listing (the day-status endpoint requires a
  * `unitId` once a listing has more than one unit, same ambiguity
@@ -42,6 +45,7 @@ import { useListingAvailabilitySummaryQuery } from '../../../queries/useListingA
 import { useListingDayStatusQuery } from '../../../queries/useListingDayStatusQuery.js';
 import { aggregateAvailabilitySummaryByUnitType } from '../../../utils/aggregateAvailabilitySummary.js';
 import AvailabilitySummaryBadge from '../AvailabilitySummaryBadge/AvailabilitySummaryBadge.jsx';
+import styles from './ListingAvailabilitySection.module.scss';
 import {
   addBusinessDays,
   getBusinessToday,
@@ -134,8 +138,12 @@ export default function ListingAvailabilitySection({
 
   return (
     <Section spacing="none" aria-label={heading}>
-      <h2 id={sectionId}>{heading}</h2>
-      {summaryBlock}
+      <div className={styles.status}>
+        <h2 id={sectionId} className={styles.heading}>
+          {heading}
+        </h2>
+        {summaryBlock}
+      </div>
       {hasAvailableDaysCount && (
         <p>
           {t('pages.listingDetail.availability.availableDays', {

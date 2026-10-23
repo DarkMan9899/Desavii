@@ -118,6 +118,10 @@ const SECTIONS = Object.freeze({
   // Pass 6 — only ever present for a RESTAURANT listing with real
   // partner-authored opening hours (the caller filters it out otherwise).
   OPENING_HOURS: 'openingHours',
+  // Listing Detail rebuild — "Good to know" (what to bring / not allowed /
+  // know before you go); only tours, attractions, entertainment venues and
+  // car rentals can carry it.
+  GUEST_NOTES: 'guestNotes',
 });
 
 // The full generic order — what a GENERIC (dining/unclassified) listing
@@ -130,6 +134,7 @@ const BASE_ORDER = [
   SECTIONS.ROOMS,
   SECTIONS.ITINERARY,
   SECTIONS.INCLUDED,
+  SECTIONS.GUEST_NOTES,
   SECTIONS.ATTRIBUTES,
   SECTIONS.AMENITIES,
   SECTIONS.POLICIES,
@@ -164,6 +169,7 @@ const EXPERIENCE_ORDER = [
   SECTIONS.ABOUT,
   SECTIONS.ITINERARY,
   SECTIONS.INCLUDED,
+  SECTIONS.GUEST_NOTES,
   SECTIONS.ATTRIBUTES,
   SECTIONS.AMENITIES,
   SECTIONS.POLICIES,
@@ -180,6 +186,7 @@ const TRANSPORT_ORDER = [
   SECTIONS.INCLUDED,
   SECTIONS.AMENITIES,
   SECTIONS.POLICIES,
+  SECTIONS.GUEST_NOTES,
   SECTIONS.AVAILABILITY,
   SECTIONS.LOCATION,
   SECTIONS.REVIEWS,
@@ -257,6 +264,9 @@ const SECTION_ORDER_BY_GROUP = Object.freeze({
   [CATEGORY_VISUAL_KEYS.ATTRACTIONS]: [
     SECTIONS.ABOUT,
     SECTIONS.ATTRIBUTES,
+    SECTIONS.ITINERARY,
+    SECTIONS.INCLUDED,
+    SECTIONS.GUEST_NOTES,
     SECTIONS.AMENITIES,
     SECTIONS.POLICIES,
     SECTIONS.LOCATION,
@@ -277,6 +287,9 @@ const SECTION_ORDER_BY_GROUP = Object.freeze({
     SECTIONS.AVAILABILITY,
     SECTIONS.LOCATION,
     SECTIONS.ATTRIBUTES,
+    SECTIONS.ITINERARY,
+    SECTIONS.INCLUDED,
+    SECTIONS.GUEST_NOTES,
     SECTIONS.POLICIES,
     SECTIONS.AMENITIES,
     SECTIONS.REVIEWS,

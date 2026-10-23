@@ -148,7 +148,10 @@ const VILLA_LISTING = {
 const VILLA_METADATA = {
   attributes: [{ code: 'bedrooms', data_type: 'INTEGER', unit: 'rooms' }],
   amenity_groups: [
-    { code: 'CONNECTIVITY', amenities: [{ value: 1, code: 'WiFi' }] },
+    {
+      code: 'INTERNET_WORK',
+      amenities: [{ value: 1, key: 'WIFI', code: 'WiFi' }],
+    },
   ],
   pricing_models: [{ code: 'PER_NIGHT' }],
   policies: [{ code: 'pets_allowed', data_type: 'BOOLEAN' }],
@@ -345,7 +348,12 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('3 սենյակ')).toBeInTheDocument();
     expect(screen.getByText('WiFi')).toBeInTheDocument();
-    expect(screen.getByText('Այո')).toBeInTheDocument();
+    expect(screen.getByText('Ընտանի կենդանիներ')).toBeInTheDocument();
+    expect(screen.getByText('Թույլատրվում է')).toBeInTheDocument();
+    // Private stay: the policies read as house rules.
+    expect(
+      screen.getByRole('heading', { name: 'Կացության կանոններ', level: 2 }),
+    ).toBeInTheDocument();
     // Renders once in the hero's meta row and once in the Location
     // section — both are real, intentional uses of the same text.
     expect(screen.getAllByText('Yerevan, Armenia')).toHaveLength(2);
@@ -562,6 +570,46 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
     expect(
       screen.getByRole('link', { name: /Yerevan Boutique Hospitality/ }),
     ).toBeInTheDocument();
+  });
+
+  // Listing Detail rebuild: "Good to know" renders the current language's
+  // notes only, grouped by kind, and is reachable from the section nav.
+  test('shows the current language guest notes as a "Good to know" section with a nav link', () => {
+    useListingQuery.mockReturnValue({
+      data: {
+        ...TOUR_LISTING,
+        listing_type: 'TOUR',
+        guest_notes: [
+          { id: 1, language_code: 'hy', kind: 'BRING', text: 'Ջուր' },
+          { id: 2, language_code: 'hy', kind: 'NOT_ALLOWED', text: 'Դրոններ' },
+          { id: 3, language_code: 'en', kind: 'BRING', text: 'Water' },
+        ],
+      },
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    useListingMetadataQuery.mockReturnValue({
+      data: TOUR_METADATA,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderPage(6);
+
+    expect(
+      screen.getByRole('heading', { name: 'Օգտակար է իմանալ', level: 2 }),
+    ).toHaveAttribute('id', 'guestNotes');
+    expect(
+      screen.getByRole('heading', { name: 'Ինչ վերցնել', level: 3 }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Ջուր')).toBeInTheDocument();
+    expect(screen.getByText('Դրոններ')).toBeInTheDocument();
+    expect(screen.queryByText('Water')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Օգտակար է իմանալ' }),
+    ).toHaveAttribute('href', '#guestNotes');
   });
 
   describe('engagement analytics — listing_viewed (brief §20/§43)', () => {

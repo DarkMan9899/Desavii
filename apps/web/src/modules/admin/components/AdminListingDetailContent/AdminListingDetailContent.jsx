@@ -67,6 +67,7 @@ import {
   ListingLocationSection,
   RenewListingModal,
   isRenewEligible,
+  isListingEditable,
 } from '../../../listings/index.js';
 import { useAdminListingDetailQuery } from '../../queries/useAdminListingDetailQuery.js';
 import { useAdminPartnerDetailQuery } from '../../queries/useAdminPartnerDetailQuery.js';
@@ -161,6 +162,9 @@ export default function AdminListingDetailContent() {
   // already require server-side (Admin/Super Admin hold it via the
   // seeded role catalog), so no new permission key is introduced here.
   const canRenew = permissions.includes('listing.publish');
+  // Listing Detail rebuild: an admin corrects a listing's information in
+  // the same Wizard a partner uses — whenever the API would accept it.
+  const canEdit = permissions.includes('listing.update');
 
   const listingQuery = useAdminListingDetailQuery(id);
   const listing = listingQuery.data;
@@ -363,6 +367,19 @@ export default function AdminListingDetailContent() {
                   </Stack>
                 </Card>
               )}
+
+              {canEdit &&
+                (isListingEditable(listing.status) ? (
+                  <RouterLink
+                    href={`/${locale}/admin/listings/${listing.id}/edit`}
+                  >
+                    {t('admin.listingDetail.edit.action')}
+                  </RouterLink>
+                ) : (
+                  <span>
+                    {t(`admin.listingDetail.edit.locked.${listing.status}`)}
+                  </span>
+                ))}
 
               {canModerate && allowedActions.length > 0 && (
                 <Inline gap="2" wrap>
