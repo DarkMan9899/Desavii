@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { Icon, Button, Badge } from '@desavii/ui/components/primitives';
 import { EmptyState } from '@desavii/ui/components/feedback-overlays';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import {
   addDays,
   weekDates,
@@ -106,7 +107,8 @@ DateOnlyDayCell.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types -- keys are the caller's own source keys
   sourceLabels: PropTypes.object,
   onSelect: PropTypes.func.isRequired,
-  dayFormatter: PropTypes.instanceOf(Intl.DateTimeFormat).isRequired,
+  dayFormatter: PropTypes.shape({ format: PropTypes.func.isRequired })
+    .isRequired,
 };
 
 export default function PartnerCalendarWeekView({
@@ -131,12 +133,26 @@ export default function PartnerCalendarWeekView({
     [units],
   );
 
+  // Dates are UTC-anchored `YYYY-MM-DD` days, so they are formatted in UTC:
+  // in the browser's own zone a partner west of UTC would read the day
+  // before. `createDateFormatter` also keeps Armenian names on browsers
+  // whose ICU data lacks them.
   const weekdayFormatter = useMemo(
-    () => new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric' }),
+    () =>
+      createDateFormatter(locale, {
+        weekday: 'short',
+        day: 'numeric',
+        timeZone: 'UTC',
+      }),
     [locale],
   );
   const rangeFormatter = useMemo(
-    () => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }),
+    () =>
+      createDateFormatter(locale, {
+        day: 'numeric',
+        month: 'short',
+        timeZone: 'UTC',
+      }),
     [locale],
   );
 

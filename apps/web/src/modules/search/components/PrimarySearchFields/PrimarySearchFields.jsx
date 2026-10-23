@@ -106,9 +106,11 @@ export default function PrimarySearchFields({
     : [];
 
   const toId = (value) => (value ? Number(value) : undefined);
+  const businessToday = getBusinessToday();
   const datePickerProps = {
     locale: i18n.language,
-    minDate: getBusinessToday(),
+    minDate: businessToday,
+    today: businessToday,
     previousMonthLabel: t('partner.listingWizard.datePicker.previousMonth'),
     nextMonthLabel: t('partner.listingWizard.datePicker.nextMonth'),
     label: t(`search.filters.dates.${dateMode}.label`),

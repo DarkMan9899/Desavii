@@ -68,8 +68,17 @@ function computePanelPosition(triggerEl, panelEl) {
 const MODES = ['single', 'range'];
 const SIZES = ['sm', 'md', 'lg'];
 
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+// A `YYYY-MM-DD` string is a calendar day, not an instant: it is read as
+// that day's LOCAL midnight. `new Date('2026-11-01')` would be UTC
+// midnight, which a browser west of UTC shows as 31 October.
 function toDate(value) {
   if (!value) return null;
+  if (typeof value === 'string' && ISO_DATE_PATTERN.test(value)) {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
@@ -164,23 +173,20 @@ export default function DatePicker({
   previousMonthLabel = 'Previous month',
   nextMonthLabel = 'Next month',
   id = undefined,
+  today = undefined,
 }) {
-  // `toDate()` on a plain `YYYY-MM-DD` string (what every real caller's
-  // `value.start`/`value.end` actually is) parses it as UTC midnight —
-  // per the ECMAScript date-string grammar, only date-only strings do
-  // this, unlike a full datetime string. `day` in `commitDay` below
-  // comes from `buildMonthGrid`'s `new Date(year, month, date)`, which is
-  // always LOCAL midnight. In any timezone ahead of UTC (including
-  // Armenia, this app's own market), local midnight of a given date is
-  // an earlier timestamp than that same date's UTC midnight, so
-  // `day < rangeStart` was true even when `day` and `rangeStart` were
-  // the SAME calendar day — clicking one day twice to commit a same-day
-  // range (e.g. a one-day car rental or tour) silently reset the
-  // selection back to `{start, end: null}` instead of completing it, and
-  // the panel never closed. `startOfDay()` normalizes both sides of
-  // every comparison in this file to local midnight, matching
-  // `isDateDisabled`'s own identical normalization of `minDate`/`maxDate`
-  // just below.
+  // Every comparison in this file is between LOCAL midnights: `day` in
+  // `commitDay` comes from `buildMonthGrid`'s `new Date(year, month,
+  // date)`, and `toDate()` reads a `YYYY-MM-DD` value as local midnight.
+  // A `Date` value may carry a time of day, so `startOfDay()` still
+  // normalizes it — otherwise clicking one day twice to commit a same-day
+  // range (a one-day car rental or tour) could compare unequal and reset
+  // the selection instead of completing it.
+  //
+  // "Today" is the caller's business date when it passes `today` (a
+  // `YYYY-MM-DD` string, e.g. Desavii's Asia/Yerevan date): the panel
+  // opens on that month and marks that day. Without it, the browser's
+  // own date is used.
   const single =
     mode === 'single' && toDate(value) ? startOfDay(toDate(value)) : null;
   const rangeStart =
@@ -192,13 +198,15 @@ export default function DatePicker({
       ? startOfDay(toDate(value.end))
       : null;
 
+  const todayDate = toDate(today) ?? startOfDay(new Date());
+
   const [open, setOpen] = useState(false);
   const [viewMonth, setViewMonth] = useState(() =>
-    startOfMonth(single || rangeStart || new Date()),
+    startOfMonth(single || rangeStart || todayDate),
   );
   const [hoverDate, setHoverDate] = useState(null);
   const [focusedDate, setFocusedDate] = useState(
-    () => single || rangeStart || startOfDay(new Date()),
+    () => single || rangeStart || todayDate,
   );
   const containerRef = useRef(null);
   const triggerRef = useRef(null);
@@ -293,9 +301,9 @@ export default function DatePicker({
   function openPanel() {
     if (disabled) return;
     setViewMonth(
-      startOfMonth(single || rangeStart || focusedDate || new Date()),
+      startOfMonth(single || rangeStart || focusedDate || todayDate),
     );
-    setFocusedDate(single || rangeStart || startOfDay(new Date()));
+    setFocusedDate(single || rangeStart || todayDate);
     setOpen(true);
   }
 
@@ -395,8 +403,6 @@ export default function DatePicker({
     event.preventDefault();
     closePanel();
   }
-
-  const today = startOfDay(new Date());
 
   return (
     <div className={styles.field} ref={containerRef}>
@@ -561,7 +567,7 @@ export default function DatePicker({
                         day > rangeStart &&
                         day < previewEnd;
                       const disabledDay = isDateDisabled(day, constraints);
-                      const isToday = isSameDay(day, today);
+                      const isToday = isSameDay(day, todayDate);
                       const isFocused = isSameDay(day, focusedDate);
 
                       return (
@@ -646,6 +652,9 @@ DatePicker.propTypes = {
   previousMonthLabel: PropTypes.string,
   nextMonthLabel: PropTypes.string,
   id: PropTypes.string,
+  // `YYYY-MM-DD` — the caller's business "today" (opening month and the
+  // today marker). Omitted, the browser's own date.
+  today: PropTypes.string,
 };
 
 export { MODES as DATE_PICKER_MODES, SIZES as DATE_PICKER_SIZES };

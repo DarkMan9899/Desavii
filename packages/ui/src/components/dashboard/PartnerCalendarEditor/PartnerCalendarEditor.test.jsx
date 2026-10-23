@@ -1,5 +1,5 @@
 import { describe, test, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import PartnerCalendarEditor from './PartnerCalendarEditor.jsx';
 
 function renderEditor(overrides = {}) {
@@ -16,6 +16,9 @@ function renderEditor(overrides = {}) {
       }
       sourceIndicatorsByDate={overrides.sourceIndicatorsByDate}
       sourceLabels={overrides.sourceLabels}
+      today={overrides.today}
+      weekStartsOn={overrides.weekStartsOn}
+      locale={overrides.locale}
     />,
   );
 }
@@ -86,5 +89,97 @@ describe('PartnerCalendarEditor — Sprint D-2 source-aware additions', () => {
     expect(partial.className).toMatch(/day--partial/);
     expect(full.className).toMatch(/day--full/);
     expect(blocked.className).toMatch(/day--blocked/);
+  });
+});
+
+describe('PartnerCalendarEditor — Calendar Excellence', () => {
+  const columnHeaders = () =>
+    screen.getAllByRole('columnheader').map((header) => header.textContent);
+
+  test('labels every column with its weekday, Sunday-first by default', () => {
+    renderEditor();
+    expect(columnHeaders()).toEqual([
+      'Sun',
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+    ]);
+  });
+
+  test('a Monday-first week shifts both the header and the leading blanks', () => {
+    renderEditor({ weekStartsOn: 1 });
+    expect(columnHeaders()[0]).toBe('Mon');
+    // 1 July 2027 is a Thursday: three blanks (Mon–Wed), then the 1st.
+    const firstWeek = screen.getAllByRole('row')[1];
+    const [firstDay] = within(firstWeek).getAllByRole('gridcell');
+    expect(firstDay).toHaveAccessibleName(/Jul 1, 2027/);
+    expect(firstWeek.children[3]).toBe(firstDay);
+  });
+
+  test('weekday names follow the locale', () => {
+    renderEditor({ weekStartsOn: 1, locale: 'ru' });
+    expect(columnHeaders()[0]).toMatch(/^пн/i);
+  });
+
+  test('marks today for assistive technology and dims only the dates before it', () => {
+    renderEditor({ today: '2027-07-15' });
+    const today = screen.getByRole('gridcell', { name: /Jul 15, 2027/ });
+    expect(today).toHaveAttribute('aria-current', 'date');
+    expect(today.className).toMatch(/day--today/);
+    expect(
+      screen.getByRole('gridcell', { name: /Jul 14, 2027/ }).className,
+    ).toMatch(/day--past/);
+    expect(
+      screen.getByRole('gridcell', { name: /Jul 16, 2027/ }).className,
+    ).not.toMatch(/day--past/);
+  });
+
+  test('without a today no date is marked current or past', () => {
+    renderEditor();
+    expect(
+      screen
+        .getAllByRole('gridcell')
+        .filter((cell) => cell.hasAttribute('aria-current')),
+    ).toHaveLength(0);
+  });
+
+  test('the legend names every status and every source dot', () => {
+    renderEditor({
+      statusLabels: {
+        available: 'Available',
+        partial: 'Partially available',
+        full: 'Fully booked',
+        blocked: 'Blocked',
+      },
+      sourceLabels: {
+        booking: 'Desavii booking',
+        hold: 'Active hold',
+        block: 'Manual block',
+        external: 'External reservation',
+      },
+    });
+    const legend = screen.getAllByRole('list')[0];
+    expect(
+      within(legend)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual([
+      'Available',
+      'Partially available',
+      'Fully booked',
+      'Blocked',
+      'Desavii booking',
+      'Active hold',
+      'Manual block',
+      'External reservation',
+    ]);
+  });
+
+  test('the grid is named by the month it shows', () => {
+    renderEditor();
+    expect(screen.getByRole('grid')).toHaveAccessibleName('July 2027');
   });
 });

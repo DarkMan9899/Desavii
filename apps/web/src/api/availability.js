@@ -133,11 +133,12 @@ export function getListingPublicRanges(listingId) {
  * day-by-day status (plus Phase 7's additive `price_amount`/
  * `price_currency` per day). `unitId` is optional: the backend
  * auto-resolves it for a single-bookable-unit listing and throws a 422
- * `AMBIGUOUS_UNIT` for a multi-unit one — `useListingAvailabilityQuery.js`
- * catches that and falls back to the ranges-only view;
- * `ListingReservationWidget` (Phase 7) instead resolves the ambiguity
- * up front via `getListingBookableUnits` below and always passes an
- * explicit `unitId` once a unit is selected.
+ * `AMBIGUOUS_UNIT` for a multi-unit one, so every caller resolves the unit
+ * first and passes it explicitly — the Partner calendar from its unit
+ * picker, `ListingReservationWidget` (Phase 7) via `getListingBookableUnits`
+ * below. Listing Detail never reads this endpoint (Calendar Excellence):
+ * its availability section uses `getListingPublicRanges` above plus the
+ * per-unit summary and day-status reads.
  */
 export function getListingCalendar(listingId, { from, to, unitId } = {}) {
   return apiClient
@@ -262,6 +263,18 @@ export function getListingHourlyAvailability(listingId, unitId, date) {
     .get(`/availability/${listingId}/units/${unitId}/hourly-availability`, {
       params: { date },
     })
+    .then((response) => response.data);
+}
+
+/**
+ * `PATCH /availability/blocks/:id` — `{ dateFrom, dateTo, quantity,
+ * reasonCode, notes? }`. Moves/resizes an active block in one transaction:
+ * 409 `AVAILABILITY_CONFLICT` when the new dates no longer fit (the block
+ * is left unchanged), 409 `ALREADY_RELEASED` once it has been removed.
+ */
+export function updateInventoryBlock(id, payload) {
+  return apiClient
+    .patch(`/availability/blocks/${id}`, payload)
     .then((response) => response.data);
 }
 

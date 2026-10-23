@@ -20,7 +20,20 @@
  * BACKEND_ARCHITECTURE.md §55) — so it is intentionally absent there.
  */
 
+/*
+ * Integration suites share one database, so `test:integration` runs them
+ * one at a time with `--maxWorkers=1` — a single worker process, not
+ * `--runInBand`. Jest's ESM mode keeps every finished test file's module
+ * graph reachable, so one long-lived process grows by roughly 30 MB per
+ * file (131 files ended at 3.95 GB of a ~4 GB heap before Calendar
+ * Excellence added three more and crossed it). `workerIdleMemoryLimit`
+ * recycles the worker between files once it passes the limit; an explicit
+ * `--runInBand` would ignore it (`@jest/core` `shouldRunInBand`).
+ */
+const WORKER_IDLE_MEMORY_LIMIT = '1GB';
+
 export default {
+  workerIdleMemoryLimit: WORKER_IDLE_MEMORY_LIMIT,
   projects: [
     {
       displayName: 'unit',

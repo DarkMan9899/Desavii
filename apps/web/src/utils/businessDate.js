@@ -24,4 +24,15 @@ export function getBusinessToday(now = new Date()) {
   return BUSINESS_DATE_FORMATTER.format(now);
 }
 
+/**
+ * `days` calendar days after (or before, when negative) a `YYYY-MM-DD`
+ * date. Date-only arithmetic anchored at UTC midnight, so no timezone can
+ * shift the result — e.g. a window `getBusinessToday()` … `+29` days.
+ */
+export function addBusinessDays(isoDate, days) {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 export default getBusinessToday;

@@ -5,6 +5,10 @@
  * arithmetic, which is exactly the class of bug `dateFormat.js` (API
  * side) already had to fix once for `DATE`-column drift.
  *
+ * "Today" is the Asia/Yerevan business date (`utils/businessDate.js`),
+ * never the UTC date, which still reads yesterday between 00:00 and 04:00
+ * in Yerevan (Calendar Excellence).
+ *
  * The hour axis (`HOUR_ROWS`, 06:00-23:00) is a fixed display range, not
  * derived from data — a real operational calendar needs a stable axis to
  * scan, not one that jumps around based on which departures happen to
@@ -13,11 +17,12 @@
  * just wouldn't be common for this domain (tour/activity departures).
  */
 
-export function addDays(iso, days) {
-  const date = new Date(`${iso}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
+import {
+  addBusinessDays,
+  getBusinessToday,
+} from '../../../../utils/businessDate.js';
+
+export const addDays = addBusinessDays;
 
 /** Monday-first ISO week containing `iso`. */
 export function startOfWeek(iso) {
@@ -31,8 +36,8 @@ export function weekDates(weekStartIso) {
   return Array.from({ length: 7 }, (_, i) => addDays(weekStartIso, i));
 }
 
-export function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+export function todayIso(now = new Date()) {
+  return getBusinessToday(now);
 }
 
 const HOUR_START = 6;

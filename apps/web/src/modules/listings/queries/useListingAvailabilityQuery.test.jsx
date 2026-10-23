@@ -18,10 +18,7 @@ function Harness({ listingId = undefined }) {
   return (
     <div>
       <p data-testid="status">{isPending ? 'pending' : 'success'}</p>
-      <p data-testid="kind">{data?.kind}</p>
-      <p data-testid="count">
-        {data?.kind === 'calendar' ? data.days.length : data?.ranges?.length}
-      </p>
+      <p data-testid="count">{data?.ranges?.length}</p>
     </div>
   );
 }
@@ -45,29 +42,10 @@ describe('useListingAvailabilityQuery (apps/web/src/modules/listings)', () => {
     getListingPublicRanges.mockReset();
   });
 
-  test('resolves the day-by-day calendar for a single-unit listing', async () => {
-    getListingCalendar.mockResolvedValue({
-      data: [
-        { date: '2026-08-01', status: 'AVAILABLE' },
-        { date: '2026-08-02', status: 'BLOCKED' },
-      ],
-    });
-    renderHarness(3);
-
-    await waitFor(() =>
-      expect(screen.getByTestId('status')).toHaveTextContent('success'),
-    );
-    expect(screen.getByTestId('kind')).toHaveTextContent('calendar');
-    expect(screen.getByTestId('count')).toHaveTextContent('2');
-    expect(getListingPublicRanges).not.toHaveBeenCalled();
-  });
-
-  test('falls back to blackout ranges when the listing has an ambiguous multi-unit calendar', async () => {
-    const ambiguousError = Object.assign(new Error('Ambiguous unit'), {
-      code: 'VALIDATION_FAILED',
-      details: [{ field: 'unitId', issue: 'AMBIGUOUS_UNIT' }],
-    });
-    getListingCalendar.mockRejectedValue(ambiguousError);
+  // Calendar Excellence: a multi-room hotel used to be asked for a
+  // unit-specific calendar first and answer 422 AMBIGUOUS_UNIT on every
+  // page load. The listing-level ranges need no unit, so only they are read.
+  test('reads the listing-level blocked ranges and never a unit calendar', async () => {
     getListingPublicRanges.mockResolvedValue({
       data: [{ date_from: '2026-08-05', date_to: '2026-08-10' }],
     });
@@ -76,41 +54,14 @@ describe('useListingAvailabilityQuery (apps/web/src/modules/listings)', () => {
     await waitFor(() =>
       expect(screen.getByTestId('status')).toHaveTextContent('success'),
     );
-    expect(screen.getByTestId('kind')).toHaveTextContent('ranges');
     expect(screen.getByTestId('count')).toHaveTextContent('1');
-  });
-
-  test('a genuine, non-ambiguity error is not swallowed', async () => {
-    const networkError = Object.assign(new Error('Network down'), {
-      code: 'NETWORK_ERROR',
-    });
-    getListingCalendar.mockRejectedValue(networkError);
-
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    const { useListingAvailabilityQuery: hook } =
-      await import('./useListingAvailabilityQuery.js');
-
-    function ErrorHarness() {
-      const { isError, error } = hook(9);
-      return <p data-testid="error">{isError ? error.code : 'no-error'}</p>;
-    }
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <ErrorHarness />
-      </QueryClientProvider>,
-    );
-
-    await waitFor(() =>
-      expect(screen.getByTestId('error')).toHaveTextContent('NETWORK_ERROR'),
-    );
-    expect(getListingPublicRanges).not.toHaveBeenCalled();
-  });
-
-  test('stays disabled (never calls the API) when no listingId is selected yet', () => {
-    renderHarness(undefined);
+    expect(getListingPublicRanges).toHaveBeenCalledWith(9);
     expect(getListingCalendar).not.toHaveBeenCalled();
+  });
+
+  test('does not fetch without a listing id', () => {
+    renderHarness(undefined);
+    expect(screen.getByTestId('status')).toHaveTextContent('pending');
+    expect(getListingPublicRanges).not.toHaveBeenCalled();
   });
 });

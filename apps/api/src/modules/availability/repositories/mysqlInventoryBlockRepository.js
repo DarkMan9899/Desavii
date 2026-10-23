@@ -81,13 +81,49 @@ export class MySqlInventoryBlockRepository {
     return toDomain(rows[0]);
   }
 
+  /** The block row, locked for the rest of the transaction (an edit). */
+  async findByIdForUpdate(id, connection) {
+    const [rows] = await connection.query(
+      `SELECT id, bookable_unit_id, date_from, date_to, quantity, reason_code, notes,
+              released_at, released_by, created_by, created_at, updated_at
+       FROM inventory_blocks WHERE id = ? FOR UPDATE`,
+      [id],
+    );
+    return toDomain(rows[0]);
+  }
+
+  /** Rewrites an active block's dates, quantity, reason and notes. */
+  async update(
+    id,
+    { dateFrom, dateTo, quantity, reasonCode, notes },
+    connection = this.#pool,
+  ) {
+    try {
+      await connection.query(
+        `UPDATE inventory_blocks
+         SET date_from = ?, date_to = ?, quantity = ?, reason_code = ?, notes = ?
+         WHERE id = ? AND released_at IS NULL`,
+        [dateFrom, dateTo, quantity, reasonCode, notes ?? null, id],
+      );
+    } catch (err) {
+      throw mapMysqlError(err);
+    }
+    return this.findById(id, connection);
+  }
+
+  /**
+   * Marks a still-active block released. Returns whether THIS call released
+   * it: the guarded UPDATE locks the row, so a racing release waits, then
+   * matches nothing and gets `false` — callers must restore capacity only
+   * on `true`, never twice for one block.
+   */
   async release(id, releasedBy, connection = this.#pool) {
-    await connection.query(
+    const [result] = await connection.query(
       `UPDATE inventory_blocks SET released_at = CURRENT_TIMESTAMP(3), released_by = ?
        WHERE id = ? AND released_at IS NULL`,
       [releasedBy, id],
     );
-    return this.findById(id, connection);
+    return result.affectedRows === 1;
   }
 
   /** Active blocks overlapping a date range for a unit — used to render the availability grid's "manual" breakdown. */

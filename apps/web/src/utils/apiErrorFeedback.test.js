@@ -270,6 +270,10 @@ describe('getIssueMessage', () => {
       "The end date can't be before the start date.",
     ],
     [
+      { issue: 'DATE_SPAN_TOO_LONG', maximum: 366 },
+      'Choose a range of at most 366 days.',
+    ],
+    [
       { issue: 'AT_LEAST_ONE_IMAGE_REQUIRED' },
       'Add at least one photo before publishing.',
     ],

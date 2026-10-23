@@ -234,6 +234,10 @@ const ADMIN_PERMISSION = 'listing.moderate';
 const WRITABLE_STATUSES = Object.freeze(['AVAILABLE', 'BLOCKED']);
 const PUBLIC_RANGES_LIMIT = 100;
 const EXPIRY_SWEEP_BATCH_SIZE = 200;
+// One message per object type, shared by "no such id" and "not yours to
+// see" (`#loadUnitForCapability`'s `concealAs`), so the two are identical.
+const BLOCK_NOT_FOUND = 'Inventory block not found.';
+const EXTERNAL_RESERVATION_NOT_FOUND = 'External reservation not found.';
 
 // Phase 17 §29 — the fixed vocabulary `inventory_ledger.source_type` uses.
 export const LEDGER_SOURCE_TYPES = Object.freeze({
@@ -420,20 +424,59 @@ export class AvailabilityService {
     throw new AuthorizationError();
   }
 
-  /** Loads the unit's listing and asserts `capability` (Phase 17 methods use this instead of `#loadListingForManagement`'s owner/global-permission-only check). */
-  async #loadUnitForCapability(principal, unitId, capability, adminPermission) {
+  /**
+   * Loads the unit's listing and asserts `capability` (Phase 17 methods use
+   * this instead of `#loadListingForManagement`'s owner/global-permission-
+   * only check).
+   *
+   * `concealAs` is for an object addressed by its own id (a block, an
+   * external reservation): a caller outside the object's partner gets that
+   * NotFoundError — exactly what a nonexistent id gets — instead of a 403
+   * that would confirm another partner's object exists (Calendar
+   * Excellence). A member of the partner whose role lacks the capability
+   * still gets 403: the object is theirs to know about.
+   */
+  async #loadUnitForCapability(
+    principal,
+    unitId,
+    capability,
+    adminPermission,
+    { concealAs } = {},
+  ) {
+    const notFound = () =>
+      new NotFoundError(concealAs ?? 'Bookable unit not found.');
     const unit = await this.#bookableUnitService.findById(unitId);
-    if (!unit) throw new NotFoundError('Bookable unit not found.');
-    const listing = await this.#listingService.getListing(
-      principal,
-      unit.listingId,
-    );
-    await this.#assertPartnerCapability(
-      principal,
-      listing.partnerId,
-      capability,
-      adminPermission,
-    );
+    if (!unit) throw notFound();
+    let listing;
+    try {
+      listing = await this.#listingService.getListing(
+        principal,
+        unit.listingId,
+      );
+    } catch (err) {
+      if (concealAs && err instanceof NotFoundError) throw notFound();
+      throw err;
+    }
+    try {
+      await this.#assertPartnerCapability(
+        principal,
+        listing.partnerId,
+        capability,
+        adminPermission,
+      );
+    } catch (err) {
+      if (
+        concealAs &&
+        err instanceof AuthorizationError &&
+        (await getPartnerEmployeeRoleCode(
+          principal.userId,
+          listing.partnerId,
+        )) === null
+      ) {
+        throw notFound();
+      }
+      throw err;
+    }
     return { unit, listing };
   }
 
@@ -2877,23 +2920,58 @@ export class AvailabilityService {
     return block;
   }
 
-  async releaseManualBlock(principal, id) {
-    const block = await this.#inventoryBlockRepository.findById(id);
-    if (!block) throw new NotFoundError('Inventory block not found.');
-    if (block.releasedAt) {
-      throw new ConflictError(
-        'This block has already been released.',
-        'ALREADY_RELEASED',
-      );
+  /**
+   * Calendar Excellence — edits an active block's dates, quantity, reason
+   * and notes in one transaction: the old consumption is given back and the
+   * new one taken, so a change that no longer fits (a booking now holds those
+   * rooms) is refused and the block stays exactly as it was. The block's
+   * unit never changes — moving a block to another unit is remove + create.
+   *
+   * Locks: the block row first (like a release), then every date of the old
+   * AND new ranges in one ascending pass — the order every other capacity
+   * path takes — so an edit cannot deadlock against a booking on the same
+   * dates.
+   */
+  async updateManualBlock(principal, id, input) {
+    const { dateFrom, dateTo, quantity, reasonCode, notes } = input;
+    if (!BLOCK_REASON_CODES.includes(reasonCode)) {
+      throw new ValidationError('Unknown block reason code.', [
+        { field: 'reasonCode', issue: 'UNKNOWN_REASON_CODE' },
+      ]);
     }
+    const existing = await this.#inventoryBlockRepository.findById(id);
+    if (!existing) throw new NotFoundError(BLOCK_NOT_FOUND);
     const { unit, listing } = await this.#loadUnitForCapability(
       principal,
-      block.bookableUnitId,
+      existing.bookableUnitId,
       PARTNER_CAPABILITIES.MANAGE_MANUAL_BLOCKS,
       'inventory.manage_all',
+      { concealAs: BLOCK_NOT_FOUND },
     );
 
-    await withTransaction(async (connection) => {
+    const updated = await withTransaction(async (connection) => {
+      const block = await this.#inventoryBlockRepository.findByIdForUpdate(
+        id,
+        connection,
+      );
+      if (block.releasedAt) {
+        throw new ConflictError(
+          'This block has already been released.',
+          'ALREADY_RELEASED',
+        );
+      }
+      await this.#lockCapacityDates(
+        unit,
+        [
+          resolveConsumedRange(
+            unit.bookableUnitTypeCode,
+            block.dateFrom,
+            block.dateTo,
+          ),
+          resolveConsumedRange(unit.bookableUnitTypeCode, dateFrom, dateTo),
+        ],
+        connection,
+      );
       await this.#restoreCapacityForRange(
         {
           bookableUnitId: unit.id,
@@ -2903,13 +2981,148 @@ export class AvailabilityService {
           sourceType: LEDGER_SOURCE_TYPES.MANUAL_BLOCK,
           sourceId: block.id,
           actorUserId: principal.userId,
-          reason: 'Manual block released',
+          reason: 'Manual block edited (previous dates)',
         },
         connection,
       );
-      await this.#inventoryBlockRepository.release(
+      await this.#consumeCapacityForRange(
+        {
+          bookableUnitId: unit.id,
+          dateFrom,
+          dateTo,
+          quantity,
+          sourceType: LEDGER_SOURCE_TYPES.MANUAL_BLOCK,
+          sourceId: block.id,
+          actorUserId: principal.userId,
+          reason: `Manual block edited: ${reasonCode}`,
+        },
+        connection,
+      );
+      const saved = await this.#inventoryBlockRepository.update(
+        id,
+        { dateFrom, dateTo, quantity, reasonCode, notes },
+        connection,
+      );
+      await this.#auditLogger.record(
+        {
+          actorId: principal.userId,
+          action: 'inventory_block.updated',
+          targetType: 'inventory_block',
+          targetId: id,
+          beforeSnapshot: {
+            dateFrom: block.dateFrom,
+            dateTo: block.dateTo,
+            quantity: block.quantity,
+            reasonCode: block.reasonCode,
+          },
+          afterSnapshot: { dateFrom, dateTo, quantity, reasonCode },
+        },
+        connection,
+      );
+      return saved;
+    });
+
+    await this.#eventBus.publish(
+      createDomainEvent({
+        eventType: EVENT_TYPES.INVENTORY_BLOCKED,
+        actorId: principal.userId,
+        resourceType: 'inventory_block',
+        resourceId: id,
+        payload: {
+          bookableUnitId: unit.id,
+          listingId: listing.id,
+          partnerId: listing.partnerId,
+          dateFrom,
+          dateTo,
+          quantity,
+          reasonCode,
+        },
+      }),
+    );
+    return updated;
+  }
+
+  /**
+   * Locks every date of `ranges` (each `{dateFrom, dateTo}`) on `unit` in
+   * one ascending pass, creating missing rows at the unit's capacity.
+   */
+  async #lockCapacityDates(unit, ranges, connection) {
+    const dates = [
+      ...new Set(
+        ranges.flatMap((range) => enumerateDates(range.dateFrom, range.dateTo)),
+      ),
+    ].sort();
+    const availableStatusId =
+      await this.#availabilityCalendarRepository.findStatusIdByCode(
+        'AVAILABLE',
+        connection,
+      );
+    // eslint-disable-next-line no-restricted-syntax -- ascending lock order is the point
+    for (const date of dates) {
+      // eslint-disable-next-line no-await-in-loop -- sequential locks, within one transaction
+      await this.#availabilityCalendarRepository.lockForCapacity(
+        {
+          bookableUnitId: unit.id,
+          date,
+          availableStatusId,
+          defaultCapacity: unit.capacity,
+        },
+        connection,
+      );
+    }
+  }
+
+  async releaseManualBlock(principal, id) {
+    const block = await this.#inventoryBlockRepository.findById(id);
+    if (!block) throw new NotFoundError(BLOCK_NOT_FOUND);
+    // Authorize before saying anything about the block's state: an
+    // outsider must not learn that it exists, let alone that it was
+    // released.
+    const { unit, listing } = await this.#loadUnitForCapability(
+      principal,
+      block.bookableUnitId,
+      PARTNER_CAPABILITIES.MANAGE_MANUAL_BLOCKS,
+      'inventory.manage_all',
+      { concealAs: BLOCK_NOT_FOUND },
+    );
+    if (block.releasedAt) {
+      throw new ConflictError(
+        'This block has already been released.',
+        'ALREADY_RELEASED',
+      );
+    }
+
+    await withTransaction(async (connection) => {
+      // Claim the release first: a simultaneous release of the same block
+      // waits on this row lock, then finds it released and restores nothing.
+      const released = await this.#inventoryBlockRepository.release(
         id,
         principal.userId,
+        connection,
+      );
+      if (!released) {
+        throw new ConflictError(
+          'This block has already been released.',
+          'ALREADY_RELEASED',
+        );
+      }
+      // Re-read under the lock: an edit that committed while this release
+      // waited changed what the block actually holds.
+      const current = await this.#inventoryBlockRepository.findById(
+        id,
+        connection,
+      );
+      await this.#restoreCapacityForRange(
+        {
+          bookableUnitId: unit.id,
+          dateFrom: current.dateFrom,
+          dateTo: current.dateTo,
+          restoreAmount: current.quantity,
+          sourceType: LEDGER_SOURCE_TYPES.MANUAL_BLOCK,
+          sourceId: block.id,
+          actorUserId: principal.userId,
+          reason: 'Manual block released',
+        },
         connection,
       );
       await this.#auditLogger.record(
@@ -3174,28 +3387,46 @@ export class AvailabilityService {
 
   async cancelExternalReservation(principal, id) {
     const reservation = await this.#externalReservationRepository.findById(id);
-    if (!reservation)
-      throw new NotFoundError('External reservation not found.');
+    if (!reservation) throw new NotFoundError(EXTERNAL_RESERVATION_NOT_FOUND);
+    // Authorize first — see `releaseManualBlock`.
+    const { unit, listing } = await this.#loadUnitForCapability(
+      principal,
+      reservation.bookableUnitId,
+      PARTNER_CAPABILITIES.MANAGE_EXTERNAL_RESERVATIONS,
+      'inventory.manage_all',
+      { concealAs: EXTERNAL_RESERVATION_NOT_FOUND },
+    );
     if (reservation.cancelledAt) {
       throw new ConflictError(
         'This reservation is already cancelled.',
         'ALREADY_CANCELLED',
       );
     }
-    const { unit, listing } = await this.#loadUnitForCapability(
-      principal,
-      reservation.bookableUnitId,
-      PARTNER_CAPABILITIES.MANAGE_EXTERNAL_RESERVATIONS,
-      'inventory.manage_all',
-    );
 
     await withTransaction(async (connection) => {
+      // Claim the cancellation first (see `releaseManualBlock`).
+      const cancelled = await this.#externalReservationRepository.cancel(
+        id,
+        connection,
+      );
+      if (!cancelled) {
+        throw new ConflictError(
+          'This reservation is already cancelled.',
+          'ALREADY_CANCELLED',
+        );
+      }
+      // Re-read under the lock (see `releaseManualBlock`): an in-place
+      // update may have changed its dates or quantity meanwhile.
+      const current = await this.#externalReservationRepository.findById(
+        id,
+        connection,
+      );
       await this.#restoreCapacityForRange(
         {
           bookableUnitId: unit.id,
-          dateFrom: reservation.dateFrom,
-          dateTo: reservation.dateTo,
-          restoreAmount: reservation.quantity,
+          dateFrom: current.dateFrom,
+          dateTo: current.dateTo,
+          restoreAmount: current.quantity,
           sourceType: LEDGER_SOURCE_TYPES.EXTERNAL_RESERVATION,
           sourceId: reservation.id,
           actorUserId: principal.userId,
@@ -3203,7 +3434,6 @@ export class AvailabilityService {
         },
         connection,
       );
-      await this.#externalReservationRepository.cancel(id, connection);
       await this.#auditLogger.record(
         {
           actorId: principal.userId,
@@ -3363,19 +3593,28 @@ export class AvailabilityService {
     const reservation =
       await this.#externalReservationRepository.findById(reservationId);
     if (!reservation || reservation.cancelledAt) return;
+    // Claim it first, so a Partner's cancel racing the sync restores once.
+    const cancelled = await this.#externalReservationRepository.cancel(
+      reservationId,
+      connection,
+    );
+    if (!cancelled) return;
+    const current = await this.#externalReservationRepository.findById(
+      reservationId,
+      connection,
+    );
     await this.#restoreCapacityForRange(
       {
-        bookableUnitId: reservation.bookableUnitId,
-        dateFrom: reservation.dateFrom,
-        dateTo: reservation.dateTo,
-        restoreAmount: reservation.quantity,
+        bookableUnitId: current.bookableUnitId,
+        dateFrom: current.dateFrom,
+        dateTo: current.dateTo,
+        restoreAmount: current.quantity,
         sourceType: LEDGER_SOURCE_TYPES.CONNECTOR_SYNC,
         sourceId: reservation.id,
         reason: 'Connector sync — event removed from source feed',
       },
       connection,
     );
-    await this.#externalReservationRepository.cancel(reservationId, connection);
   }
 
   /** The append-only "why is this unavailable" trail for one unit (Phase 17 §29). */

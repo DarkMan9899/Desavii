@@ -9,6 +9,7 @@ This folder should contain all nine finalized architecture documents.
 | `UI_UX_GUIDELINES.docx` | `.docx` | Generated as a Word document (title: "Design Language") before this project standardized on Markdown for architecture docs. Content is final; consider a `.md` conversion for consistency with the rest of `docs/`. |
 | `DATABASE_ARCHITECTURE.docx` | `.docx` | Same note as above. |
 | `BOOKING_ENGINE_ARCHITECTURE.md` | `.md` | Complete |
+| `CALENDAR_AVAILABILITY.md` | `.md` | Complete — date/timezone semantics per unit type, availability precedence, concurrency, range limits, and the Partner Calendar (Calendar Excellence) |
 | `API_SPECIFICATION.md` | `.md` | Complete |
 | `FRONTEND_ARCHITECTURE.md` | `.md` | Complete as a document — **but see its Implementation Status Addendum**: §4.2/§6.1 describe per-vertical routes/modules that were never built |
 | `BACKEND_ARCHITECTURE.md` | `.md` | Complete as a document — **but see its Implementation Status Addendum**: §8–14/§16 describe a per-vertical-module and rate-plan/tax engine that were never built |

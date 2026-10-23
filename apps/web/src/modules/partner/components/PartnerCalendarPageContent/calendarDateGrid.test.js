@@ -3,6 +3,7 @@ import {
   addDays,
   startOfWeek,
   weekDates,
+  todayIso,
   HOUR_ROWS,
   timeToRowOffset,
 } from './calendarDateGrid.js';
@@ -31,6 +32,19 @@ describe('calendarDateGrid (apps/web/src/modules/partner)', () => {
       '2026-03-08',
     ]);
   });
+
+  // Yerevan is UTC+4 all year: its day starts at 20:00 UTC the day before.
+  test.each([
+    ['2026-10-22T19:59:00Z', '2026-10-22'],
+    ['2026-10-22T20:00:00Z', '2026-10-23'],
+    ['2026-10-22T23:59:00Z', '2026-10-23'],
+    ['2026-10-31T20:30:00Z', '2026-11-01'],
+  ])(
+    'todayIso at %s is the Yerevan date %s, never the UTC date',
+    (instant, expected) => {
+      expect(todayIso(new Date(instant))).toBe(expected);
+    },
+  );
 
   test('HOUR_ROWS spans 06:00-23:00 inclusive', () => {
     expect(HOUR_ROWS[0]).toBe('06:00');

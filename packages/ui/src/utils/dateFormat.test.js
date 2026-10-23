@@ -55,6 +55,28 @@ describe('createDateFormatter', () => {
     ).toBe('20 նոյ – 23 նոյ');
   });
 
+  test('the Partner calendar week and day headings stay Armenian on the same UTC day', () => {
+    withoutIntlLocales(['hy']);
+    const friday = new Date('2026-11-20T00:00:00Z');
+    const weekday = createDateFormatter('hy', {
+      weekday: 'short',
+      day: 'numeric',
+      timeZone: 'UTC',
+    }).format(friday);
+    const heading = createDateFormatter('hy', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(friday);
+    expect(weekday).toMatch(/20$/);
+    expect(weekday).not.toMatch(/Fri/);
+    expect(heading).toMatch(/ուրբաթ/);
+    expect(heading).toMatch(/20/);
+    expect(heading).toMatch(/2026/);
+  });
+
   test('locales Intl supports keep their exact Intl output', () => {
     const options = { day: 'numeric', month: 'short', year: 'numeric' };
     ['en', 'ru'].forEach((locale) => {

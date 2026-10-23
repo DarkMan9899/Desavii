@@ -26,6 +26,8 @@ const PATTERNS = {
   'day:numeric|month:short|year:numeric': 'PP',
   'day:numeric|month:short': 'd MMM',
   'day:numeric|month:long|year:numeric': 'PPP',
+  'day:numeric|weekday:short': 'EEE d',
+  'day:numeric|month:long|weekday:long|year:numeric': 'PPPP',
 };
 
 const RANGE_SEPARATOR = ' – ';

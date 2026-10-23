@@ -142,13 +142,18 @@ export class MySqlExternalReservationRepository {
     return this.findById(id, connection);
   }
 
+  /**
+   * Marks a still-active reservation cancelled. Returns whether THIS call
+   * cancelled it (see `MySqlInventoryBlockRepository#release`): capacity is
+   * restored only on `true`, so a racing cancel never restores it twice.
+   */
   async cancel(id, connection = this.#pool) {
-    await connection.query(
+    const [result] = await connection.query(
       `UPDATE external_reservations SET cancelled_at = CURRENT_TIMESTAMP(3)
        WHERE id = ? AND cancelled_at IS NULL`,
       [id],
     );
-    return this.findById(id, connection);
+    return result.affectedRows === 1;
   }
 
   async listActiveForUnit(

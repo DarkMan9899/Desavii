@@ -308,6 +308,46 @@ describe('Cross-partner isolation — Partner A cannot touch Partner B inventory
     expect(res.status).toBe(403);
   });
 
+  // Calendar Excellence: editing and removing go through the same tenant
+  // gate as creating — Partner A can neither rewrite nor lift B's block,
+  // and B's capacity is left exactly as B set it. Addressed by B's block
+  // id, the refusal is a 404 (see the cross-tenant describe below).
+  test("Partner A owner cannot edit or remove Partner B's manual block", async () => {
+    const block = await request(app)
+      .post('/api/v1/availability/blocks')
+      .set('Authorization', `Bearer ${partnerBOwner.accessToken}`)
+      .send({
+        unitId: unitBId,
+        dateFrom: '2026-09-12',
+        dateTo: '2026-09-13',
+        quantity: 1,
+        reasonCode: 'MAINTENANCE',
+      });
+    expect(block.status).toBe(201);
+    const blockId = block.body.data.id;
+
+    const edit = await request(app)
+      .patch(`/api/v1/availability/blocks/${blockId}`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`)
+      .send({
+        dateFrom: '2026-09-12',
+        dateTo: '2026-09-20',
+        quantity: 5,
+        reasonCode: 'OWNER_USE',
+      });
+    expect(edit.status).toBe(404);
+    const remove = await request(app)
+      .delete(`/api/v1/availability/blocks/${blockId}`)
+      .set('Authorization', `Bearer ${vendor.accessToken}`);
+    expect(remove.status).toBe(404);
+
+    const breakdown = await request(app)
+      .get(`/api/v1/availability/units/${unitBId}/breakdown`)
+      .set('Authorization', `Bearer ${partnerBOwner.accessToken}`)
+      .query({ from: '2026-09-12', to: '2026-09-12' });
+    expect(breakdown.body.data[0].manual).toBe(1);
+  });
+
   test('Partner A owner cannot list Partner B manual blocks', async () => {
     const res = await request(app)
       .get('/api/v1/availability/blocks')
@@ -681,5 +721,152 @@ describe('Admin Inventory Oversight — view/mutate split', () => {
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .query({ from: '2026-09-01', to: '2026-09-01' });
     expect(res.status).toBe(403);
+  });
+});
+
+// Calendar Excellence: a block or external reservation addressed by its own
+// id answers an outsider exactly like an id that does not exist — a 403
+// (or an ALREADY_RELEASED 409) would confirm that another partner's object
+// exists. Members of the owning partner, and admins with
+// `inventory.manage_all`, keep their usual answers.
+describe('Cross-tenant block and reservation ids are indistinguishable from nonexistent ones', () => {
+  const MISSING_ID = 999_999_999;
+  const EDIT = {
+    dateFrom: '2026-09-24',
+    dateTo: '2026-09-25',
+    quantity: 1,
+    reasonCode: 'MAINTENANCE',
+  };
+
+  const outcome = (res) => ({
+    status: res.status,
+    code: res.body.error?.code,
+    message: res.body.error?.message,
+  });
+
+  function asUser(user, req) {
+    return req.set('Authorization', `Bearer ${user.accessToken}`);
+  }
+
+  async function partnerBBlock(dateFrom, dateTo) {
+    const res = await asUser(
+      partnerBOwner,
+      request(app).post('/api/v1/availability/blocks'),
+    ).send({
+      unitId: unitBId,
+      dateFrom,
+      dateTo,
+      quantity: 1,
+      reasonCode: 'MAINTENANCE',
+    });
+    expect(res.status).toBe(201);
+    return res.body.data.id;
+  }
+
+  const editBlock = (user, id) =>
+    asUser(user, request(app).patch(`/api/v1/availability/blocks/${id}`)).send(
+      EDIT,
+    );
+  const removeBlock = (user, id) =>
+    asUser(user, request(app).delete(`/api/v1/availability/blocks/${id}`));
+  const cancelReservation = (user, id) =>
+    asUser(
+      user,
+      request(app).delete(`/api/v1/availability/external-reservations/${id}`),
+    );
+
+  test("another partner's active block looks exactly like a missing one", async () => {
+    const blockId = await partnerBBlock('2026-09-21', '2026-09-22');
+    const missingEdit = outcome(await editBlock(vendor, MISSING_ID));
+    const missingRemove = outcome(await removeBlock(vendor, MISSING_ID));
+    expect(missingEdit).toMatchObject({ status: 404, code: 'NOT_FOUND' });
+
+    expect(outcome(await editBlock(vendor, blockId))).toEqual(missingEdit);
+    expect(outcome(await removeBlock(vendor, blockId))).toEqual(missingRemove);
+    expect(outcome(await editBlock(customer, blockId))).toEqual(missingEdit);
+    expect(outcome(await removeBlock(customer, blockId))).toEqual(
+      missingRemove,
+    );
+
+    // B still sees and owns it.
+    expect((await removeBlock(partnerBOwner, blockId)).status).toBe(200);
+  });
+
+  test("another partner's released block does not reveal that it was released", async () => {
+    const blockId = await partnerBBlock('2026-09-22', '2026-09-23');
+    expect((await removeBlock(partnerBOwner, blockId)).status).toBe(200);
+
+    expect(outcome(await removeBlock(vendor, blockId))).toEqual(
+      outcome(await removeBlock(vendor, MISSING_ID)),
+    );
+    expect(outcome(await editBlock(vendor, blockId))).toEqual(
+      outcome(await editBlock(vendor, MISSING_ID)),
+    );
+    // The owner is told the truth.
+    const own = await removeBlock(partnerBOwner, blockId);
+    expect(outcome(own)).toMatchObject({
+      status: 409,
+      code: 'ALREADY_RELEASED',
+    });
+  });
+
+  test("another partner's external reservation looks missing, active or cancelled", async () => {
+    const created = await asUser(
+      partnerBOwner,
+      request(app).post('/api/v1/availability/external-reservations'),
+    ).send({
+      unitId: unitBId,
+      dateFrom: '2026-09-23',
+      dateTo: '2026-09-24',
+      quantity: 1,
+      sourceCode: 'PHONE',
+    });
+    expect(created.status).toBe(201);
+    const { id } = created.body.data;
+    const missing = outcome(await cancelReservation(vendor, MISSING_ID));
+    expect(missing).toMatchObject({ status: 404, code: 'NOT_FOUND' });
+
+    expect(outcome(await cancelReservation(vendor, id))).toEqual(missing);
+    expect(outcome(await cancelReservation(customer, id))).toEqual(missing);
+
+    expect((await cancelReservation(partnerBOwner, id)).status).toBe(200);
+    expect(outcome(await cancelReservation(vendor, id))).toEqual(missing);
+    expect(outcome(await cancelReservation(partnerBOwner, id))).toMatchObject({
+      status: 409,
+      code: 'ALREADY_CANCELLED',
+    });
+  });
+
+  test('a member of the owning partner without the capability still gets 403', async () => {
+    const own = await asUser(
+      vendor,
+      request(app).post('/api/v1/availability/blocks'),
+    ).send({
+      unitId: unitAId,
+      dateFrom: '2026-09-24',
+      dateTo: '2026-09-25',
+      quantity: 1,
+      reasonCode: 'MAINTENANCE',
+    });
+    expect(own.status).toBe(201);
+    const blockId = own.body.data.id;
+
+    expect((await editBlock(editorA, blockId)).status).toBe(403);
+    expect((await removeBlock(editorA, blockId)).status).toBe(403);
+    expect((await removeBlock(vendor, blockId)).status).toBe(200);
+  });
+
+  test('an admin with inventory.manage_all can still edit and remove any partner block', async () => {
+    const blockId = await partnerBBlock('2026-09-25', '2026-09-26');
+    const edited = await editBlock(adminUser, blockId);
+    expect(edited.status).toBe(200);
+    expect(edited.body.data.date_from).toBe(EDIT.dateFrom);
+    expect((await removeBlock(adminUser, blockId)).status).toBe(200);
+  });
+
+  test('a malformed id is still a validation error, never a 404 or 500', async () => {
+    expect((await removeBlock(vendor, 'abc')).status).toBe(422);
+    expect((await editBlock(vendor, 'abc')).status).toBe(422);
+    expect((await cancelReservation(vendor, 'abc')).status).toBe(422);
   });
 });

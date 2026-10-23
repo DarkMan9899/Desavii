@@ -18,12 +18,12 @@
  * I want to do with this date range." Below that, a day's source
  * breakdown (total/available/confirmed/held/external/manual, §13) and
  * two management lists (active blocks / external reservations, each
- * with a one-click release/cancel action) complete the "operate without
- * ever needing the database" requirement.
+ * with a one-click release/cancel action; a block can also be edited in
+ * place — Calendar Excellence's `EditBlockDialog`) complete the "operate
+ * without ever needing the database" requirement.
  */
 
 import { useMemo, useState } from 'react';
-import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Section, Stack, Inline } from '@desavii/ui/components/layout';
@@ -41,11 +41,17 @@ import { useToast } from '../../../../contexts/ToastContext.jsx';
 import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
 import { usePartnerContext } from '../../../../contexts/PartnerContext.jsx';
 import CsvImportWizard from './CsvImportWizard/CsvImportWizard.jsx';
+import InventoryRecordList from './InventoryRecordList/InventoryRecordList.jsx';
+import EditBlockDialog from './EditBlockDialog/EditBlockDialog.jsx';
 import PartnerCalendarWeekView from './PartnerCalendarWeekView.jsx';
 import PartnerCalendarDayView from './PartnerCalendarDayView.jsx';
 import { addDays, startOfWeek, todayIso } from './calendarDateGrid.js';
 import { buildDaySourceIndex, SOURCE_TYPES } from './calendarSourceIndex.js';
 import { resolveAuthoritativeDayStatus } from './resolveDayStatus.js';
+import {
+  validateBlockQuantity,
+  validateExternalQuantity,
+} from './inventoryQuantity.js';
 import {
   useMyListingsQuery,
   useListingCalendarQuery,
@@ -88,58 +94,12 @@ function monthRange({ year, month }) {
   return { from, to };
 }
 
+// Month starts its weeks on Monday, like the Week view (`startOfWeek`).
+const MONDAY = 1;
+
 function todayViewMonth() {
-  const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() };
-}
-
-// Mirrors `availabilityValidators.js`'s block quantity (integer, 1 to the
-// `INT UNSIGNED` max, REQUIRED) and external-reservation quantity (same
-// range, optional — the server defaults an omitted value to 1). Invalid
-// typed values are rejected, never coerced into `1`.
-const INTEGER_STRING_PATTERN = /^-?\d+$/;
-
-function parseQuantityField(rawValue) {
-  const trimmed = String(rawValue ?? '').trim();
-  if (trimmed === '') return { value: undefined, malformed: false };
-  if (!INTEGER_STRING_PATTERN.test(trimmed)) {
-    return { value: undefined, malformed: true };
-  }
-  const value = Number(trimmed);
-  // Past MAX_SAFE_INTEGER the parsed number isn't what was typed, but it's
-  // still unambiguously "too large", which is the more useful message.
-  if (!Number.isSafeInteger(value) || value > INT_UNSIGNED_MAX) {
-    return { value: undefined, malformed: value <= 0, tooLarge: value > 0 };
-  }
-  return { value, malformed: false };
-}
-
-function validateBlockQuantity(rawValue, t) {
-  const { value, malformed, tooLarge } = parseQuantityField(rawValue);
-  if (tooLarge) {
-    return { value: undefined, error: t('partner.calendar.quantityTooLarge') };
-  }
-  if (malformed || value === undefined || value < 1) {
-    return {
-      value: undefined,
-      error: t('partner.calendar.blocks.quantityInvalid'),
-    };
-  }
-  return { value, error: undefined };
-}
-
-function validateExternalQuantity(rawValue, t) {
-  const { value, malformed, tooLarge } = parseQuantityField(rawValue);
-  if (tooLarge) {
-    return { value: undefined, error: t('partner.calendar.quantityTooLarge') };
-  }
-  if (malformed || (value !== undefined && value < 1)) {
-    return {
-      value: undefined,
-      error: t('partner.calendar.external.quantityInvalid'),
-    };
-  }
-  return { value, error: undefined };
+  const [year, month] = todayIso().split('-').map(Number);
+  return { year, month: month - 1 };
 }
 
 function calendarFetchRange({ viewMode, weekStart, viewDate, viewMonth }) {
@@ -206,6 +166,7 @@ export default function PartnerCalendarPageContent() {
   const [blockQuantityError, setBlockQuantityError] = useState(undefined);
   const [externalQuantityError, setExternalQuantityError] = useState(undefined);
   const [listTab, setListTab] = useState('blocks');
+  const [editingBlock, setEditingBlock] = useState(null);
 
   const listingsQuery = useMyListingsQuery({ partnerId: activePartnerId });
   const listings = listingsQuery.data?.pages?.[0]?.results ?? [];
@@ -664,80 +625,93 @@ export default function PartnerCalendarPageContent() {
     },
   ].filter(Boolean);
 
-  const blockColumns = [
-    {
-      key: 'range',
-      header: t('partner.calendar.blocks.columns.range'),
-      render: (row) => `${row.date_from} – ${row.date_to}`,
-    },
-    {
-      key: 'quantity',
-      header: t('partner.calendar.blocks.columns.quantity'),
-      render: (row) => row.quantity,
-    },
-    {
-      key: 'reason',
-      header: t('partner.calendar.blocks.columns.reason'),
-      render: (row) =>
-        t(`partner.calendar.blocks.reasonCodes.${row.reason_code}`),
-    },
-    {
-      key: 'actions',
-      header: '',
-      render: (row) =>
-        canManageBlocks && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleUnblock(row.id)}
-            loading={releaseBlockMutation.isPending}
-          >
-            {t('partner.calendar.blocks.unblockAction')}
-          </Button>
-        ),
-    },
-  ];
-
-  const externalColumns = [
-    {
-      key: 'range',
-      header: t('partner.calendar.external.columns.range'),
-      render: (row) => `${row.date_from} – ${row.date_to}`,
-    },
-    {
-      key: 'source',
-      header: t('partner.calendar.external.columns.source'),
-      render: (row) =>
-        t(`partner.calendar.external.sourceCodes.${row.source_code}`),
-    },
-    {
-      key: 'guest',
-      header: t('partner.calendar.external.columns.guest'),
-      render: (row) => row.guest_name || '—',
-    },
-    {
-      key: 'actions',
-      header: '',
-      render: (row) =>
-        canManageExternal && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleCancelExternal(row.id)}
-            loading={cancelExternalMutation.isPending}
-          >
-            {t('partner.calendar.external.cancelAction')}
-          </Button>
-        ),
-    },
-  ];
-
   const activeBlocksForUnit = (blocksQuery.data ?? []).filter(
     (b) => b.bookable_unit_id === effectiveUnitId && !b.released_at,
   );
   const activeExternalForUnit = (externalQuery.data ?? []).filter(
     (r) => r.bookable_unit_id === effectiveUnitId && !r.cancelled_at,
   );
+
+  const blockRecords = activeBlocksForUnit.map((block) => ({
+    id: block.id,
+    dateFrom: block.date_from,
+    dateTo: block.date_to,
+    details: [
+      {
+        label: t('partner.calendar.blocks.columns.quantity'),
+        value: block.quantity,
+      },
+      {
+        label: t('partner.calendar.blocks.columns.reason'),
+        value: t(`partner.calendar.blocks.reasonCodes.${block.reason_code}`),
+      },
+      block.notes && {
+        label: t('partner.calendar.blocks.columns.notes'),
+        value: block.notes,
+      },
+    ].filter(Boolean),
+    actions: canManageBlocks && (
+      <>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setEditingBlock(block)}
+        >
+          {t('partner.calendar.blocks.editAction')}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleUnblock(block.id)}
+          loading={
+            releaseBlockMutation.isPending &&
+            releaseBlockMutation.variables?.id === block.id
+          }
+        >
+          {t('partner.calendar.blocks.unblockAction')}
+        </Button>
+      </>
+    ),
+  }));
+
+  const externalRecords = activeExternalForUnit.map((reservation) => ({
+    id: reservation.id,
+    dateFrom: reservation.date_from,
+    dateTo: reservation.date_to,
+    details: [
+      {
+        label: t('partner.calendar.external.columns.quantity'),
+        value: reservation.quantity,
+      },
+      {
+        label: t('partner.calendar.external.columns.source'),
+        value: t(
+          `partner.calendar.external.sourceCodes.${reservation.source_code}`,
+        ),
+      },
+      reservation.guest_name && {
+        label: t('partner.calendar.external.columns.guest'),
+        value: reservation.guest_name,
+      },
+      reservation.external_reference && {
+        label: t('partner.calendar.external.columns.reference'),
+        value: reservation.external_reference,
+      },
+    ].filter(Boolean),
+    actions: canManageExternal && (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => handleCancelExternal(reservation.id)}
+        loading={
+          cancelExternalMutation.isPending &&
+          cancelExternalMutation.variables?.id === reservation.id
+        }
+      >
+        {t('partner.calendar.external.cancelAction')}
+      </Button>
+    ),
+  }));
 
   function renderCalendarView() {
     if (calendarQuery.isError) {
@@ -762,6 +736,8 @@ export default function PartnerCalendarPageContent() {
           selection={selection}
           onSelectionChange={setSelection}
           locale={i18n.language}
+          today={todayIso()}
+          weekStartsOn={MONDAY}
           previousMonthLabel={t(
             'partner.listingWizard.datePicker.previousMonth',
           )}
@@ -1020,10 +996,14 @@ export default function PartnerCalendarPageContent() {
                         count: activeBlocksForUnit.length,
                       }),
                       panel: (
-                        <DataTableOrEmpty
-                          rows={activeBlocksForUnit}
-                          columns={blockColumns}
+                        <InventoryRecordList
+                          records={blockRecords}
+                          bookableUnitType={selectedUnit?.bookable_unit_type}
+                          locale={i18n.language}
                           emptyTitle={t('partner.calendar.blocks.emptyTitle')}
+                          ariaLabel={t('partner.calendar.blocks.listTitle', {
+                            count: blockRecords.length,
+                          })}
                         />
                       ),
                     },
@@ -1033,10 +1013,14 @@ export default function PartnerCalendarPageContent() {
                         count: activeExternalForUnit.length,
                       }),
                       panel: (
-                        <DataTableOrEmpty
-                          rows={activeExternalForUnit}
-                          columns={externalColumns}
+                        <InventoryRecordList
+                          records={externalRecords}
+                          bookableUnitType={selectedUnit?.bookable_unit_type}
+                          locale={i18n.language}
                           emptyTitle={t('partner.calendar.external.emptyTitle')}
+                          ariaLabel={t('partner.calendar.external.listTitle', {
+                            count: externalRecords.length,
+                          })}
                         />
                       ),
                     },
@@ -1046,6 +1030,22 @@ export default function PartnerCalendarPageContent() {
             </>
           )}
         </Stack>
+      )}
+
+      {editingBlock && (
+        <EditBlockDialog
+          block={editingBlock}
+          listingId={effectiveListingId}
+          bookableUnitType={selectedUnit?.bookable_unit_type}
+          locale={i18n.language}
+          onClose={() => setEditingBlock(null)}
+          onSaved={() => {
+            setEditingBlock(null);
+            showToast(t('partner.calendar.blocks.editSuccess'), {
+              variant: 'success',
+            });
+          }}
+        />
       )}
 
       {csvImportOpen && effectiveUnitId && (
@@ -1059,44 +1059,3 @@ export default function PartnerCalendarPageContent() {
     </Section>
   );
 }
-
-function DataTableOrEmpty({ rows, columns, emptyTitle }) {
-  if (rows.length === 0) {
-    return <EmptyState title={emptyTitle} />;
-  }
-  return (
-    <table>
-      <thead>
-        <tr>
-          {columns.map((col) => (
-            <th key={col.key} scope="col">
-              {col.header}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.id}>
-            {columns.map((col) => (
-              <td key={col.key}>{col.render(row)}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-DataTableOrEmpty.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types -- row shape varies per list (blocks vs. external reservations)
-  rows: PropTypes.arrayOf(PropTypes.object).isRequired,
-  columns: PropTypes.arrayOf(
-    PropTypes.shape({
-      key: PropTypes.string.isRequired,
-      header: PropTypes.node,
-      render: PropTypes.func.isRequired,
-    }),
-  ).isRequired,
-  emptyTitle: PropTypes.string.isRequired,
-};

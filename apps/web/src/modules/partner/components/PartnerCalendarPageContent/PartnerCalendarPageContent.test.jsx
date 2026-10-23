@@ -22,6 +22,7 @@ import {
   useReleaseInventoryBlockMutation,
   useCreateExternalReservationMutation,
   useCancelExternalReservationMutation,
+  useUpdateInventoryBlockMutation,
 } from '../../../availability/index.js';
 import { useUnitBookingsQuery } from '../../../bookings/index.js';
 
@@ -53,6 +54,7 @@ vi.mock('../../../availability/index.js', async () => {
     useReleaseInventoryBlockMutation: vi.fn(),
     useCreateExternalReservationMutation: vi.fn(),
     useCancelExternalReservationMutation: vi.fn(),
+    useUpdateInventoryBlockMutation: vi.fn(),
   };
 });
 
@@ -111,6 +113,7 @@ describe('PartnerCalendarPageContent (apps/web/src/modules/partner)', () => {
     useReleaseInventoryBlockMutation.mockReturnValue(NOOP_MUTATION);
     useCreateExternalReservationMutation.mockReturnValue(NOOP_MUTATION);
     useCancelExternalReservationMutation.mockReturnValue(NOOP_MUTATION);
+    useUpdateInventoryBlockMutation.mockReturnValue(NOOP_MUTATION);
   });
 
   test('shows an empty state when the partner has no listings', () => {
@@ -177,6 +180,41 @@ describe('PartnerCalendarPageContent (apps/web/src/modules/partner)', () => {
         to: expect.any(String),
       }),
     );
+  });
+
+  // 00:30 on 1 November in Yerevan is still 31 October in UTC: the grid
+  // must open on the partner's November, not the UTC October.
+  test('opens on the Yerevan month just after midnight, never the UTC one', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-31T20:30:00Z'));
+    try {
+      useMyListingsQuery.mockReturnValue({
+        data: {
+          pages: [
+            {
+              results: [{ id: 1, title: 'Seaside Villa', status: 'PUBLISHED' }],
+            },
+          ],
+        },
+        isPending: false,
+      });
+      useBookableUnitsQuery.mockReturnValue({
+        data: [{ id: 5, bookable_unit_type: 'PROPERTY_UNIT' }],
+        isPending: false,
+      });
+      useListingCalendarQuery.mockReturnValue({
+        data: [],
+        isPending: false,
+        isError: false,
+      });
+      renderPage();
+      expect(useListingCalendarQuery).toHaveBeenLastCalledWith(1, 5, {
+        from: '2026-11-01',
+        to: '2026-11-30',
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   test('selecting a date range shows the apply form; applying calls the mutation and toasts success', async () => {
@@ -633,6 +671,95 @@ describe('PartnerCalendarPageContent (apps/web/src/modules/partner)', () => {
 
       expect(screen.queryByText('06:00')).not.toBeInTheDocument();
       expect(screen.getByText(/1 ընդամենը/)).toBeInTheDocument();
+    });
+  });
+
+  describe('active blocks (Calendar Excellence)', () => {
+    const BLOCKS = [
+      {
+        id: 41,
+        bookable_unit_id: 5,
+        date_from: '2026-10-24',
+        date_to: '2026-10-25',
+        quantity: 1,
+        reason_code: 'MAINTENANCE',
+        notes: null,
+        released_at: null,
+      },
+      {
+        id: 42,
+        bookable_unit_id: 5,
+        date_from: '2026-11-02',
+        date_to: '2026-11-05',
+        quantity: 2,
+        reason_code: 'OWNER_USE',
+        notes: null,
+        released_at: null,
+      },
+    ];
+
+    beforeEach(() => {
+      useMyListingsQuery.mockReturnValue({
+        data: {
+          pages: [
+            {
+              results: [{ id: 1, title: 'Seaside Villa', status: 'PUBLISHED' }],
+            },
+          ],
+        },
+        isPending: false,
+      });
+      useBookableUnitsQuery.mockReturnValue({
+        data: [{ id: 5, bookable_unit_type: 'HOTEL_ROOM' }],
+        isPending: false,
+      });
+      useListingCalendarQuery.mockReturnValue({
+        data: [],
+        isPending: false,
+        isError: false,
+      });
+      useInventoryBlocksQuery.mockReturnValue({
+        ...EMPTY_LIST_QUERY,
+        data: BLOCKS,
+      });
+    });
+
+    test('lists each block with its nights and opens the edit dialog on that block', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      const list = screen.getByRole('list', {
+        name: 'Ակտիվ արգելափակումներ (2)',
+      });
+      const rows = within(list).getAllByRole('listitem');
+      expect(rows).toHaveLength(2);
+      expect(rows[0]).toHaveTextContent('1 գիշեր');
+      expect(rows[1]).toHaveTextContent('3 գիշեր');
+
+      await user.click(
+        within(rows[1]).getByRole('button', { name: 'Խմբագրել' }),
+      );
+      const dialog = screen.getByRole('dialog', {
+        name: 'Խմբագրել արգելափակումը',
+      });
+      expect(within(dialog).getByRole('spinbutton')).toHaveValue(2);
+    });
+
+    test('only the block being removed shows as busy', () => {
+      useReleaseInventoryBlockMutation.mockReturnValue({
+        mutateAsync: vi.fn(),
+        isPending: true,
+        variables: { id: 42 },
+      });
+      renderPage();
+
+      const rows = within(
+        screen.getByRole('list', { name: 'Ակտիվ արգելափակումներ (2)' }),
+      ).getAllByRole('listitem');
+      const unblock = (row) =>
+        within(row).getByRole('button', { name: /Ապաարգելափակել/ });
+      expect(unblock(rows[0])).not.toHaveAttribute('aria-busy', 'true');
+      expect(unblock(rows[1])).toHaveAttribute('aria-busy', 'true');
     });
   });
 });

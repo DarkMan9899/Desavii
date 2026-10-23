@@ -1083,6 +1083,7 @@ export default function ListingReservationWidget({
       value={dateRange}
       onChange={isAccommodationListing ? handleChangeDateRange : setDateRange}
       minDate={today}
+      today={today}
       maxDate={maxBookableDate}
       disabledDates={disabledDates}
       locale={i18n.language}
@@ -1112,6 +1113,7 @@ export default function ListingReservationWidget({
               value={dateRange.start}
               onChange={(date) => handleSelectDate(date)}
               minDate={today}
+              today={today}
               maxDate={maxBookableDate}
               locale={i18n.language}
               previousMonthLabel={t(
@@ -1204,6 +1206,7 @@ export default function ListingReservationWidget({
                   value={dateRange.start}
                   onChange={(date) => handleSelectDate(date)}
                   minDate={today}
+                  today={today}
                   maxDate={maxBookableDate}
                   locale={i18n.language}
                   previousMonthLabel={t(

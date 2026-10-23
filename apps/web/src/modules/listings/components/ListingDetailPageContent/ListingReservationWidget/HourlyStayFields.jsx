@@ -81,6 +81,7 @@ export default function HourlyStayFields({
         value={date}
         onChange={onChangeDate}
         minDate={today}
+        today={today}
         maxDate={maxDate}
         locale={locale}
         previousMonthLabel={t('partner.listingWizard.datePicker.previousMonth')}

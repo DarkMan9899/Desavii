@@ -58,6 +58,7 @@ import {
   publicAvailabilitySummaryQuerySchema,
   publicHourlyAvailabilityQuerySchema,
   createManualBlockSchema,
+  updateManualBlockSchema,
   blockIdParamsSchema,
   listBlocksQuerySchema,
   createExternalReservationSchema,
@@ -212,6 +213,12 @@ export default function createAvailabilityRoutes({
     requireAuth,
     validate(listBlocksQuerySchema),
     availabilityController.listManualBlocks,
+  );
+  router.patch(
+    '/blocks/:id',
+    requireAuth,
+    validate(updateManualBlockSchema),
+    availabilityController.updateManualBlock,
   );
   router.delete(
     '/blocks/:id',

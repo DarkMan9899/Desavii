@@ -17,10 +17,11 @@
  * to quantity_available exhaustion from manual blocks/external
  * reservations." That mismatch is what could show "Sold out" next to
  * "30 of the next 30 days available" for the same unit: two different
- * sources of truth disagreeing, not a copy problem. The legacy calendar
- * query is kept ONLY for its blackout-ranges fallback content (`hasRanges`
- * below) — its per-day `status` field is never read for a status claim
- * anywhere in this component now.
+ * sources of truth disagreeing, not a copy problem. The listing's public
+ * blocked ranges (`useListingAvailabilityQuery`) are the only other read.
+ *
+ * Calendar Excellence: the 30-day window starts at today's Asia/Yerevan
+ * date (`getBusinessToday`), never the UTC date.
  *
  * The day-granular count is only computable unambiguously for a
  * single-bookable-unit listing (the day-status endpoint requires a
@@ -41,12 +42,12 @@ import { useListingAvailabilitySummaryQuery } from '../../../queries/useListingA
 import { useListingDayStatusQuery } from '../../../queries/useListingDayStatusQuery.js';
 import { aggregateAvailabilitySummaryByUnitType } from '../../../utils/aggregateAvailabilitySummary.js';
 import AvailabilitySummaryBadge from '../AvailabilitySummaryBadge/AvailabilitySummaryBadge.jsx';
+import {
+  addBusinessDays,
+  getBusinessToday,
+} from '../../../../../utils/businessDate.js';
 
 const DAY_STATUS_WINDOW_DAYS = 30;
-
-function toISODate(date) {
-  return date.toISOString().slice(0, 10);
-}
 
 export default function ListingAvailabilitySection({
   listingId,
@@ -62,13 +63,8 @@ export default function ListingAvailabilitySection({
   const { data: summary } = useListingAvailabilitySummaryQuery(listingId);
 
   const singleUnitId = summary?.length === 1 ? summary[0].unit_id : undefined;
-  const today = new Date();
-  const windowFrom = toISODate(today);
-  const windowTo = toISODate(
-    new Date(
-      today.getTime() + (DAY_STATUS_WINDOW_DAYS - 1) * 24 * 60 * 60 * 1000,
-    ),
-  );
+  const windowFrom = getBusinessToday();
+  const windowTo = addBusinessDays(windowFrom, DAY_STATUS_WINDOW_DAYS - 1);
   const { data: dayStatuses } = useListingDayStatusQuery(
     listingId,
     singleUnitId,
@@ -104,7 +100,7 @@ export default function ListingAvailabilitySection({
     );
   }
 
-  const hasRanges = data.kind === 'ranges' && data.ranges.length > 0;
+  const hasRanges = data.ranges.length > 0;
   const hasSummary = summary && summary.length > 0;
   const hasAvailableDaysCount = availableDaysCount !== null;
   // Phase 18 (visual polish): several same-type units with no unit-level

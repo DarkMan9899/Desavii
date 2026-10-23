@@ -4,7 +4,29 @@
 @use '../../../tokens/spacing' as spacing;
 @use '../../../tokens/radius' as radius;
 @use '../../../tokens/typography' as typography;
+@use '../../../tokens/sizes' as sizes;
 @use '../../../functions' as fn;
+
+// Non-color status cues, shared by the day cells and the legend swatches.
+@mixin partial-cue {
+  background-color: rgba(colors.$color-warning, 0.14);
+  box-shadow: inset 0 calc(-1 * #{spacing.$space-1}) 0
+    rgba(colors.$color-warning, 0.6);
+}
+
+@mixin full-cue {
+  background-color: rgba(colors.$color-danger, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(colors.$color-danger, 0.45);
+}
+
+@mixin blocked-cue {
+  background-color: rgba(colors.$color-gray-600, 0.08);
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 spacing.$space-1,
+    rgba(colors.$color-gray-600, 0.22) spacing.$space-1 spacing.$space-2
+  );
+}
 
 .editor {
   display: flex;
@@ -69,22 +91,33 @@
   color: colors.$color-gray-600;
 }
 
+// Each status swatch is a miniature of its day cell — same tint, same
+// non-color cue — so the legend reads exactly like the grid.
 .legendSwatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+  width: spacing.$space-4;
+  height: spacing.$space-4;
+  border-radius: radius.$radius-sm;
+  background-color: colors.$color-gray-100;
 }
 
 .legendSwatch--available {
-  background-color: colors.$color-success;
+  background-color: rgba(colors.$color-success, 0.24);
+}
+
+.legendSwatch--partial {
+  @include partial-cue;
+}
+
+.legendSwatch--full {
+  @include full-cue;
 }
 
 .legendSwatch--blocked {
-  background-color: colors.$color-danger;
+  @include blocked-cue;
 }
 
 .legendSwatch--booked {
-  background-color: colors.$color-royal-blue;
+  background-color: rgba(colors.$color-royal-blue, 0.24);
 }
 
 .grid {
@@ -95,28 +128,41 @@
 
 .weekRow {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: spacing.$space-1;
 }
 
+.weekday {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-block: spacing.$space-1;
+  font-size: fn.rem(typography.$font-size-micro);
+  font-weight: 600;
+  color: colors.$color-gray-600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .emptyCell {
-  height: 40px;
+  height: sizes.$button-height-md;
 }
 
 .day {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 40px;
+  min-width: 0;
+  height: sizes.$button-height-md;
   background-color: colors.$color-gray-100;
-  border: none;
+  border: 1px solid transparent;
   border-radius: radius.$radius-sm;
   font-size: fn.rem(typography.$font-size-small);
   color: colors.$color-gray-900;
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background-color: colors.$color-gray-200;
+    border-color: colors.$color-gray-400;
   }
 
   &:disabled {
@@ -135,28 +181,47 @@
   color: colors.$color-success-strong;
 }
 
-.day--blocked {
-  background-color: rgba(colors.$color-danger, 0.12);
-  color: colors.$color-danger-strong;
-}
-
 // Sprint D-2: the authoritative 4-state vocabulary (available/partial/
 // full/blocked) TimeSlotBlock.jsx's Week/Day timeline already used —
 // unified here so Month reads the same real remaining-capacity signal
 // instead of the raw AVAILABLE/BLOCKED status flag alone.
 .day--partial {
-  background-color: rgba(colors.$color-warning, 0.14);
+  @include partial-cue;
   color: colors.$color-warning-strong;
 }
 
 .day--full {
-  background-color: rgba(colors.$color-danger, 0.12);
+  @include full-cue;
   color: colors.$color-danger-strong;
+
+  .dayNumber {
+    text-decoration: line-through;
+  }
+}
+
+.day--blocked {
+  @include blocked-cue;
+  color: colors.$color-gray-900;
 }
 
 .day--booked {
   background-color: rgba(colors.$color-royal-blue, 0.12);
   color: colors.$color-royal-blue;
+}
+
+// Past dates stay readable and editable (a partner may still correct
+// them) but recede behind today and the dates still ahead.
+.day--past {
+  color: colors.$color-gray-600;
+}
+
+.day--today {
+  border-color: colors.$color-royal-blue;
+
+  .dayNumber {
+    font-weight: 700;
+    color: colors.$color-royal-blue;
+  }
 }
 
 .day--selected {
@@ -171,19 +236,24 @@
   gap: 2px;
 }
 
+.dayNumber {
+  font-variant-numeric: tabular-nums;
+}
+
 // Sprint D-2: a compact per-source presence row (booking/hold/block/
 // external) — deliberately small dots, never per-event text, so Month
 // stays scannable at a glance (P0 brief's own compact-Month requirement).
 // Source identity is never color-only: each dot's meaning is also spelled
-// out in the cell's own `aria-label` (built by the caller).
+// out in the cell's own `aria-label` and named in the legend.
 .sourceDots {
   display: flex;
   gap: 2px;
 }
 
 .sourceDot {
-  width: 5px;
-  height: 5px;
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
 }
 

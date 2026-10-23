@@ -229,7 +229,7 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
     useListingAvailabilityQuery.mockReturnValue({
       isPending: false,
       isError: false,
-      data: { kind: 'calendar', days: [] },
+      data: { ranges: [] },
       refetch: vi.fn(),
     });
     useListingAvailabilitySummaryQuery.mockReturnValue({ data: undefined });

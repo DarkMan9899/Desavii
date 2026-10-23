@@ -337,3 +337,94 @@ describe('DatePicker (COMPONENT_LIBRARY.md Part II §2)', () => {
     });
   });
 });
+
+describe('DatePicker — business date and browser timezone', () => {
+  // A browser west of UTC: Node applies a `TZ` change immediately, to both
+  // `Date` and `Intl`, so these tests really run in that zone.
+  function inTimezone(timezone) {
+    const previous = process.env.TZ;
+    process.env.TZ = timezone;
+    onTestFinished(() => {
+      process.env.TZ = previous;
+    });
+  }
+
+  function atInstant(isoInstant) {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(isoInstant));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+  }
+
+  test('a YYYY-MM-DD value is that calendar day in any timezone, never the day before', async () => {
+    inTimezone('America/Los_Angeles');
+    const user = userEvent.setup();
+    render(
+      <ControlledDatePicker
+        label="Check-in"
+        mode="single"
+        initialValue="2026-11-01"
+      />,
+    );
+
+    const trigger = screen.getByLabelText('Check-in');
+    expect(trigger).toHaveTextContent('Nov 1, 2026');
+    await user.click(trigger);
+    expect(screen.getByText('November 2026')).toBeInTheDocument();
+    expect(
+      screen.getByRole('gridcell', { name: 'Nov 1, 2026', selected: true }),
+    ).toBeInTheDocument();
+  });
+
+  test('minDate given as YYYY-MM-DD keeps that day selectable west of UTC', async () => {
+    inTimezone('America/New_York');
+    atInstant('2026-11-10T15:00:00Z');
+    const user = userEvent.setup();
+    render(<ControlledDatePicker label="Date" minDate="2026-11-10" />);
+
+    await user.click(screen.getByLabelText('Date'));
+    expect(
+      screen.getByRole('gridcell', { name: 'Nov 10, 2026' }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole('gridcell', { name: 'Nov 9, 2026' }),
+    ).toBeDisabled();
+  });
+
+  // 00:30 on 1 November in Yerevan is still 31 October in New York.
+  test('opens on the business month and marks the business today, not the browser date', async () => {
+    inTimezone('America/New_York');
+    atInstant('2026-10-31T20:30:00Z');
+    const user = userEvent.setup();
+    render(
+      <ControlledDatePicker
+        label="Dates"
+        mode="range"
+        initialValue={{ start: null, end: null }}
+        today="2026-11-01"
+        minDate="2026-11-01"
+      />,
+    );
+
+    await user.click(screen.getByLabelText('Dates'));
+    expect(screen.getByText('November 2026')).toBeInTheDocument();
+    expect(
+      screen.getByRole('gridcell', { name: 'Nov 1, 2026' }),
+    ).toHaveAttribute('aria-current', 'date');
+    expect(screen.getByRole('gridcell', { name: 'Nov 1, 2026' })).toBeEnabled();
+  });
+
+  test('without a business today it keeps using the browser date', async () => {
+    inTimezone('America/New_York');
+    atInstant('2026-10-31T20:30:00Z');
+    const user = userEvent.setup();
+    render(<ControlledDatePicker label="Date" />);
+
+    await user.click(screen.getByLabelText('Date'));
+    expect(screen.getByText('October 2026')).toBeInTheDocument();
+    expect(
+      screen.getByRole('gridcell', { name: 'Oct 31, 2026' }),
+    ).toHaveAttribute('aria-current', 'date');
+  });
+});

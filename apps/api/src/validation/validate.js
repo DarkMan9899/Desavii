@@ -25,9 +25,16 @@ import { ValidationError } from '../errors/AppError.js';
 const CONTEXT_KEYS = ['minimum', 'maximum', 'type', 'validation'];
 
 function toDetail(issue) {
-  const detail = { field: issue.path.join('.'), issue: issue.code };
+  // A refine can name its own domain issue (e.g. `DATE_SPAN_TOO_LONG`) and
+  // context through `params` — Zod's `custom` code alone tells a client
+  // nothing about what to fix.
+  const params = issue.code === 'custom' ? (issue.params ?? {}) : {};
+  const detail = {
+    field: issue.path.join('.'),
+    issue: typeof params.issue === 'string' ? params.issue : issue.code,
+  };
   CONTEXT_KEYS.forEach((key) => {
-    const value = issue[key];
+    const value = issue[key] ?? params[key];
     if (typeof value === 'number' || typeof value === 'string') {
       detail[key] = value;
     }

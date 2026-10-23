@@ -15,6 +15,41 @@ import {
 // 2026-10-01 01:30 in Yerevan (UTC+4) is still 2026-09-30 in UTC.
 const YEREVAN_0130_OCT_1 = new Date('2026-09-30T21:30:00.000Z');
 
+// Calendar Excellence — the 00:00–04:00 window where the UTC date is still
+// yesterday in Yerevan.
+describe('toBusinessDateTime at the Yerevan midnight boundary', () => {
+  test.each([
+    // [label, UTC instant, Asia/Yerevan date]
+    ['23:59 is still the same day', '2026-10-22T19:59:00.000Z', '2026-10-22'],
+    ['00:00 starts the next day', '2026-10-22T20:00:00.000Z', '2026-10-23'],
+    ['00:01 is the next day', '2026-10-22T20:01:00.000Z', '2026-10-23'],
+    [
+      '03:59 is the next day, though UTC is still the day before',
+      '2026-10-22T23:59:00.000Z',
+      '2026-10-23',
+    ],
+    [
+      '04:00 is the next day, as UTC now is too',
+      '2026-10-23T00:00:00.000Z',
+      '2026-10-23',
+    ],
+    // Armenia keeps UTC+4 all year: the days Europe changes its clocks
+    // change nothing here.
+    [
+      'no DST: the spring change date keeps UTC+4',
+      '2026-03-29T20:00:00.000Z',
+      '2026-03-30',
+    ],
+    [
+      'no DST: the autumn change date keeps UTC+4',
+      '2026-10-25T19:59:00.000Z',
+      '2026-10-25',
+    ],
+  ])('%s', (_label, instant, expected) => {
+    expect(toBusinessDateTime(new Date(instant)).date).toBe(expected);
+  });
+});
+
 describe('toBusinessDateTime', () => {
   test('the business timezone is Asia/Yerevan', () => {
     expect(BUSINESS_TIMEZONE).toBe('Asia/Yerevan');

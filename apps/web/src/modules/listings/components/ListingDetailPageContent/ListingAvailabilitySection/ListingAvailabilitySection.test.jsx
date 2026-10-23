@@ -52,20 +52,10 @@ describe('ListingAvailabilitySection (Listing Details)', () => {
   });
 
   test('renders the available-day count for a single bookable unit, sourced from the day-status endpoint (not the legacy calendar)', () => {
-    // Deliberately gives the legacy calendar query a DIFFERENT (stale)
-    // picture than the day-status query, to prove the rendered count is
-    // never derived from `data.days[].status` anymore.
     useListingAvailabilityQuery.mockReturnValue({
       isPending: false,
       isError: false,
-      data: {
-        kind: 'calendar',
-        days: [
-          { date: '2026-08-01', status: 'AVAILABLE' },
-          { date: '2026-08-02', status: 'AVAILABLE' },
-          { date: '2026-08-03', status: 'AVAILABLE' },
-        ],
-      },
+      data: { ranges: [] },
       refetch: vi.fn(),
     });
     useListingAvailabilitySummaryQuery.mockReturnValue({
@@ -100,13 +90,7 @@ describe('ListingAvailabilitySection (Listing Details)', () => {
     useListingAvailabilityQuery.mockReturnValue({
       isPending: false,
       isError: false,
-      data: {
-        kind: 'calendar',
-        days: [
-          { date: '2026-08-01', status: 'AVAILABLE' },
-          { date: '2026-08-02', status: 'AVAILABLE' },
-        ],
-      },
+      data: { ranges: [] },
       refetch: vi.fn(),
     });
     useListingAvailabilitySummaryQuery.mockReturnValue({
@@ -145,7 +129,6 @@ describe('ListingAvailabilitySection (Listing Details)', () => {
       isPending: false,
       isError: false,
       data: {
-        kind: 'ranges',
         ranges: [{ date_from: '2026-08-05', date_to: '2026-08-10' }],
       },
       refetch: vi.fn(),
@@ -163,10 +146,7 @@ describe('ListingAvailabilitySection (Listing Details)', () => {
     useListingAvailabilityQuery.mockReturnValue({
       isPending: false,
       isError: false,
-      data: {
-        kind: 'calendar',
-        days: [{ date: '2026-08-01', status: 'AVAILABLE' }],
-      },
+      data: { ranges: [] },
       refetch: vi.fn(),
     });
     useListingAvailabilitySummaryQuery.mockReturnValue({
@@ -209,7 +189,7 @@ describe('ListingAvailabilitySection (Listing Details)', () => {
     useListingAvailabilityQuery.mockReturnValue({
       isPending: false,
       isError: false,
-      data: { kind: 'calendar', days: [] },
+      data: { ranges: [] },
       refetch: vi.fn(),
     });
     useListingAvailabilitySummaryQuery.mockReturnValue({
@@ -238,11 +218,33 @@ describe('ListingAvailabilitySection (Listing Details)', () => {
     expect(screen.getAllByText('Ընդամենը 3 մեքենա է մնացել')).toHaveLength(1);
   });
 
+  // Calendar Excellence: between 00:00 and 04:00 in Yerevan the UTC date is
+  // still yesterday; the window must start at the Yerevan date.
+  test('the 30-day window starts at the Asia/Yerevan date, not the UTC one', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-22T20:30:00.000Z')); // 00:30 on 23 Oct
+    try {
+      useListingAvailabilityQuery.mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: { ranges: [] },
+        refetch: vi.fn(),
+      });
+      render(<ListingAvailabilitySection listingId={9} />);
+      expect(useListingDayStatusQuery).toHaveBeenCalledWith(9, undefined, {
+        from: '2026-10-23',
+        to: '2026-11-21',
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test('renders a no-data message only when summary, day-status count, and ranges are all empty', () => {
     useListingAvailabilityQuery.mockReturnValue({
       isPending: false,
       isError: false,
-      data: { kind: 'calendar', days: [] },
+      data: { ranges: [] },
       refetch: vi.fn(),
     });
     render(<ListingAvailabilitySection listingId={9} />);

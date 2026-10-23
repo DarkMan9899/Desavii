@@ -19,6 +19,7 @@ import {
   MEAL_PLANS,
 } from '../../../core/domain/roomAttributes.js';
 import { isoDateSchema } from '../../../validation/isoDate.js';
+import { refineDateSpan } from '../../../validation/dateSpan.js';
 import {
   decimalMoneyAmountSchema,
   positiveDecimalMoneyAmountSchema,
@@ -30,8 +31,6 @@ import {
   BLOCK_REASON_CODES,
   EXTERNAL_RESERVATION_SOURCE_CODES,
 } from '../services/availabilityService.js';
-
-const MAX_CALENDAR_SPAN_DAYS = 366;
 
 // `blackout_dates.reason` is VARCHAR(255) — the schema previously allowed
 // 500 characters, so anything past 255 only failed at the DB.
@@ -363,6 +362,7 @@ export const setAvailabilitySchema = z.object({
       message: 'dateTo must not be before dateFrom.',
       path: ['dateTo'],
     })
+    .superRefine(refineDateSpan('dateFrom', 'dateTo'))
     .superRefine(refinePriceOverridePair),
 });
 
@@ -503,20 +503,7 @@ export const listPublicUnitsQuerySchema = z.object({
         path: ['checkOut'],
       },
     )
-    .refine(
-      (data) => {
-        if (!data.checkIn || !data.checkOut) return true;
-        const spanDays =
-          (new Date(`${data.checkOut}T00:00:00Z`).getTime() -
-            new Date(`${data.checkIn}T00:00:00Z`).getTime()) /
-          86_400_000;
-        return spanDays <= MAX_CALENDAR_SPAN_DAYS;
-      },
-      {
-        message: `The stay cannot exceed ${MAX_CALENDAR_SPAN_DAYS} days.`,
-        path: ['checkOut'],
-      },
-    ),
+    .superRefine(refineDateSpan('checkIn', 'checkOut')),
   body: z.any(),
 });
 
@@ -532,19 +519,7 @@ export const calendarQuerySchema = z.object({
       message: 'to must not be before from.',
       path: ['to'],
     })
-    .refine(
-      (data) => {
-        const spanDays =
-          (new Date(`${data.to}T00:00:00Z`).getTime() -
-            new Date(`${data.from}T00:00:00Z`).getTime()) /
-          86_400_000;
-        return spanDays <= MAX_CALENDAR_SPAN_DAYS;
-      },
-      {
-        message: `The calendar span cannot exceed ${MAX_CALENDAR_SPAN_DAYS} days.`,
-        path: ['to'],
-      },
-    ),
+    .superRefine(refineDateSpan('from', 'to')),
   body: z.any(),
 });
 
@@ -563,19 +538,7 @@ export const publicAvailabilitySummaryQuerySchema = z.object({
       message: 'to must not be before from.',
       path: ['to'],
     })
-    .refine(
-      (data) => {
-        const spanDays =
-          (new Date(`${data.to}T00:00:00Z`).getTime() -
-            new Date(`${data.from}T00:00:00Z`).getTime()) /
-          86_400_000;
-        return spanDays <= MAX_CALENDAR_SPAN_DAYS;
-      },
-      {
-        message: `The calendar span cannot exceed ${MAX_CALENDAR_SPAN_DAYS} days.`,
-        path: ['to'],
-      },
-    ),
+    .superRefine(refineDateSpan('from', 'to')),
   body: z.any(),
 });
 
@@ -600,7 +563,26 @@ export const createManualBlockSchema = z.object({
     .refine((data) => data.dateTo >= data.dateFrom, {
       message: 'dateTo must not be before dateFrom.',
       path: ['dateTo'],
-    }),
+    })
+    .superRefine(refineDateSpan('dateFrom', 'dateTo')),
+});
+
+// An edit restates the whole block (the unit stays the block's own).
+export const updateManualBlockSchema = z.object({
+  params: idParams,
+  query: passthroughQuery,
+  body: z
+    .object({
+      ...dateRangeShape,
+      quantity: unsignedIntQuantity.positive(),
+      reasonCode: z.enum(BLOCK_REASON_CODES),
+      notes: z.string().trim().max(500).optional(),
+    })
+    .refine((data) => data.dateTo >= data.dateFrom, {
+      message: 'dateTo must not be before dateFrom.',
+      path: ['dateTo'],
+    })
+    .superRefine(refineDateSpan('dateFrom', 'dateTo')),
 });
 
 export const blockIdParamsSchema = z.object({
@@ -633,7 +615,8 @@ export const createExternalReservationSchema = z.object({
     .refine((data) => data.dateTo >= data.dateFrom, {
       message: 'dateTo must not be before dateFrom.',
       path: ['dateTo'],
-    }),
+    })
+    .superRefine(refineDateSpan('dateFrom', 'dateTo')),
 });
 
 export const externalReservationIdParamsSchema = z.object({
@@ -660,7 +643,8 @@ const csvRowShape = z
   .refine((row) => row.dateTo >= row.dateFrom, {
     message: 'dateTo must not be before dateFrom.',
     path: ['dateTo'],
-  });
+  })
+  .superRefine(refineDateSpan('dateFrom', 'dateTo'));
 
 export const bulkImportExternalReservationsSchema = z.object({
   params: passthroughParams,
@@ -679,7 +663,8 @@ export const unitLedgerQuerySchema = z.object({
     .refine((data) => data.to >= data.from, {
       message: 'to must not be before from.',
       path: ['to'],
-    }),
+    })
+    .superRefine(refineDateSpan('from', 'to')),
   body: z.any(),
 });
 

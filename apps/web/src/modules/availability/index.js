@@ -55,6 +55,7 @@ export { default as useConnectionSyncRunsQuery } from './queries/useConnectionSy
 export { default as useConnectionConflictsQuery } from './queries/useConnectionConflictsQuery.js';
 export { default as useCreateInventoryBlockMutation } from './mutations/useCreateInventoryBlockMutation.js';
 export { default as useReleaseInventoryBlockMutation } from './mutations/useReleaseInventoryBlockMutation.js';
+export { default as useUpdateInventoryBlockMutation } from './mutations/useUpdateInventoryBlockMutation.js';
 export { default as useCreateExternalReservationMutation } from './mutations/useCreateExternalReservationMutation.js';
 export { default as useCancelExternalReservationMutation } from './mutations/useCancelExternalReservationMutation.js';
 export { default as useBulkImportExternalReservationsMutation } from './mutations/useBulkImportExternalReservationsMutation.js';

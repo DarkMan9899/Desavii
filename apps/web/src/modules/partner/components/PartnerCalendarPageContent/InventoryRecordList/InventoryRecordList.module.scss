@@ -1,0 +1,110 @@
+// InventoryRecordList — Calendar Excellence. Tokens only. Sized by the
+// list's OWN width (a container query), never the viewport: beside the
+// workspace sidebar a 1024px screen leaves the list far narrower than
+// 1024px, and Armenian action labels are long. Narrow, a record stacks;
+// wider, its dates sit beside its actions with the details below; only
+// with real room does it read as one aligned row.
+
+@use 'tokens' as tokens;
+
+.list {
+  container: inventory-records / inline-size;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.record {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'when'
+    'details'
+    'actions';
+  gap: tokens.$space-3;
+  padding-block: tokens.$space-4;
+  border-bottom: 1px solid tokens.$color-gray-200;
+
+  &:first-child {
+    padding-top: 0;
+  }
+
+  &:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  @container inventory-records (min-width: #{tokens.$breakpoint-mobile-large}) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'when actions'
+      'details details';
+    align-items: start;
+    column-gap: tokens.$space-6;
+  }
+
+  @container inventory-records (min-width: #{tokens.$breakpoint-tablet}) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+    grid-template-areas: 'when details actions';
+    align-items: center;
+  }
+}
+
+.when {
+  grid-area: when;
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-1;
+  min-width: 0;
+}
+
+.dates {
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+  font-variant-numeric: tabular-nums;
+}
+
+.span {
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+}
+
+.details {
+  grid-area: details;
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-3 tokens.$space-6;
+  margin: 0;
+  min-width: 0;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-1;
+  min-width: 0;
+}
+
+.detailLabel {
+  font-size: tokens.$font-size-micro;
+  font-weight: 600;
+  color: tokens.$color-gray-600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.detailValue {
+  margin: 0;
+  color: tokens.$color-gray-900;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: tokens.$space-2;
+}

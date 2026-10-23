@@ -146,6 +146,7 @@ export default function SearchWidget({ className = undefined }) {
                 value={dateRange}
                 onChange={setDateRange}
                 minDate={today}
+                today={today}
                 locale={i18n.language}
                 previousMonthLabel={t(
                   'partner.listingWizard.datePicker.previousMonth',

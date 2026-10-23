@@ -806,7 +806,8 @@
       "hourlyWindowInvalid": "\"Available until\" must be later than \"Available from\" and leave room for the minimum duration.",
       "CITY_REQUIRED": "Choose the listing's city before publishing.",
       "unknownCity": "Choose a city from the list.",
-      "attributeNotApplicable": "This doesn't apply with the answer chosen above it."
+      "attributeNotApplicable": "This doesn't apply with the answer chosen above it.",
+      "dateSpanTooLong": "Choose a range of at most {{maximum}} days."
     },
     "codes": {
       "PARTNER_NOT_VERIFIED": "Your company must be verified before it can create listings.",
@@ -820,7 +821,9 @@
       "MENU_HAS_SECTIONS": "Remove every section from this menu before deleting it.",
       "SECTION_HAS_ITEMS": "Remove every item from this section before deleting it.",
       "PAYMENT_NOT_REQUIRED": "This booking doesn't need an online payment.",
-      "PRICE_CHANGED": "The price changed while you were booking. Review the new total before booking."
+      "PRICE_CHANGED": "The price changed while you were booking. Review the new total before booking.",
+      "ALREADY_RELEASED": "This block has already been removed.",
+      "ALREADY_CANCELLED": "This reservation has already been cancelled."
     }
   },
   "auth": {
@@ -1423,8 +1426,16 @@
         "columns": {
           "range": "Dates",
           "quantity": "Quantity",
-          "reason": "Reason"
-        }
+          "reason": "Reason",
+          "notes": "Notes"
+        },
+        "editAction": "Edit",
+        "editTitle": "Edit block",
+        "editSave": "Save changes",
+        "editSuccess": "Block updated.",
+        "datesLabel": "Dates",
+        "datesRequired": "Choose the first and last date.",
+        "editSpanHint": "Takes {{span}} out of availability."
       },
       "external": {
         "tabLabel": "External reservation",
@@ -1459,7 +1470,9 @@
         "columns": {
           "range": "Dates",
           "source": "Source",
-          "guest": "Guest"
+          "guest": "Guest",
+          "quantity": "Quantity",
+          "reference": "Reference"
         }
       },
       "csvImport": {
@@ -1495,6 +1508,12 @@
           "SKIPPED_DUPLICATE": "Skipped (duplicate)",
           "FAILED": "Failed"
         }
+      },
+      "records": {
+        "nights_one": "{{count}} night",
+        "nights_other": "{{count}} nights",
+        "days_one": "{{count}} day",
+        "days_other": "{{count}} days"
       }
     },
     "connections": {

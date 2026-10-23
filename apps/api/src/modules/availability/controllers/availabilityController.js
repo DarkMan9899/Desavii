@@ -488,6 +488,24 @@ export function createAvailabilityController(availabilityService) {
       }
     },
 
+    async updateManualBlock(req, res, next) {
+      try {
+        const block = await availabilityService.updateManualBlock(
+          req.principal,
+          req.validated.params.id,
+          req.validated.body,
+        );
+        res.status(200).json({
+          success: true,
+          data: toInventoryBlockResponse(block),
+          meta: null,
+          error: null,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+
     async releaseManualBlock(req, res, next) {
       try {
         const { id } = req.validated.params;

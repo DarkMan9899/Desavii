@@ -8,6 +8,7 @@
 
 import { z } from 'zod';
 import { isoDateSchema } from '../../../validation/isoDate.js';
+import { refineDateSpan } from '../../../validation/dateSpan.js';
 import { BOOKING_MODES } from '../../../core/domain/hourlyStay.js';
 
 const passthroughQuery = z.object({}).passthrough();
@@ -40,13 +41,18 @@ const holdItemSchema = z
   .refine((data) => data.dateTo >= data.dateFrom, {
     message: 'dateTo must not be before dateFrom.',
     path: ['dateTo'],
-  });
+  })
+  .superRefine(refineDateSpan('dateFrom', 'dateTo'));
+
+// One checkout's worth of rooms/units — each item locks its dates, so the
+// count is bounded like the dates are.
+const MAX_HOLD_ITEMS = 20;
 
 export const createHoldsSchema = z.object({
   params: passthroughParams,
   query: passthroughQuery,
   body: z.object({
-    items: z.array(holdItemSchema).min(1),
+    items: z.array(holdItemSchema).min(1).max(MAX_HOLD_ITEMS),
   }),
 });
 

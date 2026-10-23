@@ -149,6 +149,9 @@ const DOMAIN_ISSUE_KEYS = {
   MUST_BE_INTEGER: 'mustBeInteger',
   UNKNOWN_CURRENCY: 'unknownCurrency',
   BEFORE_DATE_FROM: 'dateOrder',
+  // Calendar Excellence: any availability/hold date range is capped at a
+  // year (`validation/dateSpan.js`, `maximum` = 366 days).
+  DATE_SPAN_TOO_LONG: 'dateSpanTooLong',
   AT_LEAST_ONE_TRANSLATION_REQUIRED: 'AT_LEAST_ONE_TRANSLATION_REQUIRED',
   AT_LEAST_ONE_IMAGE_REQUIRED: 'AT_LEAST_ONE_IMAGE_REQUIRED',
   COMPLETE_LOCATION_REQUIRED: 'COMPLETE_LOCATION_REQUIRED',

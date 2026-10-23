@@ -28,6 +28,7 @@ import { Icon, Button, Badge } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import { EmptyState, Skeleton } from '@desavii/ui/components/feedback-overlays';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import { useUnitBreakdownQuery } from '../../../availability/index.js';
 import { BookingStatusBadge } from '../../../bookings/index.js';
 import { addDays, todayIso, HOUR_ROWS } from './calendarDateGrid.js';
@@ -291,11 +292,12 @@ export default function PartnerCalendarDayView({
 
   const dateFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat(locale, {
+      createDateFormatter(locale, {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
         year: 'numeric',
+        timeZone: 'UTC',
       }),
     [locale],
   );
