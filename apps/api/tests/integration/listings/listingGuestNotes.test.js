@@ -131,16 +131,15 @@ describe('PATCH /listings/:id/guest-notes', () => {
     });
     expect(res.status).toBe(200);
 
-    const byLanguage = Object.groupBy(
-      (await readListing(id)).body.data.guest_notes,
-      (note) => note.language_code,
-    );
-    expect(byLanguage.en.map((note) => note.text)).toEqual([
-      'Off-road driving',
-    ]);
-    expect(byLanguage.hy.map((note) => note.text)).toEqual([
-      'Վարորդական վկայական',
-    ]);
+    // A plain filter, not `Object.groupBy`: that only exists from Node 21,
+    // and the runtime contract (.nvmrc, CI) is Node 20.
+    const notes = (await readListing(id)).body.data.guest_notes;
+    const textsIn = (languageCode) =>
+      notes
+        .filter((note) => note.language_code === languageCode)
+        .map((note) => note.text);
+    expect(textsIn('en')).toEqual(['Off-road driving']);
+    expect(textsIn('hy')).toEqual(['Վարորդական վկայական']);
   });
 
   test('an empty list clears that language', async () => {
