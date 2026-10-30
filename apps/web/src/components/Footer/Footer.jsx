@@ -14,7 +14,7 @@
 
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import { Container, Grid, Stack } from '@desavii/ui/components/layout';
+import { Container, Stack } from '@desavii/ui/components/layout';
 import styles from './Footer.module.scss';
 
 export default function Footer({ columns = [], bottomText = undefined }) {
@@ -22,7 +22,13 @@ export default function Footer({ columns = [], bottomText = undefined }) {
     <footer className={styles.footer}>
       <Container size="wide">
         {columns.length > 0 && (
-          <Grid columns={columns.length} gap="8" className={styles.columns}>
+          // Two columns on a phone, all of them in one row from tablet
+          // (`Grid` pins one column count at every width, which squeezed
+          // four columns into ~80px each on a phone).
+          <div
+            className={styles.columns}
+            style={{ '--footer-columns': columns.length }}
+          >
             {columns.map((column) => (
               <Stack
                 as="nav"
@@ -42,7 +48,7 @@ export default function Footer({ columns = [], bottomText = undefined }) {
                 </Stack>
               </Stack>
             ))}
-          </Grid>
+          </div>
         )}
         {bottomText && <p className={styles.bottomText}>{bottomText}</p>}
       </Container>

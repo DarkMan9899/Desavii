@@ -1,164 +1,176 @@
-// CategoryCard — tokens only, consumed from @desavii/ui.
+// CategoryCard — tokens only. A photo tile: the image fills it, a scrim
+// rises from the bottom behind the name and count. Square on a phone (so
+// two-word Armenian/Russian names have room), the canonical 4:3 from
+// tablet; the featured tile spans the grid cells its parent gives it.
+//
+// Long names (RU "Достопримечательности") get the tile's full width — the
+// arrow sits in the top corner, not beside the text — and break only at a
+// hyphenation point (`hyphens: auto`, per `<html lang>`), never mid-word
+// at an arbitrary letter.
+//
+// Hover/focus: the photo eases in slightly and the arrow lifts — transform
+// only, and nothing moves under reduced motion. Tap feedback on touch is
+// a brief press.
 
 @use 'tokens' as tokens;
-@use 'mixins/respond' as respond;
 @use 'mixins/focus-ring' as focus;
+@use 'mixins/respond' as respond;
 
-// Redesign phase (2026) — each of the five mesh washes is the same
-// `tokens.$gradient-mesh-N` `DestinationArt` uses for photo-style cards,
-// but layered UNDER an near-opaque white scrim here: enough to tint the
-// card with real brand color (no two adjacent categories read as
-// identical white tiles) while keeping the icon/label/count at full
-// body-text contrast — a functional navigation card, not a photo card,
-// stays legible first.
-@each $n in 1, 2, 3, 4, 5 {
-  .card--mesh-#{$n} {
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.94)),
-      nth(tokens.$gradient-mesh-list, $n);
-  }
-}
+$photo-hover-scale: 1.06;
 
 .card {
   position: relative;
-  // `ScrollReveal`'s per-item `motion.div` wrapper is the actual CSS Grid
-  // item (see this module's own header comment) — a plain block element,
-  // which does NOT stretch a flex child to fill it the way a grid/flex
-  // parent would. Without an explicit 100%/100%, this card sized itself
-  // to its own content (~124px) inside a 2x2 featured cell the grid had
-  // already correctly sized to 316px, stranding the icon/label/count in
-  // the top-left corner with a dead empty block below — the "featured
-  // tile massively oversized, content poorly positioned" bug.
+  display: flex;
+  aspect-ratio: 1;
+  overflow: hidden;
+  color: tokens.$color-white;
+  text-decoration: none;
+  isolation: isolate;
+  background: tokens.$color-navy;
+  border-radius: tokens.$radius-lg;
+  transition: transform tokens.$motion-micro tokens.$ease-out;
+
+  @include respond.respond(tablet) {
+    aspect-ratio: 4 / 3;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:focus-visible {
+    @include focus.focus-ring;
+  }
+}
+
+.card--featured {
+  aspect-ratio: 2 / 1;
+
+  @include respond.respond(tablet) {
+    aspect-ratio: auto;
+    min-height: 100%;
+  }
+}
+
+.media {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+
+  &::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+    background: linear-gradient(
+      to top,
+      rgba(tokens.$color-ink, 0.85) 0%,
+      rgba(tokens.$color-ink, 0.35) 45%,
+      rgba(tokens.$color-ink, 0) 75%
+    );
+  }
+}
+
+.photo {
+  transition: transform tokens.$motion-transition-slow tokens.$ease-out;
+
+  .card:hover &,
+  .card:focus-visible & {
+    transform: scale($photo-hover-scale);
+  }
+}
+
+.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100%;
+  color: rgba(tokens.$color-white, 0.7);
+  background: tokens.$gradient-navy-royal;
+}
+
+.body {
+  width: 100%;
+  margin-top: auto;
+  padding: tokens.$space-4;
+
+  .card--featured & {
+    @include respond.respond(laptop) {
+      padding: tokens.$space-6;
+    }
+  }
+}
+
+.text {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: tokens.$space-3;
-  padding: tokens.$space-6 tokens.$space-4;
-  border-radius: tokens.$radius-lg;
-  color: tokens.$color-gray-900;
-  text-decoration: none;
-  text-align: center;
-  overflow: hidden;
-  // Redesign phase (2026) — `--tilt-x`/`--tilt-y` (-1..1, written by
-  // `useTiltEffect` straight to this node, never through React state)
-  // feed a subtle pointer-tilt into the SAME transform the existing
-  // hover lift already used, rather than a JS-computed inline
-  // `transform` that would override this rule outright.
-  transform: translateY(var(--tilt-lift, 0)) perspective(700px)
-    rotateX(calc(var(--tilt-y, 0) * -4deg))
-    rotateY(calc(var(--tilt-x, 0) * 4deg));
-  transition:
-    transform tokens.$motion-micro tokens.$ease-out,
-    box-shadow tokens.$motion-transition tokens.$ease-out;
-  @include tokens.elevation-1;
-  @include tokens.reduced-motion-safe;
-  @include focus.focus-ring;
-
-  @include respond.respond(laptop) {
-    padding: tokens.$space-8 tokens.$space-4;
-  }
-
-  &:hover {
-    --tilt-lift: -6px;
-
-    color: tokens.$color-royal-blue;
-    @include tokens.elevation-4;
-  }
-
-  &:hover .iconWrapper {
-    background: tokens.$gradient-navy-royal;
-    color: tokens.$color-white;
-    transform: scale(1.08);
-    box-shadow: 0 8px 16px rgba(29, 95, 214, 0.3);
-  }
+  gap: tokens.$space-1;
+  min-width: 0;
 }
 
-// The bento grid's first tile (`CategoryCard`'s `featured` prop) — a
-// visibly larger card with the label/count floating over the bottom of
-// its own mesh backdrop, instead of the regular tile's centered
-// icon-then-label stack. Still the same component, same data, same
-// interaction — only the internal composition differs.
-//
-// Sprint K fix — this whole floating-label composition only makes sense
-// once the tile actually IS visibly larger: `Categories.module.scss`'s
-// own 2x2 span for the first tile is itself gated to `tablet`+ (a 2x2
-// span at 2-column mobile width would already claim the full row). Below
-// that, `.card--featured` was still applying its absolutely-positioned
-// top-left icon over a `justify-content: flex-end` label inside a plain
-// ~148px single-row tile — too little vertical room to separate the two,
-// so the icon visibly sat on top of the label text. Scoping the whole
-// composition to `tablet`+ makes the featured tile fall back to the
-// exact same centered icon-then-label-then-count stack every other
-// mobile tile already uses correctly.
-@include respond.respond(tablet) {
-  .card--featured {
-    align-items: flex-start;
-    justify-content: flex-end;
-    padding: tokens.$space-6;
-    text-align: left;
-
-    .iconWrapper {
-      position: absolute;
-      top: tokens.$space-6;
-      left: tokens.$space-6;
-    }
-
-    .label {
-      font-family: tokens.$font-display;
-      font-size: tokens.$font-size-h4;
-      font-weight: 700;
-    }
-  }
-
-  @include respond.respond(laptop) {
-    .card--featured {
-      padding: tokens.$space-8;
-
-      .label {
-        font-size: tokens.$font-size-h3;
-      }
-    }
-  }
-}
-
-.iconWrapper {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: tokens.$space-16;
-  height: tokens.$space-16;
-  border-radius: tokens.$radius-full;
-  background-color: tokens.$color-white;
-  color: tokens.$color-royal-blue;
-  @include tokens.elevation-1;
-  transition:
-    background tokens.$motion-micro tokens.$ease-out,
-    color tokens.$motion-micro tokens.$ease-out,
-    transform tokens.$motion-micro tokens.$ease-out,
-    box-shadow tokens.$motion-micro tokens.$ease-out;
-  @include tokens.reduced-motion-safe;
-}
-
-.label {
-  font-family: tokens.$font-body;
-  font-weight: 600;
+.name {
+  font-family: tokens.$font-heading;
   font-size: tokens.$font-size-body;
-  // Some real translated category names are one long unbreakable word
-  // (Russian "Достопримечательности" is the longest — 21 characters, no
-  // spaces) — a flex child's default `min-width: auto` would otherwise
-  // resist shrinking below that word's own intrinsic width and let it
-  // run past the card edge instead of wrapping. `overflow-wrap` allows a
-  // break inside the word only as a last resort, once normal wrapping
-  // at spaces (every EN/HY label, and most RU ones) still can't fit.
+  font-weight: 700;
+  line-height: tokens.$line-height-body;
   overflow-wrap: break-word;
-  word-break: break-word;
   hyphens: auto;
+
+  @include respond.respond(tablet) {
+    font-size: tokens.$font-size-body-large;
+  }
+
+  .card--featured & {
+    @include respond.respond(tablet) {
+      font-family: tokens.$font-display;
+      font-size: tokens.$font-size-h2;
+      line-height: tokens.$line-height-h2;
+    }
+  }
 }
 
 .count {
-  font-size: tokens.$font-size-micro;
-  color: tokens.$color-gray-600;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: rgba(tokens.$color-white, 0.85);
+}
+
+.arrow {
+  position: absolute;
+  top: tokens.$space-4;
+  right: tokens.$space-4;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: tokens.$button-height-sm;
+  height: tokens.$button-height-sm;
+  color: tokens.$color-navy;
+  background: tokens.$color-white;
+  border-radius: tokens.$radius-full;
+  transition: transform tokens.$motion-micro tokens.$ease-out;
+
+  @include respond.respond(tablet) {
+    display: inline-flex;
+  }
+
+  .card:hover &,
+  .card:focus-visible & {
+    transform: translate(tokens.$space-1, calc(-1 * #{tokens.$space-1}));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .photo,
+  .arrow {
+    transition: none;
+  }
+
+  .card:active,
+  .card:hover .photo,
+  .card:focus-visible .photo,
+  .card:hover .arrow,
+  .card:focus-visible .arrow {
+    transform: none;
+  }
 }

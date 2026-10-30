@@ -26,10 +26,13 @@ function renderCard(destination = DESTINATION) {
 describe('DestinationCard (apps/web/src/modules/home)', () => {
   test('renders the real destination name as a heading, linked to its real destination page', () => {
     renderCard();
-    const heading = screen.getByRole('heading', { level: 3, name: 'Yerevan' });
-    expect(heading).toBeInTheDocument();
-    const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', '/en/destinations/yerevan');
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Yerevan' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link')).toHaveAttribute(
+      'href',
+      '/en/destinations/yerevan',
+    );
   });
 
   test('shows the listing count when it is greater than zero', () => {
@@ -42,14 +45,27 @@ describe('DestinationCard (apps/web/src/modules/home)', () => {
     expect(screen.queryByText(/հայտարարություն/)).not.toBeInTheDocument();
   });
 
-  test('hides the decorative backdrop art from assistive technology', () => {
-    // Redesign phase (2026): the backdrop is `DestinationArt` (a
-    // procedural div+svg, keyed by the real destination id — no
-    // per-destination photography exists yet), not an `<img>` — it
-    // still carries `aria-hidden="true"` itself, same intent as the
-    // `alt=""` image it replaced.
-    renderCard();
-    const backdrop = document.querySelector('div[aria-hidden="true"]');
-    expect(backdrop).toBeInTheDocument();
+  // Home rebuild: a destination with a photo shows that place, as
+  // responsive AVIF/WebP sources, decorative (the name is the text).
+  test('a destination with a photo shows it, lazily and decoratively', () => {
+    const { container } = renderCard();
+    const sources = container.querySelectorAll('picture source');
+    expect([...sources].map((source) => source.type)).toEqual([
+      'image/avif',
+      'image/webp',
+    ]);
+    const image = container.querySelector('picture img');
+    expect(image).toHaveAttribute('alt', '');
+    expect(image).toHaveAttribute('loading', 'lazy');
+    expect(image.closest('[aria-hidden="true"]')).not.toBeNull();
+  });
+
+  test('a destination without a photo keeps its generated art, never a picture of somewhere else', () => {
+    const { container } = renderCard({
+      ...DESTINATION,
+      slug: 'yeghegnadzor',
+    });
+    expect(container.querySelector('picture')).toBeNull();
+    expect(container.querySelector('[aria-hidden="true"]')).not.toBeNull();
   });
 });

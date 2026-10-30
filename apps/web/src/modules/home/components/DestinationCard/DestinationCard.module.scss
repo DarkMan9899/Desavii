@@ -1,89 +1,151 @@
-// DestinationCard — tokens only, consumed from @desavii/ui.
+// DestinationCard — tokens only. A tall (3:4) photo with a bottom scrim
+// behind an editorial caption: count label, display-face name and a ringed
+// arrow cue. Hover/focus eases the photo in, lifts the caption and fills
+// the cue; nothing moves under reduced motion.
 
 @use 'tokens' as tokens;
 @use 'mixins/focus-ring' as focus;
-@use 'mixins/truncate-lines' as truncate;
+@use 'mixins/respond' as respond;
+
+$photo-hover-scale: 1.06;
 
 .card {
   position: relative;
-  display: block;
-  border-radius: tokens.$radius-lg;
+  display: flex;
+  aspect-ratio: 3 / 4;
   overflow: hidden;
-  aspect-ratio: 4 / 5;
   color: tokens.$color-white;
   text-decoration: none;
   isolation: isolate;
-  border: 2px solid transparent;
-  transition:
-    transform tokens.$motion-micro tokens.$ease-out,
-    box-shadow tokens.$motion-micro tokens.$ease-out,
-    border-color tokens.$motion-micro tokens.$ease-out;
-  @include tokens.elevation-1;
-  @include tokens.reduced-motion-safe;
-  @include focus.focus-ring;
+  background: tokens.$color-navy;
+  border-radius: tokens.$radius-lg;
 
-  &:hover .image {
-    transform: scale(1.08);
-  }
-
-  // Redesign phase (2026) — the same subtle perspective tilt as
-  // `Card--elevated` (`packages/ui`), so every showcase-carousel card
-  // shares one "physically tilts toward the viewer" hover language.
-  &:hover {
-    transform: perspective(1000px) rotateX(2deg) translateY(-4px);
-    border-color: rgba(tokens.$color-white, 0.5);
-    @include tokens.elevation-3;
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    background: linear-gradient(
-      180deg,
-      rgba(11, 26, 43, 0) 40%,
-      rgba(11, 26, 43, 0.85) 100%
-    );
+  &:focus-visible {
+    @include focus.focus-ring;
   }
 }
 
 .media {
   position: absolute;
   inset: 0;
+  z-index: -1;
+
+  &::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+    background: linear-gradient(
+      to top,
+      rgba(tokens.$color-ink, 0.8) 0%,
+      rgba(tokens.$color-ink, 0.2) 40%,
+      rgba(tokens.$color-ink, 0) 65%
+    );
+  }
 }
 
-.image {
+.photo {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  display: block;
-  transition: transform tokens.$motion-transition tokens.$ease-out;
-  @include tokens.reduced-motion-safe;
+  transition: transform tokens.$motion-transition-slow tokens.$ease-out;
+
+  .card:hover &,
+  .card:focus-visible & {
+    transform: scale($photo-hover-scale);
+  }
 }
 
 .body {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  gap: tokens.$space-1;
-  padding: tokens.$space-4;
+  gap: tokens.$space-3;
+  width: 100%;
+  margin-top: auto;
+  padding: tokens.$space-6;
+  transition: transform tokens.$motion-transition-slow tokens.$ease-out;
+
+  .card:hover &,
+  .card:focus-visible & {
+    transform: translateY(calc(-1 * #{tokens.$space-1}));
+  }
+}
+
+// The real listing count as a small editorial label on a gold hairline.
+.count {
+  display: flex;
+  gap: tokens.$space-2;
+  align-items: center;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-micro;
+  font-weight: 700;
+  line-height: tokens.$line-height-micro;
+  color: rgba(tokens.$color-white, 0.88);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+
+  &::before {
+    width: tokens.$space-6;
+    height: 1px;
+    content: '';
+    background: tokens.$color-gold;
+  }
+}
+
+.row {
+  display: flex;
+  gap: tokens.$space-3;
+  align-items: flex-end;
+  justify-content: space-between;
 }
 
 .name {
+  min-width: 0;
   margin: 0;
-  font-family: tokens.$font-heading;
-  font-size: tokens.$font-size-h4;
-  line-height: tokens.$line-height-h4;
+  font-family: tokens.$font-display;
+  font-size: tokens.$font-size-h3;
+  line-height: tokens.$line-height-h3;
+  overflow-wrap: break-word;
+  hyphens: auto;
+
+  @include respond.respond(laptop) {
+    font-size: tokens.$font-size-h2;
+    line-height: tokens.$line-height-h2;
+  }
 }
 
-.description {
-  margin: 0;
-  font-size: tokens.$font-size-small;
-  line-height: tokens.$line-height-small;
-  color: tokens.$color-gray-100;
-  @include truncate.truncate-lines(2);
+// A ringed arrow that fills white on hover/focus — the same language as
+// the section links, sized for a photo.
+.cue {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: tokens.$button-height-sm;
+  height: tokens.$button-height-sm;
+  color: tokens.$color-white;
+  border-radius: tokens.$radius-full;
+  box-shadow: inset 0 0 0 1px rgba(tokens.$color-white, 0.6);
+  transition:
+    background-color tokens.$motion-micro tokens.$ease-out,
+    color tokens.$motion-micro tokens.$ease-out;
+
+  .card:hover &,
+  .card:focus-visible & {
+    color: tokens.$color-navy;
+    background: tokens.$color-white;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo,
+  .body,
+  .cue {
+    transition: none;
+  }
+
+  .card:hover .photo,
+  .card:focus-visible .photo,
+  .card:hover .body,
+  .card:focus-visible .body {
+    transform: none;
+  }
 }

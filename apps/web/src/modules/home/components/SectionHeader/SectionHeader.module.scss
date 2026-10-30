@@ -1,7 +1,6 @@
 // SectionHeader — tokens only, consumed from @desavii/ui.
 
 @use 'tokens' as tokens;
-@use 'mixins/focus-ring' as focus;
 @use 'mixins/respond' as respond;
 
 .header {
@@ -73,39 +72,6 @@
   max-width: 640px;
 }
 
-.viewAll {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: tokens.$space-1;
-  font-family: tokens.$font-body;
-  font-size: tokens.$font-size-small;
-  font-weight: 600;
-  color: tokens.$color-royal-blue;
-  text-decoration: none;
-  white-space: nowrap;
-  border-radius: tokens.$radius-sm;
-  transition: color tokens.$motion-micro tokens.$ease-out;
-  @include tokens.reduced-motion-safe;
-  @include focus.focus-ring;
-
-  &::after {
-    content: '\2192';
-    display: inline-block;
-    transition: transform tokens.$motion-micro tokens.$ease-out;
-    @include tokens.reduced-motion-safe;
-  }
-
-  &:hover {
-    color: tokens.$color-navy;
-    text-decoration: underline;
-  }
-
-  &:hover::after {
-    transform: translateX(3px);
-  }
-}
-
 // `tone="dark"` — Popular Experiences' own cinematic panel. Only the
 // text colors change; layout/spacing/typography stay identical to the
 // light tone so the two read as the same heading system on a different
@@ -121,13 +87,5 @@
 
   .eyebrow {
     color: tokens.$color-gold;
-  }
-
-  .viewAll {
-    color: tokens.$color-white;
-
-    &:hover {
-      color: tokens.$color-gold;
-    }
   }
 }

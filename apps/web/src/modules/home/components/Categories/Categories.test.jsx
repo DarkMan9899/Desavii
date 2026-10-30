@@ -1,7 +1,7 @@
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import Categories from './Categories.jsx';
+import Categories, { orderForDisplay } from './Categories.jsx';
 import { useCategoriesQuery } from '../../../search/index.js';
 
 // Only the data-fetching hook is mocked (FRONTEND_ARCHITECTURE.md §14 is a
@@ -71,5 +71,16 @@ describe('Categories (apps/web/src/modules/home)', () => {
     expect(links).toHaveLength(CATEGORIES.length);
     expect(links[0]).toHaveAttribute('href', '/en/categories/hotels');
     expect(screen.getByText('Hotels')).toBeInTheDocument();
+  });
+
+  test('the largest category leads, the rest keep the catalog order', () => {
+    const ordered = orderForDisplay([
+      { id: 1, slug: 'hotels', listing_count: 4 },
+      { id: 2, slug: 'tours', listing_count: 9 },
+      { id: 3, slug: 'villas', listing_count: 9 },
+      { id: 4, slug: 'restaurants' },
+    ]);
+    expect(ordered.map((category) => category.id)).toEqual([2, 1, 3, 4]);
+    expect(orderForDisplay([])).toEqual([]);
   });
 });

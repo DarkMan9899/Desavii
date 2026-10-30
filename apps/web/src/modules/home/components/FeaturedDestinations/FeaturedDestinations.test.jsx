@@ -87,6 +87,33 @@ describe('FeaturedDestinations (apps/web/src/modules/home)', () => {
     ).not.toBeInTheDocument();
   });
 
+  // Carousel closure: the section shows the six busiest real cities.
+  test('shows at most six cities, the busiest first, never an empty one', () => {
+    const cities = Array.from({ length: 8 }, (_, index) => ({
+      id: index + 10,
+      slug: `city-${index}`,
+      name: `City ${index}`,
+      listing_count: index + 1,
+    }));
+    useDestinationsQuery.mockReturnValue({
+      data: [...cities, DESTINATIONS[2]],
+      isPending: false,
+      isError: false,
+    });
+    renderSection();
+    const names = screen
+      .getAllByRole('heading', { level: 3 })
+      .map((heading) => heading.textContent);
+    expect(names).toEqual([
+      'City 7',
+      'City 6',
+      'City 5',
+      'City 4',
+      'City 3',
+      'City 2',
+    ]);
+  });
+
   test('renders a "view all" link to the search route', () => {
     useDestinationsQuery.mockReturnValue({
       data: [],

@@ -33,7 +33,11 @@
 }
 
 .nav {
+  // Takes all the room between the logo and the actions; `usePriorityNav`
+  // measures it to decide how many links fit (the rest go into "More").
+  position: relative;
   display: none;
+  flex: 1 1 0;
   min-width: 0;
 
   // Phase i18n remediation (2026): was `tablet` (768px) — at that width
@@ -50,6 +54,19 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+// The hidden copy of the row `usePriorityNav` measures: same links and
+// gap as `.navList`, out of the flow, invisible and never focusable.
+.navMeasure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  gap: tokens.$space-4;
+  white-space: nowrap;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .navLink {
@@ -76,6 +93,52 @@
 
 .dropdownList {
   min-width: 200px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// A collapsed group inside "More": its own small label, then its links,
+// set apart by hairlines so the next link never reads as part of it.
+.dropdownGroup {
+  margin-block: tokens.$space-2;
+  padding-block: tokens.$space-2;
+  border-block: 1px solid tokens.$color-gray-200;
+
+  &:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  & + & {
+    margin-top: 0;
+    border-top: none;
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}
+
+.dropdownGroupLabel {
+  display: block;
+  padding: 0 tokens.$space-3 tokens.$space-1;
+  color: tokens.$color-gray-600;
+  font-size: tokens.$font-size-micro;
+  font-weight: 700;
+  line-height: tokens.$line-height-micro;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .dropdownLink {
@@ -86,6 +149,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   text-decoration: none;
+  white-space: nowrap;
   @include focus.focus-ring;
 
   &:hover {

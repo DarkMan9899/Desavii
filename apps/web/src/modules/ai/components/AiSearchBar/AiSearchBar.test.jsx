@@ -41,14 +41,16 @@ describe('AiSearchBar (apps/web/src/modules/ai)', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Փնտրել AI-ով' }));
 
+    // The locale grounds destination/category names on the server.
     expect(mutate).toHaveBeenCalledWith(
-      'hotels with a pool in yerevan',
+      { query: 'hotels with a pool in yerevan', locale: 'hy' },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
     expect(onApply).toHaveBeenCalledWith(
       {
         destination: 'hotels with a pool',
         categoryId: 5,
+        cityId: undefined,
         dynamicFilters: { amenityIds: '101' },
       },
       { replace: false },
@@ -73,7 +75,9 @@ describe('AiSearchBar (apps/web/src/modules/ai)', () => {
     expect(button).toBeDisabled();
   });
 
-  test('a mutation error renders an inline error message', () => {
+  // Home AI discovery security pass: a server/provider error text is never
+  // shown — only the localized message.
+  test('a mutation error renders the localized message, never the server text', () => {
     useParseSearchQueryMutation.mockReturnValue({
       mutate: vi.fn(),
       isPending: false,
@@ -81,6 +85,8 @@ describe('AiSearchBar (apps/web/src/modules/ai)', () => {
       error: { message: 'Boom' },
     });
     render(<AiSearchBar onApply={vi.fn()} />);
-    expect(screen.getByRole('alert')).toHaveTextContent('Boom');
+    const alert = screen.getByRole('alert');
+    expect(alert).not.toHaveTextContent('Boom');
+    expect(alert).not.toBeEmptyDOMElement();
   });
 });

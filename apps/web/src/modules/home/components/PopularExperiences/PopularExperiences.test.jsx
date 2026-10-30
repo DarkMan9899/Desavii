@@ -95,7 +95,7 @@ describe('PopularExperiences (apps/web/src/modules/home)', () => {
     );
   });
 
-  test('renders a "view all" link to the search route', () => {
+  test('its "view all" link opens Search, whose default order is newest first — the order this row shows', () => {
     useSearchListingsQuery.mockReturnValue({
       data: { pages: [{ results: [] }] },
       isPending: false,

@@ -1,0 +1,15 @@
+// HomePicture — fills whatever box its caller sizes (the caller owns the
+// aspect ratio), cropping from the centre.
+
+.picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

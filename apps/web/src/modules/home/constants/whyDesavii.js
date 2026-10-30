@@ -6,9 +6,9 @@
 
 const WHY_DESAVII_ITEMS = [
   { id: 'verifiedPartners', icon: 'ShieldCheck' },
-  { id: 'securePayments', icon: 'Lock' },
-  { id: 'localExpertise', icon: 'Compass' },
-  { id: 'multilingualSupport', icon: 'Languages' },
+  { id: 'trackedBookings', icon: 'CalendarCheck' },
+  { id: 'localPartners', icon: 'MapPinned' },
+  { id: 'yourLanguage', icon: 'Languages' },
 ];
 
 export default WHY_DESAVII_ITEMS;

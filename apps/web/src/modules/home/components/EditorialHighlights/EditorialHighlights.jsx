@@ -16,6 +16,11 @@
  * notices. The pending state still renders a skeleton (matching every
  * other Home section) so there's no layout jump if the request is slow;
  * only the empty/error outcomes collapse to nothing.
+ *
+ * Home rebuild (docs/HOME_REBUILD.md): the layout follows the number of
+ * posts — one post is a wide feature (image beside the story), two or
+ * three share a row — so a single article never sits alone in a
+ * three-column grid with two empty columns beside it.
  */
 
 import PropTypes from 'prop-types';
@@ -39,7 +44,12 @@ function PostCard({ post, locale }) {
     <RouterLink href={`/${locale}/blog/${post.slug}`} className={styles.card}>
       <div className={styles.cover}>
         {post.cover ? (
-          <img src={post.cover.url} alt={post.cover.alt_text ?? ''} />
+          <img
+            src={post.cover.url}
+            alt={post.cover.alt_text ?? ''}
+            loading="lazy"
+            decoding="async"
+          />
         ) : (
           <DestinationArt
             seed={post.slug ?? post.title}
@@ -86,7 +96,7 @@ export default function EditorialHighlights() {
   return (
     <Section aria-labelledby={HEADING_ID} className={styles.section}>
       <Container size="wide">
-        <ScrollReveal variant="depth">
+        <ScrollReveal>
           <SectionHeader
             id={HEADING_ID}
             eyebrow={t('home.blog.eyebrow')}
@@ -103,7 +113,12 @@ export default function EditorialHighlights() {
               ))}
             </div>
           ) : (
-            <div className={styles.grid}>
+            <div
+              className={[
+                styles.grid,
+                styles[`grid--${Math.min(posts.length, POST_LIMIT)}`],
+              ].join(' ')}
+            >
               {posts.map((post) => (
                 <PostCard key={post.id} post={post} locale={locale} />
               ))}

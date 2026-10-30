@@ -11,3 +11,9 @@ export { default as AiUsageDashboardContent } from './components/AiUsageDashboar
 export { default as PartnerAiUsagePageContent } from './components/PartnerAiUsagePageContent/PartnerAiUsagePageContent.jsx';
 export { default as RecommendationsSection } from './components/RecommendationsSection/RecommendationsSection.jsx';
 export { default as PartnerAiToolsPanel } from './components/PartnerAiToolsPanel/PartnerAiToolsPanel.jsx';
+
+// Home AI discovery: Home's Ask Desavii uses the same availability check,
+// parse call and parse -> filters mapping as the Search page's AI search.
+export { default as useAiSearchAvailabilityQuery } from './queries/useAiSearchAvailabilityQuery.js';
+export { default as useParseSearchQueryMutation } from './mutations/useParseSearchQueryMutation.js';
+export { default as parsedSearchToFilters } from './utils/parsedSearchToFilters.js';

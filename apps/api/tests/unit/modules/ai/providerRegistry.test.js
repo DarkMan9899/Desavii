@@ -34,6 +34,17 @@ describe('ProviderRegistry', () => {
     expect(registry.getDefaultProvider().code).toBe('ollama');
   });
 
+  test('isModelBacked is false for the deterministic local provider and true for a real model', () => {
+    expect(new ProviderRegistry({ aiConfig: AI_CONFIG }).isModelBacked()).toBe(
+      false,
+    );
+    expect(
+      new ProviderRegistry({
+        aiConfig: { ...AI_CONFIG, defaultProvider: 'anthropic' },
+      }).isModelBacked(),
+    ).toBe(true);
+  });
+
   test('getProvider throws ExternalServiceError for an unknown code', () => {
     const registry = new ProviderRegistry({ aiConfig: AI_CONFIG });
     expect(() => registry.getProvider('does-not-exist')).toThrow(

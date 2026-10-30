@@ -2,6 +2,9 @@
  * AI module route wiring (Phase 15, BACKEND_ARCHITECTURE.md §2: route
  * wiring only, no logic). Every route is `requireAuth` + `aiRateLimiter`
  * — grows across Stages 15.1-15.6 as each feature's routes are added.
+ * The one exception is `GET /search/availability`: public (guests see the
+ * Home AI entry), it calls no model and returns only a boolean, under the
+ * platform-wide `publicRateLimiter`.
  */
 
 import { Router } from 'express';
@@ -70,6 +73,12 @@ export default function createAiRoutes({
     aiRateLimiter,
     validate(conversationIdParamsSchema),
     tripPlannerController.getById,
+  );
+
+  router.get(
+    '/search/availability',
+    validate(noopSchema),
+    aiSearchController.availability,
   );
 
   router.post(

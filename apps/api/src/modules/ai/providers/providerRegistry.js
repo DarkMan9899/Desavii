@@ -18,6 +18,8 @@ import { GeminiProvider } from './geminiProvider.js';
 import { AzureOpenAiProvider } from './azureOpenAiProvider.js';
 import { OllamaProvider } from './ollamaProvider.js';
 
+const LOCAL_PROVIDER_CODE = new LocalHeuristicProvider().code;
+
 export class ProviderRegistry {
   #providersByCode = new Map();
 
@@ -47,6 +49,16 @@ export class ProviderRegistry {
 
   getDefaultProvider() {
     return this.getProvider(this.#defaultProviderCode);
+  }
+
+  /**
+   * Whether the default provider is a real language model. The `local`
+   * provider is a deterministic stand-in (templates and keyword rules, see
+   * its own header), so features that present themselves to travellers as
+   * AI must not offer themselves while it is the default.
+   */
+  isModelBacked() {
+    return this.#defaultProviderCode !== LOCAL_PROVIDER_CODE;
   }
 }
 

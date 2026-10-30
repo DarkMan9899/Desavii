@@ -51,6 +51,11 @@ export class AiService {
     this.#maxRetries = maxRetries;
   }
 
+  /** What the AI layer can honestly offer right now — no provider names, models or keys. */
+  getStatus() {
+    return { modelBacked: this.#providerRegistry.isModelBacked() };
+  }
+
   #resolveProvider(providerCode) {
     return providerCode
       ? this.#providerRegistry.getProvider(providerCode)

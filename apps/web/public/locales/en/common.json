@@ -93,6 +93,7 @@
     "contact": "Contact",
     "blog": "Blog",
     "becomePartner": "Become a Partner",
+    "more": "More",
     "account": "My Account",
     "partner": "Partner",
     "partnerDashboard": "Partner Dashboard",
@@ -123,21 +124,19 @@
     "hero": {
       "eyebrow": "Premium travel across Armenia",
       "title": "Discover Armenia",
-      "subtitle": "Hotels, tours, restaurants and experiences — book your next trip across Armenia.",
-      "ctaPrimary": "Start exploring",
-      "ctaSecondary": "Become a partner"
+      "subtitle": "Hotels, tours, restaurants and experiences — book your next trip across Armenia."
     },
     "search": {
       "destinationLabel": "Destination",
-      "destinationPlaceholder": "Where are you going?",
-      "datesLabel": "Dates",
-      "datePlaceholder": "Add date",
-      "guestsLabel": "Guests",
-      "guestsPlaceholder": "Add guests",
-      "guestsCount": "{{count}} guests",
-      "categoryLabel": "Category",
-      "categoryAll": "All categories",
-      "submit": "Search"
+      "label": "Search Armenia",
+      "triggerTitle": "Where to in Armenia?",
+      "triggerHint": "Destination, category, dates",
+      "modes": {
+        "label": "How to search",
+        "search": "Search",
+        "ask": "Ask Desavii"
+      },
+      "askTrigger": "Ask Desavii in your own words"
     },
     "destinations": {
       "eyebrow": "Explore",
@@ -180,8 +179,8 @@
       }
     },
     "categories": {
-      "eyebrow": "Browse",
-      "title": "Categories",
+      "eyebrow": "Explore by category",
+      "title": "Stay, eat and explore",
       "listingCount": "{{count}} listings",
       "empty": {
         "title": "No categories yet",
@@ -191,7 +190,8 @@
         "title": "Couldn't load categories",
         "description": "Something went wrong while loading categories. Please try again.",
         "retry": "Try again"
-      }
+      },
+      "subtitle": "Everything you can book across Armenia, from mountain guest houses to Yerevan's tables."
     },
     "whyDesavii": {
       "eyebrow": "Why desavii",
@@ -202,17 +202,17 @@
           "title": "Verified partners",
           "description": "Every host and operator is reviewed before they can list on desavii."
         },
-        "securePayments": {
-          "title": "Secure booking",
-          "description": "Your payment details are protected at every step of checkout."
+        "trackedBookings": {
+          "title": "Bookings in one place",
+          "description": "Every booking and its status, from request to confirmation, stays in your account."
         },
-        "localExpertise": {
-          "title": "Local expertise",
-          "description": "Curated by people who know Armenia, from hidden trails to hidden menus."
+        "localPartners": {
+          "title": "Local partners",
+          "description": "Every listing comes from an Armenian host, guide or business — the people who run the place."
         },
-        "multilingualSupport": {
-          "title": "Multilingual support",
-          "description": "Get help in Armenian, Russian, or English."
+        "yourLanguage": {
+          "title": "In your language",
+          "description": "The whole site, from search to booking, in Armenian, Russian and English."
         }
       }
     },
@@ -233,6 +233,80 @@
       "next": "Next",
       "goToSlide": "Go to slide {{index}}",
       "viewAll": "View all"
+    },
+    "carousel": {
+      "roleDescription": "carousel",
+      "slideDescription": "slide",
+      "slidePosition": "{{current}} of {{total}}",
+      "previous": "Previous",
+      "next": "Next",
+      "pauseAutoplay": "Pause automatic scrolling",
+      "playAutoplay": "Play automatic scrolling"
+    },
+    "photoCredits": {
+      "title": "Photo credits",
+      "item": "{{subject}} — photo by {{author}},",
+      "source": "Wikimedia Commons",
+      "subjects": {
+        "hero-ararat": "Khor Virap and Mount Ararat",
+        "category-hotels": "Republic Square, Yerevan",
+        "category-apartments": "Kentron, Yerevan",
+        "category-villas": "Dilijan",
+        "category-guest-houses": "Areni",
+        "category-restaurants": "Armenian cuisine, Yerevan",
+        "category-tours": "Tatev Monastery",
+        "category-car-rentals": "Selim Pass",
+        "category-attractions": "Garni Temple",
+        "category-entertainment-venues": "Yerevan Opera at night",
+        "destination-yerevan": "The Cascade, Yerevan",
+        "destination-goris": "Goris",
+        "destination-gyumri": "Vardanants Square, Gyumri",
+        "destination-vanadzor": "Vanadzor",
+        "destination-sevan": "Sevanavank",
+        "destination-dilijan": "Old Dilijan",
+        "partner-landscape": "Vardenis range"
+      }
+    },
+    "ask": {
+      "inputLabel": "Describe the trip you want",
+      "placeholder": "For example: a quiet stay in Dilijan for two, with breakfast and parking",
+      "hint": {
+        "ready": "Desavii turns your words into a real search — you check it before seeing results.",
+        "signin": "Log in to ask Desavii — your request is kept while you do.",
+        "unavailable": "Ask Desavii is not switched on yet."
+      },
+      "submit": "Ask Desavii",
+      "signIn": "Log in to ask",
+      "reading": "Desavii is reading your request…",
+      "unavailable": {
+        "title": "Ask Desavii is not available yet",
+        "description": "Search by destination, category and dates works right now and finds the same real listings."
+      },
+      "useSearch": "Use Search",
+      "error": {
+        "title": "Desavii could not read that just now",
+        "description": "Your request is kept. Try again, or search with your words straight away."
+      },
+      "searchWords": "Search with these words",
+      "retry": "Try again",
+      "samplesLabel": "Try asking",
+      "samples": [
+        "A quiet stay in Dilijan for two, with breakfast and parking",
+        "Things to do in Gyumri with children this weekend",
+        "A romantic weekend outside Yerevan under 60,000 AMD"
+      ],
+      "understood": "Desavii understood",
+      "nothingMatched": "No destination or category matched exactly — Desavii will search for your words.",
+      "showResults": "Show results",
+      "refine": "Refine in Search",
+      "startOver": "Start over",
+      "remove": "Remove {{label}}",
+      "parts": {
+        "destination": "Destination",
+        "category": "Category",
+        "amenity": "Amenity",
+        "words": "Search words"
+      }
     }
   },
   "listings": {

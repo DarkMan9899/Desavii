@@ -8,6 +8,14 @@
  * matched deterministically here against `searchService.searchCategories()`
  * and `searchService.getFilterDefinitions()`, the exact same catalog
  * `GET /search/filters` already serves to `DynamicFilterPanel`.
+ *
+ * Home AI discovery (docs/HOME_REBUILD.md): the destination is resolved
+ * the same way — the query is matched against the real destinations
+ * catalog in the traveller's locale (names and slugs), so "a quiet hotel
+ * in Dilijan" becomes Dilijan's real city id, never one the model wrote.
+ * Categories are matched in that locale too, so HY/RU queries resolve.
+ * `getAvailability` tells the Home whether a real model is behind this
+ * feature at all (see `ProviderRegistry.isModelBacked`).
  */
 
 import {
@@ -30,14 +38,43 @@ export class AiSearchService {
   }
 
   /** Free-text query matched against real, existing category names — never invented (mirrors `TripPlannerService`'s interest matching). */
-  async #resolveCategory(query) {
-    const categories = await this.#searchService.searchCategories();
+  async #resolveCategory(query, locale) {
+    const categories = await this.#searchService.searchCategories(locale);
     const lowerQuery = query.toLowerCase();
     return (
       categories.find((category) =>
         lowerQuery.includes(String(category.name).toLowerCase()),
       ) ?? null
     );
+  }
+
+  /**
+   * The real destination the query names, by its localized name or its
+   * slug; the longest match wins, so a city whose name contains another's
+   * is not mistaken for it. No match yields no destination — never a guess.
+   */
+  async #resolveCity(query, locale) {
+    const destinations = await this.#searchService.searchDestinations(locale);
+    const lowerQuery = query.toLowerCase();
+    const matches = destinations
+      .map((destination) => {
+        const names = [destination.name, destination.slug]
+          .filter(Boolean)
+          .map((name) => String(name).toLowerCase())
+          .filter((name) => lowerQuery.includes(name));
+        return {
+          destination,
+          length: Math.max(0, ...names.map((n) => n.length)),
+        };
+      })
+      .filter(({ length }) => length > 0)
+      .sort((a, b) => b.length - a.length);
+    return matches[0]?.destination ?? null;
+  }
+
+  /** Whether a real language model answers this feature (the deterministic `local` provider does not count). */
+  getAvailability() {
+    return { available: this.#aiService.getStatus().modelBacked };
   }
 
   /** Matches the query against the resolved category's real amenity options (`GET /search/filters`'s own catalog) — an unmatched category yields no amenities rather than a guess. */
@@ -79,7 +116,7 @@ export class AiSearchService {
     return fallback;
   }
 
-  async parseQuery(principal, { query }) {
+  async parseQuery(principal, { query, locale }) {
     if (!principal) throw new AuthenticationError();
     const trimmed = (query ?? '').trim();
     if (!trimmed) {
@@ -88,7 +125,10 @@ export class AiSearchService {
       ]);
     }
 
-    const category = await this.#resolveCategory(trimmed);
+    const [category, city] = await Promise.all([
+      this.#resolveCategory(trimmed, locale),
+      this.#resolveCity(trimmed, locale),
+    ]);
     const amenityIds = await this.#resolveAmenityIds(
       trimmed,
       category?.id ?? null,
@@ -109,6 +149,8 @@ export class AiSearchService {
       keyword,
       categoryId: category?.id ?? null,
       categoryName: category?.name ?? null,
+      cityId: city?.id ?? null,
+      cityName: city?.name ?? null,
       amenityIds,
       providerCode,
       cacheHit,

@@ -2,6 +2,7 @@
 
 @use 'tokens' as tokens;
 @use 'mixins/focus-ring' as focus;
+@use 'mixins/respond' as respond;
 
 .footer {
   background-color: tokens.$color-gray-100;
@@ -10,12 +11,20 @@
 }
 
 .columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: tokens.$space-8 tokens.$space-6;
   margin-bottom: tokens.$space-8;
+
+  @include respond.respond(tablet) {
+    grid-template-columns: repeat(var(--footer-columns), minmax(0, 1fr));
+    gap: tokens.$space-8;
+  }
 }
 
 .columnTitle {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: tokens.$font-size-small;
   font-weight: 700;
   color: tokens.$color-gray-900;
 }
@@ -28,10 +37,10 @@
 
 .link {
   display: inline-flex;
-  min-height: 32px;
+  min-height: tokens.$button-height-sm;
   align-items: center;
   color: tokens.$color-gray-600;
-  font-size: 0.875rem;
+  font-size: tokens.$font-size-small;
   text-decoration: none;
   @include focus.focus-ring;
 

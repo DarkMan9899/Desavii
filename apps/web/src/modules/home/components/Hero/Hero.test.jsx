@@ -1,29 +1,38 @@
-import { describe, test, expect, vi } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Hero from './Hero.jsx';
 import {
   useCategoriesQuery,
-  useSuggestionsQuery,
+  useDestinationsQuery,
 } from '../../../search/index.js';
 
-// Hero composes SearchWidget, which now depends on the real `search`
-// module's query hooks (categories dropdown + destination autocomplete)
-// — mocked here since this test only exercises Hero's own composition,
-// not data-fetching (covered by SearchWidget.test.jsx/Categories.test.jsx).
-vi.mock('../../../search/index.js', async (importOriginal) => {
-  const actual = await importOriginal();
-  return {
-    ...actual,
-    useCategoriesQuery: vi.fn(),
-    useSuggestionsQuery: vi.fn(),
-  };
-});
+// Hero composes HomeSearch, which reads the real `search` catalogs —
+// mocked here; the search behaviour itself is covered by HomeSearch's own
+// tests.
+vi.mock('../../../search/index.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useCategoriesQuery: vi.fn(),
+  useDestinationsQuery: vi.fn(),
+  useSearchFilterDefinitionsQuery: () => ({ data: [] }),
+}));
+// Ask Desavii's data hooks (covered by HomeSearch's and useAskDesavii's own
+// tests): AI off, a guest.
+vi.mock('../../../ai/index.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useAiSearchAvailabilityQuery: () => ({ isPending: false, data: false }),
+  useParseSearchQueryMutation: () => ({ mutate: () => {}, reset: () => {} }),
+}));
+vi.mock('../../../../contexts/AuthContext.jsx', () => ({
+  useAuth: () => ({ isAuthenticated: false }),
+}));
+
+// jsdom has no layout; render the search as it appears from tablet up.
+vi.mock('../../../../hooks/useMediaQuery.js', () => ({
+  default: () => true,
+}));
 
 function renderHero() {
-  useCategoriesQuery.mockReturnValue({ data: [], isPending: false });
-  useSuggestionsQuery.mockReturnValue({ data: [], isPending: false });
   return render(
     <MemoryRouter initialEntries={['/en']}>
       <Routes>
@@ -34,35 +43,39 @@ function renderHero() {
 }
 
 describe('Hero (apps/web/src/modules/home)', () => {
+  beforeEach(() => {
+    useCategoriesQuery.mockReturnValue({ data: [], isPending: false });
+    useDestinationsQuery.mockReturnValue({ data: [], isPending: false });
+  });
+
   test('renders the headline as the page level-1 heading', () => {
     renderHero();
-    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Բացահայտեք Հայաստանը' }),
+    ).toBeInTheDocument();
   });
 
-  test('renders a link to the public partner onboarding entry point', () => {
+  test('renders the search entry', () => {
     renderHero();
-    const partnerLink = screen
-      .getAllByRole('link')
-      .find((link) => link.getAttribute('href') === '/en/become-a-partner');
-    expect(partnerLink).toBeInTheDocument();
+    expect(
+      screen.getByRole('search', { name: 'Որոնել Հայաստանում' }),
+    ).toBeInTheDocument();
   });
 
-  test('renders the search widget', async () => {
-    const user = userEvent.setup();
-    renderHero();
-    // The dock renders collapsed by default (SearchWidget.jsx) — expand
-    // it via its trigger before the submit control exists in the DOM.
-    await user.click(screen.getByRole('button', { name: 'Ո՞ւր եք գնում' }));
-    expect(screen.getByRole('button', { name: /Որոնել/ })).toBeInTheDocument();
-  });
-
-  test('hides the decorative depth scene from assistive technology', () => {
-    renderHero();
-    // Redesign phase (2026) — the procedural terrain scene (SVG ridge
-    // layers, light glow, floating particles) replaced the old single
-    // `<img>` backdrop; the whole scene wrapper carries `aria-hidden`
-    // instead of one image's `alt=""`.
-    const scene = document.querySelector('[aria-hidden="true"] svg');
-    expect(scene?.closest('[aria-hidden="true"]')).toBeInTheDocument();
+  // The photo is the page's largest paint: loaded at once with high
+  // priority, as responsive AVIF/WebP, and decorative (the heading says
+  // what the page is).
+  test('the hero photo loads first, responsively, and is hidden from assistive technology', () => {
+    const { container } = renderHero();
+    const image = container.querySelector('picture img');
+    expect(image).toHaveAttribute('loading', 'eager');
+    expect(image).toHaveAttribute('fetchpriority', 'high');
+    expect(image).toHaveAttribute('alt', '');
+    expect(image.closest('[aria-hidden="true"]')).not.toBeNull();
+    expect(
+      container
+        .querySelector('source[type="image/avif"]')
+        .getAttribute('srcset'),
+    ).toMatch(/hero-ararat-\d+\.avif \d+w/);
   });
 });

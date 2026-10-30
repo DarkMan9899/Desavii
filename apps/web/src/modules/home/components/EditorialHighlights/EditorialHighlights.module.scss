@@ -1,27 +1,60 @@
 // EditorialHighlights — tokens only, consumed from @desavii/ui.
 
 @use 'tokens' as tokens;
+@use 'mixins/focus-ring' as focus;
 @use 'mixins/respond' as respond;
 
 .section {
   padding-block: tokens.$space-4;
 }
 
-// Matches ListingGrid/BlogPageContent's breakpoint scale — a fixed
-// `<Grid columns={3}>` pins that column count at every breakpoint by
-// design (see Grid.jsx), which squeezed these 3 cards into a clipped
-// single row on mobile.
+// One column on a phone; from tablet the layout follows the post count —
+// one post becomes a wide feature card (cover beside the story), two or
+// three share a row.
 .grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: tokens.$space-6;
+  margin-top: tokens.$space-8;
+}
 
-  @include respond.respond(mobile-large) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
+.grid--2 {
   @include respond.respond(tablet) {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.grid--3 {
+  @include respond.respond(tablet) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.grid--1 .card {
+  @include respond.respond(tablet) {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+  }
+}
+
+.grid--1 .cover {
+  @include respond.respond(tablet) {
+    aspect-ratio: auto;
+    min-height: 100%;
+  }
+}
+
+.grid--1 .body {
+  @include respond.respond(tablet) {
+    justify-content: center;
+    padding: tokens.$space-8;
+  }
+}
+
+.grid--1 .title {
+  @include respond.respond(tablet) {
+    font-size: tokens.$font-size-h2;
+    line-height: tokens.$line-height-h2;
   }
 }
 
@@ -41,8 +74,12 @@
 
   &:hover,
   &:focus-visible {
-    transform: translateY(-4px);
+    transform: translateY(calc(-1 * #{tokens.$space-1}));
     @include tokens.elevation-3;
+  }
+
+  &:focus-visible {
+    @include focus.focus-ring;
   }
 }
 
@@ -64,6 +101,15 @@
 .card:hover .cover img,
 .card:focus-visible .cover img {
   transform: scale(1.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card:hover,
+  .card:focus-visible,
+  .card:hover .cover img,
+  .card:focus-visible .cover img {
+    transform: none;
+  }
 }
 
 .coverFallback {
@@ -101,5 +147,5 @@
   margin-block-start: tokens.$space-1;
   font-size: tokens.$font-size-small;
   font-weight: 600;
-  color: tokens.$color-gold;
+  color: tokens.$color-royal-blue;
 }

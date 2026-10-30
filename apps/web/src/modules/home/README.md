@@ -5,59 +5,63 @@ Module Architecture) for this module's dependency rules, and the
 corresponding `API_SPECIFICATION.md` module for the endpoints it
 consumes.
 
-**Phase 3 status (Premium Homepage):** implemented. The Homepage is now
-the full marketplace landing page — Hero (with the search widget),
-Featured Destinations, Featured Listings, Popular Experiences,
-Categories, Why Desavii, Become a Partner CTA, and Testimonials —
-composed in `pages/HomePage.jsx` from this module's public export
-surface (`index.js`). Phase 1's `FeaturedListings` is unchanged in
-behavior, just re-styled to match the rest of the page (shared
-`SectionHeader`/`ScrollReveal`) and linked to the listing detail route.
+**Status:** the public Home page, rebuilt as an image-led discovery page
+— see [docs/HOME_REBUILD.md](../../../../../docs/HOME_REBUILD.md) for the
+audit, bug ledger, design contract and motion system, and
+[docs/HOME_IMAGE_SOURCES.md](../../../../../docs/HOME_IMAGE_SOURCES.md)
+for every photo's source and licence.
 
-P1.6 (Master Roadmap) audited every section for fabricated data: Featured
-Destinations and Popular Experiences were rewired to real endpoints (see
-below), and the Newsletter section — a form that took a real email
-address and showed a fake "subscribed" success state with no backend to
-back it — was removed outright rather than left as a dishonest
-placeholder (no minimal real subscribe capability was in scope this
-phase; `hooks/useNewsletterSubscribe.js` is gone).
+`pages/HomePage.jsx` composes, in order: Hero (with search) →
+Categories → Featured listings → Destinations → New on desavii → Why
+desavii → Editorial → Partner CTA → Photo credits.
 
-Real vs. placeholder content:
+## Data — everything shown is real
 
-- **Real, API-backed:** Featured Listings, Featured Destinations, and
-  Popular Experiences (all via `useSearchListingsQuery`/
-  `useDestinationsQuery`/`SearchResultCard`/`DestinationCard`, the
-  `search` module's public export — Popular Experiences filters to the
-  real `TOUR` listing type).
-- **Real, not API-backed:** Categories (derived from the existing
-  `listings.type` enum — a real taxonomy, just not filterable via the
-  Search page yet).
-- **Disclosed placeholder** (no corresponding API exists this phase —
-  see the file's own header comment): Testimonials (`constants/`) —
-  explicitly labeled as illustrative via its own `disclosure` copy,
-  never presented as real user quotes.
+- **Search (Hero):** `useHomeSearch` drives the Search page's own
+  `PrimarySearchFields` with the Search page's own rules
+  (`useSearchDraft`, `normalizeSearchFilters`, `buildSearchParams`), so
+  submitting from Home opens exactly the `/search` URL the Search page
+  would build. There is no second search implementation.
+- **Ask Desavii (Hero, second tab):** `useAskDesavii` sends the
+  traveller's own words to the existing AI search parse, shows what was
+  understood (real destination/category/amenity ids from the catalog) as
+  removable chips, and opens the same `/search` URL — or fills the fields.
+  It is offered only when a real model answers (`GET
+/ai/search/availability`); otherwise it says so and hands over to
+  Search. See [docs/AI_DISCOVERY.md](../../../../../docs/AI_DISCOVERY.md).
+- **Categories:** `GET /search/categories`; the lead tile is the
+  category with the most live listings.
+- **Featured listings:** paid TOP placements
+  (`usePublicHomeFeaturedQuery`, badged as such).
+- **Destinations:** `GET /search/destinations`, top six by listings.
+- **New on desavii:** `GET /search?sort=newest`.
+- **Editorial:** published Blog posts; the section hides when there are
+  none.
+- **Why desavii:** four static statements, each true of the product
+  today (no figures, ratings or awards).
 
-Imagery: local, hand-authored SVG illustrations
-(`apps/web/src/assets/images`), not photographs — no image asset
-pipeline exists in this codebase yet. Centralized in one barrel so
-swapping in real production photography later touches that folder only.
+## Imagery
+
+Free-licence, Armenia-specific photographs (Wikimedia Commons), stored
+locally in `apps/web/src/assets/images/home/` as responsive AVIF + WebP.
+`constants/homeImages.js` maps each key to its sources, aspect ratio and
+licence credit; `HomePicture` renders it. A category or destination
+without a photo falls back to its icon panel / generated art, never to a
+picture of somewhere else. Replacing a photo means dropping new files
+under the same key — no component changes.
 
 ## Folder contents (per FRONTEND_ARCHITECTURE.md §3.2 / §6.2)
 
 - `components/` — module-owned UI, composing `@desavii/ui` primitives.
-  Only the sections `pages/HomePage.jsx` composes directly
-  (Hero/FeaturedDestinations/FeaturedListings/PopularExperiences/
-  Categories/WhyDesavii/PartnerCta/Testimonials) are exported from
-  `index.js`; every card component and the shared
-  `SectionHeader`/`ScrollReveal`/`SearchWidget` building blocks stay
-  module-private per §6.3's cross-module rule, promoted to `components/`
-  or `@desavii/ui` only once a second module needs one.
-- `queries/` — React Query query definitions (Ch. 14)
-- `mutations/` — React Query mutation definitions (Ch. 14)
-- `schemas/` — React Hook Form validation schemas (Ch. 15)
-- `utils/` — module-specific pure helpers
-- `constants/` — placeholder datasets and other structural (non-text)
-  data; localized copy for all of it lives in translations under
-  `home.*`, never hardcoded here
+  Only the sections `pages/HomePage.jsx` composes are exported from
+  `index.js`; the building blocks (`HomeSearch`, `AskDesavii`,
+  `ActionLink`, `HomeCarousel`,
+  `HomePicture`, `SectionHeader`, `ScrollReveal`, the cards) stay
+  module-private. `Showcase` is no longer used on Home; it stays for
+  `discovery`'s category pages.
+- `hooks/` — `useHomeSearch` (Home's search state and submit) and
+  `useAskDesavii` (AI-assisted discovery).
+- `constants/` — structural (non-text) data: the photo manifest and the
+  Why desavii icon pairing. Copy lives in translations under `home.*`.
 - `index.js` — this module's public export surface (Ch. 6.2) — the ONLY
   entry point other modules may import from (Ch. 6.3's cross-module rule)

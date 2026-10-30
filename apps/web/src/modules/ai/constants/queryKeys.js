@@ -8,6 +8,7 @@ const aiKeys = {
   memory: () => [...aiKeys.all, 'memory'],
   tripPlan: (conversationId) => [...aiKeys.all, 'trip-planner', conversationId],
   recommendations: () => [...aiKeys.all, 'recommendations'],
+  searchAvailability: () => [...aiKeys.all, 'search', 'availability'],
 };
 
 export default aiKeys;

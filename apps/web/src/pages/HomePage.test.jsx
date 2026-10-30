@@ -5,7 +5,6 @@ import HomePage from './HomePage.jsx';
 import {
   useCategoriesQuery,
   useDestinationsQuery,
-  useSuggestionsQuery,
   useSearchListingsQuery,
 } from '../modules/search/index.js';
 import { usePublicHomeFeaturedQuery } from '../modules/advertising/index.js';
@@ -21,10 +20,21 @@ vi.mock('../modules/search/index.js', async (importOriginal) => {
     ...actual,
     useCategoriesQuery: vi.fn(),
     useDestinationsQuery: vi.fn(),
-    useSuggestionsQuery: vi.fn(),
     useSearchListingsQuery: vi.fn(),
+    useSearchFilterDefinitionsQuery: () => ({ data: [] }),
   };
 });
+
+// Home AI discovery: Ask Desavii's availability check and parse call (AI
+// off here), and the visitor (a guest).
+vi.mock('../modules/ai/index.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useAiSearchAvailabilityQuery: () => ({ isPending: false, data: false }),
+  useParseSearchQueryMutation: () => ({ mutate: () => {}, reset: () => {} }),
+}));
+vi.mock('../contexts/AuthContext.jsx', () => ({
+  useAuth: () => ({ isAuthenticated: false }),
+}));
 
 // Sprint E: FeaturedListings now sources its cards from the Promotion
 // Engine's public Home-featured endpoint rather than a plain listings
@@ -73,7 +83,6 @@ describe('HomePage (apps/web/src/pages)', () => {
       isPending: false,
       isError: false,
     });
-    useSuggestionsQuery.mockReturnValue({ data: [], isPending: false });
     usePublicHomeFeaturedQuery.mockReturnValue({ data: [], isPending: false });
     usePublicPostsQuery.mockReturnValue({
       data: { data: [{ id: 1, slug: 'a-post', title: 'A post', excerpt: '' }] },
@@ -91,14 +100,11 @@ describe('HomePage (apps/web/src/pages)', () => {
     expect(
       screen.getAllByRole('heading', { level: 2 }).length,
     ).toBeGreaterThanOrEqual(7);
-    // The search widget mounts without crashing — its fields only mount
-    // once its compact trigger is activated (SearchWidget.jsx), covered
-    // by SearchWidget.test.jsx itself; this just confirms the collapsed
-    // dock is present as part of the real page composition.
+    // The Search page's own fields mount as part of the page; jsdom renders
+    // the phone layout, where one button opens them in a sheet (covered by
+    // HomeSearch.test.jsx).
     expect(
-      screen.getByRole('button', {
-        name: /Where are you going|Ո՞ւր եք գնում|Куда вы едете/,
-      }),
-    ).toBeInTheDocument();
+      screen.getByRole('button', { name: /Ո՞ւր եք գնում Հայաստանում/ }),
+    ).toHaveAttribute('aria-haspopup', 'dialog');
   });
 });

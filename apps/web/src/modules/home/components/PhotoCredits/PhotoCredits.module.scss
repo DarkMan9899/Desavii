@@ -1,0 +1,52 @@
+// PhotoCredits — tokens only. Small secondary text just above the footer;
+// two columns of credits from tablet once opened.
+
+@use 'tokens' as tokens;
+@use 'mixins/focus-ring' as focus;
+@use 'mixins/respond' as respond;
+
+.wrapper {
+  padding-block: tokens.$space-6 tokens.$space-8;
+}
+
+.credits {
+  font-size: tokens.$font-size-micro;
+  line-height: tokens.$line-height-micro;
+  color: tokens.$color-gray-600;
+}
+
+.summary {
+  display: inline-flex;
+  min-height: tokens.$button-height-sm;
+  align-items: center;
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  color: tokens.$color-gray-600;
+  cursor: pointer;
+  border-radius: tokens.$radius-sm;
+
+  &:focus-visible {
+    @include focus.focus-ring;
+  }
+}
+
+.list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: tokens.$space-2 tokens.$space-8;
+  padding: 0;
+  margin: tokens.$space-3 0 0;
+  list-style: none;
+
+  @include respond.respond(tablet) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  a {
+    color: tokens.$color-royal-blue;
+  }
+}
+
+.item {
+  overflow-wrap: anywhere;
+}

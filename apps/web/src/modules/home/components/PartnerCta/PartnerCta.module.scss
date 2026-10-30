@@ -1,112 +1,78 @@
-// PartnerCta — tokens only, consumed from @desavii/ui.
-//
-// Redesign phase (2026) — the homepage's "cinematic final chapter,"
-// deliberately echoing Hero's own scene family (the same deep sky
-// gradient, a faint ring motif, grain) rather than introducing a fourth
-// unrelated dark treatment (Popular Experiences already has its own) —
-// closing the page on the same visual identity it opened on. Still safe
-// for Button's `primary` variant only (a self-contained solid fill),
-// never `secondary`/`ghost` (styled for a light background only — see
-// Hero.jsx's own header comment for where that distinction matters).
+// PartnerCta — tokens only. A rounded photo banner; a navy wash from the
+// start edge carries the text. Stacked on a phone, text and link side by
+// side from laptop.
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
-@use 'mixins/grain' as grain;
 
 .banner {
   position: relative;
-  overflow: hidden;
-  isolation: isolate;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  gap: tokens.$space-8;
-  padding: tokens.$space-16 tokens.$space-6;
+  gap: tokens.$space-6;
+  align-items: flex-start;
+  overflow: hidden;
+  padding: tokens.$space-8 tokens.$space-6;
+  color: tokens.$color-white;
+  isolation: isolate;
+  background: tokens.$color-navy;
   border-radius: tokens.$radius-xl;
-  background: linear-gradient(
-    160deg,
-    #060f1c 0%,
-    tokens.$color-navy 45%,
-    tokens.$color-royal-blue 100%
-  );
-  text-align: center;
-  @include tokens.elevation-3;
 
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background: radial-gradient(
-      55% 65% at 88% 12%,
-      rgba(tokens.$color-gold, 0.22) 0%,
-      rgba(tokens.$color-gold, 0) 100%
-    );
-  }
-
-  &::before {
-    z-index: 0;
-    @include grain.grain-overlay(0.04);
+  @include respond.respond(tablet) {
+    padding: tokens.$space-12;
   }
 
   @include respond.respond(laptop) {
     flex-direction: row;
-    text-align: left;
-    padding: tokens.$space-24 tokens.$space-16;
+    gap: tokens.$space-12;
+    align-items: center;
+    justify-content: space-between;
+    padding: tokens.$space-16;
   }
 }
 
-// A faint echo of the Hero portal's own concentric rings — the same
-// motif closing the page it opened on, kept small/quiet enough to read
-// as a signature rather than a second focal object competing with the
-// headline and CTA.
-.ringEcho {
+.media {
   position: absolute;
-  top: 50%;
-  right: -8%;
+  inset: 0;
   z-index: -1;
-  width: min(60vw, 420px);
-  aspect-ratio: 1;
-  transform: translateY(-50%);
-  opacity: 0.35;
-  pointer-events: none;
 
-  circle {
-    fill: none;
-    stroke: rgba(255, 255, 255, 0.16);
-    stroke-width: 1;
-  }
-
-  circle:nth-child(2) {
-    stroke: rgba(201, 162, 75, 0.3);
-    stroke-dasharray: 2 10;
+  &::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+    background: linear-gradient(
+      to right,
+      rgba(tokens.$color-navy, 0.94) 0%,
+      rgba(tokens.$color-navy, 0.75) 50%,
+      rgba(tokens.$color-navy, 0.35) 100%
+    );
   }
 }
 
 .text {
   display: flex;
   flex-direction: column;
-  gap: tokens.$space-2;
-  max-width: 560px;
+  gap: tokens.$space-3;
+  max-width: tokens.$modal-width-lg;
 }
 
 .title {
   margin: 0;
-  // The editorial display face — "cinematic final chapter" needs the
-  // same weight of typographic drama the Hero opened with, not a
-  // functional-UI heading in a dark box.
   font-family: tokens.$font-display;
-  font-weight: 800;
-  font-size: clamp(#{tokens.$font-size-h2}, 4vw, 48px);
-  line-height: 1.1;
-  letter-spacing: -0.005em;
+  font-size: tokens.$font-size-h2;
+  line-height: tokens.$line-height-h2;
   color: tokens.$color-white;
+  text-wrap: balance;
 }
 
 .description {
   margin: 0;
   font-size: tokens.$font-size-body-large;
   line-height: tokens.$line-height-body-large;
-  color: tokens.$color-gray-100;
+  color: rgba(tokens.$color-white, 0.85);
+}
+
+.cta {
+  position: relative;
+  flex-shrink: 0;
 }

@@ -87,6 +87,22 @@ test('Home page has no serious/critical accessibility violations', async ({
   expect(violations, JSON.stringify(violations, null, 2)).toEqual([]);
 });
 
+// Home rebuild: on a phone the search fields live in a sheet — scanned
+// open, so the dialog and its fields are covered too.
+test('Home page at phone width, search sheet open, has no serious/critical accessibility violations', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/en');
+  const pageViolations = await seriousOrCriticalViolations(page);
+  expect(pageViolations, JSON.stringify(pageViolations, null, 2)).toEqual([]);
+
+  await page.getByRole('button', { name: /Where to in Armenia/ }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  const sheetViolations = await seriousOrCriticalViolations(page);
+  expect(sheetViolations, JSON.stringify(sheetViolations, null, 2)).toEqual([]);
+});
+
 test('Search page has no serious/critical accessibility violations', async ({
   page,
 }) => {

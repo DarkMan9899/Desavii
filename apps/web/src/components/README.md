@@ -36,11 +36,26 @@ import Header from '../components/Header/Header.jsx';
 />;
 ```
 
+A `navItems` entry may also be a dropdown group,
+`{ label, items: [{ label, to }] }`, rendered as a `Popover` menu.
+
+**Layout:** below Laptop the nav and `actions` collapse into the
+hamburger-triggered `MobileNav` drawer. From Laptop up the nav is a
+"priority+" row (`Header/usePriorityNav.js`): the leading items that fit
+stay in the row and the rest move, in order, into a trailing "More"
+(`nav.more`) menu, where an overflowed dropdown group appears as a
+labelled group of its links. Fit is measured live (viewport, locale,
+signed-in actions, late font loads) against a hidden, `aria-hidden`
+copy of the row, so the row never overlaps the `actions` and the
+actions are never hidden — order `navItems` by priority, most important
+first.
+
 **Accessibility notes:** renders `<header>` (the `banner` landmark) with
 a `<nav aria-label="Primary">` for `navItems` — omitted entirely (no
 empty landmark) when `navItems` is empty. Every link meets the 44px
 minimum touch-target height. Uses `@desavii/ui`'s `focus-ring()` mixin
-throughout.
+throughout. A link moved into "More" is not rendered in the row, so it
+is reachable exactly once — inside the menu.
 
 ## Footer
 

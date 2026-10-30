@@ -1,0 +1,75 @@
+// SearchModeTabs — tokens only. Two text tabs on the panel's top edge,
+// the active one marked by a royal-blue bar that grows in (transform only)
+// and navy text; the Ask Desavii sparkle is the panel's one gold mark.
+
+@use 'tokens' as tokens;
+@use 'mixins/focus-ring' as focus;
+
+.tabs {
+  display: flex;
+  gap: tokens.$space-6;
+  margin-block-end: tokens.$space-4;
+  border-block-end: 1px solid tokens.$color-gray-200;
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  gap: tokens.$space-2;
+  align-items: center;
+  min-height: tokens.$button-height-md;
+  padding: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-body;
+  font-weight: 700;
+  color: tokens.$color-gray-600;
+  white-space: nowrap;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  transition: color tokens.$motion-micro tokens.$ease-out;
+
+  &::after {
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: -1px;
+    height: 2px;
+    content: '';
+    background: tokens.$color-royal-blue;
+    border-radius: tokens.$radius-full;
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform tokens.$motion-transition tokens.$ease-out;
+  }
+
+  &:hover {
+    color: tokens.$color-navy;
+  }
+
+  &[aria-selected='true'] {
+    color: tokens.$color-navy;
+
+    &::after {
+      transform: scaleX(1);
+    }
+  }
+
+  &:focus-visible {
+    @include focus.focus-ring;
+  }
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.tab--ask .icon {
+  color: tokens.$color-gold-strong;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab,
+  .tab::after {
+    transition: none;
+  }
+}

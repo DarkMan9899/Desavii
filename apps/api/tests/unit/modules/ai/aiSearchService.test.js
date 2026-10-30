@@ -30,6 +30,11 @@ function buildService(overrides = {}) {
       { id: 6, name: 'Apartments' },
     ]),
     getFilterDefinitions: jest.fn().mockResolvedValue(FILTER_GROUPS),
+    searchDestinations: jest.fn().mockResolvedValue([
+      { id: 1, slug: 'yerevan', name: 'Yerevan' },
+      { id: 4, slug: 'dilijan', name: 'Դիլիջան' },
+      { id: 9, slug: 'sevan', name: 'Sevan' },
+    ]),
     ...overrides.searchService,
   };
   const aiService = {
@@ -41,6 +46,7 @@ function buildService(overrides = {}) {
       providerCode: 'local',
       cacheHit: false,
     }),
+    getStatus: jest.fn().mockReturnValue({ modelBacked: true }),
     ...overrides.aiService,
   };
   const service = new AiSearchService({ searchService, aiService });
@@ -110,6 +116,58 @@ describe('AiSearchService', () => {
       query: 'hotels with a pool in yerevan',
     });
     expect(result.keyword).toBe('Cozy hotels with a pool near Yerevan');
+  });
+
+  // Home AI discovery: the destination comes from the real catalog, in the
+  // traveller's locale, by name or slug — never from the model's text.
+  test('resolves the destination the query names against the real destinations catalog', async () => {
+    const { service, searchService } = buildService();
+    const result = await service.parseQuery(PRINCIPAL, {
+      query: 'Հանգիստ հյուրանոց Դիլիջանում երկու հոգու համար',
+      locale: 'hy',
+    });
+    expect(searchService.searchDestinations).toHaveBeenCalledWith('hy');
+    expect(searchService.searchCategories).toHaveBeenCalledWith('hy');
+    expect(result).toMatchObject({ cityId: 4, cityName: 'Դիլիջան' });
+  });
+
+  test('matches a destination written in Latin letters by its slug', async () => {
+    const { service } = buildService();
+    const result = await service.parseQuery(PRINCIPAL, {
+      query: 'quiet stay in dilijan for two',
+    });
+    expect(result.cityId).toBe(4);
+  });
+
+  test('prefers the longest destination match, and invents none when nothing matches', async () => {
+    const { service } = buildService({
+      searchService: {
+        searchDestinations: jest.fn().mockResolvedValue([
+          { id: 9, slug: 'sevan', name: 'Sevan' },
+          { id: 12, slug: 'lake-sevan', name: 'Lake Sevan' },
+        ]),
+      },
+    });
+    const named = await service.parseQuery(PRINCIPAL, {
+      query: 'a cabin at lake sevan',
+    });
+    expect(named.cityId).toBe(12);
+    const unnamed = await service.parseQuery(PRINCIPAL, {
+      query: 'somewhere quiet in the mountains',
+    });
+    expect(unnamed).toMatchObject({ cityId: null, cityName: null });
+  });
+
+  test('is available only when a real model answers (the local stand-in does not count)', () => {
+    const { service } = buildService({
+      aiService: {
+        getStatus: jest.fn().mockReturnValue({ modelBacked: false }),
+      },
+    });
+    expect(service.getAvailability()).toEqual({ available: false });
+    expect(buildService().service.getAvailability()).toEqual({
+      available: true,
+    });
   });
 
   test('calls the AI gateway with the SEARCH_PARSE feature code, never a provider directly', async () => {

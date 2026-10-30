@@ -18,10 +18,11 @@ import { Input } from '@desavii/ui/components/form-controls';
 import { Button } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import { useParseSearchQueryMutation } from '../../mutations/useParseSearchQueryMutation.js';
+import parsedSearchToFilters from '../../utils/parsedSearchToFilters.js';
 import styles from './AiSearchBar.module.scss';
 
 export default function AiSearchBar({ onApply }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [query, setQuery] = useState('');
   const mutation = useParseSearchQueryMutation();
 
@@ -29,24 +30,14 @@ export default function AiSearchBar({ onApply }) {
     event.preventDefault();
     const trimmed = query.trim();
     if (!trimmed) return;
-    mutation.mutate(trimmed, {
-      onSuccess: (response) => {
-        const {
-          keyword,
-          category_id: categoryId,
-          amenity_ids: amenityIds = [],
-        } = response.data;
-        onApply(
-          {
-            destination: keyword,
-            categoryId: categoryId ?? undefined,
-            dynamicFilters:
-              amenityIds.length > 0 ? { amenityIds: amenityIds.join(',') } : {},
-          },
-          { replace: false },
-        );
+    mutation.mutate(
+      { query: trimmed, locale: i18n.language },
+      {
+        onSuccess: (response) => {
+          onApply(parsedSearchToFilters(response.data), { replace: false });
+        },
       },
-    });
+    );
   }
 
   return (
@@ -74,9 +65,11 @@ export default function AiSearchBar({ onApply }) {
               : t('search.aiSearch.submit')}
           </Button>
         </Inline>
+        {/* Always the localized message — a server or provider error text
+            is never shown to the traveller. */}
         {mutation.isError && (
           <span role="alert" className={styles.error}>
-            {mutation.error?.message ?? t('search.aiSearch.error')}
+            {t('search.aiSearch.error')}
           </span>
         )}
       </Stack>

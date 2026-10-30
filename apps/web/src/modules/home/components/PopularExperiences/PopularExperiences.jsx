@@ -1,50 +1,28 @@
 /**
- * PopularExperiences — real published listings, newest first (`GET
- * /search`, `sort=newest`, no `listingType` filter — see
- * `searchParams.js`'s `toSearchQueryParams`), presented as a premium
- * showcase carousel (`Showcase`). Mirrors `FeaturedListings.jsx`'s exact
- * data-fetching and state-handling pattern (loading/empty/error before
- * content).
+ * PopularExperiences — "New on desavii": the most recently published
+ * listings of every category (`GET /search?sort=newest`), so a returning
+ * visitor sees what is new. The heading says "new", never "popular" — the
+ * order is publication date, not demand.
  *
- * P1.6 (Master Roadmap): replaces the previous version, which rendered
- * six fully fabricated ratings/review counts/prices
- * (`constants/experiences.js`, now deleted) as if they were real.
- *
- * Sprint K: was `listingType: 'TOUR'` only. `GET /search` accepts one
- * `listingType` per request, so a single query can't span multiple types
- * — but the section doesn't need to: dropping the filter entirely (still
- * one simple, deterministic query, not a recommendation engine) surfaces
- * a genuinely heterogeneous slice of the catalog — hotels, tours,
- * restaurants, car rentals, attractions, entertainment venues — which
- * `FeaturedListings` (paid TOP placements only) and `Categories`
- * (taxonomy, not listings) don't. `sort=newest` also means this is the
- * one section of Home that visibly reflects freshly published listings.
- *
- * Redesign phase (2026) — this section's own scene identity within the
- * page-wide depth system: a dark cinematic panel (`SectionHeader
- * tone="dark"`), a giant low-opacity display-face word behind the
- * heading, and a route/path SVG — the same visual family as Hero's own
- * portal (route-line arcs), reused here at a much smaller scale rather
- * than invented fresh, so it still reads as "this app's" motif and not
- * a one-off illustration.
+ * Home rebuild (docs/HOME_REBUILD.md): same data and card
+ * (`SearchResultCard`); the dark decorative panel is gone and the row is
+ * `HomeCarousel`, on a soft surface band that separates it from the
+ * featured row above.
  */
 
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import { Section } from '@desavii/ui/components/layout';
-import {
-  Skeleton,
-  EmptyState,
-  Alert,
-} from '@desavii/ui/components/feedback-overlays';
+import { Container, Section } from '@desavii/ui/components/layout';
+import { EmptyState, Alert } from '@desavii/ui/components/feedback-overlays';
 import {
   useSearchListingsQuery,
   SearchResultCard,
 } from '../../../search/index.js';
-import SectionHeader from '../SectionHeader/SectionHeader.jsx';
-import Showcase from '../Showcase/Showcase.jsx';
-import ScrollReveal from '../ScrollReveal/ScrollReveal.jsx';
 import { PLACEMENTS } from '../../../../analytics/index.js';
+import SectionHeader from '../SectionHeader/SectionHeader.jsx';
+import HomeCarousel from '../HomeCarousel/HomeCarousel.jsx';
+import ActionLink from '../ActionLink/ActionLink.jsx';
+import ScrollReveal from '../ScrollReveal/ScrollReveal.jsx';
 import styles from './PopularExperiences.module.scss';
 
 const HEADING_ID = 'popular-experiences-heading';
@@ -56,51 +34,50 @@ export default function PopularExperiences() {
     { sort: 'newest' },
     { locale },
   );
-  const experiences = data?.pages[0]?.results ?? [];
+  const listings = data?.pages[0]?.results ?? [];
+
+  // The row shows its link beside the controls; without a row (error,
+  // empty) the heading keeps it.
+  const renderHeader = (withLink) => (
+    <SectionHeader
+      id={HEADING_ID}
+      eyebrow={t('home.experiences.eyebrow')}
+      title={t('home.experiences.title')}
+      subtitle={t('home.experiences.subtitle')}
+      viewAllHref={withLink ? `/${locale}/search` : undefined}
+      viewAllLabel={withLink ? t('home.showcase.viewAll') : undefined}
+    />
+  );
+  const action = (
+    <ActionLink href={`/${locale}/search`}>
+      {t('home.showcase.viewAll')}
+    </ActionLink>
+  );
 
   return (
-    <Section aria-labelledby={HEADING_ID}>
-      <ScrollReveal variant="depth" className={styles.panel}>
-        <p className={styles.backgroundWord} aria-hidden="true">
-          {t('home.experiences.title')}
-        </p>
-        <svg
-          className={styles.routeGraphic}
-          viewBox="0 0 800 200"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path
-            className={styles.routePath}
-            d="M-20,150 C160,40 320,220 500,90 C620,4 700,120 820,60"
-            fill="none"
-          />
-        </svg>
-        <SectionHeader
-          id={HEADING_ID}
-          tone="dark"
-          eyebrow={t('home.experiences.eyebrow')}
-          title={t('home.experiences.title')}
-          subtitle={t('home.experiences.subtitle')}
-          viewAllHref={`/${locale}/search`}
-          viewAllLabel={t('home.showcase.viewAll')}
-        />
-
-        {isPending && (
-          <div className={styles.skeletonRow}>
-            {Array.from({ length: 4 }, (_, index) => (
-              // eslint-disable-next-line react/no-array-index-key -- skeleton
-              // placeholders are positionally static, non-reorderable.
-              <Skeleton
-                key={index}
-                variant="rect"
-                height={280}
-                className={styles.slide}
-              />
-            ))}
-          </div>
-        )}
+    <Section aria-labelledby={HEADING_ID} className={styles.band}>
+      <Container size="wide">
+        <ScrollReveal>
+          {isPending || listings.length > 0 ? (
+            <HomeCarousel
+              label={t('home.experiences.title')}
+              header={renderHeader(false)}
+              action={action}
+              isLoading={isPending}
+            >
+              {listings.map((listing, index) => (
+                <SearchResultCard
+                  key={listing.id}
+                  result={listing}
+                  placement={PLACEMENTS.SEARCH_RESULTS}
+                  position={index}
+                />
+              ))}
+            </HomeCarousel>
+          ) : (
+            renderHeader(true)
+          )}
+        </ScrollReveal>
 
         {isError && (
           <Alert variant="danger" title={t('home.experiences.error.title')}>
@@ -108,29 +85,13 @@ export default function PopularExperiences() {
           </Alert>
         )}
 
-        {!isPending && !isError && experiences.length === 0 && (
+        {!isPending && !isError && listings.length === 0 && (
           <EmptyState
             title={t('home.experiences.empty.title')}
             description={t('home.experiences.empty.description')}
           />
         )}
-
-        {!isPending && !isError && experiences.length > 0 && (
-          <Showcase
-            ariaLabel={t('home.experiences.title')}
-            slideClassName={styles.slide}
-          >
-            {experiences.map((experience, index) => (
-              <SearchResultCard
-                key={experience.id}
-                result={experience}
-                placement={PLACEMENTS.SEARCH_RESULTS}
-                position={index}
-              />
-            ))}
-          </Showcase>
-        )}
-      </ScrollReveal>
+      </Container>
     </Section>
   );
 }

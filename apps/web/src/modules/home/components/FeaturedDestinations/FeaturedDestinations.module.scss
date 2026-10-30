@@ -1,88 +1,10 @@
-// FeaturedDestinations — tokens only, consumed from @desavii/ui.
+// FeaturedDestinations — tokens only. The ink band: Armenia's places on
+// the page's darkest ground, between the white listing sections and the
+// grey "new" band — the one place photography is framed by night.
 
 @use 'tokens' as tokens;
-@use 'mixins/respond' as respond;
-@use 'mixins/bleed' as bleed;
 
-// Redesign phase (2026) — a direct sibling of the `Container`-wrapped
-// header above it (see FeaturedDestinations.jsx), not nested inside one:
-// left edge lines up with the header's text, right edge bleeds to the
-// viewport edge so the last card can peek off-screen — the "not a boxed
-// template" edge-to-edge carousel composition.
-.bleedRow {
-  @include bleed.bleed-start;
-}
-
-// A faint, asymmetrically-positioned glow behind the whole section — the
-// same restrained single-color radial technique `Hero`'s own scrim uses,
-// at a fraction of the strength (this sits behind plain white page
-// content, not a dark hero backdrop). Purely a background wash: `isolate`
-// + negative z-index keeps it from ever affecting layout or competing
-// with card imagery. Positioned top-right here, bottom-left on
-// `FeaturedListings` (its mirror section two rows down), so consecutive
-// full-bleed sections don't repeat the exact same composition.
-.section {
-  position: relative;
-  isolation: isolate;
-
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    // Two layers: the existing top-right glow, plus a dark-to-transparent
-    // band across the very top edge — the Hero → first-section bridge.
-    // Hero's own `.horizonFade` fades its dark scene down toward white;
-    // this picks up exactly where that leaves off, so the seam between
-    // the two sections reads as one continuous atmosphere settling into
-    // daylight rather than a hard cut from a dark scene to a flat white
-    // section underneath it.
-    background:
-      radial-gradient(
-        45% 60% at 92% 0%,
-        rgba(29, 95, 214, 0.06) 0%,
-        rgba(29, 95, 214, 0) 100%
-      ),
-      linear-gradient(
-        180deg,
-        rgba(11, 26, 43, 0.05) 0%,
-        rgba(11, 26, 43, 0) 22%
-      );
-  }
-}
-
-// DestinationCard is a fixed 4:5 aspect-ratio card — its height scales
-// directly with slide width, so this basis stays close to its original
-// tuning (unlike the flatter listing/experience cards below). The
-// "dominant active card" read comes from the center-focus scale/opacity
-// emphasis (Showcase.jsx), not from inflating the base width, which
-// would otherwise blow the card height out of proportion.
-.slide {
-  flex: 0 0 80%;
-
-  @include respond.respond(mobile-large) {
-    flex: 0 0 58%;
-  }
-
-  @include respond.respond(tablet) {
-    flex: 0 0 44%;
-  }
-
-  @include respond.respond(laptop) {
-    flex: 0 0 30%;
-  }
-}
-
-// The pending-state skeleton row mirrors the eventual carousel's slide
-// widths so the loading state doesn't visibly jump in size once real
-// content arrives (see FeaturedListings.module.scss's identical rule).
-.skeletonRow {
-  display: flex;
-  gap: tokens.$space-3;
-  overflow: hidden;
-  padding-block: tokens.$space-4;
-
-  @include respond.respond(laptop) {
-    gap: tokens.$space-4;
-  }
+.band {
+  color: tokens.$color-white;
+  background: tokens.$color-ink;
 }

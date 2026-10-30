@@ -38,10 +38,17 @@ export function getTripPlan(id) {
     .then((response) => response.data);
 }
 
-/** `POST /ai/search/parse` — `{query}`. */
-export function parseSearchQuery(query) {
+/** `GET /ai/search/availability` — public: `{available}`, true only when a real model answers. */
+export function getAiSearchAvailability() {
   return apiClient
-    .post('/ai/search/parse', { query })
+    .get('/ai/search/availability')
+    .then((response) => response.data);
+}
+
+/** `POST /ai/search/parse` — `{query, locale?}`; the locale grounds destination/category names. */
+export function parseSearchQuery(query, locale) {
+  return apiClient
+    .post('/ai/search/parse', { query, locale })
     .then((response) => response.data);
 }
 

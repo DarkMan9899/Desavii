@@ -1,0 +1,152 @@
+// ActionLink — tokens only. Every state is designed: rest, hover, focus
+// (the shared ring), pressed (a slight press), and reduced motion (no
+// movement, colour only).
+
+@use 'tokens' as tokens;
+@use 'mixins/focus-ring' as focus;
+
+.link {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: tokens.$space-3;
+  align-items: center;
+  min-height: tokens.$button-height-md;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-small;
+  font-weight: 700;
+  line-height: tokens.$line-height-small;
+  text-decoration: none;
+  white-space: nowrap;
+  border-radius: tokens.$radius-full;
+  transition: transform tokens.$motion-micro tokens.$ease-out;
+
+  &:focus-visible {
+    @include focus.focus-ring;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: tokens.$button-height-sm;
+  height: tokens.$button-height-sm;
+  border-radius: tokens.$radius-full;
+  transition:
+    background-color tokens.$motion-micro tokens.$ease-out,
+    color tokens.$motion-micro tokens.$ease-out,
+    box-shadow tokens.$motion-micro tokens.$ease-out;
+
+  svg {
+    transition: transform tokens.$motion-transition tokens.$ease-out;
+  }
+
+  .link:hover &,
+  .link:focus-visible & {
+    svg {
+      transform: translateX(calc(#{tokens.$space-1} / 2));
+    }
+  }
+}
+
+// A section's "View all": navy label, ringed arrow that fills navy.
+.link--section {
+  color: tokens.$color-navy;
+
+  .icon {
+    color: tokens.$color-navy;
+    box-shadow: inset 0 0 0 1px tokens.$color-gray-200;
+  }
+
+  &:hover .icon,
+  &:focus-visible .icon {
+    color: tokens.$color-white;
+    background: tokens.$color-navy;
+    box-shadow: inset 0 0 0 1px tokens.$color-navy;
+  }
+
+  &:hover .label {
+    text-decoration: underline;
+    text-underline-offset: tokens.$space-1;
+  }
+}
+
+// On the ink and navy bands: white label, white-ringed arrow that fills
+// white.
+.link--dark {
+  color: tokens.$color-white;
+
+  .icon {
+    color: tokens.$color-white;
+    box-shadow: inset 0 0 0 1px rgba(tokens.$color-white, 0.4);
+  }
+
+  &:hover .icon,
+  &:focus-visible .icon {
+    color: tokens.$color-navy;
+    background: tokens.$color-white;
+    box-shadow: inset 0 0 0 1px tokens.$color-white;
+  }
+}
+
+// Over photography: a solid white pill with a navy arrow disc.
+.link--onImage {
+  padding: tokens.$space-1 tokens.$space-1 tokens.$space-1 tokens.$space-6;
+  color: tokens.$color-navy;
+  background: tokens.$color-white;
+  @include tokens.elevation-2;
+
+  .icon {
+    color: tokens.$color-white;
+    background: tokens.$color-navy;
+  }
+
+  &:hover .icon,
+  &:focus-visible .icon {
+    background: tokens.$color-royal-blue;
+  }
+}
+
+// The main next step as a link: royal blue, navy on hover.
+.link--primary {
+  padding: tokens.$space-1 tokens.$space-1 tokens.$space-1 tokens.$space-6;
+  color: tokens.$color-white;
+  background: tokens.$color-royal-blue;
+  transition:
+    background-color tokens.$motion-micro tokens.$ease-out,
+    transform tokens.$motion-micro tokens.$ease-out;
+
+  .icon {
+    color: tokens.$color-royal-blue;
+    background: tokens.$color-white;
+  }
+
+  &:hover,
+  &:focus-visible {
+    background: tokens.$color-navy;
+  }
+
+  &:hover .icon,
+  &:focus-visible .icon {
+    color: tokens.$color-navy;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link,
+  .icon,
+  .icon svg {
+    transition: none;
+  }
+
+  .link:active,
+  .link:hover .icon svg,
+  .link:focus-visible .icon svg {
+    transform: none;
+  }
+}

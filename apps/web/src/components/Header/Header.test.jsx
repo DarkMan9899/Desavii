@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -94,5 +94,65 @@ describe('Header (apps/web/src/components)', () => {
     expect(
       screen.getByRole('menuitem', { name: 'Tours', hidden: true }),
     ).toHaveAttribute('href', '/hy/search?category=tours');
+  });
+
+  // HOME-017: links that do not fit move, in order, into "More". jsdom has
+  // no layout, so the nav's width and each link's measured width are set
+  // here: 300px of room, 120px per link, 16px gaps, "More" 120px.
+  describe('when the links do not fit', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    function stubLayout() {
+      vi.stubGlobal(
+        'ResizeObserver',
+        vi.fn(() => ({ observe: vi.fn(), disconnect: vi.fn() })),
+      );
+      vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(
+        function width() {
+          return this.tagName === 'NAV' ? 300 : 0;
+        },
+      );
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+        width: 120,
+      });
+    }
+
+    test('the rest go into "More" — a dropdown group under its own label', async () => {
+      stubLayout();
+      const user = userEvent.setup();
+      renderHeader({
+        navItems: [
+          { label: 'Home', to: '/hy' },
+          { label: 'Companies', to: '/hy/companies' },
+          {
+            label: 'Company',
+            items: [{ label: 'About', to: '/hy/about' }],
+          },
+          { label: 'Become a partner', to: '/hy/become-a-partner' },
+        ],
+      });
+
+      // 120 + 16 + 120 ("More") = 256 <= 300: one link stays in the row.
+      expect(
+        screen.getByRole('link', { name: 'Home', hidden: true }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: 'Companies', hidden: true }),
+      ).not.toBeInTheDocument();
+
+      await user.click(
+        screen.getByRole('button', { name: 'Ավելին', hidden: true }),
+      );
+      const items = screen.getAllByRole('menuitem', { hidden: true });
+      expect(items.map((item) => item.getAttribute('href'))).toEqual([
+        '/hy/companies',
+        '/hy/about',
+        '/hy/become-a-partner',
+      ]);
+      expect(
+        screen.getByRole('group', { name: 'Company', hidden: true }),
+      ).toContainElement(items[1]);
+      vi.restoreAllMocks();
+    });
   });
 });

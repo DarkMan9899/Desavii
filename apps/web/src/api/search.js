@@ -39,20 +39,6 @@ export function getDestinations(params) {
 }
 
 /**
- * `GET /search/suggestions` — public typeahead endpoint: published-listing
- * title prefix match (`id, title, slug` — `searchDto.js`'s
- * `toSuggestionResponse`). The backend itself returns an empty list for
- * queries under its own minimum length, so this makes no length
- * assumption of its own.
- * @param {{ q?: string, locale?: string }} params
- */
-export function getSuggestions(params) {
-  return apiClient
-    .get('/search/suggestions', { params })
-    .then((response) => response.data);
-}
-
-/**
  * `GET /search` — the real Search & Discovery listing search. Returns the
  * flat, already-localized card shape (`id, partner_id, listing_type, slug,
  * status, title, summary, city_id, city_name, country_id,

@@ -15,7 +15,6 @@ const searchKeys = {
     'destinations',
     { locale, categoryId },
   ],
-  suggestions: (query) => [...searchKeys.all, 'suggestions', { query }],
   results: (filters) => [...searchKeys.all, 'results', filters],
   // The same params as `results` (incl. locale): List and Map of one
   // search are cached side by side, never mixed.

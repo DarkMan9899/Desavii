@@ -1,0 +1,305 @@
+// AskDesavii — tokens only. A composer (the request, then a bar with the
+// hint and the action), sample requests as quiet chips, and the
+// interpretation as removable chips with the next steps. Navy and royal
+// blue carry it; gold is only the small sparkle — no neon, no glow.
+
+@use 'tokens' as tokens;
+@use 'mixins/focus-ring' as focus;
+@use 'mixins/respond' as respond;
+
+.ask {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-4;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  background: tokens.$color-white;
+  border-radius: tokens.$radius-lg;
+  box-shadow: inset 0 0 0 1px tokens.$color-gray-200;
+  transition: box-shadow tokens.$motion-micro tokens.$ease-out;
+
+  &:focus-within {
+    box-shadow:
+      inset 0 0 0 1px tokens.$color-royal-blue,
+      0 0 0 3px rgba(tokens.$color-royal-blue, 0.15);
+  }
+}
+
+// Grows with the request (and its placeholder) up to five lines, so a
+// long Armenian sentence is never cut off; older browsers scroll.
+.input {
+  width: 100%;
+  min-height: calc(
+    #{tokens.$line-height-body-large} * 2 + #{tokens.$space-4} * 2
+  );
+  max-height: calc(
+    #{tokens.$line-height-body-large} * 5 + #{tokens.$space-4} * 2
+  );
+  overflow-y: auto;
+  field-sizing: content;
+  padding: tokens.$space-4;
+  font-family: tokens.$font-body;
+  font-size: tokens.$font-size-body-large;
+  line-height: tokens.$line-height-body-large;
+  color: tokens.$color-gray-900;
+  resize: none;
+  background: transparent;
+  border: 0;
+  outline: none;
+
+  &::placeholder {
+    color: tokens.$color-gray-600;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    background: tokens.$color-gray-100;
+    border-radius: tokens.$radius-lg tokens.$radius-lg 0 0;
+  }
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-3;
+  align-items: center;
+  justify-content: space-between;
+  padding: tokens.$space-3 tokens.$space-4;
+  border-block-start: 1px solid tokens.$color-gray-200;
+}
+
+.hint {
+  display: flex;
+  flex: 1 1 16rem;
+  gap: tokens.$space-2;
+  align-items: flex-start;
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+}
+
+.mark {
+  flex-shrink: 0;
+  margin-block-start: calc(#{tokens.$space-1} / 2);
+  color: tokens.$color-gold-strong;
+}
+
+.samples {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+}
+
+.samplesLabel {
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-micro;
+  font-weight: 700;
+  line-height: tokens.$line-height-micro;
+  color: tokens.$color-gray-600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sampleList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-2;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.sample {
+  max-width: 100%;
+  min-height: tokens.$button-height-sm;
+  padding: tokens.$space-2 tokens.$space-3;
+  font-family: tokens.$font-body;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-navy;
+  text-align: start;
+  cursor: pointer;
+  background: tokens.$color-gray-100;
+  border: 0;
+  border-radius: tokens.$radius-md;
+  transition:
+    background-color tokens.$motion-micro tokens.$ease-out,
+    box-shadow tokens.$motion-micro tokens.$ease-out;
+
+  &:hover {
+    background: tokens.$color-white;
+    box-shadow: inset 0 0 0 1px tokens.$color-navy;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:focus-visible {
+    @include focus.focus-ring;
+  }
+}
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  align-items: flex-start;
+  padding: tokens.$space-4;
+  background: tokens.$color-gray-100;
+  border-radius: tokens.$radius-md;
+}
+
+.noticeTitle {
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-body;
+  font-weight: 700;
+  color: tokens.$color-navy;
+}
+
+.noticeText {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+}
+
+.intent {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-3;
+}
+
+.intentTitle {
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-small;
+  font-weight: 700;
+  color: tokens.$color-navy;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-2;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  gap: tokens.$space-1;
+  align-items: center;
+  max-width: 100%;
+  padding-inline-start: tokens.$space-3;
+  background: tokens.$color-white;
+  border-radius: tokens.$radius-md;
+  box-shadow: inset 0 0 0 1px tokens.$color-gray-200;
+  animation: chip-in tokens.$motion-transition tokens.$ease-out both;
+}
+
+.chipText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-block: tokens.$space-1;
+}
+
+.chipKind {
+  font-size: tokens.$font-size-micro;
+  line-height: tokens.$line-height-micro;
+  color: tokens.$color-gray-600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.chipValue {
+  overflow-wrap: anywhere;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-small;
+  font-weight: 700;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-navy;
+}
+
+.chipRemove {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: tokens.$button-height-md;
+  height: tokens.$button-height-md;
+  color: tokens.$color-gray-600;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: tokens.$radius-md;
+  transition:
+    color tokens.$motion-micro tokens.$ease-out,
+    background-color tokens.$motion-micro tokens.$ease-out;
+
+  &:hover {
+    color: tokens.$color-navy;
+    background: tokens.$color-gray-100;
+  }
+
+  &:focus-visible {
+    @include focus.focus-ring;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-2;
+
+  @include respond.respond(tablet) {
+    gap: tokens.$space-3;
+  }
+}
+
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(tokens.$space-1);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer,
+  .sample,
+  .chipRemove {
+    transition: none;
+  }
+
+  .chip {
+    animation: none;
+  }
+
+  .sample:active {
+    transform: none;
+  }
+}

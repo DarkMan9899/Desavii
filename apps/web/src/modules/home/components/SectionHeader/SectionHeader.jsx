@@ -10,10 +10,15 @@
  * cinematic panel) — a prop, not a second component, so every section
  * still shares one heading implementation regardless of which scene it
  * sits in.
+ *
+ * Home final design pass: "view all" is an `ActionLink` (a designed
+ * control), not text with a trailing arrow character. Carousel sections
+ * pass their link to `HomeCarousel` instead, so it sits beside the row's
+ * controls.
  */
 
 import PropTypes from 'prop-types';
-import RouterLink from '../../../../components/RouterLink.jsx';
+import ActionLink from '../ActionLink/ActionLink.jsx';
 import styles from './SectionHeader.module.scss';
 
 export default function SectionHeader({
@@ -44,9 +49,9 @@ export default function SectionHeader({
         {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
       </div>
       {viewAllHref && viewAllLabel && (
-        <RouterLink href={viewAllHref} className={styles.viewAll}>
+        <ActionLink href={viewAllHref} tone={tone}>
           {viewAllLabel}
-        </RouterLink>
+        </ActionLink>
       )}
     </div>
   );

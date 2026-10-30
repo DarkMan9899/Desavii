@@ -1,64 +1,59 @@
-// Categories — tokens only, consumed from @desavii/ui.
-//
-// Redesign phase (2026) — a bento-style asymmetrical grid, not a uniform
-// tile wall: the first category (`CategoryCard`'s `featured` prop, set
-// in `Categories.jsx`) spans a 2x2 block, the rest fill in around it via
-// `grid-auto-flow: dense` (so the smaller tiles pack into the remaining
-// cells instead of leaving a gap under the big one). `.grid > *` — not a
-// class on the item itself — because `ScrollReveal`'s `stagger` mode
-// wraps every child in its own `motion.div`; that wrapper, not
-// `CategoryCard`'s own root, is the actual grid item CSS Grid is sizing.
+// Categories — tokens only. Two columns on a phone (the featured tile
+// across both), three on a tablet, four from laptop with the featured tile
+// as a 2×2 block — nine categories fill 3×4 / 4×3 exactly. `ScrollReveal`
+// wraps each tile, so the wrapper (the grid's direct child) takes the span.
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  // Tall enough for the longest real category label (Russian names like
-  // "Достопримечательности" run to two lines) plus the count line below
-  // it without clipping — a card with a short one-word label just carries
-  // a little more breathing room around its centered content, not "dead
-  // space": every tile still fills its own row height (`CategoryCard`'s
-  // `.card` now stretches to 100%/100%, fixing the previous bug where it
-  // sized to content and left the featured tile's cell mostly empty).
-  grid-auto-rows: 148px;
-  grid-auto-flow: dense;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: tokens.$space-3;
+  margin-top: tokens.$space-8;
 
-  // 9 real categories over 2 mobile columns leaves a lone last tile
-  // stranded alone on its own row — not "dead space" so much as a tile
-  // that visibly doesn't belong to the grid above it. Spanning it full
-  // width only when it lands on an odd position (`:last-child:nth-child
-  // (odd)`) fixes exactly that case and, unlike a hardcoded `:nth-child
-  // (9)`, keeps working automatically if the taxonomy ever gains or
-  // loses a category. Reset at `tablet`+, where 4 columns plus the 2x2
-  // featured tile already divide evenly (12 cells / 4 cols = 3 full
-  // rows) and this rule would otherwise fight that layout.
-  > *:last-child:nth-child(odd) {
-    grid-column: 1 / -1;
+  > :first-child {
+    grid-column: span 2;
   }
 
   @include respond.respond(tablet) {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: tokens.$space-4;
 
-    > *:last-child:nth-child(odd) {
-      grid-column: unset;
+    > :first-child {
+      grid-row: span 2;
     }
   }
 
   @include respond.respond(laptop) {
-    grid-auto-rows: 168px;
-    gap: tokens.$space-4;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  // The featured tile — only from `tablet` up: at 2-column mobile width
-  // a 2x2 span would already claim the entire visible row, leaving no
-  // room for the asymmetry to actually read as asymmetrical.
-  @include respond.respond(tablet) {
-    > *:first-child {
-      grid-column: span 2;
-      grid-row: span 2;
+  // Each tile fills its cell, so the featured 2×2 block matches the
+  // height of the two rows beside it.
+  > * {
+    display: flex;
+
+    > * {
+      flex: 1 1 auto;
     }
+  }
+}
+
+.skeleton {
+  aspect-ratio: 1;
+  height: auto;
+
+  @include respond.respond(tablet) {
+    aspect-ratio: 4 / 3;
+  }
+}
+
+.skeletonFeatured {
+  aspect-ratio: 2 / 1;
+  height: auto;
+
+  @include respond.respond(tablet) {
+    aspect-ratio: auto;
   }
 }

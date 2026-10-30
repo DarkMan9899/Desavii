@@ -43,6 +43,7 @@ export const parseSearchQuerySchema = z.object({
   query: passthroughQuery,
   body: z.object({
     query: z.string().trim().min(1).max(200),
+    locale: z.string().trim().min(2).max(10).optional(),
   }),
 });
 

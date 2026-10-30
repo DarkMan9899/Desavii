@@ -1,29 +1,23 @@
 /**
- * FeaturedDestinations — real seeded cities (`GET /search/destinations`,
- * `useDestinationsQuery`), presented as a premium showcase carousel
- * (`Showcase`). Mirrors `Categories.jsx`'s real-data state-handling
- * pattern (loading/empty/error before content).
+ * FeaturedDestinations — the places with the most to book right now: the
+ * destinations from `GET /search/destinations` that have listings, most
+ * listings first (at most six), as a row of photo cards.
  *
- * P1.6 (Master Roadmap): replaces the previous fully-fabricated 6-city
- * placeholder list (`constants/destinations.js`, now deleted) and its
- * per-id-keyed static i18n copy. Only cities with at least one published
- * listing are shown — a destination with zero listings would link
- * straight into an empty results page — sorted by listing count so the
- * busiest, most useful destinations surface first, capped to a
- * curated-feeling handful.
+ * Home rebuild (docs/HOME_REBUILD.md): the order is real inventory, not a
+ * curated ranking, and the row uses `HomeCarousel` (no autoplay, no loop).
  */
 
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Container, Section } from '@desavii/ui/components/layout';
 import {
-  Skeleton,
   EmptyState,
   ErrorState,
 } from '@desavii/ui/components/feedback-overlays';
 import { useDestinationsQuery } from '../../../search/index.js';
 import SectionHeader from '../SectionHeader/SectionHeader.jsx';
-import Showcase from '../Showcase/Showcase.jsx';
+import HomeCarousel from '../HomeCarousel/HomeCarousel.jsx';
+import ActionLink from '../ActionLink/ActionLink.jsx';
 import ScrollReveal from '../ScrollReveal/ScrollReveal.jsx';
 import DestinationCard from '../DestinationCard/DestinationCard.jsx';
 import styles from './FeaturedDestinations.module.scss';
@@ -42,70 +36,73 @@ export default function FeaturedDestinations() {
     .sort((a, b) => b.listing_count - a.listing_count)
     .slice(0, FEATURED_DESTINATIONS_LIMIT);
 
+  // The photographs sit on the ink band — the page's signature moment —
+  // whenever there are any; loading keeps the band so nothing flashes.
+  const hasRow = isPending || destinations.length > 0;
+  const tone = hasRow ? 'dark' : 'light';
+
+  // The row shows its link beside the controls; without a row (error,
+  // empty) the heading keeps it.
+  const renderHeader = (withLink) => (
+    <SectionHeader
+      id={HEADING_ID}
+      eyebrow={t('home.destinations.eyebrow')}
+      title={t('home.destinations.title')}
+      subtitle={t('home.destinations.subtitle')}
+      tone={tone}
+      viewAllHref={withLink ? `/${locale}/search` : undefined}
+      viewAllLabel={withLink ? t('home.showcase.viewAll') : undefined}
+    />
+  );
+
   return (
-    <Section aria-labelledby={HEADING_ID} className={styles.section}>
+    <Section
+      aria-labelledby={HEADING_ID}
+      className={hasRow ? styles.band : undefined}
+    >
       <Container size="wide">
-        <ScrollReveal variant="depth">
-          <SectionHeader
-            id={HEADING_ID}
-            eyebrow={t('home.destinations.eyebrow')}
-            title={t('home.destinations.title')}
-            subtitle={t('home.destinations.subtitle')}
-            viewAllHref={`/${locale}/search`}
-            viewAllLabel={t('home.showcase.viewAll')}
-          />
+        <ScrollReveal>
+          {hasRow ? (
+            <HomeCarousel
+              label={t('home.destinations.title')}
+              header={renderHeader(false)}
+              action={
+                <ActionLink href={`/${locale}/search`} tone="dark">
+                  {t('home.showcase.viewAll')}
+                </ActionLink>
+              }
+              size="tall"
+              tone="dark"
+              isLoading={isPending}
+            >
+              {destinations.map((destination) => (
+                <DestinationCard
+                  key={destination.id}
+                  destination={destination}
+                />
+              ))}
+            </HomeCarousel>
+          ) : (
+            renderHeader(true)
+          )}
         </ScrollReveal>
-      </Container>
 
-      {isPending && (
-        <Container size="wide">
-          <div className={styles.skeletonRow}>
-            {Array.from({ length: 4 }, (_, index) => (
-              // eslint-disable-next-line react/no-array-index-key -- skeleton
-              // placeholders are positionally static, non-reorderable.
-              <Skeleton
-                key={index}
-                variant="rect"
-                height={280}
-                className={styles.slide}
-              />
-            ))}
-          </div>
-        </Container>
-      )}
-
-      {isError && (
-        <Container size="wide">
+        {isError && (
           <ErrorState
             title={t('home.destinations.error.title')}
             description={t('home.destinations.error.description')}
             retryLabel={t('home.destinations.error.retry')}
             onRetry={() => refetch()}
           />
-        </Container>
-      )}
+        )}
 
-      {!isPending && !isError && destinations.length === 0 && (
-        <Container size="wide">
+        {!isPending && !isError && destinations.length === 0 && (
           <EmptyState
             title={t('home.destinations.empty.title')}
             description={t('home.destinations.empty.description')}
           />
-        </Container>
-      )}
-
-      {!isPending && !isError && destinations.length > 0 && (
-        <ScrollReveal delay={0.1} variant="depth" className={styles.bleedRow}>
-          <Showcase
-            ariaLabel={t('home.destinations.title')}
-            slideClassName={styles.slide}
-          >
-            {destinations.map((destination) => (
-              <DestinationCard key={destination.id} destination={destination} />
-            ))}
-          </Showcase>
-        </ScrollReveal>
-      )}
+        )}
+      </Container>
     </Section>
   );
 }

@@ -1,0 +1,163 @@
+// HomeSearch — tokens only. A white panel floating on the hero photo from
+// tablet up, with its mode tabs on top; on a phone, one field-like trigger
+// and a quieter Ask Desavii trigger under it, both opening the sheet.
+
+@use 'tokens' as tokens;
+@use 'mixins/focus-ring' as focus;
+@use 'mixins/respond' as respond;
+
+.panel {
+  @include tokens.elevation-3;
+  padding: tokens.$space-4;
+  background: tokens.$color-white;
+  border-radius: tokens.$radius-xl;
+
+  @include respond.respond(laptop) {
+    padding: tokens.$space-6;
+  }
+}
+
+.submit {
+  display: inline-flex;
+  flex: 1 1 auto;
+  gap: tokens.$space-2;
+  align-items: center;
+  justify-content: center;
+  height: tokens.$input-height-md;
+  padding-inline: tokens.$space-6;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-body;
+  font-weight: 700;
+  color: tokens.$color-white;
+  cursor: pointer;
+  background: tokens.$color-royal-blue;
+  border: 0;
+  border-radius: tokens.$radius-md;
+  transition:
+    background-color tokens.$motion-micro tokens.$ease-out,
+    transform tokens.$motion-micro tokens.$ease-out;
+
+  &:hover {
+    background: tokens.$color-navy;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:focus-visible {
+    @include focus.focus-ring;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    &:active {
+      transform: none;
+    }
+  }
+}
+
+.compact {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-3;
+  align-items: flex-start;
+  width: 100%;
+}
+
+// The phone's second way in: white text on the hero, a ringed pill.
+.askTrigger {
+  display: inline-flex;
+  gap: tokens.$space-2;
+  align-items: center;
+  min-height: tokens.$button-height-md;
+  padding-inline: tokens.$space-4;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-small;
+  font-weight: 700;
+  color: tokens.$color-white;
+  cursor: pointer;
+  background: rgba(tokens.$color-ink, 0.55);
+  border: 0;
+  border-radius: tokens.$radius-full;
+  box-shadow: inset 0 0 0 1px rgba(tokens.$color-white, 0.4);
+  transition:
+    background-color tokens.$motion-micro tokens.$ease-out,
+    transform tokens.$motion-micro tokens.$ease-out;
+
+  &:hover {
+    background: rgba(tokens.$color-ink, 0.8);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:focus-visible {
+    @include focus.focus-ring;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    &:active {
+      transform: none;
+    }
+  }
+}
+
+.askMark {
+  flex-shrink: 0;
+  color: tokens.$color-gold;
+}
+
+.trigger {
+  @include tokens.elevation-3;
+  display: flex;
+  gap: tokens.$space-3;
+  align-items: center;
+  width: 100%;
+  min-height: tokens.$input-height-lg;
+  padding: tokens.$space-3 tokens.$space-4;
+  text-align: start;
+  cursor: pointer;
+  background: tokens.$color-white;
+  border: 0;
+  border-radius: tokens.$radius-full;
+
+  &:focus-visible {
+    @include focus.focus-ring;
+  }
+}
+
+.triggerIcon {
+  flex-shrink: 0;
+  color: tokens.$color-navy;
+}
+
+.triggerText {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.triggerTitle,
+.triggerHint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.triggerTitle {
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-body;
+  font-weight: 700;
+  color: tokens.$color-gray-900;
+}
+
+.triggerHint {
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+}

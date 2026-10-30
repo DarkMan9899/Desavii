@@ -3,8 +3,9 @@
  * the ONLY entry point another module/page may import from (§6.3).
  *
  * Only the sections `pages/HomePage.jsx` composes directly are exported
- * here — internal building blocks each section uses (SearchWidget,
- * SectionHeader, ScrollReveal, and every card component) stay
+ * here — internal building blocks each section uses (HomeSearch,
+ * HomeCarousel, HomePicture, SectionHeader, ScrollReveal, and every card
+ * component) stay
  * module-private, consistent with `listings`' own "promote only once a
  * second consumer needs it" rule.
  */
@@ -17,3 +18,4 @@ export { default as Categories } from './components/Categories/Categories.jsx';
 export { default as WhyDesavii } from './components/WhyDesavii/WhyDesavii.jsx';
 export { default as EditorialHighlights } from './components/EditorialHighlights/EditorialHighlights.jsx';
 export { default as PartnerCta } from './components/PartnerCta/PartnerCta.jsx';
+export { default as PhotoCredits } from './components/PhotoCredits/PhotoCredits.jsx';

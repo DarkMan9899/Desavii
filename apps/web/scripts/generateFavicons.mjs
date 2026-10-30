@@ -2,15 +2,18 @@
  * generateFavicons.mjs — derives every favicon/manifest-icon size from the
  * single source-of-truth brand asset (`public/brand/desavii-mark.png`)
  * instead of hand-maintaining N separately-exported files that can drift
- * from the real logo. Reuses the `@playwright/test` Chromium dependency
+ * from the real logo. It also derives the header's display-size copies of
+ * the mark and wordmark (`public/brand/header/`, 1x/2x/3x of BrandLogo's
+ * 32px height): the 1024px masters stay the source of truth, while the
+ * header downloads a few kilobytes instead of ~0.7 MB (HOME-018). Reuses the `@playwright/test` Chromium dependency
  * already installed for E2E/prerender (scripts/prerender.mjs) so this adds
  * no new dependency — a real browser Canvas does the resizing, run headless
  * at build-asset time, never in the shipped app.
  *
  * USAGE
  *   npm run generate:favicons
- *     — regenerates every derivative below from public/brand/desavii-mark.png
- *       into public/. Re-run this whenever the source mark changes.
+ *     — regenerates every derivative below from the public/brand/ masters
+ *       into public/. Re-run this whenever a source logo changes.
  */
 
 import fs from 'node:fs';
@@ -21,7 +24,10 @@ import { chromium } from '@playwright/test';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT, 'public');
-const SOURCE_MARK = path.join(PUBLIC_DIR, 'brand', 'desavii-mark.png');
+const BRAND_DIR = path.join(PUBLIC_DIR, 'brand');
+const SOURCE_MARK = path.join(BRAND_DIR, 'desavii-mark.png');
+const SOURCE_WORDMARK = path.join(BRAND_DIR, 'desavii-wordmark.png');
+const HEADER_LOGO_DIR = path.join(BRAND_DIR, 'header');
 
 // [name, size, backgroundColor|null] — a background fills the square
 // canvas with an 12%-padded contain-fit of the mark (apple-touch-icon
@@ -37,22 +43,41 @@ const DERIVATIVES = [
   ['icon-512.png', 512, null],
 ];
 
+// BrandLogo renders both logos 32px tall; 1x/2x/3x cover every screen
+// density. [source, output prefix] — files are `<prefix>-<height>.png`.
+const HEADER_LOGO_HEIGHTS = [32, 64, 96];
+const HEADER_LOGOS = [
+  [SOURCE_MARK, 'desavii-mark'],
+  [SOURCE_WORDMARK, 'desavii-wordmark'],
+];
+
+const toDataUrl = (file) =>
+  `data:image/png;base64,${fs.readFileSync(file).toString('base64')}`;
+
 function log(message) {
   // eslint-disable-next-line no-console -- CLI build script, console output is the entire UI
   console.log(`[generate-favicons] ${message}`);
 }
 
+function writePng(outPath, dataUrl) {
+  const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+  fs.writeFileSync(outPath, Buffer.from(base64, 'base64'));
+  log(`wrote ${path.relative(ROOT, outPath)}`);
+}
+
 async function main() {
-  if (!fs.existsSync(SOURCE_MARK)) {
-    throw new Error(
-      `generateFavicons: source mark not found at ${SOURCE_MARK}. ` +
-        'Save the real desavii-mark.png there before running this script.',
-    );
-  }
+  [SOURCE_MARK, SOURCE_WORDMARK].forEach((source) => {
+    if (!fs.existsSync(source)) {
+      throw new Error(
+        `generateFavicons: source logo not found at ${source}. ` +
+          'Save the real brand file there before running this script.',
+      );
+    }
+  });
 
   const browser = await chromium.launch();
   const page = await browser.newPage();
-  const sourceDataUrl = `data:image/png;base64,${fs.readFileSync(SOURCE_MARK).toString('base64')}`;
+  const sourceDataUrl = toDataUrl(SOURCE_MARK);
 
   const results = await page.evaluate(
     async ({ dataUrl, derivatives }) => {
@@ -91,14 +116,69 @@ async function main() {
   );
 
   DERIVATIVES.forEach(([name]) => {
-    const base64 = results[name].replace(/^data:image\/png;base64,/, '');
-    const outPath = path.join(PUBLIC_DIR, name);
-    fs.writeFileSync(outPath, Buffer.from(base64, 'base64'));
-    log(`wrote ${path.relative(ROOT, outPath)}`);
+    writePng(path.join(PUBLIC_DIR, name), results[name]);
+  });
+
+  // Header logos keep their aspect ratio and are reduced by halving steps
+  // before the final draw, which keeps thin strokes crisp at 32px.
+  const headerLogos = await page.evaluate(
+    async ({ logos, heights }) => {
+      async function load(url) {
+        const img = new Image();
+        img.src = url;
+        await img.decode();
+        return img;
+      }
+      function draw(source, width, height) {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(source, 0, 0, width, height);
+        return canvas;
+      }
+      function toHeight(img, height) {
+        const width = Math.round((img.width / img.height) * height);
+        let current = draw(img, img.width, img.height);
+        while (current.height / 2 >= height) {
+          current = draw(
+            current,
+            Math.round(current.width / 2),
+            Math.round(current.height / 2),
+          );
+        }
+        return draw(current, width, height).toDataURL('image/png');
+      }
+      const entries = await Promise.all(
+        logos.map(async ([dataUrl, prefix]) => {
+          const img = await load(dataUrl);
+          return heights.map((height) => [
+            `${prefix}-${height}.png`,
+            toHeight(img, height),
+          ]);
+        }),
+      );
+      return Object.fromEntries(entries.flat());
+    },
+    {
+      logos: HEADER_LOGOS.map(([source, prefix]) => [
+        toDataUrl(source),
+        prefix,
+      ]),
+      heights: HEADER_LOGO_HEIGHTS,
+    },
+  );
+
+  fs.mkdirSync(HEADER_LOGO_DIR, { recursive: true });
+  Object.entries(headerLogos).forEach(([name, dataUrl]) => {
+    writePng(path.join(HEADER_LOGO_DIR, name), dataUrl);
   });
 
   await browser.close();
-  log(`done — ${DERIVATIVES.length} derivatives regenerated.`);
+  log(
+    `done — ${DERIVATIVES.length + Object.keys(headerLogos).length} derivatives regenerated.`,
+  );
 }
 
 main().catch((error) => {

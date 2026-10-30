@@ -95,6 +95,36 @@ describe('FeaturedListings (apps/web/src/modules/home) — Sprint E Promotion En
     ).toHaveAttribute('href', '/en/listings/yerevan-grand-hotel');
   });
 
+  // Carousel closure: every active Home promotion is a slide — no cap
+  // below the placement's own slot limit, and nothing duplicated or
+  // invented when there is only one.
+  test('renders every promoted listing it receives, each exactly once', () => {
+    usePublicHomeFeaturedQuery.mockReturnValue({
+      data: [
+        LISTING,
+        { ...LISTING, id: 2, slug: 'dilijan-lodge', title: 'Dilijan Lodge' },
+        { ...LISTING, id: 3, slug: 'sevan-shore', title: 'Sevan Shore' },
+      ],
+      isPending: false,
+      isError: false,
+    });
+    renderFeaturedListings();
+    expect(screen.getAllByRole('group')).toHaveLength(3);
+    ['Yerevan Grand Hotel', 'Dilijan Lodge', 'Sevan Shore'].forEach((title) =>
+      expect(screen.getAllByRole('heading', { name: title })).toHaveLength(1),
+    );
+  });
+
+  test('a single real promotion stays a single card — never repeated to fill the row', () => {
+    usePublicHomeFeaturedQuery.mockReturnValue({
+      data: [LISTING],
+      isPending: false,
+      isError: false,
+    });
+    renderFeaturedListings();
+    expect(screen.getAllByRole('group')).toHaveLength(1);
+  });
+
   test('renders a "view all" link to the search route regardless of query state', () => {
     usePublicHomeFeaturedQuery.mockReturnValue({
       data: [],

@@ -43,4 +43,24 @@ describe('CategoryCard (apps/web/src/modules/home)', () => {
     renderCard({ ...CATEGORY, slug: 'some-future-category' });
     expect(screen.getByRole('link')).toBeInTheDocument();
   });
+
+  // Home rebuild: each category is a photograph of that kind of place,
+  // decorative (the name is the text), loaded lazily below the hero.
+  test('shows the category’s own photo, responsively and decoratively', () => {
+    const { container } = renderCard();
+    const image = container.querySelector('picture img');
+    expect(image).toHaveAttribute('alt', '');
+    expect(image).toHaveAttribute('loading', 'lazy');
+    expect(
+      container
+        .querySelector('source[type="image/avif"]')
+        .getAttribute('srcset'),
+    ).toMatch(/category-hotels-\d+\.avif \d+w/);
+  });
+
+  test('a category without a photo keeps its icon panel, not a stand-in picture', () => {
+    const { container } = renderCard({ ...CATEGORY, slug: 'spa-retreats' });
+    expect(container.querySelector('picture')).toBeNull();
+    expect(container.querySelector('svg')).not.toBeNull();
+  });
 });

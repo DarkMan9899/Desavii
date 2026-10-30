@@ -1,110 +1,81 @@
-// WhyDesavii — tokens only, consumed from @desavii/ui.
+// WhyDesavii — tokens only. A navy band; on a phone each point is a row
+// (icon beside text), from tablet a 2×2 grid, from laptop four columns
+// divided by hairlines. Gold appears only as the icons' accent.
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
 
-// A much lighter touch than the previous solid gray-100 box — "fewer
-// obvious boxes": still a faint wash for page-level rhythm against the
-// plain-background sections around it, but no longer read as its own
-// bounded card.
-.panel {
-  padding: tokens.$space-8 tokens.$space-6;
-  border-radius: tokens.$radius-xl;
-  background-color: rgba(tokens.$color-gray-100, 0.5);
-
-  @include respond.respond(laptop) {
-    padding: tokens.$space-12 tokens.$space-8;
-  }
-}
-
-.gridWrapper {
-  position: relative;
-}
-
-// The connecting route line — only meaningful once the grid is a single
-// row (laptop+); hidden below that, where items wrap and a horizontal
-// line spanning 0-25%-50%-75% would cross through item text instead of
-// visually linking icon-to-icon.
-.connector {
-  display: none;
-
-  @include respond.respond(laptop) {
-    display: block;
-    position: absolute;
-    top: 30px;
-    left: 0;
-    width: 100%;
-    height: 40px;
-    pointer-events: none;
-    z-index: 0;
-  }
-}
-
-.connectorPath {
-  stroke: rgba(201, 162, 75, 0.45);
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-dasharray: 5 10;
-  animation: why-connector-flow 9s linear infinite;
-  @include tokens.reduced-motion-safe;
-}
-
-@keyframes why-connector-flow {
-  to {
-    stroke-dashoffset: -90;
-  }
+.band {
+  color: tokens.$color-white;
+  background: tokens.$color-navy;
 }
 
 .grid {
-  position: relative;
-  z-index: 1;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: tokens.$space-8;
+  grid-template-columns: minmax(0, 1fr);
+  gap: tokens.$space-6;
+  margin-top: tokens.$space-8;
 
-  @include respond.respond(mobile-large) {
-    grid-template-columns: repeat(2, 1fr);
+  @include respond.respond(tablet) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: tokens.$space-8;
   }
 
   @include respond.respond(laptop) {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+
+    > * + * {
+      border-inline-start: 1px solid rgba(tokens.$color-white, 0.14);
+    }
+
+    > * {
+      padding-inline: tokens.$space-6;
+    }
+
+    > :first-child {
+      padding-inline-start: 0;
+    }
   }
 }
 
 .item {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: tokens.$space-3;
+  gap: tokens.$space-4;
+  align-items: flex-start;
+
+  @include respond.respond(laptop) {
+    flex-direction: column;
+  }
 }
 
-.iconWrapper {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: tokens.$space-16;
-  height: tokens.$space-16;
-  border-radius: tokens.$radius-full;
-  background-color: tokens.$color-white;
+.icon {
+  flex-shrink: 0;
+  width: tokens.$icon-size-xl;
+  height: tokens.$icon-size-xl;
   color: tokens.$color-gold;
-  @include tokens.elevation-2;
+  stroke-width: 1.5;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  min-width: 0;
 }
 
 .itemTitle {
   margin: 0;
-  // The editorial display face, matching every other major Home
-  // heading in this pass — "larger editorial copy," not a functional
-  // UI label pretending to be a heading.
-  font-family: tokens.$font-display;
+  font-family: tokens.$font-heading;
   font-size: tokens.$font-size-h4;
+  font-weight: 700;
   line-height: tokens.$line-height-h4;
-  color: tokens.$color-gray-900;
+  color: tokens.$color-white;
 }
 
 .itemDescription {
   margin: 0;
   font-size: tokens.$font-size-body;
   line-height: tokens.$line-height-body;
-  color: tokens.$color-gray-600;
+  color: rgba(tokens.$color-white, 0.78);
 }
