@@ -1,0 +1,283 @@
+// FeaturedListingCard — tokens only. A white card on a hairline: the 4:3
+// image (the locked promoted-card ratio) with the source badge and the
+// favourite button, then an editorial caption (gold-hairline eyebrow,
+// display-face title, real facts) and a footer with the price and a
+// ringed arrow cue. Cards in one rail share a height: the footer sits on
+// the card's bottom edge.
+//
+// Motion: hover/focus lifts the card by transform, eases the photo in and
+// fills the cue — transform, opacity and colour only. Nothing moves under
+// reduced motion.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+@use 'mixins/truncate-lines' as truncate;
+@use 'mixins/visually-hidden' as hidden;
+
+$photo-hover-scale: 1.05;
+$hairline: 1px;
+$focus-ring-width: 2px;
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  background: tokens.$color-white;
+  border-radius: tokens.$radius-lg;
+  box-shadow: inset 0 0 0 $hairline tokens.$color-gray-200;
+  transition:
+    transform tokens.$motion-transition tokens.$ease-out,
+    box-shadow tokens.$motion-transition tokens.$ease-out;
+
+  // The rail's viewport clips at a small margin, so hover stays inside it:
+  // a darker hairline and a one-step lift, no cast shadow.
+  &:hover,
+  &:focus-within {
+    box-shadow: inset 0 0 0 $hairline tokens.$color-gray-400;
+    transform: translateY(calc(-1 * #{tokens.$space-1}));
+  }
+}
+
+.media {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: tokens.$color-gray-100;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform tokens.$motion-transition-slow tokens.$ease-out;
+
+  .card:hover &,
+  .card:focus-within & {
+    transform: scale($photo-hover-scale);
+  }
+}
+
+.badge {
+  position: absolute;
+  inset-block-start: tokens.$space-3;
+  inset-inline-start: tokens.$space-3;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  max-width: calc(100% - #{tokens.$space-16});
+  padding: tokens.$space-1 tokens.$space-3;
+  overflow: hidden;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-micro;
+  font-weight: 700;
+  line-height: tokens.$line-height-micro;
+  color: tokens.$color-navy;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  letter-spacing: 0.08em;
+  background: tokens.$color-white;
+  border-radius: tokens.$radius-full;
+  // Legible on light and dark photos alike, without a scrim over the image.
+  box-shadow: inset 0 0 0 $hairline tokens.$color-gray-200;
+}
+
+// A paid placement reads as one: navy with a gold label.
+.badgeTop {
+  color: tokens.$color-gold;
+  background: tokens.$color-navy;
+  box-shadow: none;
+}
+
+.favorite {
+  position: absolute;
+  inset-block-start: tokens.$space-2;
+  inset-inline-end: tokens.$space-2;
+  z-index: 2;
+}
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: tokens.$space-3;
+  padding: tokens.$space-4;
+
+  @include respond.respond(tablet) {
+    padding: tokens.$space-6;
+  }
+}
+
+// One line on every card, so titles line up across the rail. Category and
+// city shrink in proportion to their length, so a long category name
+// (e.g. Russian "Достопримечательность") never squeezes the city out.
+.eyebrow {
+  display: flex;
+  gap: tokens.$space-2;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-micro;
+  font-weight: 700;
+  line-height: tokens.$line-height-micro;
+  color: tokens.$color-gray-600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+
+  &::before {
+    flex-shrink: 0;
+    width: tokens.$space-4;
+    height: $hairline;
+    content: '';
+    background: tokens.$color-gold;
+  }
+}
+
+.eyebrowText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dot {
+  flex-shrink: 0;
+  width: tokens.$space-1;
+  height: tokens.$space-1;
+  background: tokens.$color-gray-400;
+  border-radius: tokens.$radius-full;
+}
+
+.title {
+  margin: 0;
+  font-family: tokens.$font-display;
+  font-size: tokens.$font-size-h4;
+  line-height: tokens.$line-height-h4;
+  color: tokens.$color-navy;
+  overflow-wrap: break-word;
+
+  @include truncate.truncate-lines(2);
+}
+
+// The title's link covers the whole card; the favourite button sits above.
+.link {
+  color: inherit;
+  text-decoration: none;
+
+  &::after {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    content: '';
+    border-radius: inherit;
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+
+  &:focus-visible::after {
+    outline: $focus-ring-width solid tokens.$color-royal-blue;
+    outline-offset: calc(-1 * #{$focus-ring-width});
+    border-radius: tokens.$radius-lg;
+  }
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-2;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.fact {
+  display: inline-flex;
+  gap: tokens.$space-1;
+  align-items: center;
+  padding: tokens.$space-1 tokens.$space-2;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-900;
+  background: tokens.$color-gray-100;
+  border-radius: tokens.$radius-sm;
+}
+
+.star {
+  color: tokens.$color-gold-strong;
+  fill: currentcolor;
+}
+
+.footer {
+  display: flex;
+  gap: tokens.$space-3;
+  align-items: center;
+  justify-content: space-between;
+  padding-block-start: tokens.$space-4;
+  margin-block-start: auto;
+  border-block-start: $hairline solid tokens.$color-gray-200;
+}
+
+.price {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-1 tokens.$space-2;
+  align-items: baseline;
+  min-width: 0;
+  margin: 0;
+  color: tokens.$color-navy;
+}
+
+.priceLabel {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+}
+
+// A ringed arrow that fills navy when the card is hovered or focused.
+.cue {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: tokens.$button-height-sm;
+  height: tokens.$button-height-sm;
+  color: tokens.$color-navy;
+  border-radius: tokens.$radius-full;
+  box-shadow: inset 0 0 0 $hairline tokens.$color-gray-200;
+  transition:
+    background-color tokens.$motion-micro tokens.$ease-out,
+    color tokens.$motion-micro tokens.$ease-out;
+
+  .card:hover &,
+  .card:focus-within & {
+    color: tokens.$color-white;
+    background: tokens.$color-navy;
+  }
+}
+
+.visuallyHidden {
+  @include hidden.visually-hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .image,
+  .cue {
+    transition: none;
+  }
+
+  .card:hover,
+  .card:focus-within,
+  .card:hover .image,
+  .card:focus-within .image {
+    transform: none;
+  }
+}

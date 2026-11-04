@@ -60,17 +60,22 @@ describe('RegisterForm (apps/web/src/modules/auth)', () => {
     });
   });
 
-  test('customer registration honours an in-app return target and ignores an off-site one', async () => {
+  // One registration per test: typing a whole form keystroke by keystroke
+  // twice in one test took about 2 s on an idle machine and crossed the 5 s
+  // test timeout under the full parallel suite.
+  test('customer registration honours an in-app return target', async () => {
     const user = userEvent.setup();
-    const { unmount } = renderForm(
+    renderForm(
       `/ru/auth/register?redirect=${encodeURIComponent('/ru/listings/9')}`,
     );
     await fillAndSubmit(user);
     expect(mockNavigate).toHaveBeenLastCalledWith('/ru/listings/9', {
       replace: true,
     });
-    unmount();
+  });
 
+  test('customer registration ignores an off-site return target', async () => {
+    const user = userEvent.setup();
     renderForm(
       `/ru/auth/register?redirect=${encodeURIComponent('https://evil.example')}`,
     );

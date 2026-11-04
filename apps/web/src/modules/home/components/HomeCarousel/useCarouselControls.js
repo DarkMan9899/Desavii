@@ -88,8 +88,14 @@ export default function useCarouselControls(embla, progressRef) {
     const plugin = () => embla.plugins?.().autoplay;
     const isHeld = () =>
       pauses.current.user || pauses.current.focus || pauses.current.hover;
+    // The plugin emits `autoplay:play` before it arms its timer, so a stop
+    // issued inside the event would be undone straight away (seen when the
+    // pointer leaves a row whose card still has keyboard focus). The hold
+    // is applied once the plugin has finished starting.
     const holdIfPaused = () => {
-      if (isHeld()) plugin()?.stop();
+      queueMicrotask(() => {
+        if (isHeld()) plugin()?.stop();
+      });
     };
     const onFocusIn = (event) => {
       if (event.target.closest(TOGGLE_SELECTOR)) return;
@@ -101,11 +107,13 @@ export default function useCarouselControls(embla, progressRef) {
       pauses.current.focus = false;
       if (!isHeld()) plugin()?.play();
     };
-    const onMouseEnter = () => {
-      pauses.current.hover = true;
+    // A capture listener also receives the enter/leave of every element
+    // inside the row; only the row's own boundary counts.
+    const onMouseEnter = (event) => {
+      if (event.target === region) pauses.current.hover = true;
     };
-    const onMouseLeave = () => {
-      pauses.current.hover = false;
+    const onMouseLeave = (event) => {
+      if (event.target === region) pauses.current.hover = false;
     };
     embla.on('autoplay:play', holdIfPaused);
     region.addEventListener('focusin', onFocusIn);
@@ -133,12 +141,21 @@ export default function useCarouselControls(embla, progressRef) {
     autoplay?.reset();
   };
 
+  // Pressing play is the visitor asking the row to move, so it plays even
+  // though the pointer is on the row (the button). The hover pause starts
+  // again the next time the pointer enters the row. This also covers the
+  // browser not reporting the pointer leaving after the button's icon is
+  // swapped under it.
   const toggleAutoplay = () => {
     const next = !pauses.current.user;
     pauses.current.user = next;
     setIsUserPaused(next);
-    if (next) autoplay?.stop();
-    else autoplay?.play();
+    if (next) {
+      autoplay?.stop();
+    } else {
+      pauses.current.hover = false;
+      autoplay?.play();
+    }
   };
 
   const hasControls = state.canPrev || state.canNext;

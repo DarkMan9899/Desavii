@@ -2,8 +2,9 @@
 // controls) share one row; the cards row clips at the container edge with
 // the next card peeking in; a progress track sits under the row. Widths
 // per `size`: listing cards ~1.15 / 2.2 / 3.2 / 4.2 per row (phone,
-// tablet, laptop, desktop); tall photos ~1.3 / 2.4 / 3.4 / 4.3; spotlight
-// cards ~1.15 / 2.2 / 2.1 / 2.6 beside the heading column.
+// tablet, laptop, desktop); tall photos ~1.3 / 2.4 / 3.4 / 4.3; featured
+// rail cards ~1.2 / 2.2 / 3.1 / 3.6; spotlight cards ~1.15 / 2.2 / 2.1 /
+// 2.6 beside the heading column.
 //
 // Motion: control fills and the arrow nudge are transform/colour only; the
 // progress thumb moves by transform on Embla's scroll frames. Nothing
@@ -150,6 +151,12 @@ $track-height: 2px;
 }
 
 .viewport {
+  // Embla measures the track and its cards by `offsetLeft`, which is only
+  // comparable when both share a nearby offset parent. Without one, a row
+  // that re-measures while its track is transformed reads the track's page
+  // offset as a start gap and decides nothing scrolls (seen at 1920 under
+  // reduced motion, where no ScrollReveal transform supplies the context).
+  position: relative;
   // Room for the cards' focus rings and shadows without clipping them.
   padding: tokens.$space-2;
   margin: calc(-1 * #{tokens.$space-2});
@@ -278,6 +285,28 @@ $track-height: 2px;
 
   @include respond.respond(desktop) {
     width: 22%;
+  }
+}
+
+// Featured rail cards (Home's featured listings): about 1.2 / 2.2 / 3.1 /
+// 3.6 per row, so the next card always peeks in and the rail reads as one.
+.slide--feature {
+  width: 84%;
+
+  @include respond.respond(mobile-large) {
+    width: 72%;
+  }
+
+  @include respond.respond(tablet) {
+    width: 44%;
+  }
+
+  @include respond.respond(laptop) {
+    width: 31%;
+  }
+
+  @include respond.respond(desktop) {
+    width: 27%;
   }
 }
 

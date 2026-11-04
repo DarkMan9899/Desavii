@@ -153,9 +153,17 @@
       }
     },
     "featured": {
-      "eyebrow": "Handpicked",
+      "eyebrow": "Spotlight",
       "title": "Featured listings",
-      "subtitle": "A selection of published places to stay and things to do.",
+      "subtitle": "Promoted places, top guest ratings and the newest listing in each category.",
+      "badge": {
+        "promoted": "promoted listing",
+        "rated": "Top guest rating",
+        "newest": "New"
+      },
+      "rating_one": "{{rating}} · {{count}} review",
+      "rating_other": "{{rating}} · {{count}} reviews",
+      "priceOnRequest": "Price on request",
       "empty": {
         "title": "No listings yet",
         "description": "Check back soon — new places to stay and things to do are added regularly."

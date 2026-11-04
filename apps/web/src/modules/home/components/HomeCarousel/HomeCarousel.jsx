@@ -21,8 +21,9 @@
  * the ink band.
  *
  * `size` sets the card width per breakpoint so the next card always peeks
- * in: `listing`, `tall` (portrait destination photos) or `spotlight`
- * (cards beside the heading column). While `isLoading`, placeholder cards
+ * in: `listing`, `tall` (portrait destination photos), `feature` (the
+ * featured rail's wider cards) or `spotlight` (cards beside the heading
+ * column). While `isLoading`, placeholder cards
  * of the same size hold the row's space, so nothing jumps.
  *
  * Autoplay (owner requirement): a row with two or more real cards
@@ -237,7 +238,7 @@ HomeCarousel.propTypes = {
   header: PropTypes.node.isRequired,
   /** The section's link (an `ActionLink`), shown beside the controls. */
   action: PropTypes.node,
-  size: PropTypes.oneOf(['listing', 'tall', 'spotlight']),
+  size: PropTypes.oneOf(['listing', 'tall', 'feature', 'spotlight']),
   layout: PropTypes.oneOf(['row', 'spotlight']),
   tone: PropTypes.oneOf(['light', 'dark']),
   isLoading: PropTypes.bool,

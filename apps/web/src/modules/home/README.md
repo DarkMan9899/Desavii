@@ -31,8 +31,12 @@ desavii → Editorial → Partner CTA → Photo credits.
   Search. See [docs/AI_DISCOVERY.md](../../../../../docs/AI_DISCOVERY.md).
 - **Categories:** `GET /search/categories`; the lead tile is the
   category with the most live listings.
-- **Featured listings:** paid TOP placements
-  (`usePublicHomeFeaturedQuery`, badged as such).
+- **Featured listings:** paid TOP placements first (badged as such),
+  topped up when there are fewer than eight with real top-rated listings
+  (average ≥ 4.5 from ≥ 3 approved reviews)
+  and the newest listing of each category (`useFeaturedRail` /
+  `selectFeaturedListings`; every card says why it is there), on
+  `FeaturedListingCard`.
 - **Destinations:** `GET /search/destinations`, top six by listings.
 - **New on desavii:** `GET /search?sort=newest`.
 - **Editorial:** published Blog posts; the section hides when there are
@@ -59,8 +63,11 @@ under the same key — no component changes.
   `HomePicture`, `SectionHeader`, `ScrollReveal`, the cards) stay
   module-private. `Showcase` is no longer used on Home; it stays for
   `discovery`'s category pages.
-- `hooks/` — `useHomeSearch` (Home's search state and submit) and
-  `useAskDesavii` (AI-assisted discovery).
+- `hooks/` — `useHomeSearch` (Home's search state and submit),
+  `useAskDesavii` (AI-assisted discovery) and `useFeaturedRail` (the
+  featured rail's data).
+- `utils/` — `selectFeaturedListings` (which listings the featured rail
+  shows, and why).
 - `constants/` — structural (non-text) data: the photo manifest and the
   Why desavii icon pairing. Copy lives in translations under `home.*`.
 - `index.js` — this module's public export surface (Ch. 6.2) — the ONLY

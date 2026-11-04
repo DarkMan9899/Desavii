@@ -13,6 +13,7 @@
  */
 
 export { useListingImpression } from './useListingImpression.js';
+export { useListingCardImpression } from './useListingCardImpression.js';
 export { PLACEMENTS, CONTACT_METHODS } from './constants.js';
 export {
   trackListingImpression,

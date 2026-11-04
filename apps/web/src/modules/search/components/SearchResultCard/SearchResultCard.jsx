@@ -27,10 +27,7 @@ import ListingCardBase from '../../../../components/ListingCardBase/ListingCardB
 import { FavoriteButton } from '../../../favorites/index.js';
 import { buildCategoryCardMeta } from '../../../../utils/buildCategoryCardMeta.js';
 import {
-  useListingImpression,
-  isAnalyticsCollectionEnabled,
-  trackListingImpression,
-  trackPromotionImpression,
+  useListingCardImpression,
   trackSearchResultClick,
   trackCompanyListingClick,
   trackPromotionClicked,
@@ -68,26 +65,13 @@ export default function SearchResultCard({
     defaultValue: result.listing_type,
   });
 
-  const impressionEnabled =
-    Boolean(placement) && isAnalyticsCollectionEnabled();
-  const impressionRef = useListingImpression({
-    enabled: impressionEnabled,
-    onImpression: () => {
-      trackListingImpression({
-        listingId: result.id,
-        placement,
-        position,
-        categoryCode: result.category_slug ?? undefined,
-        locale,
-      });
-      if (promotionId) {
-        trackPromotionImpression({
-          promotionId,
-          listingId: result.id,
-          placement,
-        });
-      }
-    },
+  const impressionRef = useListingCardImpression({
+    listingId: result.id,
+    placement,
+    position,
+    categoryCode: result.category_slug ?? undefined,
+    locale,
+    promotionId,
   });
 
   const handleCardClick = () => {

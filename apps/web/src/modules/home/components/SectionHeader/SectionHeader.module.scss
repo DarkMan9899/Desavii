@@ -55,6 +55,11 @@
   line-height: 1.1;
   letter-spacing: -0.005em;
   color: tokens.$color-gray-900;
+  // A single word wider than a phone (e.g. Armenian
+  // "հայտարարություններ" at this size) wraps instead of running past
+  // the screen edge; ordinary titles are unaffected.
+  overflow-wrap: break-word;
+  hyphens: auto;
 
   @include respond.respond(laptop) {
     // A larger jump than the previous 1.15x — an editorial-scale

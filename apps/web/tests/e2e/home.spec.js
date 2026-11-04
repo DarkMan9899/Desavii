@@ -96,9 +96,11 @@ test.describe('Home search entry', () => {
   });
 });
 
-// Featured listings show every active Home placement. The demo seed has
-// exactly one, so two more real promotions are created through the real
-// Admin API for this test — and cancelled after it, whatever happens.
+// Featured listings show every active Home placement first (TOP), then
+// real top-rated / newest listings up to the rail size. The demo seed has
+// exactly one placement, so two more real promotions are created through
+// the real Admin API for this test — and cancelled after it, whatever
+// happens.
 test.describe('Home featured placements', () => {
   test('several active placements render as several cards, and the row plays on its own', async ({
     page,
@@ -164,8 +166,19 @@ test.describe('Home featured placements', () => {
         .getByRole('region', { name: 'Featured listings' })
         .last();
       await row.scrollIntoViewIfNeeded();
-      const cards = row.getByRole('group');
-      await expect(cards).toHaveCount(featured.length + listings.length);
+      const promotedCount = featured.length + listings.length;
+      const cards = row.getByRole('article');
+      await expect(cards.first()).toBeVisible();
+      const sources = await cards.evaluateAll((nodes) =>
+        nodes.map((node) => node.dataset.source),
+      );
+      // Every promotion, first and in a row; the rest are never promoted.
+      expect(sources.slice(0, promotedCount)).toEqual(
+        Array(promotedCount).fill('promoted'),
+      );
+      expect(sources.slice(promotedCount)).not.toContain('promoted');
+      expect(sources.length).toBeLessThanOrEqual(Math.max(promotedCount, 8));
+      await expect(row.getByText(/^TOP\b/)).toHaveCount(promotedCount);
       const titles = await row
         .getByRole('heading', { level: 3 })
         .allTextContents();

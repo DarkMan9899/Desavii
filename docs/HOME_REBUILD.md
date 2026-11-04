@@ -240,7 +240,7 @@ framing), Real Estate Search Hero (adapted: search on the photo).
 
 | Row | Data | Section limit | Demo data today | Autoplay | Loop |
 | --- | --- | --- | --- | --- | --- |
-| Featured listings (`FeaturedListings`, spotlight) | `GET /advertising/public/home-featured` — active `HOMEPAGE_SECTION` promotions | the placement's `max_concurrent_slots` (6) | 1 active promotion → 1 card | only with 2+ cards | no — promotion priority order |
+| Featured listings (`FeaturedListings`, full-width rail since the 2026-11-04 fix below) | active `HOMEPAGE_SECTION` promotions, topped up from `GET /search?sort=rating_desc` | 8 (all promotions when there are more) | 1 promotion + the newest listing of each other category on the first page (no demo listing yet has 3+ approved reviews averaging 4.5+) | only with 2+ cards | no — promotions first, then rating, then category |
 | Featured destinations (`FeaturedDestinations`, ink band) | `GET /search/destinations`, cities with listings, busiest first | 6 | 22 cities, 8 with listings → 6 cards | yes | no — ranked by listing count |
 | New on desavii (`PopularExperiences`) | `GET /search?sort=newest`, first page | one Search page (12) | 73 published → 12 cards | yes | no — newest first |
 
@@ -274,6 +274,68 @@ first, without cloning cards.
 Slide changes are not announced (no live region) and focus never moves on
 its own. The timer belongs to the plugin, which Embla destroys on unmount;
 the row's own listeners are removed with it.
+
+### Featured listings rail (2026-11-04)
+
+**Owner bug:** the featured section still read as a placeholder — one pale
+card beside the heading column, not a carousel.
+
+**Root cause (data + layout, not slicing):** the section showed only the
+active Home promotions, and the demo seed has exactly one, so the row
+had one card. Nothing filtered or capped it below the placement's six
+slots; the spotlight layout then put that one card beside the heading
+column, leaving a wide empty field. The card was the shared Search card,
+built for a results grid.
+
+**Fix:**
+
+- **Truthful fill** (`utils/selectFeaturedListings.js`,
+  `hooks/useFeaturedRail.js`): promotions always come first, with the TOP
+  badge, and alone when they fill the rail (8). Otherwise the rail is
+  topped up from one `GET /search?sort=rating_desc` page: listings with
+  an approved-review average of at least 4.5 (the top step of the Search
+  guest-rating filter) from at least 3 approved reviews first ("Top guest
+  rating"; no product-defined "guest favourite" rule exists, so the label
+  claims only what the numbers on the card show), then the newest
+  listing of each category not yet shown ("New"). That request runs only
+  after the promotions settle and only when they cannot fill the rail.
+  Nothing is repeated or invented; a filler card never reports promotion
+  analytics. The subtitle says exactly this in HY / EN / RU.
+- **Home card** (`FeaturedListingCard`): image first at the locked 4:3
+  ratio, the source badge, the favourite button, a one-line gold-hairline
+  eyebrow (category · city), the title in the display face, at most two
+  real facts (rating, category facts), and a price footer with a ringed
+  arrow cue. The whole card is one link; it lifts on hover/focus
+  (transform only; nothing moves under reduced motion). The Search page
+  keeps `SearchResultCard`. Both report impressions through one
+  `analytics/useListingCardImpression`.
+- **Rail**: `HomeCarousel` `size="feature"` (about 1.2 / 2.2 / 3.1 / 3.6
+  cards per row) in the full-width row layout, with the counter, paired
+  arrows, progress track, swipe, keys and autoplay it already has. One
+  or two cards (nothing else exists) keep the spotlight layout.
+- **Autoplay hold fix** (`useCarouselControls`): the plugin emits
+  `autoplay:play` before it arms its timer, so a hold applied inside the
+  event was undone. Hovering a row, focusing a card and then moving the
+  pointer away resumed autoplay while focus was still inside. The hold now
+  runs once the plugin has finished starting. Pressing Play now always
+  plays: it lifts the hover pause until the pointer enters the row again,
+  because Chrome reports no `mouseleave` after the button's icon is swapped
+  under the pointer. The hover listeners react only to the row's own
+  boundary, not to its cards.
+- **Embla measurement fix** (`HomeCarousel.module.scss`): the viewport is
+  `position: relative`. Embla measures the track and its cards by
+  `offsetLeft`; without a shared nearby offset parent, a row that
+  re-measured while its track was transformed read the track's page offset
+  as a start gap and decided nothing scrolled. At 1920 under reduced motion
+  the rail lost its controls.
+- **Long Armenian words** in section titles wrap instead of running to
+  the screen edge at 390 (`SectionHeader`: `overflow-wrap`).
+
+Evidence: `tests/e2e/homeFeaturedRail.spec.js` (data truth against the
+API, 3 locales × 7 widths 390–1920 with overflow / image / text-spill /
+console / axe checks and a screenshot each under
+`test-results/visual-qa/home-featured/`, arrows, keys, swipe, autoplay
+holds, reduced motion).
 
 ## 10. Removed
 

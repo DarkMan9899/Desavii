@@ -1,34 +1,38 @@
 /**
- * FeaturedListings — Home's promoted listings (`GET /advertising/home-
- * featured`): paid placements, each marked with the TOP badge so a
- * promotion never reads as an editorial pick, and each impression/click
- * reported under `PLACEMENTS.HOME_FEATURED`.
+ * FeaturedListings — Home's featured rail: the active Home promotions
+ * (TOP, paid) first, topped up with real top-rated listings and the
+ * newest listing of each category when there are too few promotions to
+ * fill the rail (`useFeaturedRail` / `selectFeaturedListings`). Every card
+ * says why it is there; nothing is repeated or invented.
  *
- * Home rebuild (docs/HOME_REBUILD.md): same data and card
- * (`SearchResultCard`); the row is now `HomeCarousel` (no autoplay, no
- * loop). With no active promotion the section says so instead of leaving
- * an empty band.
+ * Home featured fix (docs/HOME_REBUILD.md): the rail used to show the
+ * promotions only — with one active promotion that was one card beside a
+ * heading column. It is now a full-width `HomeCarousel` row of
+ * `FeaturedListingCard`s (3+ per row on a laptop), with the counter,
+ * paired controls, progress track and autoplay that row brings. A rail
+ * of one or two cards (nothing else exists) keeps the spotlight layout,
+ * the heading beside the cards, so it never reads as an empty band.
  */
 
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Container, Section } from '@desavii/ui/components/layout';
 import { EmptyState, Alert } from '@desavii/ui/components/feedback-overlays';
-import { SearchResultCard } from '../../../search/index.js';
-import { usePublicHomeFeaturedQuery } from '../../../advertising/index.js';
-import { PLACEMENTS } from '../../../../analytics/index.js';
+import useFeaturedRail from '../../hooks/useFeaturedRail.js';
 import SectionHeader from '../SectionHeader/SectionHeader.jsx';
 import HomeCarousel from '../HomeCarousel/HomeCarousel.jsx';
 import ActionLink from '../ActionLink/ActionLink.jsx';
 import ScrollReveal from '../ScrollReveal/ScrollReveal.jsx';
+import FeaturedListingCard from '../FeaturedListingCard/FeaturedListingCard.jsx';
 
 const HEADING_ID = 'featured-listings-heading';
+// Up to this many cards, the heading sits beside them instead of above.
+const SPOTLIGHT_MAX = 2;
 
 export default function FeaturedListings() {
   const { t } = useTranslation();
   const { locale } = useParams();
-  const { data, isPending, isError } = usePublicHomeFeaturedQuery({ locale });
-  const listings = data ?? [];
+  const { items, isPending, isError } = useFeaturedRail({ locale });
 
   // The row shows its link beside the controls; without a row (error,
   // empty) the heading keeps it.
@@ -47,28 +51,28 @@ export default function FeaturedListings() {
       {t('home.showcase.viewAll')}
     </ActionLink>
   );
+  const layout =
+    !isPending && items.length <= SPOTLIGHT_MAX ? 'spotlight' : 'row';
 
   return (
     <Section aria-labelledby={HEADING_ID}>
       <Container size="wide">
         <ScrollReveal>
-          {isPending || listings.length > 0 ? (
+          {isPending || items.length > 0 ? (
             <HomeCarousel
               label={t('home.featured.title')}
               header={renderHeader(false)}
               action={action}
-              layout="spotlight"
-              size="spotlight"
+              layout={layout}
+              size={layout === 'spotlight' ? 'spotlight' : 'feature'}
               isLoading={isPending}
             >
-              {listings.map((listing, index) => (
-                <SearchResultCard
+              {items.map(({ listing, source }, index) => (
+                <FeaturedListingCard
                   key={listing.id}
-                  result={listing}
-                  topBadgeLabel={t('advertising.topBadge')}
-                  placement={PLACEMENTS.HOME_FEATURED}
+                  listing={listing}
+                  source={source}
                   position={index}
-                  promotionId={listing.promotion_id}
                 />
               ))}
             </HomeCarousel>
@@ -83,7 +87,7 @@ export default function FeaturedListings() {
           </Alert>
         )}
 
-        {!isPending && !isError && listings.length === 0 && (
+        {!isPending && !isError && items.length === 0 && (
           <EmptyState
             title={t('home.featured.empty.title')}
             description={t('home.featured.empty.description')}

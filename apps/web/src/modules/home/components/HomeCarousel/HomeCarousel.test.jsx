@@ -178,15 +178,19 @@ describe('HomeCarousel (apps/web/src/modules/home)', () => {
       expect(pluginNames()).toEqual(['wheelGestures']);
     });
 
-    test('keyboard focus anywhere in the row pauses it until focus leaves', () => {
+    test('keyboard focus anywhere in the row pauses it until focus leaves', async () => {
       renderCarousel();
       const card = screen.getByRole('link', { name: 'Card two' });
       fireEvent.focusIn(card);
       expect(api.autoplay.stop).toHaveBeenCalled();
 
-      // A start the plugin attempts while focus is still inside is held.
+      // A start the plugin attempts while focus is still inside is held —
+      // once the plugin has finished starting (it emits before it arms its
+      // timer, so the hold runs on the next microtask).
       api.autoplay.stop.mockClear();
       api.handlers['autoplay:play']();
+      expect(api.autoplay.stop).not.toHaveBeenCalled();
+      await Promise.resolve();
       expect(api.autoplay.stop).toHaveBeenCalledTimes(1);
 
       fireEvent.focusOut(card, { relatedTarget: document.body });
@@ -227,12 +231,51 @@ describe('HomeCarousel (apps/web/src/modules/home)', () => {
 
       api.autoplay.stop.mockClear();
       api.handlers['autoplay:play']();
+      await Promise.resolve();
       expect(api.autoplay.stop).toHaveBeenCalledTimes(1);
 
       await user.click(
         screen.getByRole('button', { name: 'Միացնել ինքնաշարժ թերթումը' }),
       );
       expect(api.autoplay.play).toHaveBeenCalled();
+    });
+
+    // The pointer is on the row (the play button) when play is pressed:
+    // the visitor's play still plays — the hover pause does not hold it.
+    test('pressing play plays even with the pointer over the row', async () => {
+      renderCarousel();
+      const region = screen.getByRole('region');
+      fireEvent.mouseEnter(region);
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Դադարեցնել ինքնաշարժ թերթումը' }),
+      );
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Միացնել ինքնաշարժ թերթումը' }),
+      );
+      expect(api.autoplay.play).toHaveBeenCalledTimes(1);
+
+      api.autoplay.stop.mockClear();
+      api.handlers['autoplay:play']();
+      await Promise.resolve();
+      expect(api.autoplay.stop).not.toHaveBeenCalled();
+    });
+
+    // Moving between elements inside the row is not leaving it.
+    test('the pointer moving between the cards keeps the hover pause', async () => {
+      renderCarousel();
+      const region = screen.getByRole('region');
+      fireEvent.mouseEnter(region);
+      fireEvent.mouseLeave(screen.getByRole('link', { name: 'Card one' }));
+
+      api.handlers['autoplay:play']();
+      await Promise.resolve();
+      expect(api.autoplay.stop).toHaveBeenCalledTimes(1);
+
+      fireEvent.mouseLeave(region);
+      api.autoplay.stop.mockClear();
+      api.handlers['autoplay:play']();
+      await Promise.resolve();
+      expect(api.autoplay.stop).not.toHaveBeenCalled();
     });
   });
 });
