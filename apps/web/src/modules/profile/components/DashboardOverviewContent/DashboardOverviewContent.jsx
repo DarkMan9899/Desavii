@@ -35,12 +35,14 @@ import {
 import { Heart, MessageCircle, Bell, Sparkles } from 'lucide-react';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
-import ListingCardBase from '../../../../components/ListingCardBase/ListingCardBase.jsx';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
 import { useMyBookingsQuery, BookingCard } from '../../../bookings/index.js';
 import { toISODate } from '../../../listings/utils/reservationEstimate.js';
 import { RecommendationsSection } from '../../../ai/index.js';
-import { useFavoritesQuery } from '../../../favorites/index.js';
+import {
+  FavoriteListingCard,
+  useFavoritesQuery,
+} from '../../../favorites/index.js';
 import { useUnreadCountQuery } from '../../../notifications/index.js';
 import { useUnreadConversationCountQuery } from '../../../messaging/index.js';
 import NextTripPanel from '../NextTripPanel/NextTripPanel.jsx';
@@ -220,18 +222,9 @@ export default function DashboardOverviewContent() {
               </Inline>
               <div className={styles.favoritesTeaser}>
                 {favorites.slice(0, FAVORITES_TEASER_LIMIT).map((favorite) => (
-                  <ListingCardBase
+                  <FavoriteListingCard
                     key={favorite.favorite_id}
-                    href={`/${locale}/listings/${favorite.listing_id}`}
-                    imageUrl={favorite.cover_image_url}
-                    typeLabel={t(`listings.type.${favorite.listing_type}`, {
-                      defaultValue: favorite.listing_type,
-                    })}
-                    title={favorite.title}
-                    location={favorite.city_name && <p>{favorite.city_name}</p>}
-                    priceAmount={favorite.price_amount}
-                    priceCurrencyCode={favorite.price_currency_code}
-                    locale={locale}
+                    favorite={favorite}
                   />
                 ))}
               </div>

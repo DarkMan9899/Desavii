@@ -1,0 +1,425 @@
+// ListingCard — tokens only (docs/LISTING_CARDS.md). A white card on a
+// hairline: the 4:3 image (the locked card ratio) with its badge,
+// favourite and photo count, then the decision layer — display-face
+// title, category · city, the rating row, up to three icon facts — and a
+// footer with the price and a ringed arrow cue that sits on the card's
+// bottom edge, so cards in one row share a height.
+//
+// Motion: hover/focus lifts the card one step, eases the photo in and
+// fills the cue — transform, opacity and colour only, nothing that moves
+// layout. Nothing moves under reduced motion.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+@use 'mixins/truncate-lines' as truncate;
+@use 'mixins/visually-hidden' as hidden;
+
+$photo-hover-scale: 1.05;
+$hairline: 1px;
+$focus-ring-width: 2px;
+// The compact (map preview) image column.
+$compact-media-width: 40%;
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  isolation: isolate;
+  color: tokens.$color-gray-900;
+  background: tokens.$color-white;
+  border-radius: tokens.$radius-lg;
+  box-shadow: inset 0 0 0 $hairline tokens.$color-gray-200;
+  transition:
+    transform tokens.$motion-transition tokens.$ease-out,
+    box-shadow tokens.$motion-transition tokens.$ease-out;
+
+  // Rails and grids clip at a small margin, so hover stays inside it: a
+  // darker hairline and a one-step lift, no cast shadow. Hover only where
+  // a pointer can hover, so a tap on a phone never leaves a card lifted.
+  &:focus-within {
+    box-shadow: inset 0 0 0 $hairline tokens.$color-gray-400;
+    transform: translateY(calc(-1 * #{tokens.$space-1}));
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      box-shadow: inset 0 0 0 $hairline tokens.$color-gray-400;
+      transform: translateY(calc(-1 * #{tokens.$space-1}));
+    }
+  }
+}
+
+.media {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: tokens.$color-gray-100;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform tokens.$motion-transition-slow tokens.$ease-out;
+
+  .card:focus-within & {
+    transform: scale($photo-hover-scale);
+  }
+
+  @media (hover: hover) {
+    .card:hover & {
+      transform: scale($photo-hover-scale);
+    }
+  }
+}
+
+// Why the card is special — one label at most, legible on any photo.
+.badge {
+  position: absolute;
+  inset-block-start: tokens.$space-3;
+  inset-inline-start: tokens.$space-3;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  max-width: calc(100% - #{tokens.$space-16});
+  padding: tokens.$space-1 tokens.$space-3;
+  overflow: hidden;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-micro;
+  font-weight: 700;
+  line-height: tokens.$line-height-micro;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  letter-spacing: 0.08em;
+  border-radius: tokens.$radius-full;
+}
+
+// A paid placement reads as one: navy with a gold label.
+.badge--top {
+  color: tokens.$color-gold;
+  background: tokens.$color-navy;
+}
+
+// Earned (top guest rating): white with a gold mark.
+.badge--accent {
+  color: tokens.$color-navy;
+  background: tokens.$color-white;
+  box-shadow: inset 0 0 0 $hairline tokens.$color-gold;
+}
+
+.badge--neutral {
+  color: tokens.$color-navy;
+  background: tokens.$color-white;
+  box-shadow: inset 0 0 0 $hairline tokens.$color-gray-200;
+}
+
+.favorite {
+  position: absolute;
+  inset-block-start: tokens.$space-2;
+  inset-inline-end: tokens.$space-2;
+  z-index: 2;
+}
+
+.gallery {
+  position: absolute;
+  inset-block-end: tokens.$space-3;
+  inset-inline-end: tokens.$space-3;
+  display: inline-flex;
+  gap: tokens.$space-1;
+  align-items: center;
+  padding: tokens.$space-1 tokens.$space-2;
+  font-size: tokens.$font-size-micro;
+  font-weight: 600;
+  line-height: tokens.$line-height-micro;
+  color: tokens.$color-white;
+  background: rgba(tokens.$color-ink, 0.64);
+  border-radius: tokens.$radius-full;
+}
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: tokens.$space-3;
+  min-width: 0;
+  padding: tokens.$space-4;
+
+  @include respond.respond(tablet) {
+    padding: tokens.$space-6 tokens.$space-6 tokens.$space-4;
+  }
+}
+
+// Category · city. It wraps rather than truncates, so a long category
+// name (e.g. Russian "Достопримечательность") never hides the city; rows
+// still align because footers sit on the card's bottom edge.
+.place {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+  overflow-wrap: anywhere;
+}
+
+.placeNote {
+  margin-inline-start: tokens.$space-2;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: tokens.$space-1;
+  height: tokens.$space-1;
+  vertical-align: middle;
+  background: tokens.$color-gray-400;
+  border-radius: tokens.$radius-full;
+
+  .place & {
+    margin-inline: tokens.$space-2;
+  }
+}
+
+// The title and its category · city line read as one unit.
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-1;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-family: tokens.$font-display;
+  font-size: tokens.$font-size-h4;
+  line-height: tokens.$line-height-h4;
+  color: tokens.$color-navy;
+  overflow-wrap: break-word;
+  hyphens: auto;
+
+  @include truncate.truncate-lines(2);
+}
+
+// The title's link covers the whole card; the favourite button sits above.
+.link {
+  color: inherit;
+  text-decoration: none;
+
+  &::after {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    content: '';
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+
+  &:focus-visible::after {
+    border-radius: tokens.$radius-lg;
+    outline: $focus-ring-width solid tokens.$color-royal-blue;
+    outline-offset: calc(-1 * #{$focus-ring-width});
+  }
+}
+
+.rating {
+  display: flex;
+  gap: tokens.$space-2;
+  align-items: center;
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+}
+
+.ratingValue {
+  font-weight: 700;
+  color: tokens.$color-navy;
+}
+
+.star {
+  flex-shrink: 0;
+  color: tokens.$color-gold-strong;
+  fill: currentcolor;
+}
+
+.starEmpty {
+  flex-shrink: 0;
+  color: tokens.$color-gray-400;
+}
+
+// Concise icon facts, not chips: they wrap whole onto a second line in a
+// narrow card (long Armenian and Russian labels too).
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-1 tokens.$space-4;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.fact {
+  display: inline-flex;
+  gap: tokens.$space-1;
+  align-items: center;
+  max-width: 100%;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-900;
+  overflow-wrap: anywhere;
+}
+
+.factIcon {
+  flex-shrink: 0;
+  color: tokens.$color-gray-600;
+}
+
+.footer {
+  display: flex;
+  gap: tokens.$space-3;
+  align-items: center;
+  justify-content: space-between;
+  padding-block-start: tokens.$space-4;
+  margin-block-start: auto;
+  border-block-start: $hairline solid tokens.$color-gray-200;
+}
+
+.price {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-1 tokens.$space-2;
+  align-items: baseline;
+  min-width: 0;
+  margin: 0;
+  color: tokens.$color-navy;
+}
+
+.priceLead,
+.priceBasis,
+.priceUnlisted {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+}
+
+// A ringed arrow that fills navy when the card is hovered or focused.
+.cue {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: tokens.$button-height-sm;
+  height: tokens.$button-height-sm;
+  color: tokens.$color-navy;
+  border-radius: tokens.$radius-full;
+  box-shadow: inset 0 0 0 $hairline tokens.$color-gray-200;
+  transition:
+    background-color tokens.$motion-micro tokens.$ease-out,
+    color tokens.$motion-micro tokens.$ease-out;
+
+  .card:focus-within & {
+    color: tokens.$color-white;
+    background: tokens.$color-navy;
+  }
+
+  @media (hover: hover) {
+    .card:hover & {
+      color: tokens.$color-white;
+      background: tokens.$color-navy;
+    }
+  }
+}
+
+// An explicit action (the map preview's "Learn more").
+.cta {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: tokens.$space-1;
+  align-items: center;
+  min-height: tokens.$button-height-sm;
+  padding-inline: tokens.$space-3;
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  color: tokens.$color-white;
+  text-decoration: none;
+  background: tokens.$color-navy;
+  border-radius: tokens.$radius-full;
+  transition: background-color tokens.$motion-micro tokens.$ease-out;
+
+  @media (hover: hover) {
+    &:hover {
+      background: tokens.$color-royal-blue;
+    }
+  }
+
+  &:focus-visible {
+    outline: $focus-ring-width solid tokens.$color-royal-blue;
+    outline-offset: $focus-ring-width;
+  }
+}
+
+.title:focus {
+  outline: none;
+}
+
+// The map preview: image beside the text, the same caption, no lift.
+.card--compact {
+  flex-direction: row;
+
+  &:hover,
+  &:focus-within {
+    transform: none;
+  }
+
+  .media {
+    flex: 0 0 $compact-media-width;
+    aspect-ratio: auto;
+  }
+
+  .body {
+    gap: tokens.$space-2;
+    padding: tokens.$space-3 tokens.$space-4;
+  }
+
+  .title {
+    font-size: tokens.$font-size-body-large;
+    line-height: tokens.$line-height-body-large;
+  }
+
+  .footer {
+    padding-block-start: tokens.$space-2;
+  }
+
+  .cue {
+    display: none;
+  }
+}
+
+.visuallyHidden {
+  @include hidden.visually-hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .image,
+  .cue,
+  .cta {
+    transition: none;
+  }
+
+  .card:hover,
+  .card:focus-within,
+  .card:hover .image,
+  .card:focus-within .image {
+    transform: none;
+  }
+}

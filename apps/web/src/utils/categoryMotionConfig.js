@@ -1,10 +1,9 @@
 /**
  * categoryMotionConfig — Pass 7B (category motion completion, brief §5/§6).
  *
- * Card-level motion (image zoom/filter, price-row accent, title accent)
- * already lives directly in `ListingCardBase.module.scss`'s `[data-category]`
- * selectors — pure CSS, no config needed there. This module covers the
- * OTHER half of brief §5/§6: which single Listing Detail section, if any,
+ * Listing cards share one restrained motion (`components/ListingCard`);
+ * categories differ by their facts, not their card motion. This module
+ * covers the Listing Detail half of brief §5/§6: which single Listing Detail section, if any,
  * gets the more pronounced `ScrollReveal` `depth` variant instead of the
  * default `fade` — "meaningful, restrained category-aware behavior" on
  * the detail page without forking nine page implementations (brief §6).

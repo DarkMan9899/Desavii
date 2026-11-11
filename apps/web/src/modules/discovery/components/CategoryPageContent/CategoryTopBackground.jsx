@@ -44,8 +44,8 @@ import styles from './CategoryTopBackground.module.scss';
 // category hero always agree on this category's own visual identity.
 // All 9 real categories now have their own dedicated environment above
 // — this generic treatment is only reached by an unrecognized category
-// slug outside the known 9, matching `resolveCardConfig`'s own
-// unrecognized-category fallback elsewhere in this app.
+// slug outside the known 9, matching the card's own unrecognized-category
+// fallback (no invented price basis) elsewhere in this app.
 const THEME_BY_CATEGORY = {};
 
 export default function CategoryTopBackground({ categorySlug }) {

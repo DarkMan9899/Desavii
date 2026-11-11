@@ -137,9 +137,9 @@ describe('FeaturedListings (apps/web/src/modules/home) — featured rail', () =>
       'Aragats Summit Hike',
     ]);
     const [top, rated, newest] = screen.getAllByRole('article');
-    expect(top).toHaveAttribute('data-source', 'promoted');
-    expect(rated).toHaveAttribute('data-source', 'rated');
-    expect(newest).toHaveAttribute('data-source', 'newest');
+    expect(top).toHaveAttribute('data-badge', 'top');
+    expect(rated).toHaveAttribute('data-badge', 'accent');
+    expect(newest).toHaveAttribute('data-badge', 'neutral');
     // The test harness's i18n instance defaults to Armenian (tests/setup.js).
     expect(within(top).getByText('ԹՈՓ')).toBeInTheDocument();
     expect(

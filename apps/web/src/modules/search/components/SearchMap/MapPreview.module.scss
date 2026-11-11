@@ -1,128 +1,14 @@
-// Map Search previews (a listing, a group at one point, the desktop
-// card around them) — tokens only, consumed from @desavii/ui.
+// Map Search previews (the listing card is the shared `ListingCard`; a group
+// at one point, the back link and the desktop
+// card around them live here) — tokens only, consumed from @desavii/ui.
 
 @use 'tokens' as tokens;
 @use 'mixins/focus-ring' as focus;
-@use 'mixins/truncate-lines' as truncate;
 
 .preview {
   display: flex;
   flex-direction: column;
   min-width: 0;
-}
-
-.cover {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: tokens.$radius-md;
-  background-color: tokens.$color-gray-100;
-}
-
-.body {
-  display: flex;
-  flex-direction: column;
-  gap: tokens.$space-2;
-  padding-block-start: tokens.$space-3;
-  min-width: 0;
-}
-
-.type {
-  margin: 0;
-  font-size: tokens.$font-size-micro;
-  line-height: tokens.$line-height-micro;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: tokens.$color-royal-blue;
-}
-
-.title {
-  margin: 0;
-  font-family: tokens.$font-heading;
-  font-size: tokens.$font-size-body-large;
-  line-height: tokens.$line-height-body-large;
-  font-weight: 600;
-  color: tokens.$color-gray-900;
-  @include truncate.truncate-lines(2);
-
-  &:focus-visible {
-    outline: none;
-  }
-}
-
-.location {
-  display: flex;
-  align-items: center;
-  gap: tokens.$space-1;
-  margin: 0;
-  font-size: tokens.$font-size-small;
-  color: tokens.$color-gray-600;
-}
-
-.approximate {
-  font-style: italic;
-}
-
-.facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: tokens.$space-1;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.fact {
-  padding: tokens.$space-1 tokens.$space-2;
-  border-radius: tokens.$radius-sm;
-  background-color: tokens.$color-gray-100;
-  font-size: tokens.$font-size-micro;
-  line-height: tokens.$line-height-micro;
-  color: tokens.$color-gray-900;
-}
-
-.footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: tokens.$space-3;
-  margin-block-start: tokens.$space-1;
-}
-
-.price {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: tokens.$space-1;
-  margin: 0;
-}
-
-.pricePrefix {
-  font-size: tokens.$font-size-small;
-  color: tokens.$color-gray-600;
-}
-
-.learnMore {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: tokens.$button-height-sm;
-  padding-inline: tokens.$space-4;
-  border-radius: tokens.$radius-md;
-  background-color: tokens.$color-royal-blue;
-  color: tokens.$color-white;
-  font-size: tokens.$font-size-small;
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-  @include focus.focus-ring;
-
-  &:hover {
-    background-color: tokens.$color-navy;
-  }
 }
 
 // --- A group of listings at one point ------------------------------------

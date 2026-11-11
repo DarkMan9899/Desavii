@@ -301,13 +301,14 @@ built for a results grid.
   after the promotions settle and only when they cannot fill the rail.
   Nothing is repeated or invented; a filler card never reports promotion
   analytics. The subtitle says exactly this in HY / EN / RU.
-- **Home card** (`FeaturedListingCard`): image first at the locked 4:3
+- **Home card** (since the shared card phase, the one `ListingCard` — see
+  `LISTING_CARDS.md`; `FeaturedListingCard` was removed): image first at the locked 4:3
   ratio, the source badge, the favourite button, a one-line gold-hairline
   eyebrow (category · city), the title in the display face, at most two
   real facts (rating, category facts), and a price footer with a ringed
   arrow cue. The whole card is one link; it lifts on hover/focus
-  (transform only; nothing moves under reduced motion). The Search page
-  keeps `SearchResultCard`. Both report impressions through one
+  (transform only; nothing moves under reduced motion). It renders
+  through `SearchResultCard`, like Search, and reports impressions through
   `analytics/useListingCardImpression`.
 - **Rail**: `HomeCarousel` `size="feature"` (about 1.2 / 2.2 / 3.1 / 3.6
   cards per row) in the full-width row layout, with the counter, paired

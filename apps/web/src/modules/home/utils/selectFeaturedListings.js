@@ -7,13 +7,10 @@
  *    home-featured`), in promotion order. They always come first and
  *    always carry the TOP badge; when there are at least
  *    `FEATURED_RAIL_SIZE` of them, nothing else is added.
- * 2. `rated` — "Top guest rating": an approved-review average of at least
- *    `TOP_RATING_MIN` from at least `TOP_RATING_MIN_REVIEWS` approved
- *    reviews, best average first (`GET /search?sort=rating_desc`). 4.5 is
- *    the highest "N or better" step of the Search page's own guest-rating
- *    filter; the review minimum keeps one or two reviews from earning the
- *    label. The card shows the exact average and count, so the claim can
- *    be checked. Nothing here measures popularity.
+ * 2. `rated` — listings with the shared "Top guest rating"
+ *    (`utils/listingCardModel.js` `isTopRated`: an approved-review average
+ *    of 4.5+ from 3+ approved reviews), best average first (`GET
+ *    /search?sort=rating_desc`). Nothing here measures popularity.
  * 3. `newest` — the newest listing of each category the rail does not
  *    show yet, from the same response (its tie order is newest first), so
  *    the rail spans the catalogue instead of repeating one vertical.
@@ -23,6 +20,8 @@
  * no candidates the rail is just the promotions — possibly one card.
  */
 
+import { isTopRated } from '../../../utils/listingCardModel.js';
+
 export const FEATURED_RAIL_SIZE = 8;
 
 export const FEATURED_SOURCES = Object.freeze({
@@ -30,16 +29,6 @@ export const FEATURED_SOURCES = Object.freeze({
   RATED: 'rated',
   NEWEST: 'newest',
 });
-
-/** The Search guest-rating filter's highest step ("4.5 or better"). */
-export const TOP_RATING_MIN = 4.5;
-/** Fewest approved reviews behind a "Top guest rating" label. */
-export const TOP_RATING_MIN_REVIEWS = 3;
-
-const isTopRated = (listing) =>
-  listing.rating_average != null &&
-  Number(listing.rating_average) >= TOP_RATING_MIN &&
-  Number(listing.review_count) >= TOP_RATING_MIN_REVIEWS;
 
 /**
  * @param {object[]} promoted - active Home promotions, in order.

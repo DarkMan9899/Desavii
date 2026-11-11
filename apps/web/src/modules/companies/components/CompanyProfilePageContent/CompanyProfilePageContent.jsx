@@ -19,7 +19,7 @@
  * identical flat card-field shape `searchDto.js`'s `toSearchResultResponse`
  * does, so `SearchResultCard` keeps rendering every card unchanged — no
  * new card component, no category branching here: `categoryVisualKey`/
- * `buildCategoryCardMeta`/`resolveCardConfig`/Money-FX all keep working
+ * the shared card model (`listingCardModel.js`)/Money-FX all keep working
  * exactly as they do on Search/Category/Home, so a company's Hotel still
  * looks like a Hotel card, a company's Tour like a Tour card, etc.
  * Pagination UX mirrors `CompaniesDirectoryPageContent`'s own "Load

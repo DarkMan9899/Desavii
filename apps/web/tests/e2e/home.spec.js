@@ -169,14 +169,15 @@ test.describe('Home featured placements', () => {
       const promotedCount = featured.length + listings.length;
       const cards = row.getByRole('article');
       await expect(cards.first()).toBeVisible();
+      // The card's badge tone: `top` only for a paid placement.
       const sources = await cards.evaluateAll((nodes) =>
-        nodes.map((node) => node.dataset.source),
+        nodes.map((node) => node.dataset.badge),
       );
       // Every promotion, first and in a row; the rest are never promoted.
       expect(sources.slice(0, promotedCount)).toEqual(
-        Array(promotedCount).fill('promoted'),
+        Array(promotedCount).fill('top'),
       );
-      expect(sources.slice(promotedCount)).not.toContain('promoted');
+      expect(sources.slice(promotedCount)).not.toContain('top');
       expect(sources.length).toBeLessThanOrEqual(Math.max(promotedCount, 8));
       await expect(row.getByText(/^TOP\b/)).toHaveCount(promotedCount);
       const titles = await row

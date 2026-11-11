@@ -5,8 +5,9 @@
  * Goes through `GET /search` (`searchListings`) rather than `GET /listings`
  * (the public, published-only browse endpoint returning only the bare
  * summary DTO) — `searchListings` already returns the richer flat shape
- * (`title`, `summary`, `cover_image_url`, `city_name`) a management table
- * needs, with zero per-row follow-up calls. Called directly rather than via
+ * (`title`, `status`, `cover_image_url`, `city_name`, lifecycle dates) a
+ * management table needs, with zero per-row follow-up calls; `status` and
+ * the lifecycle dates come only in this owner view. Called directly rather than via
  * `useSearchListingsQuery`/`toSearchQueryParams` (`modules/search`), since
  * those are tailored to the public customer-filter shape and have no
  * concept of `partnerId`/`status`.

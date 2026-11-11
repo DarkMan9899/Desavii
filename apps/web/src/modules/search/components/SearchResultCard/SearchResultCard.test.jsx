@@ -6,16 +6,16 @@ import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom';
 import SearchResultCard from './SearchResultCard.jsx';
 import CurrencyProvider from '../../../../providers/CurrencyProvider.jsx';
 
-// FavoriteButton has its own dedicated test file — a trivial stub here
-// keeps this file focused on SearchResultCard's own rendering and avoids
-// needing an AuthProvider just to satisfy FavoriteButton's internal
-// hooks. `QueryClientProvider` is still needed (Pass 8: `ListingCardBase`
-// now renders an AMD price through `<Money>`, which reads
-// `CurrencyContext`'s FX-rates query).
+// FavoriteButton has its own dedicated test file — a plain button stub
+// here keeps this file focused on the card and avoids needing an
+// AuthProvider, while still proving the button never nests in the card's
+// link. `QueryClientProvider` is still needed: an AMD price renders through
+// `<Money>`, which reads `CurrencyContext`'s FX-rates query.
 vi.mock(
   '../../../favorites/components/FavoriteButton/FavoriteButton.jsx',
   () => ({
-    default: () => null,
+    // eslint-disable-next-line react/jsx-no-literals -- test stub
+    default: () => <button type="button">favourite</button>,
   }),
 );
 vi.mock('../../../../api/fx.js', () => ({
@@ -44,24 +44,24 @@ const RESULT = {
   price_currency_code: null,
 };
 
-function LocaleScopedCard({ result, hideTypeBadge = false }) {
+function LocaleScopedCard({ result, highlight = undefined }) {
   const { locale } = useParams();
   return (
     <CurrencyProvider locale={locale}>
-      <SearchResultCard result={result} hideTypeBadge={hideTypeBadge} />
+      <SearchResultCard result={result} highlight={highlight} />
     </CurrencyProvider>
   );
 }
 LocaleScopedCard.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types -- test-only pass-through
   result: PropTypes.object.isRequired,
-  hideTypeBadge: PropTypes.bool,
+  highlight: PropTypes.string,
 };
 
 function renderCard(
   result = RESULT,
   initialEntry = '/en',
-  hideTypeBadge = false,
+  highlight = undefined,
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -72,9 +72,7 @@ function renderCard(
         <Routes>
           <Route
             path="/:locale"
-            element={
-              <LocaleScopedCard result={result} hideTypeBadge={hideTypeBadge} />
-            }
+            element={<LocaleScopedCard result={result} highlight={highlight} />}
           />
         </Routes>
       </MemoryRouter>
@@ -88,15 +86,31 @@ describe('SearchResultCard (apps/web/src/modules/search)', () => {
     expect(screen.getByRole('link')).toHaveAttribute('href', '/en/listings/7');
   });
 
-  test('renders the fields the search DTO actually returns', () => {
+  test('renders the card fields from the search DTO — not the long summary', () => {
     renderCard();
     expect(
       screen.getByRole('heading', { name: 'Yerevan Grand Hotel' }),
     ).toBeInTheDocument();
     expect(screen.getByText('Yerevan')).toBeInTheDocument();
     expect(
-      screen.getByText('A central hotel with mountain views.'),
-    ).toBeInTheDocument();
+      screen.queryByText('A central hotel with mountain views.'),
+    ).not.toBeInTheDocument();
+  });
+
+  test('is one article named by its title, with one link and the favourite outside it', () => {
+    renderCard();
+    const card = screen.getByRole('article', { name: 'Yerevan Grand Hotel' });
+    const link = screen.getByRole('link');
+    expect(link).toHaveAccessibleName('Yerevan Grand Hotel');
+    expect(card).toContainElement(link);
+    const favourite = screen.getByRole('button', { name: 'favourite' });
+    expect(link).not.toContainElement(favourite);
+    expect(card).toContainElement(favourite);
+  });
+
+  test('says "price not listed" rather than leaving the price empty', () => {
+    renderCard(RESULT);
+    expect(screen.getByText('Գինը նշված չէ')).toBeInTheDocument();
   });
 
   test('falls back to a placeholder when there is no cover image', () => {
@@ -165,9 +179,73 @@ describe('SearchResultCard (apps/web/src/modules/search)', () => {
     expect(screen.getByText('Հյուրանոց')).toBeInTheDocument();
   });
 
-  test('hides the type badge when hideTypeBadge is set (e.g. a category page where it is redundant)', () => {
-    renderCard(RESULT, '/en', true);
-    expect(screen.queryByText('Հյուրանոց')).not.toBeInTheDocument();
+  describe('badges (one at most, each with a real source)', () => {
+    test('a TOP placement is badged TOP and says it is promoted', () => {
+      renderCard(RESULT, '/en', 'top');
+      expect(screen.getByText('ԹՈՓ')).toBeInTheDocument();
+      expect(screen.getByText(/գովազդվող հայտարարություն/)).toBeInTheDocument();
+    });
+
+    test('an organic card is never badged TOP', () => {
+      renderCard();
+      expect(screen.queryByText('ԹՈՓ')).not.toBeInTheDocument();
+    });
+
+    test('"Top guest rating" follows the objective rule, on any surface', () => {
+      renderCard({ ...RESULT, rating_average: 4.8, review_count: 5 });
+      expect(screen.getByText('Հյուրերի բարձր գնահատական')).toBeInTheDocument();
+      expect(screen.getByText('4.8')).toBeInTheDocument();
+      expect(screen.getByText('5 կարծիք')).toBeInTheDocument();
+    });
+
+    test('one or two perfect reviews do not earn it', () => {
+      renderCard({ ...RESULT, rating_average: 5, review_count: 2 });
+      expect(
+        screen.queryByText('Հյուրերի բարձր գնահատական'),
+      ).not.toBeInTheDocument();
+      expect(screen.getByText('5.0')).toBeInTheDocument();
+      expect(screen.getByText('2 կարծիք')).toBeInTheDocument();
+    });
+
+    test('TOP wins over the rating badge', () => {
+      renderCard(
+        { ...RESULT, rating_average: 4.9, review_count: 9 },
+        '/en',
+        'top',
+      );
+      expect(screen.getByText('ԹՈՓ')).toBeInTheDocument();
+      expect(
+        screen.queryByText('Հյուրերի բարձր գնահատական'),
+      ).not.toBeInTheDocument();
+    });
+
+    test('the featured fill is "New"', () => {
+      renderCard(RESULT, '/en', 'new');
+      expect(screen.getByText('Նորույթ')).toBeInTheDocument();
+    });
+  });
+
+  test('without approved reviews it says so, never a 0.0 rating', () => {
+    renderCard({ ...RESULT, rating_average: null, review_count: 0 });
+    expect(screen.getByText('Կարծիքներ դեռ չկան')).toBeInTheDocument();
+    expect(screen.queryByText(/\d կարծիք/)).not.toBeInTheDocument();
+  });
+
+  test('a long, script-shaped title renders as text, never as markup', () => {
+    const title = `<img src=x onerror="window.cardXssProbe=1">${'Ա'.repeat(300)}`;
+    const { container } = renderCard({ ...RESULT, title });
+    expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+    expect(container.querySelector('img[onerror]')).toBeNull();
+    expect(window.cardXssProbe).toBeUndefined();
+  });
+
+  test('an unsafe image URL is never rendered — the generated art stands in', () => {
+    const { container } = renderCard({
+      ...RESULT,
+      // eslint-disable-next-line no-script-url -- the hostile input under test
+      cover_image_url: 'javascript:alert(1)',
+    });
+    expect(container.querySelector('img[src^="javascript"]')).toBeNull();
   });
 
   // Pass 7 (category-specific visual identity, brief §15's acceptance
@@ -179,7 +257,7 @@ describe('SearchResultCard (apps/web/src/modules/search)', () => {
   // `mysqlSearchRepository.buildQuery.test.js`/the new backend
   // integration test.
   // Step L6.2H2B: a restaurant's price is average spend per person.
-  test('a Restaurant result shows cuisine and price-tier chips, and an average-spend price suffix', () => {
+  test('a Restaurant result shows its cuisines, and its price as an average per person', () => {
     renderCard({
       ...RESULT,
       listing_type: 'RESTAURANT',
@@ -191,10 +269,13 @@ describe('SearchResultCard (apps/web/src/modules/search)', () => {
     });
     // Test i18n defaults to 'hy' (tests/setup.js) — Armenian option
     // labels, matching this file's existing 'Հյուրանոց'/'Սկսած' convention.
-    expect(screen.getByText('Հայկական')).toBeInTheDocument();
-    expect(screen.getByText('Վրացական')).toBeInTheDocument();
-    expect(screen.getByText('$$')).toBeInTheDocument();
-    expect(screen.getByText('միջինը / անձ')).toBeInTheDocument();
+    // The cuisines read as one fact; the price tier is not a card fact
+    // (the average spend already says it).
+    expect(screen.getByText('Հայկական, Վրացական')).toBeInTheDocument();
+    expect(screen.queryByText('$$')).not.toBeInTheDocument();
+    expect(screen.getByText('Միջինը')).toBeInTheDocument();
+    expect(screen.getByText('/ անձի համար')).toBeInTheDocument();
+    expect(screen.queryByText('Սկսած')).not.toBeInTheDocument();
   });
 
   test('a Hotel result shows no cuisine/price-tier chips and a per-night price suffix (never fabricated for other categories)', () => {

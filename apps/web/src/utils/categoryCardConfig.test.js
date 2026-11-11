@@ -1,57 +1,62 @@
 import { describe, test, expect } from 'vitest';
-import { IMAGE_ASPECT, resolveCardConfig } from './categoryCardConfig.js';
+import { resolveCardConfig } from './categoryCardConfig.js';
 
-describe('categoryCardConfig', () => {
-  test('Entertainment uses the standard card aspect, same outer scale as every other category (emergency visual-regression recovery: the previous TALL/3:4 crop made ordinary Entertainment cards balloon into oversized posters)', () => {
-    expect(resolveCardConfig('entertainment-venues')).toEqual({
-      imageAspect: IMAGE_ASPECT.STANDARD,
-      priceUnitKey: 'perPerson',
-    });
+describe('resolveCardConfig — the category default price basis', () => {
+  test.each([
+    ['hotels', 'perNight'],
+    ['apartments', 'perNight'],
+    ['villas', 'perNight'],
+    ['guest-houses', 'perNight'],
+    ['restaurants', 'perPerson'],
+    ['tours', 'perPerson'],
+    ['car-rentals', 'perDay'],
+    ['attractions', 'perPerson'],
+    ['entertainment-venues', 'perPerson'],
+  ])('%s defaults to %s', (slug, unit) => {
+    expect(resolveCardConfig(slug).priceUnitKey).toBe(unit);
   });
 
-  test('DESAVII category-closure pass: every real category shares the same canonical standard card aspect (owner-directed global geometry lock — no category-specific outer shape)', () => {
-    [
-      'hotels',
-      'apartments',
-      'villas',
-      'guest-houses',
-      'restaurants',
-      'tours',
-      'car-rentals',
-      'attractions',
-      'entertainment-venues',
-    ].forEach((slug) => {
-      expect(resolveCardConfig(slug).imageAspect).toBe(IMAGE_ASPECT.STANDARD);
-    });
-  });
-
-  test('every real category has a non-null priceUnitKey mirroring the seeded pricing model', () => {
-    expect(resolveCardConfig('hotels').priceUnitKey).toBe('perNight');
-    expect(resolveCardConfig('car-rentals').priceUnitKey).toBe('perDay');
-    expect(resolveCardConfig('restaurants').priceUnitKey).toBe('perPerson');
-  });
-
-  test('DESAVII category-closure pass: no category defines a promotedImageAspect override anymore — a TOP/promoted card must use the exact same geometry as an ordinary card (the earlier Car Rentals wide-promoted exception is removed)', () => {
-    [
-      'hotels',
-      'apartments',
-      'villas',
-      'guest-houses',
-      'restaurants',
-      'tours',
-      'car-rentals',
-      'attractions',
-      'entertainment-venues',
-    ].forEach((slug) => {
-      expect(resolveCardConfig(slug).promotedImageAspect).toBeUndefined();
-    });
-  });
-
-  test('falls back to a standard aspect and no price-unit suffix for an unrecognized key (never fabricated)', () => {
-    expect(resolveCardConfig('not-a-real-category')).toEqual({
-      imageAspect: IMAGE_ASPECT.STANDARD,
-      priceUnitKey: null,
-    });
+  test('an unknown category gets no basis rather than an invented one', () => {
+    expect(resolveCardConfig('not-a-real-category').priceUnitKey).toBeNull();
     expect(resolveCardConfig(undefined).priceUnitKey).toBeNull();
+  });
+});
+
+describe('resolveCardConfig — the facts each category decides on', () => {
+  const STAYS = ['hotels', 'apartments', 'villas', 'guest-houses'];
+
+  test('every category has its own fact priorities', () => {
+    [
+      ...STAYS,
+      'restaurants',
+      'tours',
+      'car-rentals',
+      'attractions',
+      'entertainment-venues',
+    ].forEach((slug) => {
+      expect(resolveCardConfig(slug).factKeys.length).toBeGreaterThan(0);
+    });
+  });
+
+  test('a car rental never carries guest or night semantics', () => {
+    const keys = resolveCardConfig('car-rentals').factKeys;
+    [
+      'max_guests',
+      'bedrooms',
+      'star_rating',
+      'amenity:BREAKFAST_INCLUDED',
+    ].forEach((key) => expect(keys).not.toContain(key));
+  });
+
+  test('a stay never carries vehicle facts', () => {
+    STAYS.forEach((slug) => {
+      const keys = resolveCardConfig(slug).factKeys;
+      expect(keys).not.toContain('transmission');
+      expect(keys).not.toContain('seats');
+    });
+  });
+
+  test('an unknown category gets no facts', () => {
+    expect(resolveCardConfig('not-a-real-category').factKeys).toEqual([]);
   });
 });

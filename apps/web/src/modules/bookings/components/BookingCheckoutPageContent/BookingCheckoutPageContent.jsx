@@ -29,7 +29,7 @@
  * plain-text order summary is replaced with a compact breadcrumb, a
  * calm (not editorial-hero) heading — a transactional page should stay
  * quiet, not decorative — an urgency-aware countdown badge, and a sticky
- * `ListingCardBase`-language summary card reusing the listing's own
+ * listing-card-language summary card reusing the listing's own
  * cover photo/`DestinationArt` fallback. This page deliberately never
  * collects payment (`PAYMENTS_ENABLED=false`; the flow here creates a
  * `PENDING_VENDOR` request, not a charge), so there's no payment-status

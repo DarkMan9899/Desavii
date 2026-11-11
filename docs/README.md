@@ -11,6 +11,7 @@ This folder should contain all nine finalized architecture documents.
 | `BOOKING_ENGINE_ARCHITECTURE.md` | `.md` | Complete |
 | `CALENDAR_AVAILABILITY.md` | `.md` | Complete — date/timezone semantics per unit type, availability precedence, concurrency, range limits, and the Partner Calendar (Calendar Excellence) |
 | `API_SPECIFICATION.md` | `.md` | Complete |
+| `LISTING_CARDS.md` | `.md` | Complete — the one shared listing card: layouts, truthful price/rating/badge rules, semantics, security boundaries |
 | `FRONTEND_ARCHITECTURE.md` | `.md` | Complete as a document — **but see its Implementation Status Addendum**: §4.2/§6.1 describe per-vertical routes/modules that were never built |
 | `BACKEND_ARCHITECTURE.md` | `.md` | Complete as a document — **but see its Implementation Status Addendum**: §8–14/§16 describe a per-vertical-module and rate-plan/tax engine that were never built |
 | `COMPONENT_LIBRARY.md` | `.md` | Complete |

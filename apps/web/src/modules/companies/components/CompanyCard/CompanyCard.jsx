@@ -2,9 +2,9 @@
  * CompanyCard — one `GET /partners` directory row (Phase 10 redesign;
  * restyled in the 2026 public-frontend audit's Companies Directory pass).
  * Built on the shared `Card` primitive's `elevated`/`interactive`
- * treatment — the same premium surface `ListingCardBase`/`BookingCard`
- * already use, so a company card reads as the same product as a listing
- * card rather than a separate, plainer "contact card" system.
+ * treatment — the same premium surface `BookingCard` uses, so a company
+ * card reads as the same product rather than a separate, plainer "contact
+ * card" system.
  *
  * `rating_average`/`review_count` (Reviews module, aggregated per
  * partner — `apps/api/.../dto/partnerDto.js`'s `toPartnerSummaryResponse`)

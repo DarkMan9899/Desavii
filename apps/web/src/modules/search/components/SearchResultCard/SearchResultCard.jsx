@@ -1,31 +1,27 @@
 /**
- * SearchResultCard — one `GET /search` result. Search's own DTO
- * (`apps/api/src/modules/search/dto/searchDto.js`) already returns a
- * flat, pre-localized card shape (`title`, `summary`, `cover_image_url`,
- * `city_name`) with no per-row follow-up call needed — this is why every
- * "browse a list of listings" surface in the app (search results,
- * related listings, the Home page's Featured Listings, a partner's own
- * listing management table) renders through this component/DTO rather
- * than a nested full-listing shape that would need one `GET
- * /listings/:id` per row to populate.
+ * SearchResultCard — one listing from a public listing feed (`GET /search`
+ * and the advertising placements, which return the same flat card DTO) as
+ * the shared Desavii card (`components/ListingCard`). Used by Search, the
+ * Category and Destination pages, Company profiles, the Home rails and
+ * Related listings.
  *
- * Phase 12 (Product Polish): rebuilt on the shared `ListingCardBase`
- * (`components/ListingCardBase`) — the near-identical media/badge/title/
- * price markup this file used to restate independently now lives in one
- * place; this file's own job is purely extracting search's flat DTO into
- * `ListingCardBase`'s prop contract, plus the one genuinely
- * search-specific piece (the city/location line).
- * `rating_average`/`review_count` are additive DTO fields backed by the
- * Reviews module, rendered only when `review_count > 0`.
+ * This file's own job is the feed-specific part: the card model
+ * (`buildListingCardModel`), the destination with the Search's booking
+ * context (`buildListingHref`), the badge, the favourite button and the
+ * engagement analytics. Everything visual lives in `ListingCard`.
+ *
+ * Badge (one at most, in this order): `highlight="top"` — a paid TOP
+ * placement, set only by callers rendering a promotions feed; the
+ * objective "Top guest rating" (`isTopRated`); `highlight="new"` — the
+ * Home featured rail's newest-per-category fill.
  */
 
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
-import ListingCardBase from '../../../../components/ListingCardBase/ListingCardBase.jsx';
+import ListingCard from '../../../../components/ListingCard/ListingCard.jsx';
 import { FavoriteButton } from '../../../favorites/index.js';
-import { buildCategoryCardMeta } from '../../../../utils/buildCategoryCardMeta.js';
+import { buildListingCardModel } from '../../../../utils/listingCardModel.js';
 import {
   useListingCardImpression,
   trackSearchResultClick,
@@ -33,25 +29,36 @@ import {
   trackPromotionClicked,
   PLACEMENTS,
 } from '../../../../analytics/index.js';
-import styles from './SearchResultCard.module.scss';
 import { buildListingHref } from '../../utils/searchContextQuery.js';
+
+export const CARD_HIGHLIGHTS = Object.freeze(['top', 'new']);
+
+/** The one badge a card carries, or null. */
+function resolveBadge(highlight, topRated, t) {
+  if (highlight === 'top') {
+    return {
+      tone: 'top',
+      label: t('advertising.topBadge'),
+      description: t('listingCard.badge.promoted'),
+    };
+  }
+  if (topRated) {
+    return { tone: 'accent', label: t('listingCard.badge.topRated') };
+  }
+  if (highlight === 'new') {
+    return { tone: 'neutral', label: t('listingCard.badge.newest') };
+  }
+  return null;
+}
 
 export default function SearchResultCard({
   result,
-  hideTypeBadge = false,
   priorityImage = false,
-  // Sprint E: set by a caller rendering a Home Featured/Category TOP
-  // section — those endpoints only ever return actively promoted
-  // listings, so the caller already knows the context; no per-row
-  // "is promoted" field is needed from the backend for this.
-  topBadgeLabel = undefined,
+  highlight = undefined,
   // Step A3 (engagement analytics) — explicit analytics context from the
-  // parent (never inferred from the URL/badge text, per the brief): the
-  // parent always already knows its own placement, this card's rank
-  // within the current list, and (only from `CompanyProfilePageContent`)
-  // which company's profile it's rendering on. `promotionId` is threaded
-  // through and ready to use, but no caller currently has a real one to
-  // pass — see the A3 handoff's "known gap" section.
+  // parent (never inferred from the URL/badge text): its placement, this
+  // card's rank in the list, the promotion behind a paid placement and,
+  // on a Company profile, the company.
   placement = undefined,
   position = undefined,
   promotionId = undefined,
@@ -61,8 +68,8 @@ export default function SearchResultCard({
   const { t } = useTranslation();
   const { locale } = useParams();
   const [searchParams] = useSearchParams();
-  const typeLabel = t(`listings.type.${result.listing_type}`, {
-    defaultValue: result.listing_type,
+  const { topRated, ...card } = buildListingCardModel(result, t, {
+    href: buildListingHref(locale, result, searchParams),
   });
 
   const impressionRef = useListingCardImpression({
@@ -74,7 +81,7 @@ export default function SearchResultCard({
     promotionId,
   });
 
-  const handleCardClick = () => {
+  const handleClick = () => {
     if (companySlug) {
       trackCompanyListingClick({ companySlug, listingId: result.id });
     } else if (placement === PLACEMENTS.SEARCH_RESULTS) {
@@ -92,56 +99,16 @@ export default function SearchResultCard({
     }
   };
 
-  // Pass 7 (category-specific visual identity, brief §15) — never the
-  // full `listings` module's `resolveCategoryVisualKey`/
-  // `resolvePresentationGroup`: that module already depends on
-  // `modules/search` (`RelatedListings`), so importing it back here
-  // would close a real module dependency cycle. `buildCategoryCardMeta`
-  // (dependency-free `utils/`) is also reused by `FavoritesPageContent`
-  // — the same category chip-building logic never lives in two places.
-  const { categoryVisualKey, cardConfig, metaChips, priceSuffix } =
-    buildCategoryCardMeta(result, t);
-
   return (
-    <ListingCardBase
+    <ListingCard
       ref={impressionRef}
-      href={buildListingHref(locale, result, searchParams)}
-      onClick={handleCardClick}
-      ariaLabel={t('search.card.viewDetails', { title: result.title })}
-      imageUrl={result.cover_image_url}
-      typeLabel={typeLabel}
-      hideTypeBadge={hideTypeBadge}
+      // eslint-disable-next-line react/jsx-props-no-spreading -- the card model is the ListingCard prop contract
+      {...card}
+      badge={resolveBadge(highlight, topRated, t)}
       favoriteButton={<FavoriteButton listingId={result.id} />}
-      galleryCount={result.media_count}
-      title={result.title}
-      location={
-        result.city_name && (
-          <p className={styles.location}>
-            <MapPin size={14} aria-hidden="true" />
-            {result.city_name}
-          </p>
-        )
-      }
-      summary={result.summary}
-      ratingAverage={result.rating_average}
-      reviewCount={result.review_count}
-      priceAmount={result.price_amount}
-      priceCurrencyCode={result.price_currency_code}
-      // P2.2D: search's own price is always the cheapest currently known
-      // rate (a per-listing MIN across real bookable-unit prices, or the
-      // legacy listing-level fallback) — never a promise that every unit
-      // costs exactly this, so every search-card price is labeled "from",
-      // matching how it's actually computed rather than implying an
-      // exact, guaranteed rate.
-      pricePrefix={t('search.card.fromPrice')}
-      priceSuffix={priceSuffix}
       locale={locale}
       priorityImage={priorityImage}
-      topBadgeLabel={topBadgeLabel}
-      metaChips={metaChips}
-      categoryVisualKey={categoryVisualKey}
-      imageAspect={cardConfig.imageAspect}
-      promotedImageAspect={cardConfig.promotedImageAspect}
+      onClick={handleClick}
     />
   );
 }
@@ -151,9 +118,8 @@ SearchResultCard.propTypes = {
   // normalized-but-untyped response), not a hand-authored prop contract.
   // eslint-disable-next-line react/forbid-prop-types
   result: PropTypes.object.isRequired,
-  hideTypeBadge: PropTypes.bool,
   priorityImage: PropTypes.bool,
-  topBadgeLabel: PropTypes.string,
+  highlight: PropTypes.oneOf(CARD_HIGHLIGHTS),
   placement: PropTypes.oneOf(Object.values(PLACEMENTS)),
   position: PropTypes.number,
   promotionId: PropTypes.number,

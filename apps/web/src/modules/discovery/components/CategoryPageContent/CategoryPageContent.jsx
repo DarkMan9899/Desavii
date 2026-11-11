@@ -285,8 +285,7 @@ export default function CategoryPageContent() {
                 <SearchResultCard
                   key={listing.id}
                   result={listing}
-                  hideTypeBadge
-                  topBadgeLabel={t('advertising.topBadge')}
+                  highlight="top"
                   placement={PLACEMENTS.CATEGORY_TOP}
                   promotionId={listing.promotion_id}
                 />
@@ -329,8 +328,7 @@ export default function CategoryPageContent() {
                 <SearchResultCard
                   key={listing.id}
                   result={listing}
-                  hideTypeBadge
-                  topBadgeLabel={t('advertising.topBadge')}
+                  highlight="top"
                   placement={PLACEMENTS.CATEGORY_TOP}
                   promotionId={listing.promotion_id}
                 />
@@ -373,8 +371,7 @@ export default function CategoryPageContent() {
                 <SearchResultCard
                   key={listing.id}
                   result={listing}
-                  hideTypeBadge
-                  topBadgeLabel={t('advertising.topBadge')}
+                  highlight="top"
                   placement={PLACEMENTS.CATEGORY_TOP}
                   promotionId={listing.promotion_id}
                 />
@@ -417,8 +414,7 @@ export default function CategoryPageContent() {
                 <SearchResultCard
                   key={listing.id}
                   result={listing}
-                  hideTypeBadge
-                  topBadgeLabel={t('advertising.topBadge')}
+                  highlight="top"
                   placement={PLACEMENTS.CATEGORY_TOP}
                   promotionId={listing.promotion_id}
                 />
@@ -461,8 +457,7 @@ export default function CategoryPageContent() {
                 <SearchResultCard
                   key={listing.id}
                   result={listing}
-                  hideTypeBadge
-                  topBadgeLabel={t('advertising.topBadge')}
+                  highlight="top"
                   placement={PLACEMENTS.CATEGORY_TOP}
                   promotionId={listing.promotion_id}
                 />
@@ -505,8 +500,7 @@ export default function CategoryPageContent() {
                 <SearchResultCard
                   key={listing.id}
                   result={listing}
-                  hideTypeBadge
-                  topBadgeLabel={t('advertising.topBadge')}
+                  highlight="top"
                   placement={PLACEMENTS.CATEGORY_TOP}
                   promotionId={listing.promotion_id}
                 />
@@ -549,8 +543,7 @@ export default function CategoryPageContent() {
                 <SearchResultCard
                   key={listing.id}
                   result={listing}
-                  hideTypeBadge
-                  topBadgeLabel={t('advertising.topBadge')}
+                  highlight="top"
                   placement={PLACEMENTS.CATEGORY_TOP}
                   promotionId={listing.promotion_id}
                 />
@@ -593,8 +586,7 @@ export default function CategoryPageContent() {
                 <SearchResultCard
                   key={listing.id}
                   result={listing}
-                  hideTypeBadge
-                  topBadgeLabel={t('advertising.topBadge')}
+                  highlight="top"
                   placement={PLACEMENTS.CATEGORY_TOP}
                   promotionId={listing.promotion_id}
                 />
@@ -637,8 +629,7 @@ export default function CategoryPageContent() {
                 <SearchResultCard
                   key={listing.id}
                   result={listing}
-                  hideTypeBadge
-                  topBadgeLabel={t('advertising.topBadge')}
+                  highlight="top"
                   placement={PLACEMENTS.CATEGORY_TOP}
                   promotionId={listing.promotion_id}
                 />
@@ -678,8 +669,7 @@ export default function CategoryPageContent() {
             <SearchResultCard
               key={listing.id}
               result={listing}
-              hideTypeBadge
-              topBadgeLabel={t('advertising.topBadge')}
+              highlight="top"
               placement={PLACEMENTS.CATEGORY_TOP}
               promotionId={listing.promotion_id}
             />
@@ -760,7 +750,6 @@ export default function CategoryPageContent() {
             <SearchResultCard
               key={listing.id}
               result={listing}
-              hideTypeBadge
               // 2026 SEO/performance audit: real Lighthouse trace evidence
               // identified this grid's first card image as the page's
               // actual LCP element, unconditionally lazy-loaded (Load

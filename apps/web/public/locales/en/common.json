@@ -156,14 +156,6 @@
       "eyebrow": "Spotlight",
       "title": "Featured listings",
       "subtitle": "Promoted places, top guest ratings and the newest listing in each category.",
-      "badge": {
-        "promoted": "promoted listing",
-        "rated": "Top guest rating",
-        "newest": "New"
-      },
-      "rating_one": "{{rating}} · {{count}} review",
-      "rating_other": "{{rating}} · {{count}} reviews",
-      "priceOnRequest": "Price on request",
       "empty": {
         "title": "No listings yet",
         "description": "Check back soon — new places to stay and things to do are added regularly."
@@ -745,8 +737,7 @@
       "priceUnit": {
         "perNight": "/ night",
         "perDay": "/ day",
-        "perPerson": "/ person",
-        "averagePerPerson": "avg. / person"
+        "perPerson": "/ person"
       },
       "starRating_one": "{{count}} star",
       "starRating_other": "{{count}} stars",
@@ -5234,6 +5225,75 @@
       "scheduleError": "Could not schedule this post — check the date and that it has real content.",
       "unscheduleAction": "Cancel schedule",
       "unscheduleSuccess": "Schedule cancelled — moved back to Draft."
+    }
+  },
+  "listingCard": {
+    "untitled": "Untitled listing",
+    "price": {
+      "from": "From",
+      "average": "Avg.",
+      "unlisted": "Price not listed"
+    },
+    "photos_one": "{{count}} photo",
+    "photos_other": "{{count}} photos",
+    "badge": {
+      "topRated": "Top guest rating",
+      "newest": "New",
+      "promoted": " (promoted listing)"
+    },
+    "category": {
+      "hotels": "Hotel",
+      "apartments": "Apartment",
+      "villas": "Villa",
+      "guest-houses": "Guest house",
+      "restaurants": "Restaurant",
+      "tours": "Tour",
+      "car-rentals": "Car rental",
+      "attractions": "Attraction",
+      "entertainment-venues": "Entertainment"
+    },
+    "reviews": {
+      "none": "No reviews yet",
+      "count_one": "{{count}} review",
+      "count_other": "{{count}} reviews",
+      "label_one": "Rated {{rating}} out of 5 from {{count}} review",
+      "label_other": "Rated {{rating}} out of 5 from {{count}} reviews"
+    },
+    "fact": {
+      "maxGuests_one": "Up to {{count}} guest",
+      "maxGuests_other": "Up to {{count}} guests",
+      "seats_one": "{{count}} seat",
+      "seats_other": "{{count}} seats",
+      "minAge": "Ages {{count}}+",
+      "languages_one": "{{count}} language",
+      "languages_other": "{{count}} languages",
+      "freeReservation": "Free table booking"
+    },
+    "amenity": {
+      "AIRPORT_SHUTTLE": "Airport shuttle",
+      "BBQ": "BBQ",
+      "BREAKFAST_INCLUDED": "Breakfast included",
+      "CHILD_SEAT": "Child seat",
+      "DEDICATED_WORKSPACE": "Dedicated workspace",
+      "FAMILY_FRIENDLY": "Family friendly",
+      "FIREPLACE": "Fireplace",
+      "GARDEN": "Garden",
+      "GPS_NAVIGATION": "GPS navigation",
+      "JACUZZI": "Jacuzzi",
+      "KIDS_MENU": "Kids menu",
+      "KITCHEN": "Kitchen",
+      "LIVE_MUSIC": "Live music",
+      "OUTDOOR_SEATING": "Outdoor seating",
+      "PARKING": "Parking",
+      "PET_FRIENDLY": "Pet friendly",
+      "POOL": "Pool",
+      "PRIVATE_DINING_ROOM": "Private dining room",
+      "SAUNA": "Sauna",
+      "SPA": "Spa",
+      "TERRACE": "Terrace",
+      "WASHING_MACHINE": "Washing machine",
+      "WHEELCHAIR_ACCESSIBLE": "Wheelchair accessible",
+      "WINTER_TYRES": "Winter tyres"
     }
   }
 }

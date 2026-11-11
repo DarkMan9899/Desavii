@@ -546,9 +546,38 @@ describe('GET /search/listings — visibility', () => {
     const res = await request(app).get('/api/v1/search/listings?status=DRAFT');
     expect(res.status).toBe(200);
     expect(res.body.data.map((r) => r.id)).not.toContain(listingDraft);
-    expect(res.body.data.map((r) => r.status)).toEqual(
-      res.body.data.map(() => 'PUBLISHED'),
+    // The public card carries no status at all (it is always PUBLISHED).
+    expect(res.body.data.some((r) => 'status' in r)).toBe(false);
+  });
+
+  test('an anonymous card carries no partner, status, summary, location ids or lifecycle field', async () => {
+    const res = await request(app).get(
+      '/api/v1/search/listings?keyword=lovely',
     );
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeGreaterThan(0);
+    const keys = new Set(res.body.data.flatMap((r) => Object.keys(r)));
+    [
+      'partner_id',
+      'status',
+      'summary',
+      'city_id',
+      'country_id',
+      'expires_at',
+      'publication_period_days',
+    ].forEach((field) => expect(keys.has(field)).toBe(false));
+    // The sitemap's lastmod and the card's own fields are still there.
+    expect(keys.has('created_at')).toBe(true);
+    expect(keys.has('city_name')).toBe(true);
+  });
+
+  test('a signed-in customer filtering by partnerId still gets the public card', async () => {
+    const res = await request(app)
+      .get(`/api/v1/search/listings?partnerId=${partnerId}`)
+      .set('Authorization', `Bearer ${customer.accessToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.some((r) => 'status' in r)).toBe(false);
+    expect(res.body.data.some((r) => 'partner_id' in r)).toBe(false);
   });
 
   test('the owning partner sees its own draft via partnerId + status', async () => {
@@ -557,6 +586,11 @@ describe('GET /search/listings — visibility', () => {
       .set('Authorization', `Bearer ${vendor.accessToken}`);
     expect(res.status).toBe(200);
     expect(res.body.data.map((r) => r.id)).toContain(listingDraft);
+    // The owner view keeps status (badge, row actions) and lifecycle dates.
+    const draft = res.body.data.find((r) => r.id === listingDraft);
+    expect(draft.status).toBe('DRAFT');
+    expect(draft).toHaveProperty('expires_at');
+    expect(draft).not.toHaveProperty('partner_id');
   });
 
   test('a customer (no permission) cannot see the draft even with partnerId', async () => {

@@ -1,31 +1,8 @@
 /**
  * FavoritesPageContent — `/:locale/account/favorites` (Customer Account:
- * Favorites). Renders the shared `ListingCardBase` (`components/
- * ListingCardBase`) directly rather than reusing `search`'s
- * `SearchResultCard`: `search` already depends on `favorites` (every
- * `SearchResultCard` renders a `FavoriteButton`), so this page also
- * depending on `search` would close a real
- * `search -> favorites -> FavoritesPageContent -> search` import cycle.
- * `ListingCardBase` lives in module-agnostic shared `components/`, so
- * reusing it directly here has no such back-edge. `ListingCardBase`
- * already renders as an `elevated` premium surface (Phase 12), so this
- * page's own redesign work is entirely in the page-level composition,
- * not the card itself.
- *
- * Card-composition-closure fix (cross-category audit): the favorites
- * DTO/repository now returns the exact same `category_slug` + card
- * metadata fields (`cuisine`, `price_tier`, `star_rating`, `transmission`,
- * `bedrooms`, `duration_minutes`) `searchDto.js` does, via
- * `mysqlFavoriteRepository.js`'s own copy of `CARD_METADATA_SELECT` — so
- * `buildCategoryCardMeta` (the same dependency-free `utils/` helper
- * `SearchResultCard` was refactored to use, never reimplemented here)
- * resolves the identical `categoryVisualKey`/`metaChips`/`priceSuffix`
- * a favorited listing would show on Search/Category/Home. A favorited
- * Hotel now visually behaves like a Hotel card, a favorited Car Rental
- * like a Car Rental card, etc. — never a Favorites-specific 10th visual
- * system. `imageAspect` and `pricePrefix` mirror `SearchResultCard`'s
- * own choices (`resolveCardConfig`'s `imageAspect`, the shared "from
- * price" translation) for the exact same reasons.
+ * Favorites). Each favourite is the shared Desavii card
+ * (`FavoriteListingCard`), so it reads exactly as it does on Search,
+ * Category and Home.
  *
  * 2026 Customer Account redesign: groups the same flat, already-paginated
  * `favorites` array by `city_name` (a real field the favorites DTO
@@ -36,7 +13,6 @@
  */
 
 import { useMemo } from 'react';
-import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Section, Stack } from '@desavii/ui/components/layout';
@@ -46,13 +22,11 @@ import {
   ErrorState,
 } from '@desavii/ui/components/feedback-overlays';
 import { Button } from '@desavii/ui/components/primitives';
-import { Heart, MapPin } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
-import ListingCardBase from '../../../../components/ListingCardBase/ListingCardBase.jsx';
 import ListingGrid from '../../../../components/ListingGrid/ListingGrid.jsx';
-import FavoriteButton from '../FavoriteButton/FavoriteButton.jsx';
+import FavoriteListingCard from '../FavoriteListingCard/FavoriteListingCard.jsx';
 import { useFavoritesQuery } from '../../queries/useFavoritesQuery.js';
-import { buildCategoryCardMeta } from '../../../../utils/buildCategoryCardMeta.js';
 import styles from './FavoritesPageContent.module.scss';
 
 /** Mirrors `SearchResultCard`'s own location-line JSX exactly — that
@@ -60,20 +34,6 @@ import styles from './FavoritesPageContent.module.scss';
  * genuinely specific to" its caller rather than a shared component, so
  * this page owns its own copy rather than extracting a cross-cutting
  * component for a single `<p>`. */
-function FavoriteLocation({ cityName = null }) {
-  if (!cityName) return null;
-  return (
-    <p className={styles.location}>
-      <MapPin size={14} aria-hidden="true" />
-      {cityName}
-    </p>
-  );
-}
-
-FavoriteLocation.propTypes = {
-  cityName: PropTypes.string,
-};
-
 function FavoritesGridSkeleton() {
   return (
     <ListingGrid>
@@ -155,42 +115,12 @@ export default function FavoritesPageContent() {
               <Stack key={city} gap="3" as="div">
                 <h2 className={styles.groupHeading}>{city}</h2>
                 <ListingGrid>
-                  {items.map((favorite) => {
-                    const {
-                      categoryVisualKey,
-                      cardConfig,
-                      metaChips,
-                      priceSuffix,
-                    } = buildCategoryCardMeta(favorite, t);
-                    return (
-                      <ListingCardBase
-                        key={favorite.favorite_id}
-                        href={`/${locale}/listings/${favorite.listing_id}`}
-                        imageUrl={favorite.cover_image_url}
-                        typeLabel={t(`listings.type.${favorite.listing_type}`, {
-                          defaultValue: favorite.listing_type,
-                        })}
-                        favoriteButton={
-                          <FavoriteButton listingId={favorite.listing_id} />
-                        }
-                        title={favorite.title}
-                        location={
-                          <FavoriteLocation cityName={favorite.city_name} />
-                        }
-                        ratingAverage={favorite.rating_average}
-                        reviewCount={favorite.review_count}
-                        priceAmount={favorite.price_amount}
-                        priceCurrencyCode={favorite.price_currency_code}
-                        pricePrefix={t('search.card.fromPrice')}
-                        priceSuffix={priceSuffix}
-                        locale={locale}
-                        metaChips={metaChips}
-                        categoryVisualKey={categoryVisualKey}
-                        imageAspect={cardConfig.imageAspect}
-                        promotedImageAspect={cardConfig.promotedImageAspect}
-                      />
-                    );
-                  })}
+                  {items.map((favorite) => (
+                    <FavoriteListingCard
+                      key={favorite.favorite_id}
+                      favorite={favorite}
+                    />
+                  ))}
                 </ListingGrid>
               </Stack>
             ))}

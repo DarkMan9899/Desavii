@@ -2,11 +2,13 @@ import { describe, test, expect } from 'vitest';
 import {
   FEATURED_RAIL_SIZE,
   FEATURED_SOURCES,
-  TOP_RATING_MIN,
-  TOP_RATING_MIN_REVIEWS,
   needsFeaturedFill,
   selectFeaturedListings,
 } from './selectFeaturedListings.js';
+import {
+  TOP_RATING_MIN,
+  TOP_RATING_MIN_REVIEWS,
+} from '../../../utils/listingCardModel.js';
 
 const listing = (id, listingType, reviewCount = 0, rating = null) => ({
   id,

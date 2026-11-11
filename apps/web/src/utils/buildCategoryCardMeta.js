@@ -1,82 +1,19 @@
 /**
- * buildCategoryCardMeta — the shared "flat listing-summary row -> card
- * metadata" logic, extracted from `SearchResultCard.jsx` during the
- * Favorites card-composition-closure fix so a second caller
- * (`FavoritesPageContent.jsx`) never has to reimplement the 9-category
- * chip-building switch itself. Lives in dependency-free top-level
- * `utils/` (alongside `categoryCardConfig.js`) for the same reason that
- * file does: `modules/search` already depends on `modules/favorites`
- * (`SearchResultCard` renders `FavoriteButton`), so `modules/favorites`
- * importing anything from `modules/search` would close a real import
- * cycle — a shared helper both can reach needs to sit outside either
- * module.
+ * buildCategoryCardMeta — the shared "flat listing card DTO -> card
+ * metadata" step: the category, its real facts (`listingCardFacts.js`) and
+ * the price basis. Lives in dependency-free top-level `utils/` (alongside
+ * `categoryCardConfig.js`) because `modules/search` already depends on
+ * `modules/favorites` (`SearchResultCard` renders `FavoriteButton`), so a
+ * helper both reach must sit outside either module.
  *
- * Works against any flat row shape that carries the same fields
- * `mysqlSearchRepository.js`'s `CARD_METADATA_SELECT` mechanism
- * produces (`category_slug`, `cuisine`, `price_tier`, `star_rating`,
- * `transmission`, `bedrooms`, `duration_minutes`) — both `searchDto.js`
- * and `favoriteDto.js` return exactly this shape.
+ * Works against the flat card DTOs the API returns (`searchDto.js`,
+ * `favoriteDto.js`, `partnerDto.js`), which share the card-facts fields
+ * (`listingCardFactsDto.js`).
  */
 
-import { Star, BedDouble, Clock, Settings2, Utensils } from 'lucide-react';
 import { resolveCardConfig } from './categoryCardConfig.js';
 import { resolvePricingModelBasis } from './pricingModelBasis.js';
-import { formatDurationLabel } from './formatDuration.js';
-
-/**
- * One real "headline" metadata fact per category — see
- * `mysqlSearchRepository.js`'s `CARD_METADATA_SELECT` for the backing
- * fields. Each entry is `null` whenever the attribute was never
- * authored for that listing — this function only ever renders what's
- * actually there, never a fabricated default.
- */
-function buildHeadlineChip(result, categoryVisualKey, t) {
-  switch (categoryVisualKey) {
-    case 'hotels':
-      return result.star_rating
-        ? {
-            key: 'headline-star-rating',
-            icon: Star,
-            label: t('search.card.starRating', {
-              count: Number(result.star_rating),
-            }),
-          }
-        : null;
-    case 'apartments':
-    case 'villas':
-    case 'guest-houses':
-      return result.bedrooms
-        ? {
-            key: 'headline-bedrooms',
-            icon: BedDouble,
-            label: t('search.card.bedroomsCount', { count: result.bedrooms }),
-          }
-        : null;
-    case 'tours':
-    case 'attractions':
-    case 'entertainment-venues': {
-      if (!result.duration_minutes) return null;
-      return {
-        key: 'headline-duration',
-        icon: Clock,
-        label: formatDurationLabel(result.duration_minutes, t),
-      };
-    }
-    case 'car-rentals':
-      return result.transmission
-        ? {
-            key: 'headline-transmission',
-            icon: Settings2,
-            label: t(
-              `search.dynamicFilters.options.${result.transmission}`,
-              result.transmission,
-            ),
-          }
-        : null;
-    default:
-      return null;
-  }
-}
+import { resolveCardFacts } from './listingCardFacts.js';
 
 /**
  * @param {string|null|undefined} result.category_slug
@@ -89,50 +26,22 @@ export function resolveCategoryVisualKey(result) {
 }
 
 /**
- * @returns {{categoryVisualKey: string|undefined, cardConfig: object, metaChips: Array, priceSuffix: string|null}}
+ * @returns {{categoryVisualKey: string|undefined, facts: Array, priceUnitKey: string|null}}
  */
 export function buildCategoryCardMeta(result, t) {
   const categoryVisualKey = resolveCategoryVisualKey(result);
-  const cardConfig = resolveCardConfig(categoryVisualKey);
-  const headlineChip = buildHeadlineChip(result, categoryVisualKey, t);
-  const metaChips = [
-    ...(headlineChip ? [headlineChip] : []),
-    ...(result.cuisine ?? []).map((code) => ({
-      key: `cuisine-${code}`,
-      icon: Utensils,
-      label: t(`search.dynamicFilters.options.${code}`, code),
-    })),
-    ...(result.price_tier
-      ? [
-          {
-            key: `price-tier-${result.price_tier}`,
-            label: t(
-              `search.dynamicFilters.options.${result.price_tier}`,
-              result.price_tier,
-            ),
-          },
-        ]
-      : []),
-  ];
+  const facts = resolveCardFacts(result, categoryVisualKey, t);
   // Step L6.2H1: the listing's own pricing model decides the price basis
   // (the same one its detail page shows); the category default only covers
   // a row with no listing-level pricing model. A model with no basis
-  // (legacy PER_HOUR) shows the price without one.
-  //
-  // Step L6.2H2B: a restaurant's price is average spend per person (its
-  // reservation is free), never a per-person booking price.
-  const basisKey = result.pricing_model
+  // (legacy PER_HOUR) shows the price without one. How the amount is
+  // worded (e.g. a restaurant's average spend) is the card model's job
+  // (`listingCardModel.js`).
+  const priceUnitKey = result.pricing_model
     ? resolvePricingModelBasis(result.pricing_model)
-    : cardConfig.priceUnitKey;
-  const priceUnitKey =
-    basisKey && result.listing_type === 'RESTAURANT'
-      ? 'averagePerPerson'
-      : basisKey;
-  const priceSuffix = priceUnitKey
-    ? t(`search.card.priceUnit.${priceUnitKey}`)
-    : null;
+    : resolveCardConfig(categoryVisualKey).priceUnitKey;
 
-  return { categoryVisualKey, cardConfig, metaChips, priceSuffix };
+  return { categoryVisualKey, facts, priceUnitKey };
 }
 
 export default { resolveCategoryVisualKey, buildCategoryCardMeta };

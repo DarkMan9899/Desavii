@@ -18,6 +18,11 @@
  */
 
 import { getMysqlPool } from '../../../infrastructure/database/mysqlPool.js';
+import { CARD_PRICE_SELECT } from '../../listings/repositories/listingCardPriceSql.js';
+import {
+  CARD_METADATA_SELECT,
+  toCardMetadataDomain,
+} from '../../listings/repositories/listingCardMetadataSql.js';
 import { mapMysqlError } from '../../../infrastructure/database/errorMapping.js';
 import {
   decodeCursor,
@@ -26,73 +31,9 @@ import {
 import { scopePubliclyVisibleListing } from '../../listings/repositories/listingVisibilitySql.js';
 
 /**
- * Company Public Profile (Step A1) — verbatim copy of
- * `mysqlSearchRepository.js`'s own `CARD_METADATA_SELECT` (not exported
- * there); see `listPublicListingsForPartner`'s own doc comment below for
- * why this file owns a copy rather than importing across modules. Every
- * field is `NULL` whenever that attribute was never authored for the
- * listing — never a guessed/fabricated default.
- */
-const CARD_METADATA_SELECT = `
-      (SELECT lc.slug FROM listing_category_listing lcl_card
-         JOIN listing_categories lc ON lc.id = lcl_card.category_id
-         WHERE lcl_card.listing_id = l.id
-         ORDER BY lcl_card.category_id ASC LIMIT 1
-      ) AS category_slug,
-      (SELECT GROUP_CONCAT(ao_cuisine.code ORDER BY ao_cuisine.sort_order SEPARATOR ',')
-         FROM listing_attribute_option lao_cuisine
-         JOIN attribute_options ao_cuisine ON ao_cuisine.id = lao_cuisine.attribute_option_id
-         JOIN attribute_definitions ad_cuisine ON ad_cuisine.id = ao_cuisine.attribute_definition_id
-         WHERE lao_cuisine.listing_id = l.id AND ad_cuisine.code = 'cuisine'
-      ) AS cuisine_codes,
-      (SELECT ao_tier.code
-         FROM listing_attribute_option lao_tier
-         JOIN attribute_options ao_tier ON ao_tier.id = lao_tier.attribute_option_id
-         JOIN attribute_definitions ad_tier ON ad_tier.id = ao_tier.attribute_definition_id
-         WHERE lao_tier.listing_id = l.id AND ad_tier.code = 'price_tier'
-         LIMIT 1
-      ) AS price_tier_code,
-      (SELECT ao_star.code
-         FROM listing_attribute_option lao_star
-         JOIN attribute_options ao_star ON ao_star.id = lao_star.attribute_option_id
-         JOIN attribute_definitions ad_star ON ad_star.id = ao_star.attribute_definition_id
-         WHERE lao_star.listing_id = l.id AND ad_star.code = 'star_rating'
-         LIMIT 1
-      ) AS star_rating_code,
-      (SELECT ao_trans.code
-         FROM listing_attribute_option lao_trans
-         JOIN attribute_options ao_trans ON ao_trans.id = lao_trans.attribute_option_id
-         JOIN attribute_definitions ad_trans ON ad_trans.id = ao_trans.attribute_definition_id
-         WHERE lao_trans.listing_id = l.id AND ad_trans.code = 'transmission'
-         LIMIT 1
-      ) AS transmission_code,
-      (SELECT lav_bed.value
-         FROM listing_attribute_values_integer lav_bed
-         JOIN attribute_definitions ad_bed ON ad_bed.id = lav_bed.attribute_definition_id
-         WHERE lav_bed.listing_id = l.id AND ad_bed.code = 'bedrooms'
-         LIMIT 1
-      ) AS bedrooms_value,
-      (SELECT lav_dur.value
-         FROM listing_attribute_values_integer lav_dur
-         JOIN attribute_definitions ad_dur ON ad_dur.id = lav_dur.attribute_definition_id
-         WHERE lav_dur.listing_id = l.id AND ad_dur.code = 'duration_minutes'
-         LIMIT 1
-      ) AS duration_minutes_value,
-      -- Step L6.2H1: the listing's own pricing model, so a card labels its
-      -- price by the basis booking uses rather than by category. NULL when
-      -- no listing-level pricing row exists (listing_pricing is 1:1).
-      (SELECT pm_card.code
-         FROM listing_pricing lp_card
-         JOIN pricing_models pm_card ON pm_card.id = lp_card.pricing_model_id
-         WHERE lp_card.listing_id = l.id
-      ) AS pricing_model_code`;
-
-/**
  * Company Public Profile (Step A1) — one row of a partner's public
  * catalog, same mapping rules as `mysqlSearchRepository.js`'s own
  * `toSearchResultDomain`: real value or `null`, never guessed.
- * `cuisine_codes` is GROUP_CONCAT'd into a comma string by the subquery
- * above, split back into option codes here.
  */
 function toPartnerListingDomain(row) {
   return {
@@ -108,21 +49,8 @@ function toPartnerListingDomain(row) {
     ratingAverage:
       row.rating_average !== null ? Number(row.rating_average) : null,
     reviewCount: Number(row.review_count),
-    categorySlug: row.category_slug ?? null,
-    cuisineCodes: row.cuisine_codes ? row.cuisine_codes.split(',') : null,
-    priceTierCode: row.price_tier_code ?? null,
-    starRatingCode: row.star_rating_code ?? null,
-    transmissionCode: row.transmission_code ?? null,
-    bedroomsValue:
-      row.bedrooms_value !== undefined && row.bedrooms_value !== null
-        ? Number(row.bedrooms_value)
-        : null,
-    durationMinutesValue:
-      row.duration_minutes_value !== undefined &&
-      row.duration_minutes_value !== null
-        ? Number(row.duration_minutes_value)
-        : null,
-    pricingModelCode: row.pricing_model_code ?? null,
+    // The shared card facts (`listingCardMetadataSql.js`).
+    ...toCardMetadataDomain(row),
   };
 }
 
@@ -846,17 +774,11 @@ export class MySqlPartnerRepository {
    * for "is this company publicly visible" — duplicating that gate on
    * every listing row would be redundant, not safer).
    *
-   * `CARD_METADATA_SELECT` below is a verbatim copy of
-   * `mysqlSearchRepository.js`'s own constant of the same name (not
-   * exported there), following the exact same "duplicate this
-   * self-contained SQL fragment rather than couple across modules"
-   * convention `mysqlFavoriteRepository.js` already established for the
-   * identical reason — `modules/partners` has no existing dependency on
-   * `modules/search`, and importing one function from it would be a
-   * heavier, one-off coupling for a handful of correlated subqueries
-   * this file can just as safely own a copy of. Every field is `NULL`
-   * whenever that attribute was never authored for the listing — never a
-   * guessed/fabricated default, same rule search's own copy documents.
+   * `CARD_METADATA_SELECT` is the shared card-facts fragment
+   * (`listings/repositories/listingCardMetadataSql.js`), the same one
+   * Search and Favorites use, so a company's cards show the same facts as
+   * everywhere else. Every fact is NULL whenever it was never authored —
+   * never a guessed/fabricated default.
    *
    * Price intentionally uses the simpler listing-level
    * `listing_pricing` fallback (like `mysqlFavoriteRepository.js`'s own
@@ -925,7 +847,7 @@ export class MySqlPartnerRepository {
          COALESCE(lt.title, lt2.title, '') AS title,
          c.name AS city_name,
          m.url AS cover_image_url,
-         lp.amount AS price_amount, cur.code AS price_currency_code,
+         ${CARD_PRICE_SELECT},
          (SELECT AVG(rv.rating) FROM reviews rv
             JOIN moderation_statuses rms ON rms.id = rv.status_id
             WHERE rv.listing_id = l.id AND rms.code = 'APPROVED' AND rv.deleted_at IS NULL

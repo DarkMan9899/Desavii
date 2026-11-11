@@ -156,13 +156,6 @@
       "eyebrow": "Ուշադրության կենտրոնում",
       "title": "Առաջարկվող հայտարարություններ",
       "subtitle": "Գովազդվող վայրեր, հյուրերի բարձր գնահատականներ և յուրաքանչյուր կատեգորիայի ամենանոր հայտարարությունը։",
-      "badge": {
-        "promoted": "գովազդվող հայտարարություն",
-        "rated": "Հյուրերի բարձր գնահատական",
-        "newest": "Նորույթ"
-      },
-      "rating": "{{rating}} · {{count}} կարծիք",
-      "priceOnRequest": "Գինը՝ ըստ հարցման",
       "empty": {
         "title": "Հայտարարություններ դեռ չկան",
         "description": "Այցելեք ավելի ուշ․ նոր վայրեր և զբաղմունքներ պարբերաբար ավելացվում են։"
@@ -744,11 +737,11 @@
       "priceUnit": {
         "perNight": "/ գիշեր",
         "perDay": "/ օր",
-        "perPerson": "/ անձի համար",
-        "averagePerPerson": "միջինը / անձ"
+        "perPerson": "/ անձի համար"
       },
       "starRating": "{{count}} աստղ",
-      "bedroomsCount": "{{count}} ննջասենյակ",
+      "bedroomsCount_one": "{{count}} ննջասենյակ",
+      "bedroomsCount_other": "{{count}} ննջասենյակ",
       "durationMinutes": "{{count}} րոպե",
       "durationHours": "{{count}} ժամ"
     },
@@ -5225,6 +5218,74 @@
       "scheduleError": "Չհաջողվեց պլանավորել․ ստուգեք ամսաթիվը և բովանդակությունը։",
       "unscheduleAction": "Չեղարկել պլանավորումը",
       "unscheduleSuccess": "Պլանավորումը չեղարկված է․ վերադարձվել է Սևագիր կարգավիճակին։"
+    }
+  },
+  "listingCard": {
+    "untitled": "Անանուն հայտարարություն",
+    "price": {
+      "from": "Սկսած",
+      "average": "Միջինը",
+      "unlisted": "Գինը նշված չէ"
+    },
+    "photos": "{{count}} լուսանկար",
+    "badge": {
+      "topRated": "Հյուրերի բարձր գնահատական",
+      "newest": "Նորույթ",
+      "promoted": " (գովազդվող հայտարարություն)"
+    },
+    "category": {
+      "hotels": "Հյուրանոց",
+      "apartments": "Բնակարան",
+      "villas": "Վիլլա",
+      "guest-houses": "Հյուրատուն",
+      "restaurants": "Ռեստորան",
+      "tours": "Տուր",
+      "car-rentals": "Ավտովարձույթ",
+      "attractions": "Տեսարժան վայր",
+      "entertainment-venues": "Ժամանց"
+    },
+    "reviews": {
+      "none": "Կարծիքներ դեռ չկան",
+      "count_one": "{{count}} կարծիք",
+      "count_other": "{{count}} կարծիք",
+      "label_one": "Գնահատականը՝ {{rating}} 5-ից, {{count}} կարծիք",
+      "label_other": "Գնահատականը՝ {{rating}} 5-ից, {{count}} կարծիք"
+    },
+    "fact": {
+      "maxGuests_one": "Մինչև {{count}} հյուր",
+      "maxGuests_other": "Մինչև {{count}} հյուր",
+      "seats_one": "{{count}} նստատեղ",
+      "seats_other": "{{count}} նստատեղ",
+      "minAge": "Տարիքը՝ {{count}}+",
+      "languages_one": "{{count}} լեզու",
+      "languages_other": "{{count}} լեզու",
+      "freeReservation": "Սեղանի անվճար ամրագրում"
+    },
+    "amenity": {
+      "AIRPORT_SHUTTLE": "Օդանավակայանի տրանսֆեր",
+      "BBQ": "Բարբեքյու",
+      "BREAKFAST_INCLUDED": "Նախաճաշը ներառված է",
+      "CHILD_SEAT": "Մանկական նստատեղ",
+      "DEDICATED_WORKSPACE": "Աշխատանքային տարածք",
+      "FAMILY_FRIENDLY": "Հարմար ընտանիքների համար",
+      "FIREPLACE": "Բուխարի",
+      "GARDEN": "Այգի",
+      "GPS_NAVIGATION": "GPS նավիգացիա",
+      "JACUZZI": "Ջակուզի",
+      "KIDS_MENU": "Մանկական ճաշացանկ",
+      "KITCHEN": "Խոհանոց",
+      "LIVE_MUSIC": "Կենդանի երաժշտություն",
+      "OUTDOOR_SEATING": "Բացօթյա նստատեղեր",
+      "PARKING": "Ավտոկայանատեղի",
+      "PET_FRIENDLY": "Ընդունվում են ընտանի կենդանիներ",
+      "POOL": "Լողավազան",
+      "PRIVATE_DINING_ROOM": "Առանձնասենյակ",
+      "SAUNA": "Սաունա",
+      "SPA": "Սպա",
+      "TERRACE": "Տերասա",
+      "WASHING_MACHINE": "Լվացքի մեքենա",
+      "WHEELCHAIR_ACCESSIBLE": "Հասանելի հաշմանդամության սայլակով",
+      "WINTER_TYRES": "Ձմեռային անվադողեր"
     }
   }
 }

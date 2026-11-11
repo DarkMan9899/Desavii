@@ -185,6 +185,20 @@ describe('toPartnerListingResponse', () => {
         'title',
         'transmission',
         'city_name',
+        // The shared card facts (`listingCardFactsDto.js`).
+        'amenities',
+        'attraction_type',
+        'body_type',
+        'fuel_type',
+        'languages_offered',
+        'max_group_size',
+        'max_guests',
+        'min_age',
+        'reservable',
+        'seats',
+        'tour_format',
+        'venue_type',
+        'visit_format',
       ].sort(),
     );
   });

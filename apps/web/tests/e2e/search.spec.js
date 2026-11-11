@@ -189,7 +189,12 @@ test.describe('Search & Discovery', () => {
     }) => {
       await page.setViewportSize(viewport);
       await page.goto(`/${locale}/search`);
-      const firstCard = page.locator('main a[href*="/listings/"]').first();
+      // The result card, not its link: the card's link is its title, which
+      // sits below the photo (docs/LISTING_CARDS.md).
+      const firstCard = page
+        .locator('main article')
+        .filter({ has: page.locator('a[href*="/listings/"]') })
+        .first();
       await expect(firstCard).toBeVisible();
       const { y } = await firstCard.boundingBox();
       expect(y).toBeLessThan(viewport.height);

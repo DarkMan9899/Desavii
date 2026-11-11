@@ -31,8 +31,7 @@ const CLICK_DRAG_THRESHOLD_PX = 8;
 // reported regression ("center/focus scaling dominates the entire
 // section", "cards have inconsistent apparent dimensions", "feels like a
 // poster showcase, not marketplace inventory"). Depth should read through
-// elevation/shadow/tilt (ListingCardBase's own `.cardPromoted` treatment)
-// and this component's tilt below, not through neighboring cards visibly
+// the card's own TOP badge and this component's tilt below, not through neighboring cards visibly
 // changing size/visibility — every slide keeps materially the same
 // apparent scale now, this is a whisper of emphasis, not the primary
 // effect. Layout box dimensions were never affected by this either way

@@ -156,13 +156,6 @@
       "eyebrow": "В центре внимания",
       "title": "Рекомендуемые предложения",
       "subtitle": "Продвигаемые места, высокие оценки гостей и самое новое объявление в каждой категории.",
-      "badge": {
-        "promoted": "продвигаемое объявление",
-        "rated": "Высокая оценка гостей",
-        "newest": "Новинка"
-      },
-      "rating": "{{rating}} · отзывов: {{count}}",
-      "priceOnRequest": "Цена по запросу",
       "empty": {
         "title": "Пока нет объявлений",
         "description": "Загляните позже — новые места и впечатления добавляются регулярно."
@@ -757,14 +750,19 @@
     "card": {
       "viewDetails": "Смотреть {{title}}",
       "fromPrice": "От",
+      "starRating_one": "{{count}} звезда",
+      "starRating_few": "{{count}} звезды",
+      "starRating_many": "{{count}} звёзд",
+      "starRating_other": "{{count}} звезды",
       "priceUnit": {
         "perNight": "/ ночь",
         "perDay": "/ день",
-        "perPerson": "/ с человека",
-        "averagePerPerson": "ср. чек / чел."
+        "perPerson": "/ с человека"
       },
-      "starRating": "{{count}} звёзд",
-      "bedroomsCount": "{{count}} спален",
+      "bedroomsCount_one": "{{count}} спальня",
+      "bedroomsCount_few": "{{count}} спальни",
+      "bedroomsCount_many": "{{count}} спален",
+      "bedroomsCount_other": "{{count}} спальни",
       "durationMinutes": "{{count}} мин",
       "durationHours": "{{count}} ч"
     },
@@ -5341,6 +5339,84 @@
       "scheduleError": "Не удалось запланировать — проверьте дату и содержание.",
       "unscheduleAction": "Отменить расписание",
       "unscheduleSuccess": "Расписание отменено — запись возвращена в черновики."
+    }
+  },
+  "listingCard": {
+    "untitled": "Объявление без названия",
+    "price": {
+      "from": "От",
+      "average": "В среднем",
+      "unlisted": "Цена не указана"
+    },
+    "photos": "Фотографий: {{count}}",
+    "badge": {
+      "topRated": "Высокая оценка гостей",
+      "newest": "Новинка",
+      "promoted": " (продвигаемое объявление)"
+    },
+    "category": {
+      "hotels": "Отель",
+      "apartments": "Апартаменты",
+      "villas": "Вилла",
+      "guest-houses": "Гостевой дом",
+      "restaurants": "Ресторан",
+      "tours": "Тур",
+      "car-rentals": "Аренда авто",
+      "attractions": "Достопримечательность",
+      "entertainment-venues": "Развлечения"
+    },
+    "reviews": {
+      "none": "Пока нет отзывов",
+      "count_one": "{{count}} отзыв",
+      "count_few": "{{count}} отзыва",
+      "count_many": "{{count}} отзывов",
+      "count_other": "{{count}} отзыва",
+      "label_one": "Оценка {{rating}} из 5, {{count}} отзыв",
+      "label_few": "Оценка {{rating}} из 5, {{count}} отзыва",
+      "label_many": "Оценка {{rating}} из 5, {{count}} отзывов",
+      "label_other": "Оценка {{rating}} из 5, {{count}} отзыва"
+    },
+    "fact": {
+      "maxGuests_one": "До {{count}} гостя",
+      "maxGuests_few": "До {{count}} гостей",
+      "maxGuests_many": "До {{count}} гостей",
+      "maxGuests_other": "До {{count}} гостя",
+      "seats_one": "{{count}} место",
+      "seats_few": "{{count}} места",
+      "seats_many": "{{count}} мест",
+      "seats_other": "{{count}} места",
+      "minAge": "Возраст {{count}}+",
+      "languages_one": "{{count}} язык",
+      "languages_few": "{{count}} языка",
+      "languages_many": "{{count}} языков",
+      "languages_other": "{{count}} языка",
+      "freeReservation": "Бесплатная бронь столика"
+    },
+    "amenity": {
+      "AIRPORT_SHUTTLE": "Трансфер из аэропорта",
+      "BBQ": "Барбекю",
+      "BREAKFAST_INCLUDED": "Завтрак включён",
+      "CHILD_SEAT": "Детское кресло",
+      "DEDICATED_WORKSPACE": "Рабочее место",
+      "FAMILY_FRIENDLY": "Подходит для семей",
+      "FIREPLACE": "Камин",
+      "GARDEN": "Сад",
+      "GPS_NAVIGATION": "GPS-навигация",
+      "JACUZZI": "Джакузи",
+      "KIDS_MENU": "Детское меню",
+      "KITCHEN": "Кухня",
+      "LIVE_MUSIC": "Живая музыка",
+      "OUTDOOR_SEATING": "Места на открытом воздухе",
+      "PARKING": "Парковка",
+      "PET_FRIENDLY": "Можно с животными",
+      "POOL": "Бассейн",
+      "PRIVATE_DINING_ROOM": "Отдельный зал",
+      "SAUNA": "Сауна",
+      "SPA": "Спа",
+      "TERRACE": "Терраса",
+      "WASHING_MACHINE": "Стиральная машина",
+      "WHEELCHAIR_ACCESSIBLE": "Доступно для инвалидных колясок",
+      "WINTER_TYRES": "Зимние шины"
     }
   }
 }

@@ -179,3 +179,90 @@ describe('GET /search — category_slug/cuisine/price_tier card metadata', () =>
     expect(result.star_rating).toBeNull();
   });
 });
+
+// Card decision layer (docs/LISTING_CARDS.md): the shared card facts —
+// `listingCardMetadataSql.js` — only ever carry what still applies to the
+// listing's category, and a restaurant is reservable only with a real,
+// undeleted table.
+describe('GET /search — the shared card facts stay truthful', () => {
+  const amenityId = async (code) => {
+    const [[row]] = await pool.query(
+      'SELECT id FROM listing_amenities WHERE code = ?',
+      [code],
+    );
+    return row.id;
+  };
+
+  const searchRow = async (keyword, id) => {
+    const res = await request(app).get(
+      `/api/v1/search?keyword=${encodeURIComponent(keyword)}`,
+    );
+    expect(res.status).toBe(200);
+    return findResult(res.body.data, id);
+  };
+
+  test('card-worthy amenities only, and only while they apply to the category', async () => {
+    const applicable = await Promise.all(
+      ['POOL', 'BREAKFAST_INCLUDED', 'WIFI'].map(amenityId),
+    );
+    // A car-rental amenity left on a hotel (e.g. after a category change).
+    const stale = await amenityId('CHILD_SEAT');
+    await pool.query(
+      'INSERT IGNORE INTO listing_amenity_listing (listing_id, amenity_id) VALUES ?',
+      [[...applicable, stale].map((id) => [hotelListingId, id])],
+    );
+    const result = await searchRow('Card Metadata Test Hotel', hotelListingId);
+    // WiFi is real but tells a traveller nothing on a card.
+    expect(result.amenities).toEqual(['BREAKFAST_INCLUDED', 'POOL']);
+  });
+
+  test('an attribute that does not apply to the category is never shown', async () => {
+    // A car's transmission written straight onto the hotel.
+    await pool.query(
+      `INSERT IGNORE INTO listing_attribute_option (listing_id, attribute_option_id)
+       SELECT ?, ao.id FROM attribute_options ao
+       JOIN attribute_definitions ad ON ad.id = ao.attribute_definition_id
+       WHERE ad.code = 'transmission' AND ao.code = 'AUTOMATIC'`,
+      [hotelListingId],
+    );
+    const result = await searchRow('Card Metadata Test Hotel', hotelListingId);
+    expect(result.transmission).toBeNull();
+    expect(result.star_rating).toBe('4');
+  });
+
+  test('a restaurant is reservable only while it has an undeleted table', async () => {
+    const before = await searchRow(
+      'Card Metadata Test Restaurant',
+      restaurantListingId,
+    );
+    expect(before.reservable).toBe(false);
+
+    const [insert] = await pool.query(
+      `INSERT INTO bookable_units (listing_id, bookable_unit_type_id, source_table, source_id)
+       SELECT ?, id, 'restaurant_tables', 0 FROM bookable_unit_types WHERE code = 'RESTAURANT_TABLE'`,
+      [restaurantListingId],
+    );
+    const withTable = await searchRow(
+      'Card Metadata Test Restaurant',
+      restaurantListingId,
+    );
+    expect(withTable.reservable).toBe(true);
+
+    await pool.query(
+      'UPDATE bookable_units SET deleted_at = CURRENT_TIMESTAMP(3) WHERE id = ?',
+      [insert.insertId],
+    );
+    const deleted = await searchRow(
+      'Card Metadata Test Restaurant',
+      restaurantListingId,
+    );
+    expect(deleted.reservable).toBe(false);
+  });
+
+  test('a hotel is never reservable and carries no car facts', async () => {
+    const result = await searchRow('Card Metadata Test Hotel', hotelListingId);
+    expect(result.reservable).toBe(false);
+    expect(result.seats).toBeNull();
+    expect(result.body_type).toBeNull();
+  });
+});

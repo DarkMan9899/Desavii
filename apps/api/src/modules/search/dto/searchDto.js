@@ -1,3 +1,5 @@
+import { toCardFactsResponse } from '../../listings/dto/listingCardFactsDto.js';
+
 /**
  * Search module response DTOs (BACKEND_ARCHITECTURE.md Ch.9).
  *
@@ -19,7 +21,6 @@ export function toSearchMapResultResponse(result) {
     slug: result.slug,
     title: result.title,
     listing_type: result.listingTypeCode,
-    category_slug: result.categorySlug ?? null,
     city_name: result.cityName ?? null,
     // The public map point: exact for venues, a grid-cell centre for
     // private stays (`location_precision: 'approximate'`) — see
@@ -30,30 +31,30 @@ export function toSearchMapResultResponse(result) {
     cover_image_url: result.coverImageUrl ?? null,
     price_amount: result.priceAmount ?? null,
     price_currency_code: result.priceCurrencyCode ?? null,
-    pricing_model: result.pricingModelCode ?? null,
     rating_average: result.ratingAverage ?? null,
     review_count: result.reviewCount ?? 0,
-    star_rating: result.starRatingCode ?? null,
-    cuisine: result.cuisineCodes ?? null,
-    price_tier: result.priceTierCode ?? null,
-    transmission: result.transmissionCode ?? null,
-    bedrooms: result.bedroomsValue ?? null,
-    duration_minutes: result.durationMinutesValue ?? null,
+    // The same card facts every card shows (category, attributes,
+    // amenities, reservations, price basis).
+    ...toCardFactsResponse(result),
   };
 }
 
+/**
+ * The public listing card (`GET /search`, the Home Featured / Category TOP
+ * feeds): exactly what a card and the sitemap use (docs/LISTING_CARDS.md),
+ * nothing else. Deliberately absent — no public consumer needs them, so
+ * they are not sent: `partner_id` (which company owns which listings),
+ * `status` (always PUBLISHED here), `summary`, `city_id`, `country_id`.
+ * `created_at` stays: the sitemap's `lastmod`
+ * (`apps/web/scripts/lib/fetchRouteManifest.mjs`), already public there.
+ */
 export function toSearchResultResponse(result) {
   return {
     id: result.id,
-    partner_id: result.partnerId,
     listing_type: result.listingTypeCode,
     slug: result.slug,
-    status: result.statusCode,
     title: result.title,
-    summary: result.summary,
-    city_id: result.cityId,
     city_name: result.cityName,
-    country_id: result.countryId,
     cover_image_url: result.coverImageUrl,
     // Phase 10 (redesign): additive — `listing_pricing` is a 1:1 table
     // (PRIMARY KEY(listing_id)) already joined safely; `null` for a
@@ -67,28 +68,10 @@ export function toSearchResultResponse(result) {
     rating_average: result.ratingAverage ?? null,
     review_count: result.reviewCount ?? 0,
     created_at: result.createdAt,
-    // Pass 7 (category-specific visual identity): `listing_type` alone
-    // can't distinguish e.g. Apartments/Villas/Guest Houses (all
-    // PROPERTY) or Attractions/Entertainment (both ATTRACTION) — cards
-    // resolve their category-precise presentation from this slug,
-    // falling back to `listing_type` only if it's ever absent.
-    category_slug: result.categorySlug ?? null,
-    // Restaurant-only today (brief §9/§22's deferred card metadata) —
-    // `null` for every other category and for a Restaurant not yet
-    // authored with these attributes, never fabricated.
-    cuisine: result.cuisineCodes ?? null,
-    price_tier: result.priceTierCode ?? null,
-    // Emergency premium card redesign — one real "headline" attribute
-    // fact per remaining category (Hotels/Car Rentals/Apartments-Villas-
-    // Guest Houses/Tours-Attractions-Entertainment), same "null when never
-    // authored, never fabricated" rule as cuisine/price_tier above. The
-    // frontend picks which single field its own category actually shows.
-    star_rating: result.starRatingCode ?? null,
-    transmission: result.transmissionCode ?? null,
-    bedrooms: result.bedroomsValue ?? null,
-    duration_minutes: result.durationMinutesValue ?? null,
-    // Step L6.2H1: the price basis cards label `price_amount` with.
-    pricing_model: result.pricingModelCode ?? null,
+    // The card facts — category, the category's real attributes, its
+    // card-worthy amenities, restaurant reservations and the price basis
+    // (`listings/dto/listingCardFactsDto.js`, shared by every card DTO).
+    ...toCardFactsResponse(result),
     // Step A3.1 (Engagement Analytics): `promotion_id` — the opaque
     // advertisement id `promotion_impression`/`promotion_clicked` need —
     // is present ONLY when `result` genuinely came from
@@ -107,19 +90,22 @@ export function toSearchResultResponse(result) {
 /**
  * Listing Lifetime / Renewal, Step B5 — the Partner listing-management
  * table's (`PartnerListingsList.jsx`, via `useMyListingsQuery`) own row
- * shape: everything `toSearchResultResponse` already exposes, plus the 5
+ * shape: everything `toSearchResultResponse` already exposes, plus `status`
+ * (the status badge, row actions and dashboard counts) and the 5
  * lifecycle fields the brief requires for the status badge/countdown/Renew
  * UI. `searchController.js` only ever calls this for the exact same
  * elevated population that can already see a non-PUBLISHED listing's card
  * through this endpoint (`searchService.js`'s own `isOwnerView`) — a
  * public/anonymous caller always gets `toSearchResultResponse` instead, so
- * these 5 fields can never reach a public Search/Category/Home response.
+ * `status` and these 5 fields can never reach a public Search/Category/Home
+ * response.
  * `expiry_reminder_sent_at` is deliberately NOT included (brief §14 — no
  * concrete Partner UX need for it).
  */
 export function toOwnerSearchResultResponse(result) {
   return {
     ...toSearchResultResponse(result),
+    status: result.statusCode,
     publication_period_days: result.publicationPeriodDays ?? null,
     expires_at: result.expiresAt ?? null,
     frozen_at: result.frozenAt ?? null,

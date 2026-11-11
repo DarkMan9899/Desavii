@@ -13,12 +13,11 @@ vi.mock('../../../search/index.js', () => ({
   useCategoriesQuery: vi.fn(),
   useSearchListingsQuery: vi.fn(),
   // eslint-disable-next-line react/prop-types -- trivial test double
-  SearchResultCard: ({ result, hideTypeBadge, topBadgeLabel, promotionId }) => (
+  SearchResultCard: ({ result, highlight, promotionId }) => (
     <div>
       {/* eslint-disable-next-line react/prop-types -- trivial test double */}
       {result.title}
-      {hideTypeBadge ? ' (badge hidden)' : ''}
-      {topBadgeLabel ? ` (${topBadgeLabel})` : ''}
+      {highlight ? ` (${highlight})` : ''}
       {promotionId ? ` [promo:${promotionId}]` : ''}
     </div>
   ),
@@ -117,7 +116,7 @@ describe('CategoryPageContent (apps/web/src/modules/discovery)', () => {
   // found no reproducible duplicate-DOM-node defect in this codebase at
   // the time — the perceived duplication traced to a cramped 8-card grid
   // repeating the category name as a per-card badge (fixed separately via
-  // `hideTypeBadge`/`ListingGrid`) — but these explicit "exactly one"
+  // `ListingGrid` and the card eyebrow) — but these explicit "exactly one"
   // assertions exist so a future regression (e.g. a page accidentally
   // rendering `PageHeader` twice, or two `<Breadcrumbs>` from a layout +
   // page both owning one) fails a test immediately instead of only
@@ -152,7 +151,7 @@ describe('CategoryPageContent (apps/web/src/modules/discovery)', () => {
     expect(screen.getAllByText('Car Rentals')).toHaveLength(2);
   });
 
-  test('renders the listing count and each result with the per-card type badge hidden (already redundant on a category page)', () => {
+  test('renders the listing count and each result as an ordinary (unbadged) card', () => {
     useCategoriesQuery.mockReturnValue({
       data: [CATEGORY],
       isPending: false,
@@ -165,9 +164,7 @@ describe('CategoryPageContent (apps/web/src/modules/discovery)', () => {
     renderPage();
 
     expect(screen.getByText('9 հայտարարություն')).toBeInTheDocument();
-    expect(
-      screen.getByText('Ararat Valley Fleet (badge hidden)'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Ararat Valley Fleet')).toBeInTheDocument();
   });
 
   test('shows an empty state when the category has no published listings', () => {
@@ -205,11 +202,9 @@ describe('CategoryPageContent (apps/web/src/modules/discovery)', () => {
     // Step A3.1: the real public promotion_id reaches SearchResultCard's
     // `promotionId` prop — never inferred from the TOP badge text.
     expect(
-      screen.getByText('Promoted Fleet (badge hidden) (ԹՈՓ) [promo:7]'),
+      screen.getByText('Promoted Fleet (top) [promo:7]'),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText('Regular Listing (badge hidden)'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Regular Listing')).toBeInTheDocument();
 
     const heading = screen.getByRole('heading', {
       name: /Car Rentals/,

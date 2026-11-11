@@ -6,5 +6,7 @@
  */
 
 export { default as FavoriteButton } from './components/FavoriteButton/FavoriteButton.jsx';
+// The shared listing card for a favourite (Favorites page, account dashboard).
+export { default as FavoriteListingCard } from './components/FavoriteListingCard/FavoriteListingCard.jsx';
 export { default as FavoritesPageContent } from './components/FavoritesPageContent/FavoritesPageContent.jsx';
 export { useFavoritesQuery } from './queries/useFavoritesQuery.js';

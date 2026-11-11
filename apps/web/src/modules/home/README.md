@@ -35,8 +35,8 @@ desavii → Editorial → Partner CTA → Photo credits.
   topped up when there are fewer than eight with real top-rated listings
   (average ≥ 4.5 from ≥ 3 approved reviews)
   and the newest listing of each category (`useFeaturedRail` /
-  `selectFeaturedListings`; every card says why it is there), on
-  `FeaturedListingCard`.
+  `selectFeaturedListings`; every card says why it is there), on the
+  shared listing card ([docs/LISTING_CARDS.md](../../../../../docs/LISTING_CARDS.md)).
 - **Destinations:** `GET /search/destinations`, top six by listings.
 - **New on desavii:** `GET /search?sort=newest`.
 - **Editorial:** published Blog posts; the section hides when there are

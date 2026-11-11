@@ -95,6 +95,7 @@ const marker = (id, title, extra = {}) => ({
   longitude: 44.51,
   location_precision: 'exact',
   price_amount: '20000.00',
+  price_currency_code: 'AMD',
   review_count: 0,
   ...extra,
 });

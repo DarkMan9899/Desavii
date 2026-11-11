@@ -26,6 +26,12 @@
  */
 
 import { getMysqlPool } from '../../../infrastructure/database/mysqlPool.js';
+import { CARD_PRICE_SELECT } from '../../listings/repositories/listingCardPriceSql.js';
+import {
+  CARD_METADATA_SELECT,
+  CARD_METADATA_COLUMNS,
+  toCardMetadataDomain,
+} from '../../listings/repositories/listingCardMetadataSql.js';
 import { scopeActive } from '../../../infrastructure/database/softDelete.js';
 import { scopePubliclyVisibleListing } from '../../listings/repositories/listingVisibilitySql.js';
 import {
@@ -160,95 +166,6 @@ const MAP_POINT_SQL = `
       CASE WHEN base.is_location_approximate THEN ${snappedSql('latitude')} ELSE base.latitude END AS map_latitude,
       CASE WHEN base.is_location_approximate THEN ${snappedSql('longitude')} ELSE base.longitude END AS map_longitude`;
 
-/**
- * Pass 7 (category-specific visual identity) — three extra card-display
- * fields, shared verbatim between `buildSearchListingsQuery`'s inner SELECT
- * and `searchListingsByIds`'s standalone one (Sprint E's Home/Category-TOP
- * promoted-listing endpoint reuses the exact same card shape, so it needs
- * the same fields or its cards would silently regress relative to normal
- * Search/Category cards). Every literal here (`'cuisine'`, `'price_tier'`)
- * is a stable backend-declared `attribute_definitions.code`/DTO-shape
- * constant, not user input, so it's safe to inline directly rather than as
- * a bound param — keeps this reusable as a plain string with no
- * placeholder-ordering entanglement in either call site.
- *
- * `category_slug`: a listing can technically link to more than one
- * `listing_categories` row (`listing_category_listing` is a bare M:N
- * junction with no `is_primary` column), but every real/demo listing today
- * has exactly one — `MIN(category_id)` gives a single deterministic slug
- * per listing without inventing a primary-category concept the schema
- * doesn't have.
- *
- * `cuisine_codes`/`price_tier_code`: Restaurant's `cuisine` (MULTI_ENUM)
- * and `price_tier` (ENUM) attributes, resolved through the same
- * `listing_attribute_option` -> `attribute_options` -> `attribute_definitions`
- * chain `getFilterDefinitions` already reads for the filter UI. `cuisine`
- * is GROUP_CONCAT'd (a listing can hold more than one cuisine option) and
- * split back into an array in `toSearchResultDomain`; `price_tier` is
- * single-valued by construction (ENUM, not MULTI_ENUM) so a bare LIMIT 1
- * is correct, not a shortcut.
- */
-const CARD_METADATA_SELECT = `
-      (SELECT lc.slug FROM listing_category_listing lcl_card
-         JOIN listing_categories lc ON lc.id = lcl_card.category_id
-         WHERE lcl_card.listing_id = l.id
-         ORDER BY lcl_card.category_id ASC LIMIT 1
-      ) AS category_slug,
-      (SELECT GROUP_CONCAT(ao_cuisine.code ORDER BY ao_cuisine.sort_order SEPARATOR ',')
-         FROM listing_attribute_option lao_cuisine
-         JOIN attribute_options ao_cuisine ON ao_cuisine.id = lao_cuisine.attribute_option_id
-         JOIN attribute_definitions ad_cuisine ON ad_cuisine.id = ao_cuisine.attribute_definition_id
-         WHERE lao_cuisine.listing_id = l.id AND ad_cuisine.code = 'cuisine'
-      ) AS cuisine_codes,
-      (SELECT ao_tier.code
-         FROM listing_attribute_option lao_tier
-         JOIN attribute_options ao_tier ON ao_tier.id = lao_tier.attribute_option_id
-         JOIN attribute_definitions ad_tier ON ad_tier.id = ao_tier.attribute_definition_id
-         WHERE lao_tier.listing_id = l.id AND ad_tier.code = 'price_tier'
-         LIMIT 1
-      ) AS price_tier_code,
-      -- Emergency premium card redesign: one more real, non-fabricated
-      -- "headline" fact per remaining category, following the exact same
-      -- correlated-subquery shape as cuisine/price_tier above -- never a
-      -- second card-metadata mechanism. The frontend (categoryCardConfig.js)
-      -- decides which single field is this listing's category actually
-      -- displays; every field here is SQL NULL whenever that attribute was
-      -- never authored for this listing, never a guessed/default value.
-      (SELECT ao_star.code
-         FROM listing_attribute_option lao_star
-         JOIN attribute_options ao_star ON ao_star.id = lao_star.attribute_option_id
-         JOIN attribute_definitions ad_star ON ad_star.id = ao_star.attribute_definition_id
-         WHERE lao_star.listing_id = l.id AND ad_star.code = 'star_rating'
-         LIMIT 1
-      ) AS star_rating_code,
-      (SELECT ao_trans.code
-         FROM listing_attribute_option lao_trans
-         JOIN attribute_options ao_trans ON ao_trans.id = lao_trans.attribute_option_id
-         JOIN attribute_definitions ad_trans ON ad_trans.id = ao_trans.attribute_definition_id
-         WHERE lao_trans.listing_id = l.id AND ad_trans.code = 'transmission'
-         LIMIT 1
-      ) AS transmission_code,
-      (SELECT lav_bed.value
-         FROM listing_attribute_values_integer lav_bed
-         JOIN attribute_definitions ad_bed ON ad_bed.id = lav_bed.attribute_definition_id
-         WHERE lav_bed.listing_id = l.id AND ad_bed.code = 'bedrooms'
-         LIMIT 1
-      ) AS bedrooms_value,
-      (SELECT lav_dur.value
-         FROM listing_attribute_values_integer lav_dur
-         JOIN attribute_definitions ad_dur ON ad_dur.id = lav_dur.attribute_definition_id
-         WHERE lav_dur.listing_id = l.id AND ad_dur.code = 'duration_minutes'
-         LIMIT 1
-      ) AS duration_minutes_value,
-      -- Step L6.2H1: the listing's own pricing model, so a card labels its
-      -- price by the basis booking uses rather than by category. NULL when
-      -- no listing-level pricing row exists (listing_pricing is 1:1).
-      (SELECT pm_card.code
-         FROM listing_pricing lp_card
-         JOIN pricing_models pm_card ON pm_card.id = lp_card.pricing_model_id
-         WHERE lp_card.listing_id = l.id
-      ) AS pricing_model_code`;
-
 function toSearchResultDomain(row) {
   return {
     id: row.id,
@@ -257,10 +174,9 @@ function toSearchResultDomain(row) {
     slug: row.slug,
     statusCode: row.status_code,
     // Listing Lifetime / Renewal, Step B5 — mapped for every caller
-    // (`undefined` on `searchListingsByIds`'s own narrower SELECT, same
-    // "column absent there" precedent `categorySlug` etc. already
-    // document below); the owner-vs-public DTO split happens downstream,
-    // never here.
+    // (`undefined` on `searchListingsByIds`'s own narrower SELECT — a
+    // column absent there maps to null); the owner-vs-public DTO split
+    // happens downstream, never here.
     publicationPeriodDays: row.publication_period_days ?? null,
     expiresAt: row.expires_at ?? null,
     frozenAt: row.frozen_at ?? null,
@@ -281,37 +197,10 @@ function toSearchResultDomain(row) {
       row.rating_average !== null ? Number(row.rating_average) : null,
     reviewCount: Number(row.review_count),
     createdAt: row.created_at,
-    // Pass 7 (category-specific visual identity): the coarser
-    // `listing_type_code` above can't distinguish e.g. Apartments from
-    // Villas (both PROPERTY) — cards need the real category slug to
-    // choose a category-precise presentation. `undefined` (column absent
-    // from `searchListingsByIds`'s own SELECT — n/a there) collapses to
-    // `null` the same as a listing genuinely in no category.
-    categorySlug: row.category_slug ?? null,
-    // Restaurant card metadata (brief §9/§22, the deferred item from the
-    // previous pass) — MULTI_ENUM `cuisine` is GROUP_CONCAT'd into a
-    // comma string by the subquery below; split back into option codes
-    // here so callers never parse SQL-shaped strings themselves. `null`
-    // for a listing with no cuisine attribute set (every non-Restaurant
-    // category, or a Restaurant not yet authored) — never `[]`, so
-    // "not applicable/not set" stays distinguishable from a future
-    // genuinely-empty-selection state.
-    cuisineCodes: row.cuisine_codes ? row.cuisine_codes.split(',') : null,
-    priceTierCode: row.price_tier_code ?? null,
-    // Emergency premium card redesign — same "real value or null, never
-    // guessed" rule as cuisine/price_tier above.
-    starRatingCode: row.star_rating_code ?? null,
-    transmissionCode: row.transmission_code ?? null,
-    bedroomsValue:
-      row.bedrooms_value !== undefined && row.bedrooms_value !== null
-        ? Number(row.bedrooms_value)
-        : null,
-    durationMinutesValue:
-      row.duration_minutes_value !== undefined &&
-      row.duration_minutes_value !== null
-        ? Number(row.duration_minutes_value)
-        : null,
-    pricingModelCode: row.pricing_model_code ?? null,
+    // The card facts (category, attributes, amenities, reservations,
+    // pricing model): `listingCardMetadataSql.js`. Columns absent from a
+    // narrower SELECT map to null / [] / false.
+    ...toCardMetadataDomain(row),
   };
 }
 
@@ -323,7 +212,6 @@ function toSearchMapDomain(row) {
     slug: card.slug,
     title: card.title,
     listingTypeCode: card.listingTypeCode,
-    categorySlug: card.categorySlug,
     cityName: card.cityName,
     // The public map point, never the stored one (see MAP_POINT_SQL).
     latitude: Number(row.map_latitude),
@@ -334,15 +222,9 @@ function toSearchMapDomain(row) {
     coverImageUrl: card.coverImageUrl,
     priceAmount: card.priceAmount,
     priceCurrencyCode: card.priceCurrencyCode,
-    pricingModelCode: card.pricingModelCode,
     ratingAverage: card.ratingAverage,
     reviewCount: card.reviewCount,
-    starRatingCode: card.starRatingCode,
-    cuisineCodes: card.cuisineCodes,
-    priceTierCode: card.priceTierCode,
-    transmissionCode: card.transmissionCode,
-    bedroomsValue: card.bedroomsValue,
-    durationMinutesValue: card.durationMinutesValue,
+    ...toCardMetadataDomain(row),
   };
 }
 
@@ -786,63 +668,8 @@ function buildSearchResultSet(filters) {
       loc.latitude, loc.longitude,
       ${APPROXIMATE_LOCATION_SQL} AS is_location_approximate,
       m.url AS cover_image_url,
-      -- P2.2D: a "from" price -- the cheapest real per-unit base price
-      -- (P2.2A) when the listing's priced units all share one currency.
-      --
-      -- The listing-level listing_pricing fallback is deliberately
-      -- gated by a "does this listing have ANY priced unit at all" EXISTS
-      -- check, not merely COALESCE'd in whenever the MIN subquery is
-      -- NULL. Per accommodationPriceResolution.js#resolvePriceForDate
-      -- (the same precedence booking-time actually charges), a unit's
-      -- own base price always outranks the listing fallback for THAT
-      -- unit -- so if a listing's units already carry base prices, just
-      -- priced in more than one currency, listing_pricing would never
-      -- actually be charged for booking any of them. Showing it anyway
-      -- would display a price checkout cannot produce for this listing's
-      -- real units -- correctness bug, not a display nuance. The
-      -- fallback is only valid when NO unit has a base price at all
-      -- (rung 2 genuinely absent for every unit, so rung 3 is what
-      -- booking-time would actually resolve to). Both subqueries share
-      -- the identical WHERE/HAVING/EXISTS scope, so amount and currency
-      -- always come from the same set of rows, never mixed.
-      COALESCE(
-        (SELECT MIN(bu_price.base_price_amount)
-           FROM bookable_units bu_price
-           WHERE bu_price.listing_id = l.id AND bu_price.deleted_at IS NULL
-             AND bu_price.base_price_amount IS NOT NULL
-           HAVING COUNT(DISTINCT bu_price.base_price_currency_id) = 1
-        ),
-        CASE
-          WHEN NOT EXISTS (
-            SELECT 1 FROM bookable_units bu_any_price
-            WHERE bu_any_price.listing_id = l.id AND bu_any_price.deleted_at IS NULL
-              AND bu_any_price.base_price_amount IS NOT NULL
-          ) THEN lp.amount
-        END
-      ) AS price_amount,
-      COALESCE(
-        -- MAX(), not GROUP BY: a GROUP BY on code would let the HAVING
-        -- guard pass once per distinct currency instead of once for the
-        -- whole listing (each single-currency group trivially satisfies
-        -- "1 distinct currency" on its own), which is exactly backwards
-        -- and can return more than one row. Aggregating over the whole
-        -- unfiltered set means MAX() only ever sees the single shared
-        -- code once HAVING has already confirmed there's just one.
-        (SELECT MAX(cur_price.code)
-           FROM bookable_units bu_price
-           JOIN currencies cur_price ON cur_price.id = bu_price.base_price_currency_id
-           WHERE bu_price.listing_id = l.id AND bu_price.deleted_at IS NULL
-             AND bu_price.base_price_amount IS NOT NULL
-           HAVING COUNT(DISTINCT bu_price.base_price_currency_id) = 1
-        ),
-        CASE
-          WHEN NOT EXISTS (
-            SELECT 1 FROM bookable_units bu_any_price2
-            WHERE bu_any_price2.listing_id = l.id AND bu_any_price2.deleted_at IS NULL
-              AND bu_any_price2.base_price_amount IS NOT NULL
-          ) THEN cur.code
-        END
-      ) AS price_currency_code,
+      -- The card "from" price (listingCardPriceSql.js).
+      ${CARD_PRICE_SELECT},
       (SELECT COUNT(*) FROM media gm
          WHERE gm.mediable_type = 'listing' AND gm.mediable_id = l.id AND gm.deleted_at IS NULL
       ) AS media_count,
@@ -998,15 +825,9 @@ const MAP_COLUMNS = [
   'cover_image_url',
   'price_amount',
   'price_currency_code',
-  'pricing_model_code',
   'rating_average',
   'review_count',
-  'star_rating_code',
-  'cuisine_codes',
-  'price_tier_code',
-  'transmission_code',
-  'bedrooms_value',
-  'duration_minutes_value',
+  ...CARD_METADATA_COLUMNS.filter((column) => column !== 'category_slug'),
 ]
   .map((column) => `results.${column}`)
   .join(', ');
@@ -1177,37 +998,7 @@ export class MySqlSearchRepository {
         COALESCE(lt.summary, lt2.summary) AS summary,
         loc.city_id, COALESCE(ct.name, ct2.name, c.name) AS city_name, r.country_id,
         m.url AS cover_image_url,
-        COALESCE(
-          (SELECT MIN(bu_price.base_price_amount)
-             FROM bookable_units bu_price
-             WHERE bu_price.listing_id = l.id AND bu_price.deleted_at IS NULL
-               AND bu_price.base_price_amount IS NOT NULL
-             HAVING COUNT(DISTINCT bu_price.base_price_currency_id) = 1
-          ),
-          CASE
-            WHEN NOT EXISTS (
-              SELECT 1 FROM bookable_units bu_any_price
-              WHERE bu_any_price.listing_id = l.id AND bu_any_price.deleted_at IS NULL
-                AND bu_any_price.base_price_amount IS NOT NULL
-            ) THEN lp.amount
-          END
-        ) AS price_amount,
-        COALESCE(
-          (SELECT MAX(cur_price.code)
-             FROM bookable_units bu_price
-             JOIN currencies cur_price ON cur_price.id = bu_price.base_price_currency_id
-             WHERE bu_price.listing_id = l.id AND bu_price.deleted_at IS NULL
-               AND bu_price.base_price_amount IS NOT NULL
-             HAVING COUNT(DISTINCT bu_price.base_price_currency_id) = 1
-          ),
-          CASE
-            WHEN NOT EXISTS (
-              SELECT 1 FROM bookable_units bu_any_price2
-              WHERE bu_any_price2.listing_id = l.id AND bu_any_price2.deleted_at IS NULL
-                AND bu_any_price2.base_price_amount IS NOT NULL
-            ) THEN cur.code
-          END
-        ) AS price_currency_code,
+        ${CARD_PRICE_SELECT},
         (SELECT COUNT(*) FROM media gm
            WHERE gm.mediable_type = 'listing' AND gm.mediable_id = l.id AND gm.deleted_at IS NULL
         ) AS media_count,

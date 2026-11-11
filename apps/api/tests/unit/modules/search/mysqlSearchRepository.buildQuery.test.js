@@ -181,7 +181,7 @@ describe('buildSearchListingsQuery — placeholder/parameter alignment', () => {
     );
     expect(sql).toContain('WITH RECURSIVE availability_search_dates');
     expect(sql).toContain('bookable_units');
-    expect(sql).toContain('bookable_unit_types');
+    expect(sql).toContain('JOIN bookable_unit_types but ON');
     expect(sql).toContain('blackout_dates');
     expect(countPlaceholders(sql)).toBe(params.length);
     // CTE's (dateFrom, dateTo) bind first, then localeId/defaultLocaleId,
@@ -283,12 +283,14 @@ describe('buildSearchListingsQuery — placeholder/parameter alignment', () => {
       resolveSortOption('newest'),
     );
     expect(sql).not.toContain('WITH RECURSIVE');
-    expect(sql).not.toContain('bookable_unit_types');
+    // The availability filter's own join (alias `but`). The card facts'
+    // restaurant-table check (`listingCardMetadataSql.js`, alias
+    // `but_res`) always reads `bookable_unit_types`, so the table name
+    // alone no longer tells the two apart.
+    expect(sql).not.toContain('JOIN bookable_unit_types but ON');
     expect(sql).not.toContain('blackout_dates');
     // The P2.2D "from" price aggregation always references
-    // `bookable_units` (unconditionally, unlike the availability filter),
-    // so this file's presence check moved from the table name itself to
-    // the availability-specific `bookable_unit_types` join alias above.
+    // `bookable_units` (unconditionally, unlike the availability filter).
     expect(sql).toContain('bookable_units');
     expect(countPlaceholders(sql)).toBe(params.length);
   });

@@ -40,9 +40,10 @@ export function getDestinations(params) {
 
 /**
  * `GET /search` — the real Search & Discovery listing search. Returns the
- * flat, already-localized card shape (`id, partner_id, listing_type, slug,
- * status, title, summary, city_id, city_name, country_id,
- * cover_image_url, created_at` — `searchDto.js`'s `toSearchResultResponse`),
+ * flat, already-localized card shape (`searchDto.js`'s
+ * `toSearchResultResponse`: id, slug, title, category, city name, cover,
+ * price, rating and card facts — docs/LISTING_CARDS.md; an owner/admin view
+ * adds `status` and the lifecycle fields),
  * not `GET /listings`' bare summary — no per-row follow-up call is needed
  * to render a result card. Only params the backend validator
  * (`modules/search/validators/searchValidators.js`) actually accepts are

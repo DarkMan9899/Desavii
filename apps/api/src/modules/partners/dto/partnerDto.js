@@ -1,3 +1,5 @@
+import { toCardFactsResponse } from '../../listings/dto/listingCardFactsDto.js';
+
 /**
  * Partners module response DTOs (BACKEND_ARCHITECTURE.md Ch.9).
  */
@@ -32,18 +34,9 @@ export function toPartnerSummaryResponse(partner) {
 
 /**
  * Company Public Profile (Step A1) — one row of a partner's public
- * catalog. Same field names/shapes `searchDto.js`'s own
- * `toSearchResultResponse` uses for the equivalent fields (`category_slug`,
- * `cuisine`, `price_tier`, `star_rating`, `transmission`, `bedrooms`,
- * `duration_minutes`) — a parallel DTO, not a cross-module import (same
- * "each module keeps its own DTO function" convention `favoriteDto.js`'s
- * own `toFavoritedListingResponse` already established) — so the shared
- * frontend `buildCategoryCardMeta`/`resolveCardConfig` utilities work
- * against this response unchanged, once a future step wires the card UI
- * up. `partner_id`/`summary`/`media_count` are deliberately not included
- * this pass — not required to resolve `categoryVisualKey`/price unit/
- * metadata, matching the same "real field exists, out of scope this
- * pass" precedent `summary` already has on Favorites cards.
+ * catalog: the listing's card fields plus the shared card facts
+ * (`listings/dto/listingCardFactsDto.js`), the same facts every other card
+ * surface returns, so the frontend card model works against it unchanged.
  */
 export function toPartnerListingResponse(item) {
   return {
@@ -57,15 +50,8 @@ export function toPartnerListingResponse(item) {
     price_currency_code: item.priceCurrencyCode ?? null,
     rating_average: item.ratingAverage ?? null,
     review_count: item.reviewCount ?? 0,
-    category_slug: item.categorySlug ?? null,
-    cuisine: item.cuisineCodes ?? null,
-    price_tier: item.priceTierCode ?? null,
-    star_rating: item.starRatingCode ?? null,
-    transmission: item.transmissionCode ?? null,
-    bedrooms: item.bedroomsValue ?? null,
-    duration_minutes: item.durationMinutesValue ?? null,
-    // Step L6.2H1: the price basis cards label `price_amount` with.
-    pricing_model: item.pricingModelCode ?? null,
+    // The shared card facts (`listings/dto/listingCardFactsDto.js`).
+    ...toCardFactsResponse(item),
   };
 }
 

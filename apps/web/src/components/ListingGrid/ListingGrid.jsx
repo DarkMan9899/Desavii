@@ -1,6 +1,6 @@
 /**
  * ListingGrid — the shared responsive card grid for a full page of
- * `ListingCardBase`-shaped results (1 column mobile, 2 mobile-large, 3
+ * listing cards (`ListingCard`) (1 column mobile, 2 mobile-large, 3
  * tablet, 4 laptop+) — the same breakpoint scale `SearchResults` already
  * uses. Extracted so `CategoryPageContent`/`DestinationPageContent` stop
  * reaching for the generic `Grid` layout primitive's `columns="auto"`

@@ -359,6 +359,20 @@ describe('GET /search/map — the response', () => {
         'transmission',
         'bedrooms',
         'duration_minutes',
+        // The shared card facts the preview shows (`listingCardFactsDto.js`).
+        'max_guests',
+        'seats',
+        'min_age',
+        'max_group_size',
+        'tour_format',
+        'body_type',
+        'fuel_type',
+        'attraction_type',
+        'visit_format',
+        'venue_type',
+        'languages_offered',
+        'amenities',
+        'reservable',
       ].sort(),
     );
     expect(marker.latitude).toEqual(expect.any(Number));

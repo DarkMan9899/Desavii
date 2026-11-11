@@ -404,6 +404,27 @@ VALIDATION_FAILED`, never a 500:
 `meta` carries `next_cursor`, `has_more`, `limit`, and — on the first
 page only (no `cursor`) — `total`, the whole filtered result's size.
 
+Each result is the public listing card (`searchDto.js`
+`toSearchResultResponse`, also used by the Home Featured and Category TOP
+feeds): `id`, `slug`, `title`, `listing_type`, `category_slug`, localized
+`city_name`, `cover_image_url`, `media_count`, `price_amount`,
+`price_currency_code`, `pricing_model`, `rating_average`, `review_count`,
+the card facts, `created_at` (the sitemap's `lastmod`) and, on a paid
+placement only, `promotion_id`. The card facts (`listingCardFactsDto.js`,
+the same on every card surface) are the listing's stored values or
+`null`: `star_rating`, `cuisine` (array), `price_tier`, `transmission`,
+`bedrooms`, `duration_minutes`, `max_guests`, `seats`, `min_age`,
+`max_group_size`, `tour_format`, `body_type`, `fuel_type`,
+`attraction_type`, `visit_format`, `venue_type`, `languages_offered`
+(array); `amenities` — its card-worthy amenity codes (`[]` when none);
+and `reservable` — true only with a real, undeleted restaurant table. An
+attribute or amenity counts only while it applies to one of the
+listing's categories. It never carries the
+owning partner, the status, the summary or location ids. The owner view
+(the listing's own partner, or an admin/moderator) adds `status` and the
+lifecycle fields (`publication_period_days`, `expires_at`, `frozen_at`,
+`purge_after`, `renewed_at`). See `docs/LISTING_CARDS.md`.
+
 **`GET /search/map`** — Map Search: the same params as `GET /search`
 (`cursor`/`limit` aside) and the same resolved search — visibility,
 filters, `bbox` and sort — as markers for every match with a point, never
@@ -411,9 +432,8 @@ just one List page. At most 500 markers (`MAP_RESULT_LIMIT`), in the
 List's sort order. Each marker is a lightweight card: `id`, `slug`,
 `title`, `listing_type`, `category_slug`, localized `city_name`,
 `latitude`/`longitude`, `location_precision`, `cover_image_url`,
-`price_amount`, `price_currency_code`, `pricing_model`, `rating_average`,
-`review_count` and the card facts (`star_rating`, `cuisine`, `price_tier`,
-`transmission`, `bedrooms`, `duration_minutes`). `meta` carries `total`
+`price_amount`, `price_currency_code`, `rating_average`, `review_count`
+and the same card facts as a `GET /search` result (above). `meta` carries `total`
 (every match), `mappable` (matches with a point), `returned` and
 `truncated` (`returned < mappable`). Private-stay location policy: a
 listing linked to `apartments`, `villas` or `guest-houses` (also when it

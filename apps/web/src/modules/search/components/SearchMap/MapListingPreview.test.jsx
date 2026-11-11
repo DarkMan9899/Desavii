@@ -7,6 +7,7 @@ import hy from '../../../../../public/locales/hy/common.json';
 
 // The test harness's i18n instance defaults to Armenian (tests/setup.js).
 const T = hy.search;
+const CARD = hy.listingCard;
 const CURRENCY = { currency: 'AMD', rates: { AMD: '1.00000000' } };
 
 const HOTEL = {
@@ -21,6 +22,7 @@ const HOTEL = {
   location_precision: 'exact',
   cover_image_url: '/assets/images/demo/hotels/hotels-1.svg',
   price_amount: '30000.00',
+  price_currency_code: 'AMD',
   pricing_model: 'PER_NIGHT',
   rating_average: 4.5,
   review_count: 12,
@@ -43,20 +45,31 @@ function renderPreview(listing, entry = '/hy/search') {
 }
 
 describe('MapListingPreview (apps/web/src/modules/search)', () => {
-  test('summarises the listing from its marker data', () => {
+  test('is the shared card, summarising the listing from its marker data', () => {
     renderPreview(HOTEL);
     const preview = screen.getByRole('article', { name: 'Grand Hotel' });
-    expect(
-      within(preview).getByText(hy.listings.type.HOTEL),
-    ).toBeInTheDocument();
+    expect(within(preview).getByText(CARD.category.hotels)).toBeInTheDocument();
     expect(within(preview).getByText('Երևան')).toBeInTheDocument();
-    expect(within(preview).getByText(T.card.fromPrice)).toBeInTheDocument();
+    expect(within(preview).getByText(CARD.price.from)).toBeInTheDocument();
     expect(
       within(preview).getByText(T.card.priceUnit.perNight),
     ).toBeInTheDocument();
-    expect(within(preview).getByRole('listitem')).toHaveTextContent(
+    expect(within(preview).getByText('4.5')).toBeInTheDocument();
+    const facts = within(preview).getAllByRole('listitem');
+    expect(facts[0]).toHaveTextContent(
       T.card.starRating.replace('{{count}}', '4'),
     );
+    // 4.5 from 12 approved reviews meets the objective rule.
+    expect(within(preview).getByText(CARD.badge.topRated)).toBeInTheDocument();
+  });
+
+  test('its title is the focus target the preview names it by', () => {
+    renderPreview(HOTEL);
+    const heading = screen.getByRole('heading', { name: 'Grand Hotel' });
+    expect(heading).toHaveAttribute('id', 'h');
+    expect(heading).toHaveAttribute('tabindex', '-1');
+    // The action is spelled out: one link, and the title is not it.
+    expect(screen.getAllByRole('link')).toHaveLength(1);
   });
 
   test('"Learn more" opens the listing with the search\'s booking context only', () => {
@@ -82,8 +95,10 @@ describe('MapListingPreview (apps/web/src/modules/search)', () => {
       cover_image_url: null,
     });
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    expect(screen.queryByText(T.card.fromPrice)).not.toBeInTheDocument();
+    expect(screen.getByText(CARD.reviews.none)).toBeInTheDocument();
+    expect(screen.queryByText(CARD.price.from)).not.toBeInTheDocument();
+    expect(screen.getByText(CARD.price.unlisted)).toBeInTheDocument();
+    expect(screen.queryByText(CARD.badge.topRated)).not.toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: T.map.preview.learnMore }),
     ).toBeInTheDocument();
@@ -99,8 +114,9 @@ describe('MapListingPreview (apps/web/src/modules/search)', () => {
       bedrooms: 2,
     });
     expect(screen.getByText(T.map.preview.approximate)).toBeInTheDocument();
-    expect(screen.getByRole('listitem')).toHaveTextContent(
-      T.card.bedroomsCount.replace('{{count}}', '2'),
+    expect(screen.getByText(CARD.category.apartments)).toBeInTheDocument();
+    expect(screen.getAllByRole('listitem')[0]).toHaveTextContent(
+      T.card.bedroomsCount_other.replace('{{count}}', '2'),
     );
   });
 });
