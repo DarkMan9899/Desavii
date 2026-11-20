@@ -1,6 +1,7 @@
 // CompanyAttribution — tokens only, consumed from @desavii/ui.
 
 @use 'tokens' as tokens;
+@use 'mixins/visually-hidden' as hidden;
 
 .attribution {
   display: inline-flex;
@@ -48,4 +49,8 @@
 .verifiedIcon {
   flex-shrink: 0;
   color: tokens.$color-royal-blue;
+}
+
+.visuallyHidden {
+  @include hidden.visually-hidden;
 }

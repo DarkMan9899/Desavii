@@ -4,42 +4,18 @@
  * pattern (docs/LISTING_DETAIL_FIELD_GAP.md §3) instead of one large card
  * per one-word value.
  *
- * Values are the stored policy values, formatted by the same
- * `formatMetadataValue` the rest of the page uses; a yes/no rule reads
- * "Allowed" / "Not allowed" rather than "Yes" / "No" next to a short
- * title ("Pets", not "Pets allowed"). Rules read in a fixed order —
- * arrival and departure first — whatever order the category declares.
- *
- * P2.1 integrity check: `cancellation_policy`'s label (Flexible/Moderate/
- * Strict) is collected and displayed only, never consulted by the refund
- * decision (`cancellationRefundPolicy.js`: every customer cancellation is
- * reviewed manually). Its row says so in its expandable explanation; no
- * refund percentage or window is invented here.
+ * Which rules exist, their order and their wording are decided by
+ * `listingRules.js` — the same function the in-page navigation asks, so
+ * the section and its link always agree: the partner's policies plus the
+ * booking rules the reservation panel enforces (minimum / maximum stay,
+ * advance notice).
  */
 
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { PolicyList } from '@desavii/ui/components/data-display';
 import { Section } from '@desavii/ui/components/layout';
-import { fromPolicyValuesResponse } from '../../../utils/policyValueMapping.js';
-import { formatMetadataValue } from '../MetadataValueDisplay.jsx';
-import resolvePolicyIcon from '../../../utils/policyIcons.js';
-
-const POLICY_ORDER = [
-  'check_in_time',
-  'check_out_time',
-  'cancellation_policy',
-  'children_allowed',
-  'pets_allowed',
-  'smoking_allowed',
-  'parties_allowed',
-  'fuel_policy',
-];
-
-function orderOf(code) {
-  const index = POLICY_ORDER.indexOf(code);
-  return index === -1 ? POLICY_ORDER.length : index;
-}
+import { resolveListingRules } from '../../../utils/listingRules.js';
 
 export default function ListingPoliciesSection({
   policies = [],
@@ -47,44 +23,11 @@ export default function ListingPoliciesSection({
   headingKey = 'pages.listingDetail.policies.heading',
   sectionId = undefined,
 }) {
-  const { t } = useTranslation();
-
-  if (!policies || policies.length === 0) return null;
-
-  const valuesByCode = fromPolicyValuesResponse(
-    policies,
-    listing.policy_values,
+  const { t, i18n } = useTranslation();
+  const rules = resolveListingRules(
+    { policies, listing, locale: i18n.language },
+    t,
   );
-  const rules = policies
-    .map((definition) => ({
-      definition,
-      value: valuesByCode[definition.code],
-    }))
-    .filter(
-      ({ value }) => value !== undefined && value !== null && value !== '',
-    )
-    .sort((a, b) => orderOf(a.definition.code) - orderOf(b.definition.code))
-    .map(({ definition, value }) => ({
-      icon: resolvePolicyIcon(definition.code),
-      title: t(`pages.listingDetail.policies.titles.${definition.code}`, {
-        defaultValue: t(`partner.listingWizard.policies.${definition.code}`, {
-          defaultValue: definition.code,
-        }),
-      }),
-      description:
-        definition.data_type === 'BOOLEAN'
-          ? t(
-              value
-                ? 'pages.listingDetail.policies.allowed'
-                : 'pages.listingDetail.policies.notAllowed',
-            )
-          : formatMetadataValue(definition, value, t),
-      details:
-        definition.code === 'cancellation_policy'
-          ? t('pages.listingDetail.policies.cancellationDisclaimer')
-          : undefined,
-    }));
-
   if (rules.length === 0) return null;
 
   const heading = t(headingKey);
@@ -111,12 +54,18 @@ ListingPoliciesSection.propTypes = {
     }),
   ),
   listing: PropTypes.shape({
+    listing_type: PropTypes.string,
     policy_values: PropTypes.arrayOf(
       PropTypes.shape({
         code: PropTypes.string.isRequired,
         value: PropTypes.string,
       }),
     ),
+    booking_rules: PropTypes.shape({
+      minimum_stay_nights: PropTypes.number,
+      maximum_stay_nights: PropTypes.number,
+      advance_booking_min_hours: PropTypes.number,
+    }),
   }).isRequired,
   // "Policies", or a category's own wording ("House rules").
   headingKey: PropTypes.string,

@@ -35,7 +35,7 @@ describe('resolveListingKeyFacts', () => {
       categoryVisualKey: 'tours',
       metadata: {
         attributes: [
-          integer('duration_minutes'),
+          integer('duration_minutes', 'minutes'),
           integer('min_group_size'),
           integer('max_group_size'),
           enumOf('difficulty'),
@@ -68,7 +68,10 @@ describe('resolveListingKeyFacts', () => {
     const result = facts({
       categoryVisualKey: 'tours',
       metadata: {
-        attributes: [integer('duration_minutes'), integer('max_group_size')],
+        attributes: [
+          integer('duration_minutes', 'minutes'),
+          integer('max_group_size'),
+        ],
         policies: [],
       },
       listing: { attribute_values: [{ code: 'max_group_size', value: '8' }] },

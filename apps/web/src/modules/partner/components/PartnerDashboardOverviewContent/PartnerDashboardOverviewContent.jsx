@@ -35,6 +35,7 @@ import {
   EmptyState,
   ErrorState,
 } from '@desavii/ui/components/feedback-overlays';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import styles from './PartnerDashboardOverviewContent.module.scss';
 import RouterLink from '../../../../components/RouterLink.jsx';
@@ -267,7 +268,7 @@ export default function PartnerDashboardOverviewContent() {
                         <ListingStatusBadge status={listing.status} />
                       }
                       updatedAtLabel={t('partner.dashboard.listings.listedOn', {
-                        date: new Intl.DateTimeFormat(i18n.language, {
+                        date: createDateFormatter(i18n.language, {
                           dateStyle: 'medium',
                         }).format(new Date(listing.created_at)),
                       })}

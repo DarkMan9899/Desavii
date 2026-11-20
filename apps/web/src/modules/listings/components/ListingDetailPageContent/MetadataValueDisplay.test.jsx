@@ -61,7 +61,7 @@ describe('MetadataValueDisplay (Listing Details)', () => {
     expect(screen.getByText('SAMPLE_OPTION')).toBeInTheDocument();
   });
 
-  test('MULTI_ENUM renders a comma-joined list of resolved option labels', () => {
+  test('MULTI_ENUM renders the option labels in the language’s own list grammar (hy: "A և B")', () => {
     render(
       <MetadataValueDisplay
         namespace="attributes"
@@ -69,7 +69,7 @@ describe('MetadataValueDisplay (Listing Details)', () => {
         valuesByCode={{ sample_multi: ['OPTION_A', 'OPTION_B'] }}
       />,
     );
-    expect(screen.getByText('OPTION_A, OPTION_B')).toBeInTheDocument();
+    expect(screen.getByText('OPTION_A և OPTION_B')).toBeInTheDocument();
   });
 
   test('STRING renders the plain value', () => {
@@ -96,26 +96,5 @@ describe('MetadataValueDisplay (Listing Details)', () => {
     );
     expect(screen.getByText('present')).toBeInTheDocument();
     expect(screen.queryByText('sample_b')).not.toBeInTheDocument();
-  });
-
-  // Listing Detail rebuild: a value already shown in the key facts strip
-  // is not repeated in the specification grid.
-  test('codes passed in excludeCodes are not shown', () => {
-    render(
-      <MetadataValueDisplay
-        namespace="attributes"
-        definitions={[
-          { code: 'sample_shown', data_type: 'STRING' },
-          { code: 'sample_in_key_facts', data_type: 'STRING' },
-        ]}
-        valuesByCode={{
-          sample_shown: 'Shown',
-          sample_in_key_facts: 'Already above',
-        }}
-        excludeCodes={['sample_in_key_facts']}
-      />,
-    );
-    expect(screen.getByText('Shown')).toBeInTheDocument();
-    expect(screen.queryByText('Already above')).not.toBeInTheDocument();
   });
 });

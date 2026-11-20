@@ -29,10 +29,12 @@ import {
   isAttributeApplicable,
 } from './attributeValueMapping.js';
 import { fromPolicyValuesResponse } from './policyValueMapping.js';
-import { formatMetadataValue } from '../components/ListingDetailPageContent/MetadataValueDisplay.jsx';
+import {
+  formatMetadataValue,
+  hasMetadataValue,
+} from './metadataValueFormat.js';
 import { resolveAttributeIcon } from './attributeIcons.js';
 import { findTodaysHours } from './openingHoursStatus.js';
-import { formatDurationLabel } from '../../../utils/formatDuration.js';
 
 export const KEY_FACT_LIMIT = 6;
 
@@ -100,15 +102,6 @@ const FACTS_BY_CATEGORY = {
   ],
 };
 
-function hasValue(value) {
-  return (
-    value !== undefined &&
-    value !== null &&
-    value !== '' &&
-    !(Array.isArray(value) && value.length === 0)
-  );
-}
-
 function label(t, factKey) {
   return t(`pages.listingDetail.keyFacts.labels.${factKey}`);
 }
@@ -118,6 +111,7 @@ function label(t, factKey) {
  *   categoryVisualKey: string,
  *   metadata: { attributes: object[], policies: object[] } | undefined,
  *   listing: object,
+ *   locale: string,
  *   units?: object[],
  *   weeklyHours?: object[],
  *   now?: Date,
@@ -130,6 +124,7 @@ export function resolveListingKeyFacts(
     categoryVisualKey,
     metadata,
     listing,
+    locale,
     units = [],
     weeklyHours = [],
     now = new Date(),
@@ -155,11 +150,16 @@ export function resolveListingKeyFacts(
   );
 
   const attribute = (code) =>
-    definitionsByCode.has(code) && hasValue(attributes[code])
+    definitionsByCode.has(code) && hasMetadataValue(attributes[code])
       ? attributes[code]
       : undefined;
   const formatted = (code) =>
-    formatMetadataValue(definitionsByCode.get(code), attributes[code], t);
+    formatMetadataValue(
+      definitionsByCode.get(code),
+      attributes[code],
+      t,
+      locale,
+    );
 
   // Each producer returns `{ fact, codes }` (the attribute codes the fact
   // shows) or `null`; only the facts actually kept consume their codes, so
@@ -173,10 +173,7 @@ export function resolveListingKeyFacts(
             key: code,
             icon: resolveAttributeIcon(code),
             label: label(t, code),
-            value:
-              code === 'duration_minutes'
-                ? formatDurationLabel(attribute(code), t)
-                : formatted(code),
+            value: formatted(code),
           },
         };
   const fact = (key, icon, value, codes = []) => ({
@@ -186,11 +183,11 @@ export function resolveListingKeyFacts(
 
   const composite = {
     check_in: () =>
-      hasValue(policies.check_in_time)
+      hasMetadataValue(policies.check_in_time)
         ? fact('check_in', LogIn, policies.check_in_time)
         : null,
     check_out: () =>
-      hasValue(policies.check_out_time)
+      hasMetadataValue(policies.check_out_time)
         ? fact('check_out', LogOut, policies.check_out_time)
         : null,
     room_types: () => {

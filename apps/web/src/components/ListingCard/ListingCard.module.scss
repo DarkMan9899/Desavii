@@ -239,22 +239,6 @@ $compact-media-width: 40%;
   color: tokens.$color-gray-600;
 }
 
-.ratingValue {
-  font-weight: 700;
-  color: tokens.$color-navy;
-}
-
-.star {
-  flex-shrink: 0;
-  color: tokens.$color-gold-strong;
-  fill: currentcolor;
-}
-
-.starEmpty {
-  flex-shrink: 0;
-  color: tokens.$color-gray-400;
-}
-
 // Concise icon facts, not chips: they wrap whole onto a second line in a
 // narrow card (long Armenian and Russian labels too).
 .facts {
@@ -290,25 +274,6 @@ $compact-media-width: 40%;
   padding-block-start: tokens.$space-4;
   margin-block-start: auto;
   border-block-start: $hairline solid tokens.$color-gray-200;
-}
-
-.price {
-  display: flex;
-  flex-wrap: wrap;
-  gap: tokens.$space-1 tokens.$space-2;
-  align-items: baseline;
-  min-width: 0;
-  margin: 0;
-  color: tokens.$color-navy;
-}
-
-.priceLead,
-.priceBasis,
-.priceUnlisted {
-  margin: 0;
-  font-size: tokens.$font-size-small;
-  line-height: tokens.$line-height-small;
-  color: tokens.$color-gray-600;
 }
 
 // A ringed arrow that fills navy when the card is hovered or focused.

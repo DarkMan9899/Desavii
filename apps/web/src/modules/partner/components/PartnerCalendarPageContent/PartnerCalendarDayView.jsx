@@ -28,7 +28,10 @@ import { Icon, Button, Badge } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import { EmptyState, Skeleton } from '@desavii/ui/components/feedback-overlays';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
+import {
+  createDateFormatter,
+  NUMERIC_DATE_TIME,
+} from '@desavii/ui/utils/dateFormat';
 import { useUnitBreakdownQuery } from '../../../availability/index.js';
 import { BookingStatusBadge } from '../../../bookings/index.js';
 import { addDays, todayIso, HOUR_ROWS } from './calendarDateGrid.js';
@@ -92,7 +95,9 @@ function SourceEventCard({
         {event.expiresAt && (
           <span className={styles.eventMeta}>
             {t('partner.calendar.day.holdExpires', {
-              time: new Date(event.expiresAt).toLocaleString(locale),
+              time: createDateFormatter(locale, NUMERIC_DATE_TIME).format(
+                new Date(event.expiresAt),
+              ),
             })}
           </span>
         )}

@@ -35,14 +35,18 @@ export const TOP_RATING_MIN_REVIEWS = 3;
 
 const RATING_DIGITS = 1;
 
-/** An approved-review rating worth showing: at least one review and a real average. */
+/**
+ * An approved-review rating worth showing: at least one review and a real
+ * average, rounded to one decimal. Kept a number: the surface writes it in
+ * the page language (`formatRatingAverage`: "4.7", "4,7").
+ */
 export function resolveCardRating(dto) {
   const count = Number(dto.review_count) || 0;
   const average = Number(dto.rating_average);
   if (count < 1 || dto.rating_average == null || !Number.isFinite(average)) {
     return null;
   }
-  return { average: average.toFixed(RATING_DIGITS), count };
+  return { average: Number(average.toFixed(RATING_DIGITS)), count };
 }
 
 /** The objective "Top guest rating" rule (see the file header). */

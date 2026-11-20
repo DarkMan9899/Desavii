@@ -38,7 +38,9 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: tokens.$color-gold;
+  // The strong gold: small text on white needs 4.5:1 (WCAG AA); the plain
+  // gold reads 2.4:1.
+  color: tokens.$color-gold-strong;
 }
 
 .itemList {

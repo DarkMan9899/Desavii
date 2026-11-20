@@ -71,6 +71,7 @@ import {
   PLACEMENTS,
 } from '../../../../analytics/index.js';
 import styles from './CompanyProfilePageContent.module.scss';
+import { ratingLabel } from '../../../../utils/formatRating.js';
 
 const LISTINGS_SKELETON_COUNT = 3;
 
@@ -88,7 +89,7 @@ const SOCIAL_PLATFORM_LABELS = {
 };
 
 export default function CompanyProfilePageContent() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { locale, slug } = useParams();
   const navigate = useNavigate();
 
@@ -242,6 +243,13 @@ export default function CompanyProfilePageContent() {
                     reviewCount={company.review_count}
                     size="sm"
                     showCount={false}
+                    locale={i18n.language}
+                    label={ratingLabel(
+                      t,
+                      i18n.language,
+                      company.rating_average,
+                      company.review_count,
+                    )}
                   />
                   {t('pages.listingDetail.hero.reviewsLink', {
                     count: company.review_count,

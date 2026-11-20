@@ -24,6 +24,7 @@ import {
   EmptyState,
   ErrorState,
 } from '@desavii/ui/components/feedback-overlays';
+import { createNumberFormatter } from '@desavii/ui/utils/numberFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import { useManagerContext } from '../../../../contexts/ManagerContext.jsx';
 import { useMyManagerAnalyticsQuery } from '../../../managers/index.js';
@@ -142,7 +143,7 @@ export default function ManagerAnalyticsPageContent() {
                     >
                       <span>{row.currency_code}</span>
                       <strong>
-                        {new Intl.NumberFormat(i18n.language, {
+                        {createNumberFormatter(i18n.language, {
                           maximumFractionDigits: 2,
                         }).format(row.average)}
                       </strong>

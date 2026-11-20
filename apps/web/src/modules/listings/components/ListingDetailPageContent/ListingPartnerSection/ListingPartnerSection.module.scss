@@ -1,0 +1,18 @@
+// ListingPartnerSection — tokens only.
+
+@use 'tokens' as tokens;
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-3;
+  align-items: flex-start;
+}
+
+.note {
+  max-width: 60ch;
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+}

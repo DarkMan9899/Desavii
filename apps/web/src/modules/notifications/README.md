@@ -21,7 +21,8 @@ via `constants/notificationCopy.js` — the backend stores only `event_type`
 - `queries/` — `useNotificationsQuery`, `useUnreadCountQuery` (this
   codebase's first polling hook), `useNotificationPreferencesQuery` (Ch. 14)
 - `mutations/` — mark-read/mark-all-read/archive/delete/update-preference (Ch. 14)
-- `utils/` — `formatRelativeTime.js` (`Intl.RelativeTimeFormat`)
+- `utils/` — `formatRelativeTime.js` (re-exports `@desavii/ui`'s
+  `Intl.RelativeTimeFormat` formatter with its `date-fns` locale fallback)
 - `constants/` — `queryKeys.js`, `notificationCopy.js`
 - `index.js` — this module's public export surface (Ch. 6.2) — the ONLY
   entry point other modules may import from (Ch. 6.3's cross-module rule)

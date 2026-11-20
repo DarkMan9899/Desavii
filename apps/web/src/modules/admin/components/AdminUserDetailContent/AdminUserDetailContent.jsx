@@ -17,6 +17,8 @@ import {
   EmptyState,
   ErrorState,
 } from '@desavii/ui/components/feedback-overlays';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
+import { createNumberFormatter } from '@desavii/ui/utils/numberFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
@@ -143,13 +145,13 @@ export default function AdminUserDetailContent() {
                   </span>
                   <span>
                     {t('admin.userDetail.joined', {
-                      date: new Intl.DateTimeFormat(i18n.language, {
+                      date: createDateFormatter(i18n.language, {
                         dateStyle: 'medium',
                       }).format(new Date(user.created_at)),
                     })}
                     {user.last_login_at &&
                       ` · ${t('admin.userDetail.lastLogin', {
-                        date: new Intl.DateTimeFormat(i18n.language, {
+                        date: createDateFormatter(i18n.language, {
                           dateStyle: 'medium',
                           timeStyle: 'short',
                         }).format(new Date(user.last_login_at)),
@@ -229,7 +231,7 @@ export default function AdminUserDetailContent() {
                         }
                       />
                       <span>
-                        {new Intl.NumberFormat(i18n.language).format(
+                        {createNumberFormatter(i18n.language).format(
                           booking.total_amount,
                         )}
                       </span>

@@ -357,7 +357,8 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
     // Renders once in the hero's meta row and once in the Location
     // section — both are real, intentional uses of the same text.
     expect(screen.getAllByText('Yerevan, Armenia')).toHaveLength(2);
-    expect(screen.getByText('Վիլլաներ')).toBeInTheDocument();
+    // The precise singular category the cards use, never the plural name.
+    expect(screen.getByText('Վիլլա')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
     ).toBeInTheDocument();
@@ -557,7 +558,7 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
       screen.getByRole('heading', { name: 'Երևանի շրջայց', level: 1 }),
     ).toBeInTheDocument();
     expect(screen.getByText('Հեշտ')).toBeInTheDocument();
-    expect(screen.getByText('Շրջայցեր')).toBeInTheDocument();
+    expect(screen.getByText('Տուր')).toBeInTheDocument();
     // No amenities/policies were declared for this category — those
     // sections must not render at all, not an empty placeholder.
     expect(

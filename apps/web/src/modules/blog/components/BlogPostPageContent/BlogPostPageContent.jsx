@@ -16,6 +16,10 @@ import { Badge } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
 import { Breadcrumbs } from '@desavii/ui/components/navigation';
+import {
+  createDateFormatter,
+  NUMERIC_DATE,
+} from '@desavii/ui/utils/dateFormat';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import MarkdownContent from '../../../../components/MarkdownContent/MarkdownContent.jsx';
 import useSeo from '../../../../seo/useSeo.js';
@@ -102,7 +106,9 @@ export default function BlogPostPageContent() {
         <p className={styles.meta}>
           {post.published_at && (
             <span>
-              {new Date(post.published_at).toLocaleDateString(locale)}
+              {createDateFormatter(locale, NUMERIC_DATE).format(
+                new Date(post.published_at),
+              )}
             </span>
           )}
           {post.author && <span>{t('blog.by', { author: post.author })}</span>}

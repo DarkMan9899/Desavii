@@ -10,6 +10,7 @@
 import { ValidationError } from '../../../errors/AppError.js';
 import {
   toListingResponse,
+  toPublicListingResponse,
   toListingOwnerResponse,
   toListingSummaryResponse,
   toAdminListingSummaryResponse,
@@ -53,25 +54,22 @@ export function createListingController(
     async get(req, res, next) {
       try {
         const { id } = req.validated.params;
-        const listing = await listingService.getListing(req.principal, id);
-        // Step M4.1: reuses the exact same "Owner or `listing.update`"
-        // rule that already governs private access inside `getListing`
-        // itself (see `ListingService#canManageListing`'s own doc
-        // comment) — an anonymous visitor or an authenticated Customer
-        // both resolve to `false` here, same as they always have.
-        const includeModerationNotes = await listingService.canManageListing(
+        const { listing, canManage } = await listingService.getListingDetail(
           req.principal,
-          listing,
+          id,
         );
-        res.status(200).json({
-          success: true,
-          data: toListingResponse(listing, {
-            includeModerationNotes,
-            includePrivateAddress: includeModerationNotes,
-          }),
-          meta: null,
-          error: null,
-        });
+        // Listing Detail redesign: only a principal who may manage this
+        // listing (`ListingService#canManageListing` — Owner, an assigned
+        // Manager or `listing.update`) gets the management shape, with the
+        // private moderation reason and a private stay's exact address;
+        // everyone else gets the minimal public shape.
+        const data = canManage
+          ? toListingResponse(listing, {
+              includeModerationNotes: true,
+              includePrivateAddress: true,
+            })
+          : toPublicListingResponse(listing);
+        res.status(200).json({ success: true, data, meta: null, error: null });
       } catch (err) {
         next(err);
       }

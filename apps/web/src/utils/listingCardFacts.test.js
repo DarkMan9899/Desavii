@@ -1,6 +1,11 @@
 import { describe, test, expect, afterEach, beforeEach } from 'vitest';
 import i18n from 'i18next';
-import { CARD_FACT_LIMIT, resolveCardFacts } from './listingCardFacts.js';
+import {
+  CARD_FACT_LIMIT,
+  DETAIL_FEATURE_LIMIT,
+  resolveCardFacts,
+  resolveDetailFeatures,
+} from './listingCardFacts.js';
 import { AMENITY_ICONS, ATTRIBUTE_ICONS } from './listingFactIcons.js';
 
 const t = (...args) => i18n.t(...args);
@@ -168,5 +173,46 @@ describe('resolveCardFacts — localized', () => {
   test('Armenian', async () => {
     await i18n.changeLanguage('hy');
     expect(labels({ amenities: ['POOL'] }, 'villas')).toEqual(['Լողավազան']);
+  });
+});
+
+describe('resolveDetailFeatures — Listing Detail top features', () => {
+  test('amenities only — attribute facts and reservations live in the key facts', () => {
+    const features = resolveDetailFeatures(
+      {
+        star_rating: '4',
+        reservable: true,
+        amenities: ['POOL', 'PARKING', 'BREAKFAST_INCLUDED'],
+      },
+      'hotels',
+      t,
+    );
+    expect(features.map((feature) => feature.key)).toEqual([
+      'amenity:BREAKFAST_INCLUDED',
+      'amenity:POOL',
+      'amenity:PARKING',
+    ]);
+  });
+
+  test(`at most ${DETAIL_FEATURE_LIMIT}, in the category's priority order`, () => {
+    const features = resolveDetailFeatures(
+      {
+        amenities: ['POOL', 'JACUZZI', 'SAUNA', 'FIREPLACE', 'TERRACE', 'BBQ'],
+      },
+      'villas',
+      t,
+    );
+    expect(features).toHaveLength(DETAIL_FEATURE_LIMIT);
+    expect(features[0].key).toBe('amenity:POOL');
+  });
+
+  test('a car rental never lists a stay amenity', () => {
+    expect(
+      resolveDetailFeatures(
+        { amenities: ['BREAKFAST_INCLUDED', 'POOL', 'CHILD_SEAT'] },
+        'car-rentals',
+        t,
+      ).map((feature) => feature.key),
+    ).toEqual(['amenity:CHILD_SEAT']);
   });
 });

@@ -1,0 +1,147 @@
+// ListingHeader — tokens only. An editorial identity block, not a card:
+// a gold-marked eyebrow (category · place), the title in the display face,
+// the rating with the page actions on one line, then the facts band. Long
+// Armenian and Russian titles wrap; nothing truncates.
+
+@use 'tokens' as tokens;
+@use 'mixins/respond' as respond;
+@use 'mixins/focus-ring' as focus;
+
+$eyebrow-mark-width: tokens.$space-4;
+$hairline: 1px;
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-4;
+  min-width: 0;
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  min-width: 0;
+}
+
+.eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-1 tokens.$space-3;
+  align-items: center;
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+}
+
+.type {
+  display: inline-flex;
+  gap: tokens.$space-2;
+  align-items: center;
+  font-weight: 700;
+  color: tokens.$color-royal-blue;
+
+  &::before {
+    width: $eyebrow-mark-width;
+    height: $hairline;
+    content: '';
+    background: tokens.$color-gold;
+  }
+}
+
+.place {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-1 tokens.$space-2;
+  align-items: center;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.approximate {
+  padding: 0 tokens.$space-2;
+  font-size: tokens.$font-size-micro;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-900;
+  background: tokens.$color-gray-100;
+  border-radius: tokens.$radius-full;
+}
+
+.title {
+  margin: 0;
+  font-family: tokens.$font-display;
+  font-size: tokens.$font-size-h3;
+  font-weight: 700;
+  line-height: tokens.$line-height-h3;
+  color: tokens.$color-navy;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+
+  @include respond.respond(tablet) {
+    font-size: tokens.$font-size-h2;
+    line-height: tokens.$line-height-h2;
+  }
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-2 tokens.$space-4;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rating {
+  display: inline-flex;
+  gap: tokens.$space-2;
+  align-items: center;
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+  text-decoration: none;
+  border-radius: tokens.$radius-sm;
+  @include focus.focus-ring;
+}
+
+a.rating {
+  color: tokens.$color-gray-900;
+
+  @media (hover: hover) {
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: tokens.$space-2;
+  align-items: center;
+}
+
+.features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-2 tokens.$space-6;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.feature {
+  display: inline-flex;
+  gap: tokens.$space-2;
+  align-items: center;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-900;
+  overflow-wrap: anywhere;
+
+  svg {
+    flex-shrink: 0;
+    color: tokens.$color-royal-blue;
+  }
+}

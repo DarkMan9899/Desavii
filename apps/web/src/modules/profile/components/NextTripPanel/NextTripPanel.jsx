@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Card } from '@desavii/ui/components/primitives';
 import { PriceTag } from '@desavii/ui/components/data-display';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import DestinationArt from '../../../../components/DestinationArt/DestinationArt.jsx';
 import { useListingQuery } from '../../../listings/queries/useListingQuery.js';
@@ -34,7 +35,7 @@ export default function NextTripPanel({ booking }) {
   const coverMedia =
     listing?.media?.find((media) => media.is_cover) ?? listing?.media?.[0];
   const title = translation?.title ?? listing?.slug ?? '';
-  const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
+  const dateFormatter = createDateFormatter(i18n.language, {
     dateStyle: 'medium',
   });
   const firstItem = booking.items?.[0];

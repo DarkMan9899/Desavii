@@ -8,11 +8,12 @@
  * unlike the full search results page); the current listing is excluded
  * client-side since `GET /search` has no "exclude id" filter.
  *
- * Uses a plain responsive CSS grid (`.grid`), not the `Grid` layout
- * primitive — `Grid`'s fixed `columns` pins that count at every
- * breakpoint (no built-in mobile collapse), so card grids in this app
- * use a local `.module.scss` grid instead, matching
- * `CompaniesDirectoryPageContent`'s established pattern.
+ * Listing Detail redesign: at most `RELATED_LIMIT` cards — enough to
+ * compare, never a second results page. On a phone they form a swipeable
+ * rail (one card and the next one peeking) instead of a stack that would
+ * double the page's length; from tablet, a grid. A plain responsive CSS
+ * layout (`.list`), not the `Grid` primitive, whose fixed `columns` pin
+ * one count at every breakpoint.
  */
 
 import PropTypes from 'prop-types';
@@ -25,6 +26,8 @@ import {
 } from '../../../../search/index.js';
 import styles from './RelatedListings.module.scss';
 
+export const RELATED_LIMIT = 6;
+
 export default function RelatedListings({
   categoryId = undefined,
   excludeListingId,
@@ -33,9 +36,9 @@ export default function RelatedListings({
   const { t } = useTranslation();
   const { data } = useSearchListingsQuery({ categoryId }, { locale });
 
-  const results = (data?.pages[0]?.results ?? []).filter(
-    (result) => result.id !== excludeListingId,
-  );
+  const results = (data?.pages[0]?.results ?? [])
+    .filter((result) => result.id !== excludeListingId)
+    .slice(0, RELATED_LIMIT);
 
   if (!categoryId || results.length === 0) return null;
 
@@ -45,11 +48,13 @@ export default function RelatedListings({
       aria-label={t('pages.listingDetail.relatedListings.heading')}
     >
       <h2>{t('pages.listingDetail.relatedListings.heading')}</h2>
-      <div className={styles.grid}>
+      <ul className={styles.list}>
         {results.map((result) => (
-          <SearchResultCard key={result.id} result={result} />
+          <li key={result.id} className={styles.item}>
+            <SearchResultCard result={result} />
+          </li>
         ))}
-      </div>
+      </ul>
     </Section>
   );
 }

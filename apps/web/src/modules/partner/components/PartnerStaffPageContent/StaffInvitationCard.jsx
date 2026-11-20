@@ -18,6 +18,10 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Button } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
+import {
+  createDateFormatter,
+  NUMERIC_DATE,
+} from '@desavii/ui/utils/dateFormat';
 import styles from './StaffInvitationCard.module.scss';
 
 export default function StaffInvitationCard({ invitation, onRevoke }) {
@@ -37,7 +41,9 @@ export default function StaffInvitationCard({ invitation, onRevoke }) {
           <span aria-hidden="true">·</span>
           <span>
             {t('partner.staff.table.expires')}{' '}
-            {new Date(invitation.expires_at).toLocaleDateString(locale)}
+            {createDateFormatter(locale, NUMERIC_DATE).format(
+              new Date(invitation.expires_at),
+            )}
           </span>
         </Inline>
         <Inline justify="flex-end">

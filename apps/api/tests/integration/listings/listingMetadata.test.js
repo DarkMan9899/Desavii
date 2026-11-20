@@ -130,16 +130,24 @@ describe('GET /listings/metadata', () => {
     expect(res.status).toBe(200);
 
     const attributeCodes = res.body.data.attributes.map((a) => a.code).sort();
+    // Listing Detail information depth adds the guide, transport, food,
+    // weather and end-point facts (docs/LISTING_DETAIL_INFORMATION_DEPTH.md §5).
     expect(attributeCodes).toEqual([
       'difficulty',
       'duration_minutes',
+      'end_point_details',
+      'end_point_type',
+      'guide_type',
       'languages_offered',
       'max_group_size',
+      'meals_included',
       'meeting_point_type',
       'min_age',
       'min_group_size',
       'pickup_details',
       'tour_format',
+      'transport_modes',
+      'weather_policy',
     ]);
     // Step L6.2H1: PER_HOUR is no longer offered (not bookable).
     expect(res.body.data.pricing_models.map((m) => m.code)).toEqual([

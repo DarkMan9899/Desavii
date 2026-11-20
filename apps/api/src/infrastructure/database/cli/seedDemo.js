@@ -30,6 +30,8 @@ const { default: seedDemoListingRichContent } =
   await import('../seeds/demo/seedDemoListingRichContent.js');
 const { default: seedDemoSprintJCatalog } =
   await import('../seeds/demo/seedDemoSprintJCatalog.js');
+const { default: seedDemoListingInformationDepth } =
+  await import('../seeds/demo/seedDemoListingInformationDepth.js');
 const { default: backfillListingCoordinatesFromCity } =
   await import('../seeds/demo/backfillListingCoordinatesFromCity.js');
 const { closeMysqlPool, getMysqlPool } = await import('../mysqlPool.js');
@@ -89,6 +91,12 @@ async function main() {
     { pool },
   );
 
+  log.info('db:seed:demo — completing one representative listing per category');
+  const informationDepthSummary = await withTransaction(
+    (connection) => seedDemoListingInformationDepth(connection),
+    { pool },
+  );
+
   log.info(
     'db:seed:demo — backfilling listing coordinates from their city centroid',
   );
@@ -98,7 +106,13 @@ async function main() {
   );
 
   log.info(
-    { summary, inventorySummary, sprintJSummary, coordinateSummary },
+    {
+      summary,
+      inventorySummary,
+      sprintJSummary,
+      informationDepthSummary,
+      coordinateSummary,
+    },
     'db:seed:demo complete',
   );
 }

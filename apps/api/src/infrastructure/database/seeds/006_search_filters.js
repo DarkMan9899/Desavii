@@ -634,6 +634,17 @@ const ATTRIBUTE_DEFINITIONS = [
   { code: 'visit_format', dataType: 'ENUM' },
   { code: 'setting', dataType: 'ENUM' },
   { code: 'venue_type', dataType: 'ENUM' },
+  // Listing Detail information depth (docs/LISTING_DETAIL_INFORMATION_DEPTH.md
+  // §4): the tour facts travellers compare before booking (GetYourGuide /
+  // Viator "key details") and a venue's seating. Every one optional;
+  // `end_point_details` applies only to a tour that ends elsewhere.
+  { code: 'guide_type', dataType: 'ENUM' },
+  { code: 'transport_modes', dataType: 'MULTI_ENUM', multi: true },
+  { code: 'meals_included', dataType: 'MULTI_ENUM', multi: true },
+  { code: 'weather_policy', dataType: 'ENUM' },
+  { code: 'end_point_type', dataType: 'ENUM' },
+  { code: 'end_point_details', dataType: 'STRING' },
+  { code: 'seating_type', dataType: 'ENUM' },
 ];
 
 const ATTRIBUTE_OPTIONS = {
@@ -737,6 +748,27 @@ const ATTRIBUTE_OPTIONS = {
     'CINEMA',
     'CLUB',
   ],
+  guide_type: ['LIVE_GUIDE', 'DRIVER_GUIDE', 'AUDIO_GUIDE', 'SELF_GUIDED'],
+  transport_modes: [
+    'ON_FOOT',
+    'CAR',
+    'MINIBUS',
+    'COACH',
+    'OFF_ROAD_VEHICLE',
+    'BOAT',
+    'CABLE_CAR',
+  ],
+  meals_included: [
+    'BREAKFAST',
+    'LUNCH',
+    'DINNER',
+    'SNACKS',
+    'DRINKS',
+    'TASTING',
+  ],
+  weather_policy: ['ALL_WEATHER', 'WEATHER_DEPENDENT'],
+  end_point_type: ['RETURNS_TO_START', 'ENDS_ELSEWHERE'],
+  seating_type: ['SEATED', 'STANDING', 'MIXED'],
 };
 
 // category slug -> attributes in Wizard order. An entry is a code, or
@@ -769,10 +801,15 @@ const CATEGORY_ATTRIBUTES = {
     'seating_capacity',
     'dress_code',
   ],
+  // Wizard order: the experience, who it suits, then the logistics.
   tours: [
     'tour_format',
+    'guide_type',
     'duration_minutes',
     'difficulty',
+    'transport_modes',
+    'meals_included',
+    'weather_policy',
     'min_group_size',
     'max_group_size',
     'min_age',
@@ -781,6 +818,11 @@ const CATEGORY_ATTRIBUTES = {
     {
       code: 'pickup_details',
       dependsOn: { attribute: 'meeting_point_type', option: 'HOTEL_PICKUP' },
+    },
+    'end_point_type',
+    {
+      code: 'end_point_details',
+      dependsOn: { attribute: 'end_point_type', option: 'ENDS_ELSEWHERE' },
     },
   ],
   'car-rentals': [
@@ -817,6 +859,7 @@ const CATEGORY_ATTRIBUTES = {
   'entertainment-venues': [
     'venue_type',
     'setting',
+    'seating_type',
     'duration_minutes',
     'min_age',
     'languages_offered',
@@ -951,6 +994,10 @@ const CATEGORY_AMENITIES = {
     'Kids Menu',
     'High Chairs',
     'Bar',
+    // Listing Detail information depth — the structured accessibility
+    // facts Google Business Profile lists for restaurants and venues.
+    'Step-free Access',
+    'Accessible Bathroom',
   ],
   tours: ['Family Friendly', 'Wheelchair Accessible'],
   'car-rentals': [
@@ -972,6 +1019,8 @@ const CATEGORY_AMENITIES = {
     'Air Conditioning',
     'Café',
     'Lockers',
+    'Step-free Access',
+    'Accessible Bathroom',
   ],
   // Sprint I: same amenity set as Attractions plus Air Conditioning —
   // most entertainment venues (escape rooms, VR/gaming centers, bowling)
@@ -984,6 +1033,8 @@ const CATEGORY_AMENITIES = {
     'WiFi',
     'Café',
     'Lockers',
+    'Step-free Access',
+    'Accessible Bathroom',
   ],
 };
 

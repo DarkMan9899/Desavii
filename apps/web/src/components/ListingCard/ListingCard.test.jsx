@@ -29,7 +29,7 @@ const BASE = {
   imageUrl: '/uploads/listings/9/cover.webp',
   mediaCount: 5,
   facts: [{ key: 'stars', label: '4 աստղ' }],
-  rating: { average: '4.7', count: 7 },
+  rating: { average: 4.7, count: 7 },
   price: {
     amount: '42000.00',
     currencyCode: 'AMD',
@@ -62,7 +62,8 @@ describe('ListingCard (apps/web/src/components)', () => {
       'Ararat View',
       'Հյուրանոց',
       'Երևան',
-      '4.7',
+      // The Armenian harness writes the decimal with a comma.
+      '4,7',
       '7 կարծիք',
       '4 աստղ',
       'Սկսած',
@@ -131,7 +132,7 @@ describe('ListingCard (apps/web/src/components)', () => {
   test('the rating shows its approved-review count and is spoken as one sentence', () => {
     renderCard();
     expect(
-      screen.getByText('Գնահատականը՝ 4.7 5-ից, 7 կարծիք'),
+      screen.getByText('Գնահատականը՝ 4,7 5-ից, 7 կարծիք'),
     ).toBeInTheDocument();
   });
 

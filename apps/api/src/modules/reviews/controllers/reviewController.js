@@ -7,6 +7,7 @@
 
 import {
   toReviewResponse,
+  toPublicReviewResponse,
   toReviewSummaryResponse,
   toReviewAdminResponse,
   toReviewReportResponse,
@@ -62,7 +63,7 @@ export function createReviewController(reviewService) {
         ]);
         res.status(200).json({
           success: true,
-          data: rows.map(toReviewResponse),
+          data: rows.map(toPublicReviewResponse),
           meta: {
             ...meta,
             ...toReviewSummaryResponse({ listingId, ...summary }),

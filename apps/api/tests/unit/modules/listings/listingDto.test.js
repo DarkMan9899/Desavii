@@ -66,7 +66,24 @@ describe('toLocationResponse', () => {
       latitude: 40.1772,
       longitude: 44.5035,
       location_precision: 'exact',
+      name_translations: [],
     });
+  });
+
+  test('carries the place name in every language it has', () => {
+    const response = toLocationResponse({
+      cityId: 3,
+      cityName: 'Vanadzor',
+      countryName: 'Armenia',
+      latitude: 40.81,
+      longitude: 44.49,
+      nameTranslations: [
+        { languageCode: 'hy', cityName: 'Վանաձոր', countryName: 'Հայաստան' },
+      ],
+    });
+    expect(response.name_translations).toEqual([
+      { language_code: 'hy', city_name: 'Վանաձոր', country_name: 'Հայաստան' },
+    ]);
   });
 
   test('city_name/country_name are undefined when the location has no resolvable city', () => {

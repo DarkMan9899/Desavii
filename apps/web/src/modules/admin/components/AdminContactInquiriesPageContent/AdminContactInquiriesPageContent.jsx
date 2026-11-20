@@ -17,6 +17,10 @@ import { Button, Badge } from '@desavii/ui/components/primitives';
 import { Select } from '@desavii/ui/components/form-controls';
 import { DataTable } from '@desavii/ui/components/dashboard';
 import { Modal, ErrorState } from '@desavii/ui/components/feedback-overlays';
+import {
+  createDateFormatter,
+  NUMERIC_DATE_TIME,
+} from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
 import {
@@ -97,7 +101,10 @@ export default function AdminContactInquiriesPageContent() {
     {
       key: 'createdAt',
       header: t('admin.contactInquiries.columns.date'),
-      render: (row) => new Date(row.created_at).toLocaleString(locale),
+      render: (row) =>
+        createDateFormatter(locale, NUMERIC_DATE_TIME).format(
+          new Date(row.created_at),
+        ),
     },
   ];
 
@@ -161,7 +168,11 @@ export default function AdminContactInquiriesPageContent() {
               <dt>{t('admin.contactInquiries.columns.status')}</dt>
               <dd>{t(`contact.statuses.${detail.status}`)}</dd>
               <dt>{t('admin.contactInquiries.detail.receivedLabel')}</dt>
-              <dd>{new Date(detail.created_at).toLocaleString(locale)}</dd>
+              <dd>
+                {createDateFormatter(locale, NUMERIC_DATE_TIME).format(
+                  new Date(detail.created_at),
+                )}
+              </dd>
             </dl>
             <div>
               <p className={styles.messageLabel}>

@@ -1,5 +1,9 @@
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { createDateFormatter } from './dateFormat.js';
+import {
+  createDateFormatter,
+  NUMERIC_DATE,
+  NUMERIC_DATE_TIME,
+} from './dateFormat.js';
 
 const NOV_20 = new Date(2026, 10, 20);
 
@@ -75,6 +79,38 @@ describe('createDateFormatter', () => {
     expect(heading).toMatch(/ուրբաթ/);
     expect(heading).toMatch(/20/);
     expect(heading).toMatch(/2026/);
+  });
+
+  test('booking, review and admin-table option sets stay Armenian when Intl lacks it', () => {
+    withoutIntlLocales(['hy']);
+    const evening = new Date(2026, 10, 25, 17, 27, 9);
+    const cases = [
+      [{ dateStyle: 'medium' }, '25 նոյ, 2026'],
+      [{ dateStyle: 'medium', timeStyle: 'short' }, '25 նոյ, 2026, 17:27'],
+      [NUMERIC_DATE, '25.11.2026'],
+      [NUMERIC_DATE_TIME, '25.11.2026, 17:27:09'],
+      [{ year: 'numeric' }, '2026'],
+    ];
+    cases.forEach(([options, expected]) => {
+      expect(createDateFormatter('hy', options).format(evening)).toBe(expected);
+    });
+    expect(
+      createDateFormatter('hy', { weekday: 'long', timeZone: 'UTC' }).format(
+        new Date('1970-01-05T00:00:00Z'),
+      ),
+    ).toBe('երկուշաբթի');
+  });
+
+  test('the numeric presets reproduce toLocaleDateString / toLocaleString exactly', () => {
+    const evening = new Date(2026, 10, 25, 17, 27, 9);
+    ['en', 'ru', 'hy'].forEach((locale) => {
+      expect(createDateFormatter(locale, NUMERIC_DATE).format(evening)).toBe(
+        evening.toLocaleDateString(locale),
+      );
+      expect(
+        createDateFormatter(locale, NUMERIC_DATE_TIME).format(evening),
+      ).toBe(evening.toLocaleString(locale));
+    });
   });
 
   test('locales Intl supports keep their exact Intl output', () => {

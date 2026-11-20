@@ -122,8 +122,18 @@ const SECTIONS = Object.freeze({
   // know before you go); only tours, attractions, entertainment venues and
   // car rentals can carry it.
   GUEST_NOTES: 'guestNotes',
+  // Listing Detail information depth — where a tour starts and ends, how
+  // pickup works and when it departs; only tours carry it.
+  MEETING: 'meeting',
+  // Listing Detail redesign — the company offering the listing (its public
+  // profile only), after the place itself.
+  PARTNER: 'partner',
 });
 
+// Listing Detail redesign: every order reads the guests' reviews before the
+// map and the company — a traveller weighs other guests' experience before
+// logistics — and ends with the FAQ.
+//
 // The full generic order — what a GENERIC (dining/unclassified) listing
 // keeps unchanged. Each group below only reorders a handful of entries
 // relative to this baseline; sections a given listing has no data for
@@ -134,14 +144,16 @@ const BASE_ORDER = [
   SECTIONS.ROOMS,
   SECTIONS.ITINERARY,
   SECTIONS.INCLUDED,
+  SECTIONS.MEETING,
   SECTIONS.GUEST_NOTES,
   SECTIONS.ATTRIBUTES,
   SECTIONS.AMENITIES,
   SECTIONS.POLICIES,
   SECTIONS.OPENING_HOURS,
   SECTIONS.AVAILABILITY,
-  SECTIONS.LOCATION,
   SECTIONS.REVIEWS,
+  SECTIONS.LOCATION,
+  SECTIONS.PARTNER,
   SECTIONS.FAQ,
 ];
 
@@ -159,23 +171,29 @@ const ACCOMMODATION_ORDER = [
   SECTIONS.INCLUDED,
   SECTIONS.ATTRIBUTES,
   SECTIONS.AVAILABILITY,
-  SECTIONS.LOCATION,
   SECTIONS.REVIEWS,
+  SECTIONS.LOCATION,
+  SECTIONS.PARTNER,
   SECTIONS.FAQ,
 ];
 // The itinerary IS the product for a tour/experience/guide — it comes
 // right after the description, ahead of the fine print.
+// Listing Detail information depth: then what is included, where it starts
+// and ends, how it runs and who it suits, before the practical notes (the
+// Viator / GetYourGuide product-page sequence).
 const EXPERIENCE_ORDER = [
   SECTIONS.ABOUT,
   SECTIONS.ITINERARY,
   SECTIONS.INCLUDED,
-  SECTIONS.GUEST_NOTES,
+  SECTIONS.MEETING,
   SECTIONS.ATTRIBUTES,
+  SECTIONS.GUEST_NOTES,
   SECTIONS.AMENITIES,
   SECTIONS.POLICIES,
   SECTIONS.AVAILABILITY,
-  SECTIONS.LOCATION,
   SECTIONS.REVIEWS,
+  SECTIONS.LOCATION,
+  SECTIONS.PARTNER,
   SECTIONS.FAQ,
 ];
 // A renter wants the vehicle's own specs (transmission/seats) and
@@ -188,8 +206,9 @@ const TRANSPORT_ORDER = [
   SECTIONS.POLICIES,
   SECTIONS.GUEST_NOTES,
   SECTIONS.AVAILABILITY,
-  SECTIONS.LOCATION,
   SECTIONS.REVIEWS,
+  SECTIONS.LOCATION,
+  SECTIONS.PARTNER,
   SECTIONS.FAQ,
 ];
 // A diner reads the menu right after the description, ahead of even
@@ -204,8 +223,9 @@ const DINING_ORDER = [
   SECTIONS.INCLUDED,
   SECTIONS.ATTRIBUTES,
   SECTIONS.AVAILABILITY,
-  SECTIONS.LOCATION,
   SECTIONS.REVIEWS,
+  SECTIONS.LOCATION,
+  SECTIONS.PARTNER,
   SECTIONS.FAQ,
 ];
 
@@ -261,18 +281,23 @@ const SECTION_ORDER_BY_GROUP = Object.freeze({
   // them — see the seed data's own comment) — this only ordering the slot
   // for whichever future Attraction listing (e.g. a museum, a fixed-site
   // landmark) actually has partner-authored hours.
+  //
+  // Listing Detail redesign: opening hours join the practical visit
+  // information (when can I go) ahead of the fine print, and like every
+  // category the page then reads reviews, the place and the company.
   [CATEGORY_VISUAL_KEYS.ATTRACTIONS]: [
     SECTIONS.ABOUT,
     SECTIONS.ATTRIBUTES,
     SECTIONS.ITINERARY,
     SECTIONS.INCLUDED,
     SECTIONS.GUEST_NOTES,
+    SECTIONS.OPENING_HOURS,
     SECTIONS.AMENITIES,
     SECTIONS.POLICIES,
-    SECTIONS.LOCATION,
-    SECTIONS.OPENING_HOURS,
     SECTIONS.AVAILABILITY,
     SECTIONS.REVIEWS,
+    SECTIONS.LOCATION,
+    SECTIONS.PARTNER,
     SECTIONS.FAQ,
   ],
   // Entertainment: Poster/Gallery -> Date/Time/Venue -> Session/Ticket ->
@@ -282,10 +307,12 @@ const SECTION_ORDER_BY_GROUP = Object.freeze({
   // explicit "strong visual anchor" for this category; LOCATION is the
   // venue map; ATTRIBUTES/AMENITIES/POLICIES (event facts, venue
   // amenities, ticket/entry policy) follow.
+  //
+  // Listing Detail redesign: sessions stay early, the venue's place joins
+  // every other category's closing order (reviews, place, company).
   [CATEGORY_VISUAL_KEYS.ENTERTAINMENT_VENUES]: [
     SECTIONS.ABOUT,
     SECTIONS.AVAILABILITY,
-    SECTIONS.LOCATION,
     SECTIONS.ATTRIBUTES,
     SECTIONS.ITINERARY,
     SECTIONS.INCLUDED,
@@ -293,6 +320,8 @@ const SECTION_ORDER_BY_GROUP = Object.freeze({
     SECTIONS.POLICIES,
     SECTIONS.AMENITIES,
     SECTIONS.REVIEWS,
+    SECTIONS.LOCATION,
+    SECTIONS.PARTNER,
     SECTIONS.FAQ,
   ],
 });

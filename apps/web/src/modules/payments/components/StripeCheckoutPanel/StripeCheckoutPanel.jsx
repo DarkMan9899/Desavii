@@ -43,7 +43,7 @@ export default function StripeCheckoutPanel({
   stripePublishableKey,
   onPaid = undefined,
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showToast } = useToast();
   const createPaymentMutation = useCreatePaymentMutation();
   const [clientSecret, setClientSecret] = useState(null);
@@ -121,6 +121,7 @@ export default function StripeCheckoutPanel({
           <Inline gap="3" align="center" justify="space-between">
             <h2>{t('payments.payNow.heading')}</h2>
             <PriceTag
+              locale={i18n.language}
               amount={booking.total_amount}
               currencyCode={booking.currency}
             />
@@ -145,6 +146,7 @@ export default function StripeCheckoutPanel({
         <Inline gap="3" align="center" justify="space-between">
           <h2>{t('payments.payNow.heading')}</h2>
           <PriceTag
+            locale={i18n.language}
             amount={booking.total_amount}
             currencyCode={booking.currency}
           />

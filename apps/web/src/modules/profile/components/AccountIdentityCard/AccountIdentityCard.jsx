@@ -12,6 +12,7 @@
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '@desavii/ui/components/primitives';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import styles from './AccountIdentityCard.module.scss';
 
@@ -19,7 +20,7 @@ export default function AccountIdentityCard({ user, locale }) {
   const { t, i18n } = useTranslation();
   const fullName = `${user.first_name} ${user.last_name}`.trim();
   const joinedYear = user.created_at
-    ? new Intl.DateTimeFormat(i18n.language, { year: 'numeric' }).format(
+    ? createDateFormatter(i18n.language, { year: 'numeric' }).format(
         new Date(user.created_at),
       )
     : null;

@@ -32,10 +32,14 @@ import { forwardRef, useId, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, Images, Star } from 'lucide-react';
-import { PriceTag } from '@desavii/ui/components/data-display';
+import { ArrowUpRight, Images } from 'lucide-react';
 import DestinationArt from '../DestinationArt/DestinationArt.jsx';
-import Money from '../Money/Money.jsx';
+import ListingPrice, {
+  listingPriceShape,
+} from '../ListingPrice/ListingPrice.jsx';
+import ListingRating, {
+  listingRatingShape,
+} from '../ListingRating/ListingRating.jsx';
 import styles from './ListingCard.module.scss';
 
 export const BADGE_TONES = Object.freeze(['top', 'accent', 'neutral']);
@@ -45,89 +49,6 @@ const SPOKEN_PLACE_SEPARATOR = ', ';
 
 /** The map preview's narrow text column fits two facts. */
 const COMPACT_FACT_LIMIT = 2;
-
-/**
- * The approved-review rating and count, or an honest "No reviews yet" —
- * never a 0.0 or empty stars. Spoken as one sentence.
- */
-function CardRating({ rating = null }) {
-  const { t } = useTranslation();
-  if (!rating) {
-    return (
-      <p className={styles.rating}>
-        <Star size={14} aria-hidden="true" className={styles.starEmpty} />
-        {t('listingCard.reviews.none')}
-      </p>
-    );
-  }
-  return (
-    <p className={styles.rating}>
-      <Star size={14} aria-hidden="true" className={styles.star} />
-      <span aria-hidden="true" className={styles.ratingValue}>
-        {rating.average}
-      </span>
-      <span aria-hidden="true" className={styles.dot} />
-      <span aria-hidden="true">
-        {t('listingCard.reviews.count', { count: rating.count })}
-      </span>
-      <span className={styles.visuallyHidden}>
-        {t('listingCard.reviews.label', {
-          rating: rating.average,
-          count: rating.count,
-        })}
-      </span>
-    </p>
-  );
-}
-
-CardRating.propTypes = {
-  rating: PropTypes.shape({
-    average: PropTypes.string.isRequired,
-    count: PropTypes.number.isRequired,
-  }),
-};
-
-function CardPrice({ price = null, locale = undefined }) {
-  const { t } = useTranslation();
-  if (!price) {
-    return (
-      <p className={styles.priceUnlisted}>{t('listingCard.price.unlisted')}</p>
-    );
-  }
-  return (
-    <p className={styles.price}>
-      <span className={styles.priceLead}>
-        {t(`listingCard.price.${price.lead}`)}
-      </span>
-      {/* Every platform price is authored in AMD and converted to the
-          visitor's currency; any other code is shown as stored. */}
-      {price.currencyCode === 'AMD' ? (
-        <Money amountAmd={price.amount} locale={locale} size="md" />
-      ) : (
-        <PriceTag
-          amount={price.amount}
-          currencyCode={price.currencyCode}
-          locale={locale}
-          size="md"
-        />
-      )}
-      {price.basisLabel && (
-        <span className={styles.priceBasis}>{price.basisLabel}</span>
-      )}
-    </p>
-  );
-}
-
-CardPrice.propTypes = {
-  price: PropTypes.shape({
-    amount: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
-      .isRequired,
-    currencyCode: PropTypes.string,
-    lead: PropTypes.oneOf(['from', 'average']).isRequired,
-    basisLabel: PropTypes.string,
-  }),
-  locale: PropTypes.string,
-};
 
 const ListingCard = forwardRef(function ListingCard(
   {
@@ -242,7 +163,9 @@ const ListingCard = forwardRef(function ListingCard(
             )}
           </p>
         </div>
-        <CardRating rating={rating} />
+        <p className={styles.rating}>
+          <ListingRating rating={rating} />
+        </p>
 
         {visibleFacts.length > 0 && (
           <ul className={styles.facts}>
@@ -262,7 +185,7 @@ const ListingCard = forwardRef(function ListingCard(
         )}
 
         <div className={styles.footer}>
-          <CardPrice price={price} locale={locale} />
+          <ListingPrice price={price} locale={locale} />
           {ctaLabel ? (
             <Link className={styles.cta} to={href} onClick={onClick}>
               {ctaLabel}
@@ -298,11 +221,8 @@ ListingCard.propTypes = {
       icon: PropTypes.elementType,
     }),
   ),
-  rating: PropTypes.shape({
-    average: PropTypes.string.isRequired,
-    count: PropTypes.number.isRequired,
-  }),
-  price: CardPrice.propTypes.price,
+  rating: listingRatingShape,
+  price: listingPriceShape,
   badge: PropTypes.shape({
     tone: PropTypes.oneOf(BADGE_TONES).isRequired,
     label: PropTypes.string.isRequired,

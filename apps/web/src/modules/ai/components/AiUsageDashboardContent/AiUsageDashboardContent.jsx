@@ -18,6 +18,8 @@ import { Section, Stack, Grid } from '@desavii/ui/components/layout';
 import { StatCard, DataTable } from '@desavii/ui/components/dashboard';
 import { Card } from '@desavii/ui/components/primitives';
 import { ErrorState } from '@desavii/ui/components/feedback-overlays';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
+import { createNumberFormatter } from '@desavii/ui/utils/numberFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 
 export default function AiUsageDashboardContent({
@@ -43,12 +45,12 @@ export default function AiUsageDashboardContent({
   }, [data]);
 
   const numberFormatter = useMemo(
-    () => new Intl.NumberFormat(i18n.language),
+    () => createNumberFormatter(i18n.language),
     [i18n.language],
   );
   const dateFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat(i18n.language, {
+      createDateFormatter(i18n.language, {
         dateStyle: 'medium',
         timeStyle: 'short',
       }),

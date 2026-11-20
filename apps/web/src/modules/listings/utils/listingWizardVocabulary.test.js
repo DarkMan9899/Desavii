@@ -28,6 +28,9 @@ import { fileURLToPath } from 'node:url';
  * Partner Listing Wizard rebuild (docs/PARTNER_LISTING_WIZARD_FIELD_GAP.md
  * §5): the new attributes, options, policies and the `km` unit from
  * `seeds/006_search_filters.js` and `seeds/007_pricing_and_policies.js`.
+ *
+ * Listing Detail information depth (docs/LISTING_DETAIL_INFORMATION_DEPTH.md
+ * §4): the tour and venue attributes added to `006_search_filters.js`.
  */
 
 const LOCALES_DIR = path.resolve(
@@ -51,13 +54,17 @@ const ATTRIBUTE_CODES = [
   'dress_code',
   'drive_type',
   'duration_minutes',
+  'end_point_details',
+  'end_point_type',
   'floor_area_sqm',
   'fuel_type',
+  'guide_type',
   'languages_offered',
   'languages_spoken',
   'luggage_capacity',
   'max_group_size',
   'max_guests',
+  'meals_included',
   'meeting_point_type',
   'mileage_policy',
   'min_age',
@@ -68,6 +75,7 @@ const ATTRIBUTE_CODES = [
   'price_tier',
   'property_style',
   'seating_capacity',
+  'seating_type',
   'seats',
   'setting',
   'space_type',
@@ -75,12 +83,14 @@ const ATTRIBUTE_CODES = [
   'total_rooms',
   'tour_format',
   'transmission',
+  'transport_modes',
   'vehicle_make',
   'vehicle_model',
   'vehicle_year',
   'venue_type',
   'view_type',
   'visit_format',
+  'weather_policy',
 ];
 
 const POLICY_CODES = [
@@ -222,6 +232,27 @@ const ENUM_OPTIONS_BY_ATTRIBUTE = {
     'VR_ARENA',
   ],
   visit_format: ['BOTH', 'GUIDED', 'SELF_GUIDED'],
+  guide_type: ['AUDIO_GUIDE', 'DRIVER_GUIDE', 'LIVE_GUIDE', 'SELF_GUIDED'],
+  transport_modes: [
+    'BOAT',
+    'CABLE_CAR',
+    'CAR',
+    'COACH',
+    'MINIBUS',
+    'OFF_ROAD_VEHICLE',
+    'ON_FOOT',
+  ],
+  meals_included: [
+    'BREAKFAST',
+    'DINNER',
+    'DRINKS',
+    'LUNCH',
+    'SNACKS',
+    'TASTING',
+  ],
+  weather_policy: ['ALL_WEATHER', 'WEATHER_DEPENDENT'],
+  end_point_type: ['ENDS_ELSEWHERE', 'RETURNS_TO_START'],
+  seating_type: ['MIXED', 'SEATED', 'STANDING'],
 };
 
 const ENUM_OPTIONS_BY_POLICY = {

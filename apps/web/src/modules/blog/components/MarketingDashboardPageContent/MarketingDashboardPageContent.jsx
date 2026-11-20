@@ -14,6 +14,10 @@ import { Section, Stack, Grid } from '@desavii/ui/components/layout';
 import { StatCard, DataTable } from '@desavii/ui/components/dashboard';
 import { Badge, Card } from '@desavii/ui/components/primitives';
 import { ErrorState } from '@desavii/ui/components/feedback-overlays';
+import {
+  createDateFormatter,
+  NUMERIC_DATE,
+} from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import { useAdminPostsQuery } from '../../queries/useAdminPostsQuery.js';
@@ -86,7 +90,10 @@ export default function MarketingDashboardPageContent() {
     {
       key: 'updated',
       header: t('marketing.posts.columns.updated'),
-      render: (row) => new Date(row.updated_at).toLocaleDateString(locale),
+      render: (row) =>
+        createDateFormatter(locale, NUMERIC_DATE).format(
+          new Date(row.updated_at),
+        ),
     },
   ];
 

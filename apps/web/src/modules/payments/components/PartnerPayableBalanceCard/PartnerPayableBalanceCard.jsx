@@ -21,7 +21,7 @@ import { usePartnerBalanceQuery } from '../../queries/usePartnerBalanceQuery.js'
 import styles from './PartnerPayableBalanceCard.module.scss';
 
 export default function PartnerPayableBalanceCard({ partnerId }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data, isPending, isError } = usePartnerBalanceQuery(partnerId);
   const balances = data?.balances ?? [];
 
@@ -50,6 +50,7 @@ export default function PartnerPayableBalanceCard({ partnerId }) {
             >
               <span>{t('payments.partnerBalance.payableLabel')}</span>
               <PriceTag
+                locale={i18n.language}
                 amount={balance.balance}
                 currencyCode={balance.currency}
               />

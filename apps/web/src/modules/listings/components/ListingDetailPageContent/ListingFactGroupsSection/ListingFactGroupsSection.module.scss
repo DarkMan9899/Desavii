@@ -1,0 +1,30 @@
+// ListingFactGroupsSection — tokens only. Groups stack with generous air
+// and a hairline between them; a group's sub-heading is a quiet label,
+// not a second section title.
+
+@use 'tokens' as tokens;
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-6;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-4;
+
+  & + & {
+    padding-block-start: tokens.$space-6;
+    border-block-start: 1px solid tokens.$color-gray-200;
+  }
+}
+
+.groupHeading {
+  margin: 0;
+  font-size: tokens.$font-size-body;
+  font-weight: 600;
+  line-height: tokens.$line-height-body;
+  color: tokens.$color-navy;
+}

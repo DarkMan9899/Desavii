@@ -51,6 +51,7 @@ import {
 } from '@desavii/ui/components/feedback-overlays';
 import { DataTable } from '@desavii/ui/components/dashboard';
 import { Tabs } from '@desavii/ui/components/navigation';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import { Search } from 'lucide-react';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
@@ -326,7 +327,7 @@ export default function AdminInventoryPageContent() {
     }
   }
 
-  const dateTimeFormatter = new Intl.DateTimeFormat(i18n.language, {
+  const dateTimeFormatter = createDateFormatter(i18n.language, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });

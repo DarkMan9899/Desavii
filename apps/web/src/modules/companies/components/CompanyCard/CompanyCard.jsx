@@ -26,9 +26,10 @@ import RouterLink from '../../../../components/RouterLink.jsx';
 import DestinationArt from '../../../../components/DestinationArt/DestinationArt.jsx';
 import CompanyAvatar from '../../../../components/CompanyAvatar/CompanyAvatar.jsx';
 import styles from './CompanyCard.module.scss';
+import { ratingLabel } from '../../../../utils/formatRating.js';
 
 export default function CompanyCard({ company }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { locale } = useParams();
   const [imageFailed, setImageFailed] = useState(false);
   const memberSinceYear = company.member_since
@@ -84,6 +85,13 @@ export default function CompanyCard({ company }) {
             value={company.rating_average}
             reviewCount={company.review_count}
             size="sm"
+            locale={i18n.language}
+            label={ratingLabel(
+              t,
+              i18n.language,
+              company.rating_average,
+              company.review_count,
+            )}
           />
         )}
 

@@ -22,12 +22,13 @@ import {
   EmptyState,
   ErrorState,
 } from '@desavii/ui/components/feedback-overlays';
+import { createNumberFormatter } from '@desavii/ui/utils/numberFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import { useMyManagerDashboardQuery } from '../../../managers/index.js';
 import styles from './ManagerDashboardContent.module.scss';
 
 function formatAmount(locale, total) {
-  return new Intl.NumberFormat(locale).format(total);
+  return createNumberFormatter(locale).format(total);
 }
 
 export default function ManagerDashboardContent() {

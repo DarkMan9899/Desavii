@@ -69,6 +69,15 @@ function toReviewReportDomain(row) {
   };
 }
 
+/**
+ * Listing Detail redesign — how a reviewer is named on a public page: the
+ * first name and the last name's initial ("Anna K."), never the full name
+ * (the admin views keep it). No parameters: only stored columns.
+ */
+const PUBLIC_REVIEWER_NAME_SQL = `TRIM(CONCAT(u.first_name,
+  CASE WHEN u.last_name IS NULL OR u.last_name = '' THEN ''
+       ELSE CONCAT(' ', LEFT(u.last_name, 1), '.') END))`;
+
 const REVIEW_SELECT = `
   rv.id, rv.customer_user_id, rv.booking_id, rv.listing_id, rv.rating,
   rv.title, rv.content, rs.code AS status_code,
@@ -160,7 +169,7 @@ export class MySqlReviewRepository {
     }
 
     const [rows] = await this.#pool.query(
-      `SELECT ${REVIEW_SELECT}, CONCAT(u.first_name, ' ', u.last_name) AS customer_display_name
+      `SELECT ${REVIEW_SELECT}, ${PUBLIC_REVIEWER_NAME_SQL} AS customer_display_name
        FROM reviews rv
        JOIN moderation_statuses rs ON rs.id = rv.status_id
        JOIN users u ON u.id = rv.customer_user_id

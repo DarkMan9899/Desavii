@@ -25,6 +25,10 @@ import {
   EmptyState,
   ErrorState,
 } from '@desavii/ui/components/feedback-overlays';
+import {
+  createDateFormatter,
+  NUMERIC_DATE,
+} from '@desavii/ui/utils/dateFormat';
 import EditorialPageHero from '../../../../components/EditorialPageHero/EditorialPageHero.jsx';
 import DestinationArt from '../../../../components/DestinationArt/DestinationArt.jsx';
 import useSeo from '../../../../seo/useSeo.js';
@@ -67,7 +71,9 @@ function BlogPostCard({ post, locale }) {
         <p className={styles.cardMeta}>
           {post.published_at && (
             <span>
-              {new Date(post.published_at).toLocaleDateString(locale)}
+              {createDateFormatter(locale, NUMERIC_DATE).format(
+                new Date(post.published_at),
+              )}
             </span>
           )}
           {post.author && <span>{t('blog.by', { author: post.author })}</span>}

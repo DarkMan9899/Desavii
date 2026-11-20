@@ -4,37 +4,42 @@ import ListingReviewsSection from './ListingReviewsSection.jsx';
 
 vi.mock('../../../../reviews/index.js', () => ({
   // eslint-disable-next-line react/prop-types -- trivial test double
-  ReviewsList: ({ listingId }) => <div>Reviews for {listingId}</div>,
+  ReviewsList: ({ listingId, companySlug }) => (
+    <div>
+      Reviews for {listingId} by {companySlug}
+    </div>
+  ),
 }));
 
-describe('ListingReviewsSection (Phase 18)', () => {
-  test('with no review, one quiet line — no fabricated summary and no list request', () => {
-    render(
-      <ListingReviewsSection
-        listingId={5}
-        ratingAverage={null}
-        reviewCount={0}
-        sectionId="reviews"
-      />,
-    );
+// The test harness's i18n is Armenian (tests/setup.js).
+describe('ListingReviewsSection', () => {
+  test('with no approved review: one honest line, no 0.0, no list request', () => {
+    render(<ListingReviewsSection listingId={5} sectionId="reviews" />);
     expect(screen.getByRole('heading', { name: 'Կարծիքներ' })).toHaveAttribute(
       'id',
       'reviews',
     );
-    expect(screen.queryByText('0.0')).not.toBeInTheDocument();
+    expect(screen.queryByText(/0\.0/)).not.toBeInTheDocument();
     expect(screen.getByText(/^Կարծիքներ դեռ չկան/)).toBeInTheDocument();
-    expect(screen.queryByText('Reviews for 5')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Reviews for/)).not.toBeInTheDocument();
   });
 
-  test('shows the ReviewSummary primitive when a real aggregate exists', () => {
+  test('one summary — the real average and approved count, spoken once — then the reviews', () => {
     render(
       <ListingReviewsSection
         listingId={5}
-        ratingAverage={4.2}
-        reviewCount={9}
+        companySlug="ararat-stays"
+        rating={{ average: 4.2, count: 9 }}
       />,
     );
-    expect(screen.getByText('4.2')).toBeInTheDocument();
-    expect(screen.getByText('Reviews for 5')).toBeInTheDocument();
+    expect(screen.getAllByText('4,2')).toHaveLength(1);
+    expect(screen.getByText('9 կարծիք')).toBeInTheDocument();
+    expect(
+      screen.getByText('Գնահատականը՝ 4,2 5-ից, 9 կարծիք'),
+    ).toBeInTheDocument();
+    // The company slug (never an internal partner id) reaches the list.
+    expect(
+      screen.getByText('Reviews for 5 by ararat-stays'),
+    ).toBeInTheDocument();
   });
 });

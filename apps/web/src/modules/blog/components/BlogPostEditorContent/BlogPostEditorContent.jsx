@@ -26,6 +26,10 @@ import {
   Alert,
   Modal,
 } from '@desavii/ui/components/feedback-overlays';
+import {
+  createDateFormatter,
+  NUMERIC_DATE_TIME,
+} from '@desavii/ui/utils/dateFormat';
 import { useQuery } from '@tanstack/react-query';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import MarkdownContent from '../../../../components/MarkdownContent/MarkdownContent.jsx';
@@ -545,7 +549,9 @@ export default function BlogPostEditorContent({ basePath }) {
               />
               {post.status === 'SCHEDULED' && post.scheduled_at && (
                 <span className={styles.scheduledMeta}>
-                  {new Date(post.scheduled_at).toLocaleString(locale)}
+                  {createDateFormatter(locale, NUMERIC_DATE_TIME).format(
+                    new Date(post.scheduled_at),
+                  )}
                 </span>
               )}
               <Button variant="ghost" size="sm" onClick={handlePreview}>

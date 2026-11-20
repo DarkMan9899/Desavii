@@ -43,6 +43,7 @@ import { useTranslation } from 'react-i18next';
 import { Card, Badge, Button } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import { Skeleton, EmptyState } from '@desavii/ui/components/feedback-overlays';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import { useAdminAuditLogsQuery } from '../../queries/useAdminAuditLogsQuery.js';
 import { useListingModerationHistoryQuery } from '../../queries/useListingModerationHistoryQuery.js';
 
@@ -84,7 +85,7 @@ export default function ModerationHistoryPanel({
 
   const dateFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat(i18n.language, {
+      createDateFormatter(i18n.language, {
         dateStyle: 'medium',
         timeStyle: 'short',
       }),

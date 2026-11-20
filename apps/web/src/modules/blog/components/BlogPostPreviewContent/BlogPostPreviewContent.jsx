@@ -28,6 +28,10 @@ import {
   Alert,
 } from '@desavii/ui/components/feedback-overlays';
 import { Breadcrumbs } from '@desavii/ui/components/navigation';
+import {
+  createDateFormatter,
+  NUMERIC_DATE,
+} from '@desavii/ui/utils/dateFormat';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import MarkdownContent from '../../../../components/MarkdownContent/MarkdownContent.jsx';
 import useSeo from '../../../../seo/useSeo.js';
@@ -111,7 +115,9 @@ export default function BlogPostPreviewContent({ basePath }) {
           <h1 className={styles.title}>{translation.title}</h1>
           <p className={styles.meta}>
             {post.published_at
-              ? new Date(post.published_at).toLocaleDateString(locale)
+              ? createDateFormatter(locale, NUMERIC_DATE).format(
+                  new Date(post.published_at),
+                )
               : ''}
             {post.author ? ` · ${t('blog.by', { author: post.author })}` : ''}
           </p>

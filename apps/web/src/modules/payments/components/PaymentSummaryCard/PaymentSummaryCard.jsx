@@ -17,12 +17,13 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@desavii/ui/components/primitives';
 import { Stack, Inline } from '@desavii/ui/components/layout';
 import { PriceTag } from '@desavii/ui/components/data-display';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import PaymentStatusBadge from '../PaymentStatusBadge/PaymentStatusBadge.jsx';
 import SimulatedPaymentNotice from '../SimulatedPaymentNotice/SimulatedPaymentNotice.jsx';
 
 export default function PaymentSummaryCard({ payment }) {
   const { t, i18n } = useTranslation();
-  const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
+  const dateFormatter = createDateFormatter(i18n.language, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
@@ -35,6 +36,7 @@ export default function PaymentSummaryCard({ payment }) {
         <Inline gap="3" align="center" justify="space-between">
           <PaymentStatusBadge status={payment.status} />
           <PriceTag
+            locale={i18n.language}
             amount={payment.total_amount}
             currencyCode={payment.currency}
             suffix={t('payments.summary.total')}
@@ -75,6 +77,7 @@ export default function PaymentSummaryCard({ payment }) {
               >
                 <span>{refund.refund_reference}</span>
                 <PriceTag
+                  locale={i18n.language}
                   amount={refund.amount}
                   currencyCode={refund.currency}
                 />
@@ -83,6 +86,7 @@ export default function PaymentSummaryCard({ payment }) {
             <Inline gap="3" align="center" justify="space-between">
               <strong>{t('payments.summary.refundableRemaining')}</strong>
               <PriceTag
+                locale={i18n.language}
                 amount={payment.refundable_amount}
                 currencyCode={payment.currency}
               />

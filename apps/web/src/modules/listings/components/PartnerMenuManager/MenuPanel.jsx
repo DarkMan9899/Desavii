@@ -32,13 +32,14 @@ import ApiErrorAlert from '../../../../components/ApiErrorAlert/ApiErrorAlert.js
 import ItemForm from './ItemForm.jsx';
 
 function ItemRow({ item, onEdit, onDelete }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <Card padding="sm">
       <Stack gap="1">
         <Inline justify="space-between" align="flex-start" gap="3">
           <strong>{item.title}</strong>
           <PriceTag
+            locale={i18n.language}
             amount={item.price_amount}
             currencyCode={item.price_currency_code}
             size="sm"

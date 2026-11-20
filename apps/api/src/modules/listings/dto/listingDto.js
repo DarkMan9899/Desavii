@@ -46,6 +46,13 @@ export function toLocationResponse(location, { isPublicPrecise = true } = {}) {
     location_precision: isPublicPrecise
       ? LOCATION_PRECISION.EXACT
       : LOCATION_PRECISION.APPROXIMATE,
+    // The place's public name per language (the city and country only —
+    // never anything more precise).
+    name_translations: (location.nameTranslations ?? []).map((name) => ({
+      language_code: name.languageCode,
+      city_name: name.cityName,
+      country_name: name.countryName,
+    })),
   };
 }
 
@@ -245,6 +252,78 @@ export function toListingResponse(
     company: toCompanyAttributionResponse(listing.company ?? null),
     created_at: listing.createdAt,
     updated_at: listing.updatedAt,
+  };
+}
+
+/**
+ * A photo or video as a public page shows it: what to display and how to
+ * describe it, never upload or moderation internals (`moderation_status`,
+ * `mime_type`, `file_size_bytes`, `created_at`).
+ */
+function toPublicMediaResponse(media) {
+  return {
+    id: media.id,
+    media_type: media.mediaTypeCode,
+    url: media.url,
+    thumbnail_url: media.thumbnailUrl,
+    position: media.position,
+    is_cover: media.isCover,
+    alt_text: media.altText ?? null,
+    caption: media.caption ?? null,
+  };
+}
+
+/** The public place: no internal address-row id; a private stay stays approximate. */
+function toPublicLocationResponse(listing) {
+  const location = toLocationResponse(listing.location, {
+    isPublicPrecise: listing.listingTypeCode !== 'PROPERTY',
+  });
+  if (!location) return null;
+  const { address_id: _addressId, ...publicLocation } = location;
+  return publicLocation;
+}
+
+/**
+ * Listing Detail redesign — the public Listing Detail (`GET
+ * /listings/:idOrSlug` for anyone who may not manage the listing): exactly
+ * what the public page renders, nothing the page hides. Deliberately
+ * absent: the internal `partner_id` (the public `company` block carries the
+ * company's public identity), moderation state, contact/feature/sitemap
+ * flags, lifecycle and audit timestamps (`unpublished_at`, `archived_at`,
+ * `created_at`, `updated_at`), `og_image_media_id`, `canonical_url`, the
+ * address row id and media internals. `status` stays: it is always
+ * PUBLISHED here, and the page uses it to tell a public view from an
+ * owner's preview (noindex, analytics). Private stays keep the
+ * approximate point and no street address (`toLocationResponse`).
+ */
+
+export function toPublicListingResponse(listing) {
+  return {
+    id: listing.id,
+    listing_type: listing.listingTypeCode,
+    slug: listing.slug,
+    status: listing.statusCode,
+    published_at: listing.publishedAt,
+    is_indexable: listing.isIndexable,
+    translations: listing.translations.map(toTranslationResponse),
+    location: toPublicLocationResponse(listing),
+    category_ids: listing.categoryIds,
+    amenity_ids: listing.amenityIds,
+    media: listing.media.map(toPublicMediaResponse),
+    attribute_values: listing.attributeValues.map(toAttributeValueResponse),
+    policy_values: listing.policyValues.map(toPolicyValueResponse),
+    pricing: toPricingResponse(listing.pricing),
+    booking_rules: toBookingRulesResponse(listing.bookingRules),
+    rating_average: listing.ratingAverage ?? null,
+    review_count: listing.reviewCount ?? 0,
+    highlights: (listing.highlights ?? []).map(toHighlightResponse),
+    itinerary_steps: (listing.itinerarySteps ?? []).map(
+      toItineraryStepResponse,
+    ),
+    included_items: (listing.includedItems ?? []).map(toIncludedItemResponse),
+    guest_notes: (listing.guestNotes ?? []).map(toGuestNoteResponse),
+    faqs: (listing.faqs ?? []).map(toFaqResponse),
+    company: toCompanyAttributionResponse(listing.company ?? null),
   };
 }
 

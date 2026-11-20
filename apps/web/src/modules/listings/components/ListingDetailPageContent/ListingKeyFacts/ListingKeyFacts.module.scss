@@ -1,6 +1,6 @@
 // ListingKeyFacts — tokens only. A quiet band between hairline rules, not
-// a card: two facts per row on a phone, three on a tablet, all six in one
-// row from laptop. Long Armenian/Russian values wrap inside their column.
+// a card: two facts per row on a phone, three from tablet. Long
+// Armenian/Russian values wrap inside their column.
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
@@ -21,12 +21,10 @@
   gap: tokens.$space-4 tokens.$space-6;
   margin: 0;
 
+  // Three per row from tablet: the band sits in the content column beside
+  // the reservation panel, never the full page width.
   @include respond.respond(tablet) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  @include respond.respond(laptop) {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
 

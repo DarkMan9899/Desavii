@@ -28,6 +28,7 @@ import {
   EmptyState,
 } from '@desavii/ui/components/feedback-overlays';
 import { Button, Card } from '@desavii/ui/components/primitives';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import DestinationArt from '../../../../components/DestinationArt/DestinationArt.jsx';
@@ -144,7 +145,7 @@ export default function BookingDetailPageContent() {
   const heading = t('bookings.detail.heading', {
     reference: booking.booking_reference,
   });
-  const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
+  const dateFormatter = createDateFormatter(i18n.language, {
     dateStyle: 'medium',
   });
   const canCancel = CANCELLABLE_STATUSES.includes(booking.status);

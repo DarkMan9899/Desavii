@@ -4,11 +4,17 @@
  * array, mirroring `modules/listings/constants/queryKeys.js`.
  */
 
+import listingKeys from '../../listings/constants/queryKeys.js';
+
 const searchKeys = {
   all: ['search'],
-  // Names are localized server-side, so the locale is part of the key —
-  // otherwise whichever language loaded first would stay cached for all.
-  categories: (locale) => [...searchKeys.all, 'categories', { locale }],
+  // The category list is one cache entry app-wide: the header navigation
+  // (`useCategoriesQuery`) and Listing Detail / the Partner wizard
+  // (`useListingCategoriesQuery`) read the same `GET /search/categories`,
+  // so they share the listings key (search may depend on listings, never
+  // the reverse) and the page never fetches it twice. Names are localized
+  // server-side, so the locale is part of the key.
+  categories: (locale) => listingKeys.categories(locale),
   // Destination counts can be scoped to one category (Search's picker).
   destinations: (locale, categoryId) => [
     ...searchKeys.all,

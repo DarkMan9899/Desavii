@@ -54,7 +54,8 @@ describe('MapListingPreview (apps/web/src/modules/search)', () => {
     expect(
       within(preview).getByText(T.card.priceUnit.perNight),
     ).toBeInTheDocument();
-    expect(within(preview).getByText('4.5')).toBeInTheDocument();
+    // The Armenian harness writes the decimal with a comma.
+    expect(within(preview).getByText('4,5')).toBeInTheDocument();
     const facts = within(preview).getAllByRole('listitem');
     expect(facts[0]).toHaveTextContent(
       T.card.starRating.replace('{{count}}', '4'),

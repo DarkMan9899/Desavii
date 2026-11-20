@@ -1,6 +1,6 @@
-// MetadataValueDisplay — tokens only. A specification grid: one column on
-// a phone, two from tablet, three from laptop; each fact is an icon with
-// its label above its value.
+// MetadataValueDisplay / FactList — tokens only. A specification grid:
+// one column on a phone, two from tablet, up to three from laptop; each
+// fact is an icon with its label above its value.
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
@@ -16,7 +16,9 @@
   }
 
   @include respond.respond(laptop) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    &[data-columns='3'] {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
   }
 }
 

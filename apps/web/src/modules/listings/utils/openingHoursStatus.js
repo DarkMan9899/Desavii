@@ -18,6 +18,7 @@
  * non-live-updating status this app shows.
  */
 
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import { getBusinessWallClock } from '../../../utils/businessDate.js';
 
 // 2023-01-01 was a Sunday — used purely as a stable Sunday reference date
@@ -87,7 +88,7 @@ export function computeOpenNowStatus(weeklyHours, now = new Date()) {
 /** Locale-real weekday name (e.g. "Monday" / "Երկուշաբթի" / "понедельник") — never a hardcoded i18n table. */
 export function getWeekdayName(dayOfWeek, locale, style = 'long') {
   const date = new Date(REFERENCE_SUNDAY_UTC_MS + dayOfWeek * ONE_DAY_MS);
-  return new Intl.DateTimeFormat(locale, {
+  return createDateFormatter(locale, {
     weekday: style,
     timeZone: 'UTC',
   }).format(date);

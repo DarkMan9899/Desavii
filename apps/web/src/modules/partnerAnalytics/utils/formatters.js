@@ -2,12 +2,15 @@
  * Number/percentage formatting for the Partner Analytics dashboard —
  * every KPI card, table cell, and chart tooltip in this module goes
  * through these two functions rather than hand-formatting, matching
- * this codebase's established `Intl`-based convention
+ * this codebase's established `createNumberFormatter` convention
  * (`ManagerDashboardContent.jsx`'s `formatAmount`,
- * `ManagerAnalyticsPageContent.jsx`'s inline `Intl.NumberFormat` calls) —
+ * `ManagerAnalyticsPageContent.jsx`'s inline formatter calls) —
  * centralized here only because this module's dashboard reuses both
  * formats far more densely than either Manager page did.
  */
+
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
+import { createNumberFormatter } from '@desavii/ui/utils/numberFormat';
 
 /**
  * @param {number|null|undefined} value
@@ -17,7 +20,7 @@
  */
 export function formatCount(value, locale) {
   if (value === null || value === undefined) return '—';
-  return new Intl.NumberFormat(locale).format(value);
+  return createNumberFormatter(locale).format(value);
 }
 
 /**
@@ -29,7 +32,7 @@ export function formatCount(value, locale) {
  */
 export function formatPercent(ratio, locale) {
   if (ratio === null || ratio === undefined) return '—';
-  return new Intl.NumberFormat(locale, {
+  return createNumberFormatter(locale, {
     style: 'percent',
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
@@ -40,7 +43,8 @@ export function formatPercent(ratio, locale) {
  * @param {string} isoDay - an A5 `day`/`from_day`/`to_day` value
  *   (`YYYY-MM-DD`).
  * @param {string} locale
- * @param {object} [options] - forwarded to `Intl.DateTimeFormat`.
+ * @param {object} [options] - forwarded to `createDateFormatter` (`Intl`, with
+ *   `date-fns` locale data where the browser's `Intl` lacks the locale).
  * @returns {string} a localized date, parsed as a calendar date (never
  *   through `new Date(isoDay)` directly, which would shift by the
  *   viewer's UTC offset for a bare `YYYY-MM-DD` string).
@@ -48,7 +52,7 @@ export function formatPercent(ratio, locale) {
 export function formatDay(isoDay, locale, options = undefined) {
   const [year, month, day] = isoDay.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
-  return new Intl.DateTimeFormat(locale, {
+  return createDateFormatter(locale, {
     timeZone: 'UTC',
     month: 'short',
     day: 'numeric',

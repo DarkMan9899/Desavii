@@ -26,6 +26,7 @@ import {
 import { Button, Badge } from '@desavii/ui/components/primitives';
 import { Stack } from '@desavii/ui/components/layout';
 import { ListingTableRow } from '@desavii/ui/components/dashboard';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
 import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
 import {
@@ -206,7 +207,7 @@ export default function PartnerListingsList({
               />
             }
             statusBadge={<ListingStatusBadge status={listing.status} />}
-            updatedAtLabel={new Intl.DateTimeFormat(i18n.language, {
+            updatedAtLabel={createDateFormatter(i18n.language, {
               dateStyle: 'medium',
             }).format(new Date(listing.created_at))}
             lifecycleInfo={

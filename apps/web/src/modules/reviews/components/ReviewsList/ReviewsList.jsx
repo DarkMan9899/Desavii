@@ -1,10 +1,8 @@
 /**
- * ReviewsList — a listing's approved reviews: a `RatingStars` summary
- * header (from `GET /reviews`'s `meta.rating_average`/`review_count`,
- * additive alongside the cursor-pagination `meta` every other list
- * endpoint already returns) plus a "Load more" list of review cards,
- * same triad (Skeleton/EmptyState/ErrorState) every other list in this
- * codebase uses.
+ * ReviewsList — a listing's approved reviews as a "Load more" list of
+ * review cards, same triad (Skeleton/EmptyState/ErrorState) every other
+ * list in this codebase uses. The rating summary is the caller's
+ * (`ListingReviewsSection`), so it is never shown twice.
  *
  * P1.5 (Master Roadmap, Review Trust & Safety): also renders
  * `vendor_response` (the DTO has returned it since Phase 12, but no UI
@@ -13,11 +11,10 @@
  * render : null gate `FavoriteButton.jsx` already establishes for a
  * logged-out visitor acting on public content.
  *
- * Partner reply: `partnerId` (the listing's own, passed by
- * `ListingReviewsSection`) is optional on purpose — every OTHER caller
- * of this component (none currently exist, but the prop must stay
- * backward-compatible) simply never shows the Reply/Edit/Delete
- * affordances. Visibility here is a convenience only — the real
+ * Partner reply: `companySlug` (the listing's public company, passed by
+ * `ListingReviewsSection`) is matched against the visitor's own company
+ * memberships — the public Listing Detail never carries the internal
+ * partner id. Without it the Reply/Edit/Delete affordances never show. Visibility here is a convenience only — the real
  * authorization is server-side (`reviewService.js
  * #assertCanRespondToReview`); `canRespond` below just avoids showing a
  * control that would 403 on click. Matches OWNER/MANAGER, the same
@@ -39,6 +36,7 @@ import {
   Spinner,
   Modal,
 } from '@desavii/ui/components/feedback-overlays';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
 import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
@@ -47,6 +45,7 @@ import { useReportReviewMutation } from '../../mutations/useReportReviewMutation
 import { useReplyToReviewMutation } from '../../mutations/useReplyToReviewMutation.js';
 import { useDeleteReviewReplyMutation } from '../../mutations/useDeleteReviewReplyMutation.js';
 import styles from './ReviewsList.module.scss';
+import { ratingLabel } from '../../../../utils/formatRating.js';
 
 const REPORT_REASON_CODES = ['SPAM', 'ABUSIVE', 'OFF_TOPIC', 'FAKE', 'OTHER'];
 const RESPOND_ROLES = ['OWNER', 'MANAGER'];
@@ -177,7 +176,7 @@ function ReviewsListSkeleton() {
   );
 }
 
-export default function ReviewsList({ listingId, partnerId = undefined }) {
+export default function ReviewsList({ listingId, companySlug = undefined }) {
   const { t, i18n } = useTranslation();
   const { isAuthenticated, partnerships } = useAuth();
   const { showToast } = useToast();
@@ -200,23 +199,22 @@ export default function ReviewsList({ listingId, partnerId = undefined }) {
   const canRespond = useMemo(
     () =>
       isAuthenticated &&
-      Boolean(partnerId) &&
+      Boolean(companySlug) &&
       (partnerships ?? []).some(
         (membership) =>
-          membership.partner_id === partnerId &&
+          membership.slug === companySlug &&
           RESPOND_ROLES.includes(membership.role),
       ),
-    [isAuthenticated, partnerId, partnerships],
+    [isAuthenticated, companySlug, partnerships],
   );
 
   const reviews = useMemo(
     () => data?.pages.flatMap((page) => page.results) ?? [],
     [data],
   );
-  const summaryMeta = data?.pages[0]?.meta;
   const dateFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat(i18n.language, {
+      createDateFormatter(i18n.language, {
         dateStyle: 'medium',
       }),
     [i18n.language],
@@ -294,12 +292,6 @@ export default function ReviewsList({ listingId, partnerId = undefined }) {
 
   return (
     <Stack gap="4">
-      {typeof summaryMeta?.rating_average === 'number' && (
-        <RatingStars
-          value={summaryMeta.rating_average}
-          reviewCount={summaryMeta.review_count}
-        />
-      )}
       <Stack gap="3">
         {reviews.map((review) => (
           <Card key={review.id} as="div" padding="lg">
@@ -310,7 +302,12 @@ export default function ReviewsList({ listingId, partnerId = undefined }) {
                   {dateFormatter.format(new Date(review.created_at))}
                 </span>
               </Inline>
-              <RatingStars value={review.rating} size="sm" />
+              <RatingStars
+                value={review.rating}
+                size="sm"
+                locale={i18n.language}
+                label={ratingLabel(t, i18n.language, review.rating)}
+              />
               {review.title && (
                 <p className={styles.reviewTitle}>{review.title}</p>
               )}
@@ -394,7 +391,6 @@ export default function ReviewsList({ listingId, partnerId = undefined }) {
 
 ReviewsList.propTypes = {
   listingId: PropTypes.number.isRequired,
-  // Optional: only present when rendered on a listing detail page that
-  // knows the listing's owning partner (see the header comment above).
-  partnerId: PropTypes.number,
+  // The listing's public company slug (see the header comment above).
+  companySlug: PropTypes.string,
 };

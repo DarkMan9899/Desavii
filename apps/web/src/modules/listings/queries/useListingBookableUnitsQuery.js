@@ -19,16 +19,22 @@
  * together, mutually exclusive with `date`) instead re-fetch with a
  * whole-stay snapshot per unit — the Rooms section/Reservation widget's
  * read once a customer has picked a check-in and check-out date.
+ *
+ * A missing date is missing however the caller spells it: `null` (a date
+ * not chosen yet) and `undefined` share the one date-less cache entry.
+ * They request the same URL, and before this normalisation the Listing
+ * Detail page fetched it twice (the page's own read and the reservation
+ * panel's not-yet-dated read hashed to different keys).
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { getListingBookableUnits } from '../../../api/availability.js';
 import listingKeys from '../constants/queryKeys.js';
 
-export function useListingBookableUnitsQuery(
-  listingId,
-  { date, checkIn, checkOut } = {},
-) {
+export function useListingBookableUnitsQuery(listingId, options = {}) {
+  const date = options.date ?? undefined;
+  const checkIn = options.checkIn ?? undefined;
+  const checkOut = options.checkOut ?? undefined;
   return useQuery({
     queryKey: listingKeys.bookableUnits(listingId, date, checkIn, checkOut),
     queryFn: async () => {

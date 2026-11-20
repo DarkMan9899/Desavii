@@ -90,9 +90,13 @@ export default function MobileBookingBar({
           )}
         </div>
         {isBookable && (
-          <Button variant="primary" onClick={() => setIsOpen(true)}>
-            {ctaLabel}
-          </Button>
+          // The CTA takes the room the price leaves; a label too long for
+          // it moves to its own row — the price is never clipped.
+          <div className={styles.cta}>
+            <Button variant="primary" fullWidth onClick={() => setIsOpen(true)}>
+              {ctaLabel}
+            </Button>
+          </div>
         )}
       </div>
 

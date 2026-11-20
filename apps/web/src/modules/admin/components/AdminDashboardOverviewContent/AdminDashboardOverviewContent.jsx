@@ -35,13 +35,15 @@ import {
   EmptyState,
   ErrorState,
 } from '@desavii/ui/components/feedback-overlays';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
+import { createNumberFormatter } from '@desavii/ui/utils/numberFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import { useAdminDashboardQuery } from '../../queries/useAdminDashboardQuery.js';
 import styles from './AdminDashboardOverviewContent.module.scss';
 
 function formatAmount(locale, total) {
-  return new Intl.NumberFormat(locale).format(total);
+  return createNumberFormatter(locale).format(total);
 }
 
 // Same real 89-action catalog and humanized fallback `AdminAuditLogsPageContent`
@@ -277,7 +279,7 @@ export default function AdminDashboardOverviewContent() {
                       })}
                     </span>
                     <span>
-                      {new Intl.DateTimeFormat(i18n.language, {
+                      {createDateFormatter(i18n.language, {
                         dateStyle: 'medium',
                         timeStyle: 'short',
                       }).format(new Date(entry.created_at))}

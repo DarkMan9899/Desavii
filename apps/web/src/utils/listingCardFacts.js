@@ -136,6 +136,17 @@ function resolveFact(factKey, dto, t) {
   return value ? { key: factKey, icon: ICONS[factKey], label: value } : null;
 }
 
+/** The first `limit` facts the listing has among `factKeys`, in order. */
+function resolveFirstFacts(factKeys, dto, t, limit) {
+  const facts = [];
+  factKeys.some((factKey) => {
+    const fact = resolveFact(factKey, dto, t);
+    if (fact) facts.push(fact);
+    return facts.length === limit;
+  });
+  return facts;
+}
+
 /**
  * @param {object} dto - a flat listing card DTO.
  * @param {string|undefined} categoryVisualKey - its category slug.
@@ -143,13 +154,32 @@ function resolveFact(factKey, dto, t) {
  * @returns {Array<{key: string, icon: Function|undefined, label: string}>}
  */
 export function resolveCardFacts(dto, categoryVisualKey, t) {
-  const facts = [];
-  resolveCardConfig(categoryVisualKey).factKeys.some((factKey) => {
-    const fact = resolveFact(factKey, dto, t);
-    if (fact) facts.push(fact);
-    return facts.length === CARD_FACT_LIMIT;
-  });
-  return facts;
+  return resolveFirstFacts(
+    resolveCardConfig(categoryVisualKey).factKeys,
+    dto,
+    t,
+    CARD_FACT_LIMIT,
+  );
+}
+
+/** Features Listing Detail shows next to its own key facts. */
+export const DETAIL_FEATURE_LIMIT = 4;
+
+/**
+ * Listing Detail's "top features": the category's card-worthy amenities
+ * only — its attribute facts and a restaurant's reservations already
+ * appear in the page's own key facts (`listingKeyFacts.js`), so they are
+ * not repeated here. Same priorities, labels and icons as the card.
+ */
+export function resolveDetailFeatures(dto, categoryVisualKey, t) {
+  return resolveFirstFacts(
+    resolveCardConfig(categoryVisualKey).factKeys.filter((factKey) =>
+      factKey.startsWith(AMENITY_PREFIX),
+    ),
+    dto,
+    t,
+    DETAIL_FEATURE_LIMIT,
+  );
 }
 
 export default resolveCardFacts;

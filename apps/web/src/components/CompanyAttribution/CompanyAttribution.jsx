@@ -46,11 +46,17 @@ export default function CompanyAttribution({ company = null, locale }) {
         <span className={styles.name}>
           {company.display_name}
           {company.is_verified && (
-            <ShieldCheck
-              size={14}
-              aria-hidden="true"
-              className={styles.verifiedIcon}
-            />
+            <>
+              <ShieldCheck
+                size={14}
+                aria-hidden="true"
+                className={styles.verifiedIcon}
+              />
+              {/* The shield is drawn; the status is spoken. */}
+              <span className={styles.visuallyHidden}>
+                {t('pages.listingDetail.companyAttribution.verified')}
+              </span>
+            </>
           )}
         </span>
       </span>

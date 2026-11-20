@@ -49,6 +49,7 @@ import {
   ErrorState,
   Modal,
 } from '@desavii/ui/components/feedback-overlays';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
@@ -192,7 +193,7 @@ export default function AdminListingDetailContent() {
   const closeRenewDialog = useCallback(() => setIsRenewOpen(false), []);
 
   const dateFormatter = useMemo(
-    () => new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' }),
+    () => createDateFormatter(i18n.language, { dateStyle: 'medium' }),
     [i18n.language],
   );
   const formatLifecycleDate = (value) =>

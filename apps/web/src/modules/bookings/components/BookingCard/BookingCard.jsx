@@ -28,6 +28,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Card } from '@desavii/ui/components/primitives';
 import { Spinner } from '@desavii/ui/components/feedback-overlays';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import DestinationArt from '../../../../components/DestinationArt/DestinationArt.jsx';
 import { useListingQuery } from '../../../listings/queries/useListingQuery.js';
@@ -81,7 +82,7 @@ export default function BookingCard({
   const coverMedia =
     listing?.media?.find((media) => media.is_cover) ?? listing?.media?.[0];
   const title = translation?.title ?? listing?.slug ?? '';
-  const requestedDate = new Intl.DateTimeFormat(i18n.language, {
+  const requestedDate = createDateFormatter(i18n.language, {
     dateStyle: 'medium',
   }).format(new Date(booking.requested_at));
   const isPremium = variant === 'premium';

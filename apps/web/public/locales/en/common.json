@@ -2020,7 +2020,14 @@
         "attraction_type": "Type of attraction",
         "visit_format": "Visit format",
         "setting": "Indoor or outdoor",
-        "venue_type": "Type of venue"
+        "venue_type": "Type of venue",
+        "guide_type": "Guide",
+        "transport_modes": "Getting around",
+        "meals_included": "Food and drink included",
+        "weather_policy": "Weather",
+        "end_point_type": "Where it ends",
+        "end_point_details": "End point details",
+        "seating_type": "Seating"
       },
       "units": {
         "rooms": "rooms",
@@ -2437,6 +2444,42 @@
         "fuel_policy": {
           "FULL_TO_FULL": "Full to full",
           "SAME_TO_SAME": "Same to same"
+        },
+        "guide_type": {
+          "LIVE_GUIDE": "Live guide",
+          "DRIVER_GUIDE": "Driver-guide",
+          "AUDIO_GUIDE": "Audio guide",
+          "SELF_GUIDED": "Self-guided"
+        },
+        "transport_modes": {
+          "ON_FOOT": "On foot",
+          "CAR": "Car",
+          "MINIBUS": "Minibus",
+          "COACH": "Coach",
+          "OFF_ROAD_VEHICLE": "Off-road vehicle",
+          "BOAT": "Boat",
+          "CABLE_CAR": "Cable car"
+        },
+        "meals_included": {
+          "BREAKFAST": "Breakfast",
+          "LUNCH": "Lunch",
+          "DINNER": "Dinner",
+          "SNACKS": "Snacks",
+          "DRINKS": "Drinks",
+          "TASTING": "Tasting"
+        },
+        "weather_policy": {
+          "ALL_WEATHER": "Runs in any weather",
+          "WEATHER_DEPENDENT": "Depends on the weather"
+        },
+        "end_point_type": {
+          "RETURNS_TO_START": "Back at the starting point",
+          "ENDS_ELSEWHERE": "A different place"
+        },
+        "seating_type": {
+          "SEATED": "Seated",
+          "STANDING": "Standing",
+          "MIXED": "Seated and standing"
         }
       },
       "review": {
@@ -4063,12 +4106,12 @@
       "errorTitle": "We couldn't load this listing.",
       "retry": "Retry",
       "hero": {
-        "reviewsLink": "{{count}} reviews",
-        "noReviews": "No reviews yet",
-        "overview": "Overview"
+        "reviewsLink_one": "{{count}} review",
+        "reviewsLink_other": "{{count}} reviews"
       },
       "companyAttribution": {
-        "label": "Offered by"
+        "label": "Offered by",
+        "verified": "Verified company"
       },
       "share": {
         "button": "Share",
@@ -4108,7 +4151,22 @@
           "pets_allowed": "Pets",
           "smoking_allowed": "Smoking",
           "parties_allowed": "Parties and events",
-          "fuel_policy": "Fuel"
+          "fuel_policy": "Fuel",
+          "minimum_stay": "Minimum stay",
+          "maximum_stay": "Maximum stay",
+          "advance_booking": "Book ahead",
+          "minimum_rental": "Minimum rental",
+          "maximum_rental": "Maximum rental"
+        },
+        "values": {
+          "nights_one": "{{count}} night",
+          "nights_other": "{{count}} nights",
+          "hoursAhead_one": "At least {{count}} hour before",
+          "hoursAhead_other": "At least {{count}} hours before",
+          "daysAhead_one": "At least {{count}} day before",
+          "daysAhead_other": "At least {{count}} days before",
+          "days_one": "{{count}} day",
+          "days_other": "{{count}} days"
         }
       },
       "amenities": {
@@ -4196,7 +4254,9 @@
         "previousImage": "Previous photo",
         "nextImage": "Next photo",
         "imageCounter": "{{current}} of {{total}}",
-        "imageAltFallback": "{{title}} — photo {{index}} of {{total}}"
+        "imageAltFallback": "{{title}} — photo {{index}} of {{total}}",
+        "dialogLabel": "Photos of {{title}}",
+        "noPhotos": "No photos yet"
       },
       "reservation": {
         "unitLabel": "Unit",
@@ -4373,6 +4433,34 @@
           "NOT_ALLOWED": "Not allowed",
           "KNOW_BEFORE": "Know before you go"
         }
+      },
+      "header": {
+        "approximateArea": "Approximate area",
+        "featuresLabel": "Top features"
+      },
+      "partner": {
+        "heading": "About the company",
+        "note": "This company confirms your booking. Its profile shows its other listings."
+      },
+      "valueList": "{{items}} and {{last}}",
+      "facts": {
+        "groups": {
+          "tourRun": "How the tour runs",
+          "visitRun": "How the visit works",
+          "venueRun": "How it works",
+          "audience": "Who it's for",
+          "vehicle": "Car",
+          "drive": "Engine and drive",
+          "driverTerms": "Driver and mileage",
+          "roomsSpace": "Rooms and space",
+          "stay": "Your stay",
+          "more": "More details"
+        },
+        "startTimes": "Start times",
+        "sessionTimes": "Session times"
+      },
+      "meeting": {
+        "heading": "Meeting and pickup"
       }
     }
   },
@@ -5295,5 +5383,10 @@
       "WHEELCHAIR_ACCESSIBLE": "Wheelchair accessible",
       "WINTER_TYRES": "Winter tyres"
     }
+  },
+  "rating": {
+    "label": "Rated {{rating}} out of 5",
+    "labelWithCount_one": "Rated {{rating}} out of 5 from {{count}} review",
+    "labelWithCount_other": "Rated {{rating}} out of 5 from {{count}} reviews"
   }
 }

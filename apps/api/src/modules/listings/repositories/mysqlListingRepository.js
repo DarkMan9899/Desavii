@@ -146,7 +146,7 @@ function toTranslationDomain(row) {
   };
 }
 
-function toLocationDomain(row) {
+function toLocationDomain(row, nameRows = []) {
   if (!row) return null;
   return {
     listingId: row.listing_id,
@@ -157,6 +157,14 @@ function toLocationDomain(row) {
     countryName: row.country_name,
     latitude: row.latitude === null ? null : Number(row.latitude),
     longitude: row.longitude === null ? null : Number(row.longitude),
+    // Listing Detail redesign: the place's name in every language it has
+    // (the page picks its own, like `translations`); the base names above
+    // stay the fallback.
+    nameTranslations: nameRows.map((name) => ({
+      languageCode: name.language_code,
+      cityName: name.city_name ?? null,
+      countryName: name.country_name ?? null,
+    })),
   };
 }
 
@@ -757,6 +765,7 @@ export class MySqlListingRepository extends ListingRepositoryPort {
     const [
       [translationRows],
       [locationRows],
+      [locationNameRows],
       [categoryRows],
       [amenityRows],
       mediaRows,
@@ -787,6 +796,17 @@ export class MySqlListingRepository extends ListingRepositoryPort {
          LEFT JOIN regions r ON r.id = c.region_id
          LEFT JOIN countries co ON co.id = r.country_id
          WHERE ll.listing_id = ? LIMIT 1`,
+        [id],
+      ),
+      connection.query(
+        `SELECT lang.code AS language_code, ct.name AS city_name, cot.name AS country_name
+         FROM listing_locations ll
+         JOIN cities c ON c.id = ll.city_id
+         LEFT JOIN regions r ON r.id = c.region_id
+         CROSS JOIN languages lang
+         LEFT JOIN city_translations ct ON ct.city_id = c.id AND ct.language_id = lang.id
+         LEFT JOIN country_translations cot ON cot.country_id = r.country_id AND cot.language_id = lang.id
+         WHERE ll.listing_id = ? AND (ct.id IS NOT NULL OR cot.id IS NOT NULL)`,
         [id],
       ),
       connection.query(
@@ -827,7 +847,7 @@ export class MySqlListingRepository extends ListingRepositoryPort {
     return {
       ...listing,
       translations: translationRows.map(toTranslationDomain),
-      location: toLocationDomain(locationRows[0]),
+      location: toLocationDomain(locationRows[0], locationNameRows),
       categoryIds: categoryRows.map((row) => row.category_id),
       amenityIds: amenityRows.map((row) => row.amenity_id),
       media: mediaRows,

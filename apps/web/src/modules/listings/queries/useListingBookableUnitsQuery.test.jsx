@@ -42,6 +42,20 @@ DateHarness.propTypes = {
   date: PropTypes.string.isRequired,
 };
 
+// The Listing Detail page's own read and the reservation panel's read
+// before a date is chosen (`date: null`), mounted side by side.
+function PageAndPanelHarness({ listingId }) {
+  useListingBookableUnitsQuery(listingId);
+  useListingBookableUnitsQuery(listingId, {
+    date: null,
+    checkIn: null,
+    checkOut: null,
+  });
+  return null;
+}
+
+PageAndPanelHarness.propTypes = { listingId: PropTypes.number.isRequired };
+
 function renderHarness(listingId) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -71,6 +85,21 @@ describe('useListingBookableUnitsQuery (apps/web/src/modules/listings)', () => {
     expect(getListingBookableUnits).toHaveBeenCalledWith(10, {
       date: undefined,
     });
+  });
+
+  test('a date not chosen yet (null) shares the date-less read — one request, not two', async () => {
+    getListingBookableUnits.mockResolvedValue({ data: [] });
+    render(
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <PageAndPanelHarness listingId={10} />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(getListingBookableUnits).toHaveBeenCalled());
+    expect(getListingBookableUnits).toHaveBeenCalledTimes(1);
   });
 
   test('stays disabled (never calls the API) when no listingId is selected yet', () => {

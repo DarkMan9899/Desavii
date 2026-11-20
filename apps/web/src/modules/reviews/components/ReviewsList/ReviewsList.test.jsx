@@ -28,14 +28,14 @@ vi.mock('../../mutations/useDeleteReviewReplyMutation.js', () => ({
   useDeleteReviewReplyMutation: vi.fn(),
 }));
 
-function renderList(listingId = 3, partnerId = undefined) {
+function renderList(listingId = 3, companySlug = undefined) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <ReviewsList listingId={listingId} partnerId={partnerId} />
+        <ReviewsList listingId={listingId} companySlug={companySlug} />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -88,7 +88,7 @@ describe('ReviewsList (apps/web/src/modules/reviews)', () => {
     expect(await screen.findByText('Կարծիքներ դեռ չկան')).toBeInTheDocument();
   });
 
-  test('renders the rating summary and each review row on success', async () => {
+  test('renders each review row on success — the caller owns the summary', async () => {
     listListingReviews.mockResolvedValue({
       data: [REVIEW_ROW],
       meta: { has_more: false, rating_average: 4.5, review_count: 3 },
@@ -98,7 +98,8 @@ describe('ReviewsList (apps/web/src/modules/reviews)', () => {
     expect(await screen.findByText('Anna K.')).toBeInTheDocument();
     expect(screen.getByText('Wonderful stay')).toBeInTheDocument();
     expect(screen.getByText('Everything was great.')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /4\.5.*3/ })).toBeInTheDocument();
+    // `ListingReviewsSection` shows the one rating summary; never twice.
+    expect(screen.queryByRole('img', { name: /4\.5/ })).not.toBeInTheDocument();
   });
 
   test('shows a retryable error state when the request fails', async () => {
@@ -160,13 +161,13 @@ describe('ReviewsList (apps/web/src/modules/reviews)', () => {
   test('a customer with no partnership sees no Reply action, even when authenticated', async () => {
     useAuth.mockReturnValue({
       isAuthenticated: true,
-      partnerships: [{ partner_id: 9, role: 'OWNER' }],
+      partnerships: [{ partner_id: 9, slug: 'other-company', role: 'OWNER' }],
     });
     listListingReviews.mockResolvedValue({
       data: [REVIEW_ROW],
       meta: { has_more: false, rating_average: 5, review_count: 1 },
     });
-    renderList(3, 42);
+    renderList(3, 'ararat-stays');
 
     await screen.findByText('Anna K.');
     expect(
@@ -177,13 +178,15 @@ describe('ReviewsList (apps/web/src/modules/reviews)', () => {
   test('a BOOKING_MANAGER of the owning partner sees no Reply action (below the required trust tier)', async () => {
     useAuth.mockReturnValue({
       isAuthenticated: true,
-      partnerships: [{ partner_id: 42, role: 'BOOKING_MANAGER' }],
+      partnerships: [
+        { partner_id: 42, slug: 'ararat-stays', role: 'BOOKING_MANAGER' },
+      ],
     });
     listListingReviews.mockResolvedValue({
       data: [REVIEW_ROW],
       meta: { has_more: false, rating_average: 5, review_count: 1 },
     });
-    renderList(3, 42);
+    renderList(3, 'ararat-stays');
 
     await screen.findByText('Anna K.');
     expect(
@@ -194,14 +197,14 @@ describe('ReviewsList (apps/web/src/modules/reviews)', () => {
   test('an OWNER of the owning partner can post a reply', async () => {
     useAuth.mockReturnValue({
       isAuthenticated: true,
-      partnerships: [{ partner_id: 42, role: 'OWNER' }],
+      partnerships: [{ partner_id: 42, slug: 'ararat-stays', role: 'OWNER' }],
     });
     listListingReviews.mockResolvedValue({
       data: [REVIEW_ROW],
       meta: { has_more: false, rating_average: 5, review_count: 1 },
     });
     const user = userEvent.setup();
-    renderList(3, 42);
+    renderList(3, 'ararat-stays');
 
     await user.click(await screen.findByRole('button', { name: 'Պատասխանել' }));
     const textarea = screen.getByLabelText('Ձեր պատասխանը');
@@ -221,14 +224,14 @@ describe('ReviewsList (apps/web/src/modules/reviews)', () => {
   test('a MANAGER of the owning partner can delete an existing reply after confirming', async () => {
     useAuth.mockReturnValue({
       isAuthenticated: true,
-      partnerships: [{ partner_id: 42, role: 'MANAGER' }],
+      partnerships: [{ partner_id: 42, slug: 'ararat-stays', role: 'MANAGER' }],
     });
     listListingReviews.mockResolvedValue({
       data: [{ ...REVIEW_ROW, vendor_response: 'Thank you for staying!' }],
       meta: { has_more: false, rating_average: 5, review_count: 1 },
     });
     const user = userEvent.setup();
-    renderList(3, 42);
+    renderList(3, 'ararat-stays');
 
     await user.click(
       await screen.findByRole('button', { name: 'Ջնջել պատասխանը' }),

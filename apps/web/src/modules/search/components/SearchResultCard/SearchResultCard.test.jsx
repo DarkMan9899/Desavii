@@ -194,7 +194,8 @@ describe('SearchResultCard (apps/web/src/modules/search)', () => {
     test('"Top guest rating" follows the objective rule, on any surface', () => {
       renderCard({ ...RESULT, rating_average: 4.8, review_count: 5 });
       expect(screen.getByText('Հյուրերի բարձր գնահատական')).toBeInTheDocument();
-      expect(screen.getByText('4.8')).toBeInTheDocument();
+      // The Armenian harness writes the decimal with a comma.
+      expect(screen.getByText('4,8')).toBeInTheDocument();
       expect(screen.getByText('5 կարծիք')).toBeInTheDocument();
     });
 
@@ -203,7 +204,7 @@ describe('SearchResultCard (apps/web/src/modules/search)', () => {
       expect(
         screen.queryByText('Հյուրերի բարձր գնահատական'),
       ).not.toBeInTheDocument();
-      expect(screen.getByText('5.0')).toBeInTheDocument();
+      expect(screen.getByText('5,0')).toBeInTheDocument();
       expect(screen.getByText('2 կարծիք')).toBeInTheDocument();
     });
 

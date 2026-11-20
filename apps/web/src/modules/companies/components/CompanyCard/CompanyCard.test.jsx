@@ -74,12 +74,13 @@ describe('CompanyCard (apps/web/src/modules/companies)', () => {
   test('shows the real rating only when review_count is greater than zero', () => {
     renderCard({ ...COMPANY, rating_average: 4.5, review_count: 0 });
     expect(
-      screen.queryByRole('img', { name: /out of 5 stars/ }),
+      screen.queryByRole('img', { name: /Գնահատականը/ }),
     ).not.toBeInTheDocument();
 
+    // Spoken in the page language, the decimal written the Armenian way.
     renderCard({ ...COMPANY, rating_average: 4.5, review_count: 12 });
     expect(
-      screen.getByRole('img', { name: /4\.5 out of 5 stars, 12 reviews/ }),
+      screen.getByRole('img', { name: 'Գնահատականը՝ 4,5 5-ից, 12 կարծիք' }),
     ).toBeInTheDocument();
   });
 

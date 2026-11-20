@@ -29,6 +29,10 @@ import {
 } from '@desavii/ui/components/feedback-overlays';
 import { DataTable } from '@desavii/ui/components/dashboard';
 import { Tabs } from '@desavii/ui/components/navigation';
+import {
+  createDateFormatter,
+  NUMERIC_DATE_TIME,
+} from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
 import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
@@ -296,7 +300,9 @@ export default function PartnerConnectionsPageContent() {
       header: t('partner.connections.columns.lastSync'),
       render: (row) =>
         row.last_successful_sync_at
-          ? new Date(row.last_successful_sync_at).toLocaleString(locale)
+          ? createDateFormatter(locale, NUMERIC_DATE_TIME).format(
+              new Date(row.last_successful_sync_at),
+            )
           : t('partner.connections.neverSynced'),
     },
     {
@@ -353,7 +359,10 @@ export default function PartnerConnectionsPageContent() {
     {
       key: 'started_at',
       header: t('partner.connections.syncRuns.columns.startedAt'),
-      render: (row) => new Date(row.started_at).toLocaleString(locale),
+      render: (row) =>
+        createDateFormatter(locale, NUMERIC_DATE_TIME).format(
+          new Date(row.started_at),
+        ),
     },
     {
       key: 'trigger_code',
@@ -408,7 +417,10 @@ export default function PartnerConnectionsPageContent() {
     {
       key: 'created_at',
       header: t('partner.connections.conflicts.columns.createdAt'),
-      render: (row) => new Date(row.created_at).toLocaleString(locale),
+      render: (row) =>
+        createDateFormatter(locale, NUMERIC_DATE_TIME).format(
+          new Date(row.created_at),
+        ),
     },
     {
       key: 'actions',

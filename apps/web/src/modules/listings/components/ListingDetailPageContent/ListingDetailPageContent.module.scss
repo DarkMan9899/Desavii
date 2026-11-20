@@ -1,12 +1,9 @@
 // ListingDetailPageContent — tokens only, consumed from @desavii/ui.
 //
-// Phase 12 (Product Polish): two-column layout with a pinned reservation
-// sidebar — the single highest-impact fix the Phase 12 audit found (every
-// reference product keeps the price/book widget visible while scrolling
-// a long detail page; this page previously stacked everything in one
-// full-width column). Single column below `laptop`, matching how
-// `PartnerLayout`/`AdminLayout` collapse their own persistent side panel
-// at the same breakpoint.
+// Gallery across the full width, then two columns from laptop: the header
+// and the category's sections on the left, the reservation panel pinned on
+// the right from the first screen. One column below laptop, where
+// `MobileBookingBar` is the booking entry point.
 
 @use 'tokens' as tokens;
 @use 'mixins/respond' as respond;
@@ -49,27 +46,52 @@
     line-height: tokens.$line-height-h3;
     color: tokens.$color-gray-900;
   }
+}
 
-  // Every section reads as one continuous, editorially paced page: a
-  // subtle top rule and generous vertical rhythm, never a stack of boxed
-  // cards (the owner-rejected "card per section" look). Content that is
-  // genuinely a set of objects — rooms, menu items — keeps its own cards
-  // inside its section.
+// Every section reads as one continuous, editorially paced page: a subtle
+// top rule and generous vertical rhythm, never a stack of boxed cards.
+// Content that is genuinely a set of objects — rooms, menu items — keeps
+// its own cards inside its section.
+.sections {
+  display: flex;
+  flex-direction: column;
+
   > .section > section {
-    padding: tokens.$space-4 0;
+    padding: tokens.$space-6 0;
     border-top: 1px solid tokens.$color-gray-200;
 
     @include respond.respond(laptop) {
-      padding: tokens.$space-6 0;
+      padding: tokens.$space-8 0;
     }
   }
 
-  // The very first section (always "About", since it's the only one
-  // guaranteed present) shouldn't carry a redundant top rule directly
-  // under the hero/section-nav.
+  // The first section sits directly under the section navigation.
   > .section:first-child > section {
-    border-top: none;
     padding-top: 0;
+    border-top: none;
+  }
+}
+
+// The loading frame: at least one screen tall, so the footer below never
+// shows during loading and then jumps away.
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-6;
+  min-height: 100svh;
+}
+
+// It keeps the gallery's own ratio, so nothing shifts when the photos
+// arrive.
+.skeletonHero {
+  aspect-ratio: 4 / 3;
+  background: tokens.$color-gray-100;
+  border-radius: tokens.$radius-lg;
+
+  @include respond.respond(tablet) {
+    aspect-ratio: 21 / 9;
+    max-height: 48vh;
+    border-radius: tokens.$radius-xl;
   }
 }
 
@@ -93,7 +115,9 @@
 // Phase 18.11: reserves room below `laptop` so `MobileBookingBar`'s fixed
 // bar never overlaps the page's final content (RelatedListings).
 .mobileBarSpacer {
-  height: 88px;
+  // Room for the booking bar even when a long CTA label puts it on two
+  // rows (price, then the button).
+  height: calc(#{tokens.$space-24} + #{tokens.$space-6});
 
   @include respond.respond(laptop) {
     display: none;

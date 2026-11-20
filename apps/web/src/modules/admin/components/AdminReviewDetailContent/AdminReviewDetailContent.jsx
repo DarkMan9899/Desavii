@@ -36,6 +36,7 @@ import {
   EmptyState,
   Modal,
 } from '@desavii/ui/components/feedback-overlays';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
@@ -44,6 +45,7 @@ import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
 import { useAdminReviewDetailQuery } from '../../queries/useAdminReviewDetailQuery.js';
 import { useUpdateReviewModerationStatusMutation } from '../../mutations/useUpdateReviewModerationStatusMutation.js';
 import { ReviewModerationStatusBadge } from '../../../reviews/index.js';
+import { ratingLabel } from '../../../../utils/formatRating.js';
 
 export default function AdminReviewDetailContent() {
   const { t, i18n } = useTranslation();
@@ -99,7 +101,7 @@ export default function AdminReviewDetailContent() {
   }
 
   const heading = review.title || t('admin.reviewDetail.headingFallback');
-  const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
+  const dateFormatter = createDateFormatter(i18n.language, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
@@ -166,7 +168,11 @@ export default function AdminReviewDetailContent() {
         <Card as="div" padding="lg">
           <Stack gap="3">
             <Inline gap="3" align="center" wrap>
-              <RatingStars value={review.rating} />
+              <RatingStars
+                value={review.rating}
+                locale={i18n.language}
+                label={ratingLabel(t, i18n.language, review.rating)}
+              />
               <ReviewModerationStatusBadge status={review.status} />
             </Inline>
             {review.content && <p>{review.content}</p>}

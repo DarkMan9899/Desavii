@@ -15,11 +15,13 @@
  *   and group headings: `search.dynamicFilters.*`.
  */
 
+import { createNumberFormatter } from '@desavii/ui/utils/numberFormat';
+
 const CATALOG = 'partner.listingWizard';
 
 /** `4.5` → `4.5`, in the visitor's number format. */
 function formatRating(value, locale) {
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(
+  return createNumberFormatter(locale, { maximumFractionDigits: 1 }).format(
     Number(value),
   );
 }

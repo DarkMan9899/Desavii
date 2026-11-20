@@ -20,6 +20,8 @@
  * snapshot never disagrees between surfaces.
  */
 
+import { createNumberFormatter } from '@desavii/ui/utils/numberFormat';
+
 export const CURRENCY_DISPLAY_DECIMALS = { AMD: 0, USD: 2, RUB: 2 };
 
 /**
@@ -38,7 +40,7 @@ export function convertAmdToDisplay(amountAmd, currency, rates) {
 
 /**
  * @param {{amountAmd: string|number, currency: 'AMD'|'USD'|'RUB', locale: string, rates?: Record<string,string>|null}} params
- * @returns {string} an `Intl.NumberFormat`-rendered price string, never a manually-concatenated symbol.
+ * @returns {string} a locale-formatted price string (`createNumberFormatter`, `Intl` with a CLDR fallback for Armenian), never a manually-concatenated symbol.
  */
 export function formatMoney({ amountAmd, currency, locale, rates }) {
   const displayAmount = convertAmdToDisplay(amountAmd, currency, rates);
@@ -50,7 +52,7 @@ export function formatMoney({ amountAmd, currency, locale, rates }) {
     displayAmount === null ? Number(amountAmd) : displayAmount;
   const decimals = CURRENCY_DISPLAY_DECIMALS[resolvedCurrency] ?? 2;
 
-  return new Intl.NumberFormat(locale, {
+  return createNumberFormatter(locale, {
     style: 'currency',
     currency: resolvedCurrency,
     currencyDisplay: 'narrowSymbol',

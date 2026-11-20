@@ -1,7 +1,47 @@
-// ListingReviewsSection — tokens only. The "no reviews yet" line reads as
-// secondary text, not as an empty-state block.
+// ListingReviewsSection — tokens only. The average reads first, large, in
+// the display face; a gold star and the approved-review count sit beside
+// it; the reviews follow.
 
 @use 'tokens' as tokens;
+@use 'mixins/visually-hidden' as hidden;
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-6;
+}
+
+.summary {
+  display: flex;
+  gap: tokens.$space-4;
+  align-items: center;
+  margin: 0;
+}
+
+.average {
+  font-family: tokens.$font-display;
+  font-size: tokens.$font-size-display;
+  font-weight: 700;
+  line-height: tokens.$line-height-display;
+  color: tokens.$color-navy;
+}
+
+.ratingLine {
+  display: inline-flex;
+  gap: tokens.$space-2;
+  align-items: center;
+  font-size: tokens.$font-size-body;
+  color: tokens.$color-gray-900;
+}
+
+.star {
+  color: tokens.$color-gold-strong;
+  fill: currentcolor;
+}
+
+.visuallyHidden {
+  @include hidden.visually-hidden;
+}
 
 .none {
   margin: 0;

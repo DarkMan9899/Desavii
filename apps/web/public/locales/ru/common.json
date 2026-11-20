@@ -2064,7 +2064,14 @@
         "attraction_type": "Тип достопримечательности",
         "visit_format": "Формат посещения",
         "setting": "В помещении или на открытом воздухе",
-        "venue_type": "Тип заведения"
+        "venue_type": "Тип заведения",
+        "guide_type": "Гид",
+        "transport_modes": "Передвижение",
+        "meals_included": "Включённое питание",
+        "weather_policy": "Погода",
+        "end_point_type": "Место окончания",
+        "end_point_details": "Где заканчивается",
+        "seating_type": "Места"
       },
       "units": {
         "rooms": "комнат",
@@ -2507,6 +2514,42 @@
         "fuel_policy": {
           "FULL_TO_FULL": "Полный — полный",
           "SAME_TO_SAME": "Тот же уровень"
+        },
+        "guide_type": {
+          "LIVE_GUIDE": "Гид-экскурсовод",
+          "DRIVER_GUIDE": "Водитель-гид",
+          "AUDIO_GUIDE": "Аудиогид",
+          "SELF_GUIDED": "Самостоятельно"
+        },
+        "transport_modes": {
+          "ON_FOOT": "Пешком",
+          "CAR": "Легковой автомобиль",
+          "MINIBUS": "Микроавтобус",
+          "COACH": "Автобус",
+          "OFF_ROAD_VEHICLE": "Внедорожник",
+          "BOAT": "Лодка",
+          "CABLE_CAR": "Канатная дорога"
+        },
+        "meals_included": {
+          "BREAKFAST": "Завтрак",
+          "LUNCH": "Обед",
+          "DINNER": "Ужин",
+          "SNACKS": "Закуски",
+          "DRINKS": "Напитки",
+          "TASTING": "Дегустация"
+        },
+        "weather_policy": {
+          "ALL_WEATHER": "Проводится в любую погоду",
+          "WEATHER_DEPENDENT": "Зависит от погоды"
+        },
+        "end_point_type": {
+          "RETURNS_TO_START": "Возвращение к месту начала",
+          "ENDS_ELSEWHERE": "В другом месте"
+        },
+        "seating_type": {
+          "SEATED": "Сидячие",
+          "STANDING": "Стоячие",
+          "MIXED": "Сидячие и стоячие"
         }
       },
       "review": {
@@ -4133,12 +4176,14 @@
       "errorTitle": "Не удалось загрузить это объявление.",
       "retry": "Повторить",
       "hero": {
-        "reviewsLink": "{{count}} отзывов",
-        "noReviews": "Пока нет отзывов",
-        "overview": "Обзор"
+        "reviewsLink_one": "{{count}} отзыв",
+        "reviewsLink_few": "{{count}} отзыва",
+        "reviewsLink_many": "{{count}} отзывов",
+        "reviewsLink_other": "{{count}} отзыва"
       },
       "companyAttribution": {
-        "label": "Предлагает"
+        "label": "Предлагает",
+        "verified": "Проверенная компания"
       },
       "share": {
         "button": "Поделиться",
@@ -4178,7 +4223,30 @@
           "pets_allowed": "Животные",
           "smoking_allowed": "Курение",
           "parties_allowed": "Вечеринки и мероприятия",
-          "fuel_policy": "Топливо"
+          "fuel_policy": "Топливо",
+          "minimum_stay": "Минимальный срок",
+          "maximum_stay": "Максимальный срок",
+          "advance_booking": "Бронирование заранее",
+          "minimum_rental": "Минимальный срок аренды",
+          "maximum_rental": "Максимальный срок аренды"
+        },
+        "values": {
+          "nights_one": "{{count}} ночь",
+          "nights_few": "{{count}} ночи",
+          "nights_many": "{{count}} ночей",
+          "nights_other": "{{count}} ночи",
+          "hoursAhead_one": "Не позднее чем за {{count}} час",
+          "hoursAhead_few": "Не позднее чем за {{count}} часа",
+          "hoursAhead_many": "Не позднее чем за {{count}} часов",
+          "hoursAhead_other": "Не позднее чем за {{count}} часа",
+          "daysAhead_one": "Не позднее чем за {{count}} день",
+          "daysAhead_few": "Не позднее чем за {{count}} дня",
+          "daysAhead_many": "Не позднее чем за {{count}} дней",
+          "daysAhead_other": "Не позднее чем за {{count}} дня",
+          "days_one": "{{count}} день",
+          "days_few": "{{count}} дня",
+          "days_many": "{{count}} дней",
+          "days_other": "{{count}} дня"
         }
       },
       "amenities": {
@@ -4278,7 +4346,9 @@
         "previousImage": "Предыдущее фото",
         "nextImage": "Следующее фото",
         "imageCounter": "{{current}} из {{total}}",
-        "imageAltFallback": "{{title}} — фото {{index}} из {{total}}"
+        "imageAltFallback": "{{title}} — фото {{index}} из {{total}}",
+        "dialogLabel": "Фото: {{title}}",
+        "noPhotos": "Фотографий пока нет"
       },
       "reservation": {
         "unitLabel": "Единица",
@@ -4487,6 +4557,34 @@
           "NOT_ALLOWED": "Запрещено",
           "KNOW_BEFORE": "Важно знать заранее"
         }
+      },
+      "header": {
+        "approximateArea": "Примерный район",
+        "featuresLabel": "Главные удобства"
+      },
+      "partner": {
+        "heading": "О компании",
+        "note": "Бронирование подтверждает эта компания. В её профиле — другие предложения."
+      },
+      "valueList": "{{items}} и {{last}}",
+      "facts": {
+        "groups": {
+          "tourRun": "Как проходит тур",
+          "visitRun": "Как проходит посещение",
+          "venueRun": "Как всё устроено",
+          "audience": "Кому подойдёт",
+          "vehicle": "Автомобиль",
+          "drive": "Двигатель и привод",
+          "driverTerms": "Водитель и пробег",
+          "roomsSpace": "Комнаты и площадь",
+          "stay": "Проживание",
+          "more": "Другие детали"
+        },
+        "startTimes": "Время начала",
+        "sessionTimes": "Время сеансов"
+      },
+      "meeting": {
+        "heading": "Встреча и трансфер"
       }
     }
   },
@@ -5418,5 +5516,12 @@
       "WHEELCHAIR_ACCESSIBLE": "Доступно для инвалидных колясок",
       "WINTER_TYRES": "Зимние шины"
     }
+  },
+  "rating": {
+    "label": "Оценка {{rating}} из 5",
+    "labelWithCount_one": "Оценка {{rating}} из 5, {{count}} отзыв",
+    "labelWithCount_few": "Оценка {{rating}} из 5, {{count}} отзыва",
+    "labelWithCount_many": "Оценка {{rating}} из 5, {{count}} отзывов",
+    "labelWithCount_other": "Оценка {{rating}} из 5, {{count}} отзыва"
   }
 }

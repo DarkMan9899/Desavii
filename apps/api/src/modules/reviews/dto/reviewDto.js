@@ -23,6 +23,26 @@ export function toReviewResponse(review) {
   };
 }
 
+/**
+ * Listing Detail redesign — a review as a public listing page shows it:
+ * the rating, the words and the company's reply, named "Anna K." (see the
+ * repository). Never the reviewer's user id, the booking it came from or
+ * its moderation status — `toReviewResponse` stays for the reviewer's own
+ * and the admin views.
+ */
+export function toPublicReviewResponse(review) {
+  return {
+    id: review.id,
+    rating: review.rating,
+    title: review.title,
+    content: review.content,
+    vendor_response: review.vendorResponse,
+    vendor_responded_at: review.vendorRespondedAt,
+    created_at: review.createdAt,
+    customer_display_name: review.customerDisplayName ?? null,
+  };
+}
+
 export function toReviewSummaryResponse(summary) {
   return {
     listing_id: summary.listingId,

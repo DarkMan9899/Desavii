@@ -2013,7 +2013,14 @@
         "attraction_type": "Տեսարժան վայրի տեսակ",
         "visit_format": "Այցի ձևաչափ",
         "setting": "Փակ թե բաց տարածք",
-        "venue_type": "Վայրի տեսակ"
+        "venue_type": "Վայրի տեսակ",
+        "guide_type": "Գիդ",
+        "transport_modes": "Տեղաշարժ",
+        "meals_included": "Ներառված սնունդ",
+        "weather_policy": "Եղանակ",
+        "end_point_type": "Ավարտի վայրը",
+        "end_point_details": "Որտեղ է ավարտվում",
+        "seating_type": "Տեղեր"
       },
       "units": {
         "rooms": "սենյակ",
@@ -2430,6 +2437,42 @@
         "fuel_policy": {
           "FULL_TO_FULL": "Լիքը՝ լիքը",
           "SAME_TO_SAME": "Նույն մակարդակով"
+        },
+        "guide_type": {
+          "LIVE_GUIDE": "Էքսկուրսավար",
+          "DRIVER_GUIDE": "Վարորդ-գիդ",
+          "AUDIO_GUIDE": "Աուդիոգիդ",
+          "SELF_GUIDED": "Ինքնուրույն"
+        },
+        "transport_modes": {
+          "ON_FOOT": "Ոտքով",
+          "CAR": "Մարդատար մեքենա",
+          "MINIBUS": "Միկրոավտոբուս",
+          "COACH": "Ավտոբուս",
+          "OFF_ROAD_VEHICLE": "Ամենագնաց",
+          "BOAT": "Նավակ",
+          "CABLE_CAR": "Ճոպանուղի"
+        },
+        "meals_included": {
+          "BREAKFAST": "Նախաճաշ",
+          "LUNCH": "Ճաշ",
+          "DINNER": "Ընթրիք",
+          "SNACKS": "Թեթև նախուտեստ",
+          "DRINKS": "Ըմպելիքներ",
+          "TASTING": "Համտես"
+        },
+        "weather_policy": {
+          "ALL_WEATHER": "Անցկացվում է ցանկացած եղանակին",
+          "WEATHER_DEPENDENT": "Կախված է եղանակից"
+        },
+        "end_point_type": {
+          "RETURNS_TO_START": "Վերադարձ մեկնարկի վայր",
+          "ENDS_ELSEWHERE": "Այլ վայրում"
+        },
+        "seating_type": {
+          "SEATED": "Նստատեղերով",
+          "STANDING": "Կանգնած",
+          "MIXED": "Նստատեղերով և կանգնած"
         }
       },
       "review": {
@@ -4056,12 +4099,12 @@
       "errorTitle": "Չհաջողվեց բեռնել այս հայտարարությունը։",
       "retry": "Կրկնել",
       "hero": {
-        "reviewsLink": "{{count}} կարծիք",
-        "noReviews": "Կարծիքներ դեռ չկան",
-        "overview": "Ընդհանուր տեղեկություններ"
+        "reviewsLink_one": "{{count}} կարծիք",
+        "reviewsLink_other": "{{count}} կարծիք"
       },
       "companyAttribution": {
-        "label": "Առաջարկվում է"
+        "label": "Առաջարկվում է",
+        "verified": "Ստուգված ընկերություն"
       },
       "share": {
         "button": "Կիսվել",
@@ -4101,7 +4144,22 @@
           "pets_allowed": "Ընտանի կենդանիներ",
           "smoking_allowed": "Ծխել",
           "parties_allowed": "Երեկույթներ և միջոցառումներ",
-          "fuel_policy": "Վառելիք"
+          "fuel_policy": "Վառելիք",
+          "minimum_stay": "Նվազագույն ժամկետ",
+          "maximum_stay": "Առավելագույն ժամկետ",
+          "advance_booking": "Նախօրոք ամրագրում",
+          "minimum_rental": "Վարձակալության նվազագույն ժամկետ",
+          "maximum_rental": "Վարձակալության առավելագույն ժամկետ"
+        },
+        "values": {
+          "nights_one": "{{count}} գիշեր",
+          "nights_other": "{{count}} գիշեր",
+          "hoursAhead_one": "Առնվազն {{count}} ժամ առաջ",
+          "hoursAhead_other": "Առնվազն {{count}} ժամ առաջ",
+          "daysAhead_one": "Առնվազն {{count}} օր առաջ",
+          "daysAhead_other": "Առնվազն {{count}} օր առաջ",
+          "days_one": "{{count}} օր",
+          "days_other": "{{count}} օր"
         }
       },
       "amenities": {
@@ -4189,7 +4247,9 @@
         "previousImage": "Նախորդ լուսանկարը",
         "nextImage": "Հաջորդ լուսանկարը",
         "imageCounter": "{{current}} {{total}}-ից",
-        "imageAltFallback": "{{title}} — լուսանկար {{index}}/{{total}}"
+        "imageAltFallback": "{{title}} — լուսանկար {{index}}/{{total}}",
+        "dialogLabel": "{{title}}՝ լուսանկարներ",
+        "noPhotos": "Լուսանկարներ դեռ չկան"
       },
       "reservation": {
         "unitLabel": "Միավոր",
@@ -4366,6 +4426,34 @@
           "NOT_ALLOWED": "Արգելված է",
           "KNOW_BEFORE": "Ինչ իմանալ նախապես"
         }
+      },
+      "header": {
+        "approximateArea": "Մոտավոր տարածք",
+        "featuresLabel": "Հիմնական առավելություններ"
+      },
+      "partner": {
+        "heading": "Ընկերության մասին",
+        "note": "Ամրագրումը հաստատում է այս ընկերությունը։ Նրա էջում կտեսնեք նաև մյուս առաջարկները։"
+      },
+      "valueList": "{{items}} և {{last}}",
+      "facts": {
+        "groups": {
+          "tourRun": "Ինչպես է անցնում տուրը",
+          "visitRun": "Ինչպես է անցնում այցը",
+          "venueRun": "Ինչպես է կազմակերպված",
+          "audience": "Ում է հարմար",
+          "vehicle": "Ավտոմեքենա",
+          "drive": "Շարժիչ և քարշակ",
+          "driverTerms": "Վարորդ և վազք",
+          "roomsSpace": "Սենյակներ և մակերես",
+          "stay": "Կացություն",
+          "more": "Այլ մանրամասներ"
+        },
+        "startTimes": "Մեկնարկի ժամերը",
+        "sessionTimes": "Սեանսների ժամերը"
+      },
+      "meeting": {
+        "heading": "Հանդիպում և տրանսֆեր"
       }
     }
   },
@@ -5287,5 +5375,10 @@
       "WHEELCHAIR_ACCESSIBLE": "Հասանելի հաշմանդամության սայլակով",
       "WINTER_TYRES": "Ձմեռային անվադողեր"
     }
+  },
+  "rating": {
+    "label": "Գնահատականը՝ {{rating}} 5-ից",
+    "labelWithCount_one": "Գնահատականը՝ {{rating}} 5-ից, {{count}} կարծիք",
+    "labelWithCount_other": "Գնահատականը՝ {{rating}} 5-ից, {{count}} կարծիք"
   }
 }

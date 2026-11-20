@@ -15,6 +15,9 @@ import {
   PartyPopper,
   Fuel,
   FileText,
+  Moon,
+  CalendarRange,
+  Hourglass,
 } from 'lucide-react';
 
 const ICONS_BY_POLICY_CODE = {
@@ -26,6 +29,10 @@ const ICONS_BY_POLICY_CODE = {
   check_in_time: LogIn,
   check_out_time: LogOut,
   fuel_policy: Fuel,
+  // Booking rules (`listing.booking_rules`), shown with the policies.
+  minimum_stay: Moon,
+  maximum_stay: CalendarRange,
+  advance_booking: Hourglass,
 };
 
 export default function resolvePolicyIcon(policyCode) {

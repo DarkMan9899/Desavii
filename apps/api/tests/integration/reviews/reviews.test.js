@@ -195,6 +195,21 @@ describe('POST /reviews', () => {
     expect(listRes.body.meta).toEqual(
       expect.objectContaining({ rating_average: 5, review_count: 1 }),
     );
+    // Listing Detail redesign — reviewer privacy: the public list never
+    // carries the reviewer's user id, the booking or the moderation status,
+    // and names the reviewer by first name and last initial only.
+    const [publicReview] = listRes.body.data;
+    expect(Object.keys(publicReview).sort()).toEqual([
+      'content',
+      'created_at',
+      'customer_display_name',
+      'id',
+      'rating',
+      'title',
+      'vendor_responded_at',
+      'vendor_response',
+    ]);
+    expect(publicReview.customer_display_name).toMatch(/^\S+( \S\.)?$/);
   });
 
   test('rejects a second review for the same booking with 409', async () => {

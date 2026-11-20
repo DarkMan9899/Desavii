@@ -38,6 +38,7 @@ import { useAdminListFilters } from '../../hooks/useAdminListFilters.js';
 import { useAdminReviewsQuery } from '../../queries/useAdminReviewsQuery.js';
 import { useUpdateReviewModerationStatusMutation } from '../../mutations/useUpdateReviewModerationStatusMutation.js';
 import { ReviewModerationStatusBadge } from '../../../reviews/index.js';
+import { ratingLabel } from '../../../../utils/formatRating.js';
 
 const DEFAULT_FILTERS = { moderationStatus: '', hasReports: 'true' };
 const CONTENT_PREVIEW_LENGTH = 120;
@@ -48,7 +49,7 @@ function truncate(text, maxLength) {
 }
 
 export default function AdminReviewModerationPageContent() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { locale } = useParams();
   const confirm = useConfirm();
   const { showToast } = useToast();
@@ -165,7 +166,14 @@ export default function AdminReviewModerationPageContent() {
     {
       key: 'rating',
       header: t('admin.reviewModeration.table.rating'),
-      render: (review) => <RatingStars value={review.rating} size="sm" />,
+      render: (review) => (
+        <RatingStars
+          value={review.rating}
+          size="sm"
+          locale={i18n.language}
+          label={ratingLabel(t, i18n.language, review.rating)}
+        />
+      ),
     },
     {
       key: 'content',

@@ -1040,7 +1040,8 @@ approximate public map. Every other listing type's address is public.
 on another attribute's option. `GET /listings/metadata` returns this as
 `attributes[].depends_on: { attribute_code, option_code }` (otherwise
 `null`). For example, a tour's `pickup_details` depends on
-`meeting_point_type = HOTEL_PICKUP`, and a car's `daily_distance_limit_km`
+`meeting_point_type = HOTEL_PICKUP`, its `end_point_details` on
+`end_point_type = ENDS_ELSEWHERE`, and a car's `daily_distance_limit_km`
 depends on `mileage_policy = LIMITED`.
 
 - Submitting a dependent while its condition does not hold returns `422`
@@ -1056,6 +1057,18 @@ cities are idempotent seed upserts (`seeds/002`, `006`, `007`). Migration
 `0055_category_attribute_conditions` adds the dependency columns. Run
 `npm run db:migrate` and then `npm run db:seed` on deploy.
 
+**Listing Detail information depth** (`docs/LISTING_DETAIL_INFORMATION_DEPTH.md`)
+adds optional category attributes through the same seed path, with no
+schema or response-shape change: tours `guide_type`, `transport_modes`
+(multi), `meals_included` (multi), `weather_policy`, `end_point_type` and
+`end_point_details` (string, max 255, conditional as above); entertainment
+venues `seating_type`. Restaurants, attractions and entertainment venues
+may also select the `STEP_FREE_ACCESS` and `ACCESSIBLE_BATHROOM` amenities.
+They are written with `attributeValues` like every other attribute,
+validated against the category (`422` for another category's attribute or
+an unknown option), and returned in `attribute_values` on both the public
+and the management shape.
+
 ### 38.2 Implemented contract — Listing Detail information (Listing Detail rebuild)
 
 See `docs/LISTING_DETAIL_FIELD_GAP.md` for the research and field matrix
@@ -1070,6 +1083,29 @@ partner, its managers and an admin (`listing.update`) get the stored point
 and address (`"exact"`), which is what the Wizard edits. Every other
 listing type is `"exact"` for everyone. The stored coordinates are never
 changed.
+
+**Public vs management shape (Listing Detail redesign):** a caller who
+may manage the listing (its partner's owner, an assigned Manager, or
+`listing.update`) gets the full management shape. Everyone else gets the
+minimal public shape (`listingDto.js` `toPublicListingResponse`):
+`id`, `slug`, `listing_type`, `status` (always `PUBLISHED` here),
+`published_at`, `is_indexable`, `translations`, `location`,
+`category_ids`, `amenity_ids`, `media`, `attribute_values`,
+`policy_values`, `pricing`, `booking_rules`, `rating_average`,
+`review_count`, `highlights`, `itinerary_steps`, `included_items`,
+`guest_notes`, `faqs` and `company` (public identity only). It never
+carries `partner_id`, `moderation_status`, `moderation_notes`,
+`is_contact_visible`, `is_featured`, `unpublished_at`, `archived_at`,
+`og_image_media_id`, `is_sitemap_included`, `canonical_url`,
+`created_at`, `updated_at`, the address row id, or media upload
+internals (`moderation_status`, `mime_type`, `file_size_bytes`,
+`created_at`).
+
+**Localized place names:** `location.name_translations` lists the city
+and country names in every language they exist in
+(`[{language_code, city_name, country_name}]`). The page picks its locale
+and falls back to `city_name` / `country_name`. These are names only,
+never anything more precise than the city.
 
 **Amenity keys:** every amenity in `GET /listings/metadata`
 (`amenity_groups[].amenities[]`, `amenity_catalog[]`) carries `key`, a
@@ -1911,6 +1947,14 @@ Base path: `/api/v1/reviews`. Maps to `reviews`, `review_replies`.
 | POST | `/reviews` | Submit a review | Required | Owner of a `Completed` booking for that listing |
 | POST | `/reviews/{id}/reply` | Partner reply to a review | Required | Owner (of the reviewed listing/partner) |
 | POST | `/reviews/{id}/moderate` | Hide/restore a review | Required | `review.moderate` (admin) |
+
+**Public list shape (Listing Detail redesign):** `GET
+/reviews?listingId=` returns each review as `id`, `rating`, `title`,
+`content`, `vendor_response`, `vendor_responded_at`, `created_at` and
+`customer_display_name`. The reviewer is shown as first name plus last
+initial ("Anna K."). The list never carries the reviewer's user id, the
+booking, or the moderation status. The reviewer's own view and the admin
+views keep their fuller shapes.
 
 **Validation (POST /reviews):** the caller must have at least one
 `Completed` booking (`BOOKING_ENGINE_ARCHITECTURE.md` §3.4) against the

@@ -6,12 +6,19 @@
  * yet; review submission uses its own control). Rendered as a single
  * `role="img"` with a full "X out of 5 stars, Y reviews" accessible
  * name, per the spec's explicit "never five separate unlabeled icons"
- * rule — `ReviewsList.test.jsx`/`ListingCardBase.test.jsx` assert on
- * exactly this composed label.
+ * rule.
+ *
+ * The rating is written by the shared Armenian-safe number formatter in
+ * `locale` ("4.5", "4,5"). The accessible name comes from the caller in the
+ * page language (`label`); the English composition below is only this
+ * package's no-locale default, as `PriceTag`'s `locale` defaults to `en`.
  */
 
 import PropTypes from 'prop-types';
+import { createNumberFormatter } from '../../../utils/numberFormat.js';
 import styles from './RatingStars.module.scss';
+
+const RATING_FRACTION_DIGITS = 1;
 
 const SIZES = ['sm', 'md', 'lg'];
 
@@ -47,10 +54,15 @@ export default function RatingStars({
   reviewCount = undefined,
   size = 'md',
   showCount = true,
+  locale = 'en',
+  label = undefined,
 }) {
   const clamped = Math.max(0, Math.min(5, value));
-  const rounded = (Math.round(clamped * 10) / 10).toFixed(1);
-  const label =
+  const rounded = createNumberFormatter(locale, {
+    minimumFractionDigits: RATING_FRACTION_DIGITS,
+    maximumFractionDigits: RATING_FRACTION_DIGITS,
+  }).format(clamped);
+  const defaultLabel =
     reviewCount === undefined
       ? `${rounded} out of 5 stars`
       : `${rounded} out of 5 stars, ${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'}`;
@@ -62,7 +74,7 @@ export default function RatingStars({
   return (
     <span
       role="img"
-      aria-label={label}
+      aria-label={label ?? defaultLabel}
       className={[styles.ratingStars, styles[`ratingStars--${size}`]].join(' ')}
     >
       <span className={styles.stars} aria-hidden="true">
@@ -85,6 +97,10 @@ RatingStars.propTypes = {
   reviewCount: PropTypes.number,
   size: PropTypes.oneOf(SIZES),
   showCount: PropTypes.bool,
+  /** BCP 47 tag (`i18n.language`) the rating is written in. */
+  locale: PropTypes.string,
+  /** The accessible name in the page language ("Rated 4,5 out of 5 …"). */
+  label: PropTypes.string,
 };
 
 export { SIZES as RATING_STARS_SIZES };

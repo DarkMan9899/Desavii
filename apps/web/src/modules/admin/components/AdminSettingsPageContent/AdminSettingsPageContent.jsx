@@ -18,6 +18,7 @@ import { useParams } from 'react-router-dom';
 import { Section, Stack } from '@desavii/ui/components/layout';
 import { Tabs } from '@desavii/ui/components/navigation';
 import { Alert } from '@desavii/ui/components/feedback-overlays';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
 import { useAdminConfigResource } from '../../hooks/useAdminConfigResource.js';
@@ -57,7 +58,7 @@ export default function AdminSettingsPageContent() {
     remove: deleteFeatureFlag,
   });
 
-  const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
+  const dateFormatter = createDateFormatter(i18n.language, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });

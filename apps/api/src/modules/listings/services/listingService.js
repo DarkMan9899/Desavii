@@ -980,6 +980,20 @@ export class ListingService {
   }
 
   /**
+   * Listing Detail redesign — the one read behind `GET /listings/:idOrSlug`:
+   * the visible listing (`getListing`'s rules) and whether this principal
+   * may manage it, which decides whether the response is the management
+   * shape or the minimal public one.
+   *
+   * @returns {Promise<{listing: object, canManage: boolean}>}
+   */
+  async getListingDetail(principal, idOrSlug) {
+    const listing = await this.getListing(principal, idOrSlug);
+    const canManage = await this.canManageListing(principal, listing);
+    return { listing, canManage };
+  }
+
+  /**
    * Step M4.1 — whether `principal` may access `listing` through the
    * private management path: the exact same "Owner or `listing.update`"
    * rule `getListing`'s own non-public branch already applies (same

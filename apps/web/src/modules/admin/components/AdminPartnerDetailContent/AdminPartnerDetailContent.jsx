@@ -47,6 +47,7 @@ import {
   ErrorState,
   Modal,
 } from '@desavii/ui/components/feedback-overlays';
+import { createNumberFormatter } from '@desavii/ui/utils/numberFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
@@ -488,7 +489,7 @@ export default function AdminPartnerDetailContent() {
                         }
                       />
                       <span>
-                        {new Intl.NumberFormat(i18n.language).format(
+                        {createNumberFormatter(i18n.language).format(
                           booking.total_amount,
                         )}
                       </span>

@@ -15,6 +15,7 @@
 import { useTranslation } from 'react-i18next';
 import PropTypes from 'prop-types';
 import { Badge } from '@desavii/ui/components/primitives';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import {
   LISTING_LIFECYCLE_STATES,
   resolveListingLifecycleState,
@@ -36,7 +37,7 @@ export default function ListingLifecycleStatus({ listing, locale }) {
 
   const days = daysUntilExpiry(listing);
   const formatDate = (value) =>
-    new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(
+    createDateFormatter(locale, { dateStyle: 'medium' }).format(
       new Date(value),
     );
 

@@ -62,8 +62,9 @@ describe('categoryPresentation', () => {
       { id: 'amenities', label: 'Amenities' },
       { id: 'policies', label: 'Policies' },
       { id: 'availability', label: 'Availability' },
-      { id: 'location', label: 'Location' },
       { id: 'reviews', label: 'Reviews' },
+      { id: 'location', label: 'Location' },
+      { id: 'partner', label: 'About the company' },
       { id: 'faq', label: 'FAQ' },
     ];
 
@@ -118,6 +119,16 @@ describe('categoryPresentation', () => {
     test('GENERIC keeps the original baseline order unchanged', () => {
       const ordered = reorderSections(allSections, PRESENTATION_GROUPS.GENERIC);
       expect(ordered.map((s) => s.id)).toEqual(allSections.map((s) => s.id));
+    });
+
+    // Listing Detail redesign: guests' reviews before the map and the
+    // company, in every category's order.
+    test('every order reads reviews, then the place, then the company', () => {
+      Object.values(PRESENTATION_GROUPS).forEach((group) => {
+        const ids = reorderSections(allSections, group).map((s) => s.id);
+        expect(ids.indexOf('reviews')).toBeLessThan(ids.indexOf('location'));
+        expect(ids.indexOf('location')).toBeLessThan(ids.indexOf('partner'));
+      });
     });
 
     test('only ever reorders sections that are actually present — never adds or drops any', () => {
@@ -275,8 +286,8 @@ describe('categoryPresentation', () => {
         'attributes',
         'amenities',
         'policies',
-        'location',
         'availability',
+        'location',
       ]);
     });
 
@@ -297,9 +308,9 @@ describe('categoryPresentation', () => {
       expect(ordered.map((s) => s.id)).toEqual([
         'about',
         'availability',
-        'location',
         'attributes',
         'policies',
+        'location',
       ]);
     });
   });

@@ -32,6 +32,7 @@ import {
 import { Button, Card, Badge } from '@desavii/ui/components/primitives';
 import { ErrorState, Modal } from '@desavii/ui/components/feedback-overlays';
 import { DataTable } from '@desavii/ui/components/dashboard';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
@@ -156,7 +157,7 @@ export default function AdminPromotionsPageContent() {
   const selectedCategoryProduct = categoryPlacement?.products.find(
     (p) => String(p.id) === String(createForm.categoryProductId),
   );
-  const dateTimeFormatter = new Intl.DateTimeFormat(i18n.language, {
+  const dateTimeFormatter = createDateFormatter(i18n.language, {
     dateStyle: 'medium',
   });
 

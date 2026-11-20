@@ -28,6 +28,10 @@ import {
 } from '@desavii/ui/components/feedback-overlays';
 import { Section, Stack, Inline } from '@desavii/ui/components/layout';
 import { DataTable } from '@desavii/ui/components/dashboard';
+import {
+  createDateFormatter,
+  NUMERIC_DATE,
+} from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
 import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
@@ -273,7 +277,10 @@ export default function PartnerStaffPageContent() {
     {
       key: 'expires_at',
       header: t('partner.staff.table.expires'),
-      render: (row) => new Date(row.expires_at).toLocaleDateString(locale),
+      render: (row) =>
+        createDateFormatter(locale, NUMERIC_DATE).format(
+          new Date(row.expires_at),
+        ),
     },
     {
       key: 'actions',

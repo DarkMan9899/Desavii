@@ -22,7 +22,7 @@ import SimulatedPaymentNotice from '../SimulatedPaymentNotice/SimulatedPaymentNo
 const SCENARIOS = ['SUCCESS', 'DECLINE', 'PROCESSING'];
 
 export default function PayNowPanel({ booking, onPaid = undefined }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showToast } = useToast();
   const [scenario, setScenario] = useState('SUCCESS');
   const createPaymentMutation = useCreatePaymentMutation();
@@ -68,6 +68,7 @@ export default function PayNowPanel({ booking, onPaid = undefined }) {
         <Inline gap="3" align="center" justify="space-between">
           <h2>{t('payments.payNow.heading')}</h2>
           <PriceTag
+            locale={i18n.language}
             amount={booking.total_amount}
             currencyCode={booking.currency}
           />

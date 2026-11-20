@@ -9,6 +9,7 @@
  */
 
 import PropTypes from 'prop-types';
+import { createNumberFormatter } from '../../../utils/numberFormat.js';
 import styles from './PriceTag.module.scss';
 
 const SIZES = ['sm', 'md', 'lg'];
@@ -23,7 +24,7 @@ export default function PriceTag({
   minimumFractionDigits = undefined,
   maximumFractionDigits = undefined,
 }) {
-  const formatted = new Intl.NumberFormat(locale, {
+  const formatted = createNumberFormatter(locale, {
     style: 'currency',
     currency: currencyCode,
     currencyDisplay: 'narrowSymbol',

@@ -16,6 +16,7 @@ import { Section, Stack, Inline } from '@desavii/ui/components/layout';
 import { Select } from '@desavii/ui/components/form-controls';
 import { DataTable } from '@desavii/ui/components/dashboard';
 import { Alert, ErrorState } from '@desavii/ui/components/feedback-overlays';
+import { createNumberFormatter } from '@desavii/ui/utils/numberFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import { useAdminListFilters } from '../../hooks/useAdminListFilters.js';
@@ -72,7 +73,7 @@ export default function AdminPaymentsPageContent() {
   ];
 
   const amountFormatter = useMemo(
-    () => new Intl.NumberFormat(i18n.language),
+    () => createNumberFormatter(i18n.language),
     [i18n.language],
   );
 

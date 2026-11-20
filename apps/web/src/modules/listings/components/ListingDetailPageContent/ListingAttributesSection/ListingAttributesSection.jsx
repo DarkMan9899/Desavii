@@ -1,12 +1,13 @@
 /**
- * ListingAttributesSection — the read side of `DynamicAttributesStep`'s
- * category-driven attribute set. Reuses `fromAttributeValuesResponse`
- * (Phase 5's own wizard mapping utility, unmodified) to turn the
- * listing's wire-shape `attribute_values` into the same `{code:
- * domainValue}` map `MetadataFieldRenderer` renders from, then hands it
- * to `MetadataValueDisplay` for the actual label+value formatting.
- * Never branches on category — `metadata.attributes` is whatever the
- * category declares, nothing here names one. A conditional attribute
+ * ListingAttributesSection — every category attribute a listing has a
+ * value for, as one flat list: the Admin listing review, which checks all
+ * of them at once. The public page shows the same values grouped by what
+ * a traveller weighs (`listingFactGroups.js`, `ListingFactGroupsSection`).
+ *
+ * Reuses `fromAttributeValuesResponse` (the Wizard's own mapping) to turn
+ * the wire-shape `attribute_values` into the `{code: domainValue}` map
+ * `MetadataValueDisplay` renders. Never branches on category — the
+ * attributes are whatever the category declares. A conditional attribute
  * whose condition no longer holds (`depends_on`) is not shown.
  */
 
@@ -17,13 +18,12 @@ import {
   fromAttributeValuesResponse,
   isAttributeApplicable,
 } from '../../../utils/attributeValueMapping.js';
+import { hasMetadataValue } from '../../../utils/metadataValueFormat.js';
 import MetadataValueDisplay from '../MetadataValueDisplay.jsx';
 
 export default function ListingAttributesSection({
   attributes = [],
   listing,
-  excludeCodes = [],
-  headingKey = 'pages.listingDetail.attributes.heading',
   sectionId = undefined,
 }) {
   const { t } = useTranslation();
@@ -34,23 +34,18 @@ export default function ListingAttributesSection({
     attributes,
     listing.attribute_values,
   );
-  const excluded = new Set(excludeCodes);
   const applicable = attributes.filter((definition) =>
     isAttributeApplicable(definition, valuesByCode),
   );
-  const hasAnyValue = applicable.some((definition) => {
-    if (excluded.has(definition.code)) return false;
-    const value = valuesByCode[definition.code];
-    return (
-      value !== undefined &&
-      value !== null &&
-      value !== '' &&
-      !(Array.isArray(value) && value.length === 0)
-    );
-  });
-  if (!hasAnyValue) return null;
+  if (
+    !applicable.some((definition) =>
+      hasMetadataValue(valuesByCode[definition.code]),
+    )
+  ) {
+    return null;
+  }
 
-  const heading = t(headingKey);
+  const heading = t('pages.listingDetail.attributes.heading');
   return (
     <Section spacing="none" aria-label={heading}>
       <h2 id={sectionId}>{heading}</h2>
@@ -58,7 +53,6 @@ export default function ListingAttributesSection({
         namespace="attributes"
         definitions={applicable}
         valuesByCode={valuesByCode}
-        excludeCodes={excludeCodes}
       />
     </Section>
   );
@@ -82,10 +76,5 @@ ListingAttributesSection.propTypes = {
     // eslint-disable-next-line react/forbid-prop-types -- passthrough to fromAttributeValuesResponse, whose own entry shape varies by data_type
     attribute_values: PropTypes.array,
   }).isRequired,
-  // Codes the key facts strip already shows; the public page passes them,
-  // Admin (which wants every value) does not.
-  excludeCodes: PropTypes.arrayOf(PropTypes.string),
-  // "Details", or a category's own wording ("Vehicle specifications").
-  headingKey: PropTypes.string,
   sectionId: PropTypes.string,
 };

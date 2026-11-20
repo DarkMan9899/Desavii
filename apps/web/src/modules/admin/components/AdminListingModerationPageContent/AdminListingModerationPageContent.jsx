@@ -42,6 +42,7 @@ import { Input, Select, Textarea } from '@desavii/ui/components/form-controls';
 import { Button, Badge } from '@desavii/ui/components/primitives';
 import { DataTable } from '@desavii/ui/components/dashboard';
 import { Modal, ErrorState } from '@desavii/ui/components/feedback-overlays';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import { Search } from 'lucide-react';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
@@ -144,7 +145,7 @@ export default function AdminListingModerationPageContent() {
   );
 
   const dateFormatter = useMemo(
-    () => new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' }),
+    () => createDateFormatter(i18n.language, { dateStyle: 'medium' }),
     [i18n.language],
   );
 

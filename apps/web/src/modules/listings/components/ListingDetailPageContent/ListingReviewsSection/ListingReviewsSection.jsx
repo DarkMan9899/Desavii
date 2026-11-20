@@ -1,73 +1,70 @@
 /**
- * ListingReviewsSection — Phase 18 (Premium Listing Detail): adds the
- * shared `ReviewSummary` primitive (big average + rating stars) above
- * the existing `ReviewsList`, using the listing's own `rating_average`/
- * `review_count` (Phase 12's real, backend-computed aggregate — never
- * fabricated). No distribution bars: the backend doesn't compute a
- * per-star breakdown, and `ReviewSummary` already treats that as
- * optional rather than requiring an estimate. Reviews are only ever
- * submitted from a completed booking's own detail page
- * (`BookingDetailPageContent`'s review gate) — this section stays
- * display-only, no "write a review" CTA here.
+ * ListingReviewsSection — what real guests think. One summary — the
+ * approved-review average in large type, a gold star and the
+ * approved-review count, spoken as one sentence — then the reviews
+ * themselves (`ReviewsList`, newest first, "Load more"). Display only:
+ * reviews are written from a completed booking, never here.
  *
- * Listing Detail rebuild: with no review at all (`reviewCount` is the live
- * count of approved reviews, the same filter the list itself reads) the
- * section is one quiet line — no empty-state block, and no request for a
- * list known to be empty.
+ * No per-star distribution: with the handful of reviews most listings
+ * have, a bar chart would suggest a precision the data does not have.
+ *
+ * Without a single approved review the section is one honest line — no
+ * empty-state block, no request for a list known to be empty.
  */
 
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { ReviewSummary } from '@desavii/ui/components/data-display';
-import { Section, Stack } from '@desavii/ui/components/layout';
+import { Section } from '@desavii/ui/components/layout';
+import { Star } from 'lucide-react';
+import { listingRatingShape } from '../../../../../components/ListingRating/ListingRating.jsx';
+import { formatRatingAverage } from '../../../../../utils/formatRating.js';
 import { ReviewsList } from '../../../../reviews/index.js';
 import styles from './ListingReviewsSection.module.scss';
 
 export default function ListingReviewsSection({
   listingId,
-  partnerId = undefined,
-  ratingAverage = null,
-  reviewCount = 0,
+  companySlug = undefined,
+  rating = null,
   sectionId = undefined,
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
-    // Redesign phase (2026) — `<Section spacing="none">`, matching every
-    // sibling section's own root shape, so `ListingDetailPageContent.
-    // module.scss`'s shared `.main > section` card treatment applies here
-    // too (this was previously the one section rendering a bare `Stack`,
-    // the one section that stayed un-carded and visually inconsistent).
     <Section
       spacing="none"
       aria-label={t('pages.listingDetail.reviews.heading')}
     >
-      <Stack gap="4">
-        <h2 id={sectionId}>{t('pages.listingDetail.reviews.heading')}</h2>
-        {reviewCount === 0 ? (
-          <p className={styles.none}>{t('pages.listingDetail.reviews.none')}</p>
-        ) : (
-          <>
-            {ratingAverage !== null && (
-              <ReviewSummary
-                average={ratingAverage}
-                reviewCount={reviewCount}
-              />
-            )}
-            <ReviewsList listingId={listingId} partnerId={partnerId} />
-          </>
-        )}
-      </Stack>
+      <h2 id={sectionId}>{t('pages.listingDetail.reviews.heading')}</h2>
+      {rating ? (
+        <div className={styles.body}>
+          <p className={styles.summary}>
+            <span className={styles.average} aria-hidden="true">
+              {formatRatingAverage(rating.average, i18n.language)}
+            </span>
+            <span className={styles.ratingLine} aria-hidden="true">
+              <Star size={16} className={styles.star} />
+              {t('listingCard.reviews.count', { count: rating.count })}
+            </span>
+            <span className={styles.visuallyHidden}>
+              {t('listingCard.reviews.label', {
+                rating: formatRatingAverage(rating.average, i18n.language),
+                count: rating.count,
+              })}
+            </span>
+          </p>
+          <ReviewsList listingId={listingId} companySlug={companySlug} />
+        </div>
+      ) : (
+        <p className={styles.none}>{t('pages.listingDetail.reviews.none')}</p>
+      )}
     </Section>
   );
 }
 
 ListingReviewsSection.propTypes = {
   listingId: PropTypes.number.isRequired,
-  // The listing's owning partner — lets `ReviewsList` show Reply/Edit/
-  // Delete affordances to that partner's OWNER/MANAGER staff.
-  partnerId: PropTypes.number,
-  ratingAverage: PropTypes.number,
-  reviewCount: PropTypes.number,
+  // The listing's public company — lets its OWNER/MANAGER staff reply.
+  companySlug: PropTypes.string,
+  rating: listingRatingShape,
   sectionId: PropTypes.string,
 };

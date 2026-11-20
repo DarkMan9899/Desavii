@@ -38,6 +38,7 @@ import {
 } from '@desavii/ui/components/feedback-overlays';
 import { Button, Card } from '@desavii/ui/components/primitives';
 import { Textarea } from '@desavii/ui/components/form-controls';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import { useAuth } from '../../../../contexts/AuthContext.jsx';
@@ -149,10 +150,10 @@ export default function AdminBookingDetailContent() {
   const heading = t('admin.bookingDetail.heading', {
     reference: booking.booking_reference,
   });
-  const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
+  const dateFormatter = createDateFormatter(i18n.language, {
     dateStyle: 'medium',
   });
-  const dateTimeFormatter = new Intl.DateTimeFormat(i18n.language, {
+  const dateTimeFormatter = createDateFormatter(i18n.language, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
@@ -293,6 +294,7 @@ export default function AdminBookingDetailContent() {
                   ("Cancelled by you") is wrong here too. */}
               <BookingStatusBadge status={booking.status} audience="partner" />
               <BookingTotal
+                locale={i18n.language}
                 booking={booking}
                 amount={booking.total_amount}
                 currencyCode={booking.currency}

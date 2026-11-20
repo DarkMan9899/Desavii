@@ -1599,6 +1599,24 @@ separators, decimal marks, and currency symbol placement per locale
 convention (e.g., `1,234.56 ֏` vs. `1 234,56 ₽`) without the frontend
 maintaining its own locale-formatting rules.
 
+Every number is formatted through `createNumberFormatter`
+(`packages/ui/src/utils/numberFormat.js`, exported as
+`@desavii/ui/utils/numberFormat`) rather than `new Intl.NumberFormat`
+directly — `formatMoney`, `PriceTag` and the dashboard tables all use it.
+Some browsers (desktop Chrome among them) ship ICU without Armenian, and
+`Intl` then silently formats `hy` with English separators (`37,000`). The
+helper keeps `Intl` whenever it supports the locale; otherwise it rounds
+with `Intl` and rebuilds the text from Unicode CLDR data (the
+`cldr-numbers-full` package: Armenian symbols, grouping and patterns, so
+`37 000,00 ֏`). Dates follow the same pattern via `createDateFormatter`.
+Guest ratings too: `apps/web/src/utils/formatRating.js` writes the
+average to one decimal in the page locale (`4.7`, `4,7`), and every
+`RatingStars` receives `locale` plus a localized accessible name
+(`ratingLabel`), so no English "out of 5 stars" reaches a `/hy/` or `/ru/`
+page. Armenian's CLDR minimum grouping is two digits, so `9000 ֏` and
+`13 000 ֏` are both correct; WebKit's own data groups four digits
+(`9 000 ֏`), which is equally valid and not overridden.
+
 ### 17.3 Date and Number Formatting Consistency
 
 The same `Intl`-based approach is used for all locale-sensitive date
@@ -1606,6 +1624,20 @@ display (`Intl.DateTimeFormat`, Chapter 18) — one shared formatting layer
 for both numbers and dates keeps every module's price and date rendering
 visually and grammatically consistent, rather than each module
 implementing its own ad hoc formatting.
+
+Dates and relative times never call `Intl` directly from a module. They
+go through `@desavii/ui/utils/dateFormat` (`createDateFormatter`, plus
+the `NUMERIC_DATE` / `NUMERIC_DATE_TIME` presets that replace
+`toLocaleDateString` / `toLocaleString`) and
+`@desavii/ui/utils/relativeTimeFormat` (`formatRelativeTime`). Desktop
+Google Chrome (checked on 157) ships ICU without Armenian: a bare
+`Intl` call on a `/hy/` page silently answers in the visitor's browser
+language ("Nov 25, 2026", "25 нояб. 2026 г.", or "2026 M11 25" for an
+Armenian-language browser). These utilities keep `Intl` wherever it has
+the locale and fall back to `date-fns`'s maintained `hy` data otherwise.
+A new option set needs a matching fallback pattern in `dateFormat.js`,
+or it keeps the `Intl` fallback language. Node ships full ICU, so unit
+tests only see the fallback when they mock `supportedLocalesOf`.
 
 ## 18. Date and Timezone Handling
 

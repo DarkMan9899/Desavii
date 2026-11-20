@@ -63,6 +63,13 @@ const layers = [
       ),
   },
   {
+    label: 'one representative listing per category completed',
+    run: async (connection) =>
+      (
+        await import('../seeds/demo/seedDemoListingInformationDepth.js')
+      ).default(connection),
+  },
+  {
     label: 'listing coordinates backfilled from their city centroid',
     run: async (connection) =>
       (

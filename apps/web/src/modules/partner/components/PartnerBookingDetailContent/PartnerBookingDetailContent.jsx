@@ -31,6 +31,7 @@ import {
   EmptyState,
 } from '@desavii/ui/components/feedback-overlays';
 import { Button, Card } from '@desavii/ui/components/primitives';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
 import { useConfirm } from '../../../../contexts/ConfirmContext.jsx';
@@ -134,10 +135,10 @@ export default function PartnerBookingDetailContent({
   const heading = t('partner.bookings.detail.heading', {
     reference: booking.booking_reference,
   });
-  const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
+  const dateFormatter = createDateFormatter(i18n.language, {
     dateStyle: 'medium',
   });
-  const dateTimeFormatter = new Intl.DateTimeFormat(i18n.language, {
+  const dateTimeFormatter = createDateFormatter(i18n.language, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
@@ -289,6 +290,7 @@ export default function PartnerBookingDetailContent({
             <Inline gap="3" align="center">
               <BookingStatusBadge status={booking.status} audience="partner" />
               <BookingTotal
+                locale={i18n.language}
                 booking={booking}
                 amount={booking.total_amount}
                 currencyCode={booking.currency}

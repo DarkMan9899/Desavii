@@ -35,6 +35,7 @@ import {
 import { DataTable } from '@desavii/ui/components/dashboard';
 import { Button } from '@desavii/ui/components/primitives';
 import { ErrorState, Modal } from '@desavii/ui/components/feedback-overlays';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import { Search } from 'lucide-react';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import { useAdminListFilters } from '../../hooks/useAdminListFilters.js';
@@ -140,7 +141,7 @@ export default function AdminAuditLogsPageContent() {
 
   const dateFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat(i18n.language, {
+      createDateFormatter(i18n.language, {
         dateStyle: 'medium',
         timeStyle: 'short',
       }),

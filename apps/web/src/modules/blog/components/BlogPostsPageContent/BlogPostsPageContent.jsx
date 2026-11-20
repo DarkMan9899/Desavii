@@ -16,6 +16,10 @@ import { Button, Badge } from '@desavii/ui/components/primitives';
 import { Input, Select } from '@desavii/ui/components/form-controls';
 import { DataTable } from '@desavii/ui/components/dashboard';
 import { Modal, ErrorState } from '@desavii/ui/components/feedback-overlays';
+import {
+  createDateFormatter,
+  NUMERIC_DATE,
+} from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import { useToast } from '../../../../contexts/ToastContext.jsx';
@@ -133,7 +137,10 @@ export default function BlogPostsPageContent({
     {
       key: 'updated',
       header: t('marketing.posts.columns.updated'),
-      render: (row) => new Date(row.updated_at).toLocaleDateString(locale),
+      render: (row) =>
+        createDateFormatter(locale, NUMERIC_DATE).format(
+          new Date(row.updated_at),
+        ),
     },
   ];
 

@@ -11,6 +11,11 @@
  */
 
 import {
+  UserRound,
+  Bus,
+  Utensils,
+  Umbrella,
+  Flag,
   Star,
   Building2,
   DoorOpen,
@@ -142,6 +147,13 @@ export const ATTRIBUTE_ICONS = Object.freeze({
   visit_format: Footprints,
   setting: CloudSun,
   venue_type: Ticket,
+  guide_type: UserRound,
+  transport_modes: Bus,
+  meals_included: Utensils,
+  weather_policy: Umbrella,
+  end_point_type: Flag,
+  end_point_details: Flag,
+  seating_type: Armchair,
 });
 
 export const AMENITY_ICONS = Object.freeze({

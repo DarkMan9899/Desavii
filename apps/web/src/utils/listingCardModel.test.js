@@ -88,7 +88,7 @@ describe('listingCardModel — price wording', () => {
 
 describe('listingCardModel — rating and the "Top guest rating" rule', () => {
   test('a rating needs at least one approved review and a real average', () => {
-    expect(resolveCardRating(DTO)).toEqual({ average: '4.7', count: 7 });
+    expect(resolveCardRating(DTO)).toEqual({ average: 4.7, count: 7 });
     expect(
       resolveCardRating({ review_count: 0, rating_average: null }),
     ).toBeNull();

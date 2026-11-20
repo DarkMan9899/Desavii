@@ -19,6 +19,8 @@ import { Section, Stack, Inline } from '@desavii/ui/components/layout';
 import { Select } from '@desavii/ui/components/form-controls';
 import { DataTable } from '@desavii/ui/components/dashboard';
 import { ErrorState } from '@desavii/ui/components/feedback-overlays';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
+import { createNumberFormatter } from '@desavii/ui/utils/numberFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import RouterLink from '../../../../components/RouterLink.jsx';
 import { useAdminListFilters } from '../../hooks/useAdminListFilters.js';
@@ -98,11 +100,11 @@ export default function AdminBookingsPageContent() {
   ];
 
   const amountFormatter = useMemo(
-    () => new Intl.NumberFormat(i18n.language),
+    () => createNumberFormatter(i18n.language),
     [i18n.language],
   );
   const dateFormatter = useMemo(
-    () => new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' }),
+    () => createDateFormatter(i18n.language, { dateStyle: 'medium' }),
     [i18n.language],
   );
 

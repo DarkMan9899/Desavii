@@ -18,6 +18,7 @@ import {
 } from '@desavii/ui/components/feedback-overlays';
 import { Card, Button } from '@desavii/ui/components/primitives';
 import { PriceTag } from '@desavii/ui/components/data-display';
+import { createDateFormatter } from '@desavii/ui/utils/dateFormat';
 import PageHeader from '../../../../components/PageHeader/PageHeader.jsx';
 import { useMyPaymentsQuery } from '../../queries/useMyPaymentsQuery.js';
 import PaymentStatusBadge from '../PaymentStatusBadge/PaymentStatusBadge.jsx';
@@ -36,7 +37,7 @@ export default function MyPaymentsPageContent() {
     hasNextPage,
     isFetchingNextPage,
   } = useMyPaymentsQuery();
-  const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
+  const dateFormatter = createDateFormatter(i18n.language, {
     dateStyle: 'medium',
   });
 
@@ -90,6 +91,7 @@ export default function MyPaymentsPageContent() {
                 <Inline gap="3" align="center" justify="space-between">
                   <PaymentStatusBadge status={payment.status} />
                   <PriceTag
+                    locale={i18n.language}
                     amount={payment.total_amount}
                     currencyCode={payment.currency}
                   />
