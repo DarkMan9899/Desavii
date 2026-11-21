@@ -107,6 +107,8 @@ export default function createV1Router({
   // Repository directly (BACKEND_ARCHITECTURE.md §4's cross-module rule).
   const availabilityContainer = createAvailabilityContainer({
     listingService: listingsContainer.listingService,
+    // A restaurant reservation must fall inside the published hours.
+    openingHoursService: listingsContainer.openingHoursService,
     permissionResolver,
     auditLogger,
     eventBus,
@@ -162,6 +164,7 @@ export default function createV1Router({
     // Pass 8: server-side-only FX snapshot resolution at booking creation
     // (brief §30 — a client-supplied FX rate is never trusted).
     exchangeRateService: fxContainer.exchangeRateService,
+    restaurantMenuService: listingsContainer.restaurantMenuService,
     permissionResolver,
     auditLogger,
     eventBus,

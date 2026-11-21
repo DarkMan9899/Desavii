@@ -29,6 +29,7 @@ import { rememberHoldQuotes, quotedItem } from '../helpers/holdQuotes.js';
 import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
+import { markListingBookable } from '../helpers/markListingBookable.js';
 
 const GUEST_CONTACT = { fullName: 'Ada Lovelace', email: 'ada@example.com' };
 const ONE_PX_PNG = Buffer.from(
@@ -62,7 +63,7 @@ async function login(email, password) {
 }
 
 /** A PER_PERSON-priced listing of `categorySlug` with one base-priced departure unit. */
-async function createBookable(categorySlug) {
+async function createBookable(categorySlug, { bookable = true } = {}) {
   const listingRes = await request(app)
     .post('/api/v1/listings')
     .set('Authorization', `Bearer ${vendor}`)
@@ -77,6 +78,7 @@ async function createBookable(categorySlug) {
     });
   expect(listingRes.status).toBe(201);
   const listingId = listingRes.body.data.id;
+  if (bookable) await markListingBookable(listingId);
   const unitRes = await request(app)
     .post('/api/v1/availability/units')
     .set('Authorization', `Bearer ${vendor}`)
@@ -245,7 +247,10 @@ describe('supported PER_PERSON holds', () => {
 
 describe('booking conversion', () => {
   test('a hold granted before the listing became unsupported cannot be converted, and stays intact', async () => {
-    const { listingId, unitId } = await createBookable('entertainment-venues');
+    // Published below through the real admin path.
+    const { listingId, unitId } = await createBookable('entertainment-venues', {
+      bookable: false,
+    });
     await request(app)
       .patch(`/api/v1/listings/${listingId}`)
       .set('Authorization', `Bearer ${vendor}`)

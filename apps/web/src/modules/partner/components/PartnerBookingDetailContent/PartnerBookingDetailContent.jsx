@@ -45,6 +45,7 @@ import {
   BookingStatusBadge,
   BookingTotal,
   resolvePartySize,
+  BookingItemMenuPreorder,
 } from '../../../bookings/index.js';
 import { useCreateConversationMutation } from '../../../messaging/index.js';
 import { BookingPaymentSection } from '../../../payments/index.js';
@@ -384,6 +385,11 @@ export default function PartnerBookingDetailContent({
                         {resolvePartySize(item)}
                       </p>
                     )}
+                    <BookingItemMenuPreorder
+                      bookingType={booking.booking_type}
+                      item={item}
+                      locale={locale}
+                    />
                     {nights !== null && (
                       <p>
                         {t('bookings.detail.nights')}: {nights}

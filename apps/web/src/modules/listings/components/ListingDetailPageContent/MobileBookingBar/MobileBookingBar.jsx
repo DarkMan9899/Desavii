@@ -35,18 +35,25 @@ import { useParams } from 'react-router-dom';
 import { Button } from '@desavii/ui/components/primitives';
 import { Drawer } from '@desavii/ui/components/feedback-overlays';
 import {
-  resolveBookingCtaLabel,
   resolvePricingModelLabel,
   isPricingModelBookable,
 } from '../../../utils/reservationLabels.js';
+import {
+  resolveBookingFlow,
+  resolveBookingCtaKey,
+} from '../../../utils/bookingFlows.js';
+import { useListingBookableUnitsQuery } from '../../../queries/useListingBookableUnitsQuery.js';
 import ListingReservationWidget from '../ListingReservationWidget/ListingReservationWidget.jsx';
+import {
+  menusShape,
+  weeklyHoursShape,
+} from '../ListingReservationWidget/reservationPropShapes.js';
 import Money from '../../../../../components/Money/Money.jsx';
 import styles from './MobileBookingBar.module.scss';
 
 export default function MobileBookingBar({
   listingId,
   pricing = null,
-  bookingCtaKey,
   location = null,
   selectedUnitId = undefined,
   onSelectUnit = undefined,
@@ -55,12 +62,22 @@ export default function MobileBookingBar({
   listingType = null,
   bookingRules = null,
   categorySlug = null,
+  menus = [],
+  weeklyHours = null,
 }) {
   const { t } = useTranslation();
   const { locale } = useParams();
   const [isOpen, setIsOpen] = useState(false);
-
-  const ctaLabel = resolveBookingCtaLabel(t, bookingCtaKey);
+  // The bar names the same action as the panel, from the same (cached)
+  // units read — "Rent this car", "Reserve a table", "Book tour"…
+  const { data: units } = useListingBookableUnitsQuery(listingId);
+  const ctaLabel = t(
+    resolveBookingCtaKey({
+      flow: resolveBookingFlow(units),
+      categorySlug,
+      listingType,
+    }),
+  );
   const pricingModelLabel = resolvePricingModelLabel(t, pricing, listingType);
   // Step L6.2H1: a legacy pricing model the server refuses to book shows
   // why instead of a price, and offers no booking drawer.
@@ -110,7 +127,6 @@ export default function MobileBookingBar({
         <ListingReservationWidget
           listingId={listingId}
           pricing={pricing}
-          bookingCtaKey={bookingCtaKey}
           location={location}
           selectedUnitId={selectedUnitId}
           onSelectUnit={onSelectUnit}
@@ -119,6 +135,9 @@ export default function MobileBookingBar({
           listingType={listingType}
           bookingRules={bookingRules}
           categorySlug={categorySlug}
+          menus={menus}
+          weeklyHours={weeklyHours}
+          presentation="sheet"
         />
       </Drawer>
     </>
@@ -133,7 +152,6 @@ MobileBookingBar.propTypes = {
     pricing_model: PropTypes.string,
     is_model_supported: PropTypes.bool,
   }),
-  bookingCtaKey: PropTypes.string.isRequired,
   location: PropTypes.shape({
     cityName: PropTypes.string,
     countryName: PropTypes.string,
@@ -154,4 +172,6 @@ MobileBookingBar.propTypes = {
     advance_booking_min_hours: PropTypes.number,
     advance_booking_max_days: PropTypes.number,
   }),
+  menus: menusShape,
+  weeklyHours: weeklyHoursShape,
 };

@@ -1,0 +1,148 @@
+// Restaurant pre-order (picker and the panel's pre-order block) — tokens
+// only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-4;
+}
+
+.intro {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-6;
+}
+
+.sectionTitle {
+  margin: 0 0 tokens.$space-2;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-body-large;
+  line-height: tokens.$line-height-body-large;
+  color: tokens.$color-navy;
+}
+
+.dishList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dish {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: tokens.$space-3;
+  padding: tokens.$space-3 0;
+  border-top: 1px solid tokens.$color-gray-200;
+}
+
+.dishText {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-1;
+  min-width: 0;
+}
+
+.dishTitle {
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+  overflow-wrap: anywhere;
+}
+
+.dishDescription {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.dishPrice {
+  font-variant-numeric: tabular-nums;
+}
+
+// The chosen count and subtotal stay in view while the menu scrolls.
+.footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  padding: tokens.$space-3 0 0;
+  border-top: 1px solid tokens.$color-gray-200;
+  background-color: tokens.$color-white;
+}
+
+.footerTotals {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: tokens.$space-3;
+}
+
+.footerCount {
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
+.limit {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-warning-strong;
+}
+
+.payNote {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-success-strong;
+}
+
+.footerActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: tokens.$space-2;
+}
+
+// The panel's "Your reservation" choice and pre-order block.
+.modeChoice {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.modeLegend {
+  margin-bottom: tokens.$space-1;
+  padding: 0;
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
+.preorderBlock {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+}
+
+.preorderEmpty {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+}

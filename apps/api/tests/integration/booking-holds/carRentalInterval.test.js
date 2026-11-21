@@ -22,6 +22,7 @@ import {
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { markListingBookable } from '../helpers/markListingBookable.js';
 
 let vendor;
 let customer;
@@ -47,6 +48,7 @@ async function createCarRentalListing(title) {
       listingType: 'CAR_RENTAL',
       translations: [{ languageId, title }],
     });
+  await markListingBookable(res.body.data.id);
   return res.body.data.id;
 }
 
@@ -194,6 +196,7 @@ describe('POST /booking-holds — Car Rental pickup/return time persistence + va
         ],
       });
     const listingId = listingRes.body.data.id;
+    await markListingBookable(listingId);
     const res = await request(app)
       .post('/api/v1/availability/units')
       .set('Authorization', `Bearer ${vendor.accessToken}`)

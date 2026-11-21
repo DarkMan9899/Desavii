@@ -34,6 +34,7 @@ import {
 } from '../helpers/holdQuotes.js';
 import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { markListingBookable } from '../helpers/markListingBookable.js';
 
 let pool;
 let vendor;
@@ -61,6 +62,7 @@ async function createUnit(listingType, bookableUnitType, extra = {}) {
         { languageId, title: `L6.2E ${listingType} ${Date.now()}` },
       ],
     });
+  await markListingBookable(listingRes.body.data.id);
   const unitRes = await request(app)
     .post('/api/v1/availability/units')
     .set('Authorization', `Bearer ${vendor}`)

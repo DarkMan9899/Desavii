@@ -304,23 +304,31 @@ test.describe('Sprint C-3 — Hotel date-range stay availability', () => {
     // (the "one canonical selection") reflects it immediately.
     await page.getByRole('button', { name: 'Select Spacious Room' }).click();
     const sidebar = page.getByRole('complementary');
-    await expect(sidebar.getByText('3-night stay')).toBeVisible();
-    await expect(sidebar.getByLabel('Unit')).toContainText('Spacious Room');
+    // The summary states the stay's length (W-07).
+    const nightsRow = sidebar.locator('dt', { hasText: 'Nights' });
+    await expect(
+      nightsRow.locator('xpath=following-sibling::dd[1]'),
+    ).toHaveText('3');
+    await expect(sidebar.getByLabel('Room type')).toContainText(
+      'Spacious Room',
+    );
 
     // 6. Changing the stay dates clears the now-unchecked room selection —
     // the widget's own quantity/guest fields (only shown once a room is
     // selected) disappear until the customer picks again.
     await pickDateRange(page, otherCheckIn, otherCheckOut);
-    await expect(sidebar.getByLabel('Guests')).toHaveCount(0);
-    await expect(sidebar.getByLabel('Unit')).toContainText('Select a unit');
+    await expect(sidebar.getByLabel('Guests', { exact: true })).toHaveCount(0);
+    await expect(sidebar.getByLabel('Room type')).toContainText(
+      'Choose a room type',
+    );
 
     // 7. Re-pick the same available room for the new range and complete
     // the hand-off — the exact room/dates/stay-total reach checkout.
     await page.getByRole('button', { name: 'Select Spacious Room' }).click();
     await expect(
-      page.getByRole('button', { name: 'Check availability' }),
+      page.getByRole('button', { name: 'Reserve', exact: true }),
     ).toBeEnabled();
-    await page.getByRole('button', { name: 'Check availability' }).click();
+    await page.getByRole('button', { name: 'Reserve', exact: true }).click();
     await expect(page).toHaveURL(/\/en\/booking\/checkout$/);
 
     await expect(page.getByText('Room / unit type')).toBeVisible();

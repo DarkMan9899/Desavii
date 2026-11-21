@@ -12,6 +12,10 @@ import { BOOKING_REFUND_STATUSES } from '../../../core/domain/bookingRefundStatu
 import { isoDateSchema } from '../../../validation/isoDate.js';
 import { SMALLINT_UNSIGNED_MAX } from '../../../validation/sqlIntegerBounds.js';
 import { EXPECTED_AMOUNT_PATTERN } from '../../../core/domain/bookingQuote.js';
+import {
+  MAX_PREORDER_LINES,
+  MAX_PREORDER_QUANTITY,
+} from '../../../core/domain/restaurantPreorder.js';
 
 // Structural only; whether it is a configured currency is checked against
 // `currencies` in `BookingService#createBooking` (UNKNOWN_CURRENCY).
@@ -26,43 +30,85 @@ const guestSchema = z.object({
   documentNumber: z.string().trim().max(100).optional(),
 });
 
-const bookingItemInputSchema = z.object({
-  holdIds: z
-    .array(z.coerce.number().int().positive())
-    .min(1)
-    .refine((ids) => new Set(ids).size === ids.length, {
-      message: 'holdIds must not contain duplicates.',
-    }),
-  guests: z.array(guestSchema).default([]),
-  // P2.2B: optional so existing callers submitting no guest count at all
-  // stay compatible (BookingService#resolveItem only enforces the
-  // max_guests x quantity cap when this is present). Structural
-  // validation only — `guestCount` positive integer; whether it's
-  // actually within capacity is a Layer 3 (database-dependent) concern,
-  // same split this file's own header comment documents.
-  //
-  // Step L6.2H2B: capped at the `booking_items.guest_count` SMALLINT UNSIGNED
-  // storage ceiling (overflow protection, not a product maximum). Required
-  // for a restaurant reservation — enforced in BookingService#resolveItem
-  // (PARTY_SIZE_REQUIRED), since only the consumed hold knows the unit type.
-  guestCount: z.coerce
-    .number()
-    .int()
-    .positive()
-    .max(SMALLINT_UNSIGNED_MAX)
-    .optional(),
-  // Step L6.2H4: the item quote the customer accepted (the hold's server
-  // quote, echoed back) — compared with the current price, never charged.
-  // Strings only, in the exact canonical form the server emits, so no
-  // number/exponent/float form can be coerced into a match.
-  expectedTotalAmount: z.string().regex(EXPECTED_AMOUNT_PATTERN, {
-    message:
-      'expectedTotalAmount must be a decimal string with exactly two decimals.',
-  }),
-  expectedCurrency: z.string().regex(CURRENCY_CODE_PATTERN, {
-    message: 'expectedCurrency must be a 3-letter currency code.',
-  }),
+// Restaurant menu pre-order: dish ids and portions only — every title and
+// price is read from the restaurant's own menu server-side.
+const menuSelectionSchema = z.object({
+  menuItemId: z.coerce.number().int().positive(),
+  quantity: z.coerce.number().int().min(1).max(MAX_PREORDER_QUANTITY),
 });
+
+const bookingItemInputSchema = z
+  .object({
+    holdIds: z
+      .array(z.coerce.number().int().positive())
+      .min(1)
+      .refine((ids) => new Set(ids).size === ids.length, {
+        message: 'holdIds must not contain duplicates.',
+      }),
+    guests: z.array(guestSchema).default([]),
+    // P2.2B: optional so existing callers submitting no guest count at all
+    // stay compatible (BookingService#resolveItem only enforces the
+    // max_guests x quantity cap when this is present). Structural
+    // validation only — `guestCount` positive integer; whether it's
+    // actually within capacity is a Layer 3 (database-dependent) concern,
+    // same split this file's own header comment documents.
+    //
+    // Step L6.2H2B: capped at the `booking_items.guest_count` SMALLINT UNSIGNED
+    // storage ceiling (overflow protection, not a product maximum). Required
+    // for a restaurant reservation — enforced in BookingService#resolveItem
+    // (PARTY_SIZE_REQUIRED), since only the consumed hold knows the unit type.
+    guestCount: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(SMALLINT_UNSIGNED_MAX)
+      .optional(),
+    // Step L6.2H4: the item quote the customer accepted (the hold's server
+    // quote, echoed back) — compared with the current price, never charged.
+    // Strings only, in the exact canonical form the server emits, so no
+    // number/exponent/float form can be coerced into a match.
+    expectedTotalAmount: z.string().regex(EXPECTED_AMOUNT_PATTERN, {
+      message:
+        'expectedTotalAmount must be a decimal string with exactly two decimals.',
+    }),
+    expectedCurrency: z.string().regex(CURRENCY_CODE_PATTERN, {
+      message: 'expectedCurrency must be a 3-letter currency code.',
+    }),
+    menuSelections: z
+      .array(menuSelectionSchema)
+      .min(1)
+      .max(MAX_PREORDER_LINES)
+      .refine(
+        (lines) =>
+          new Set(lines.map((line) => line.menuItemId)).size === lines.length,
+        { message: 'menuSelections must not repeat a menuItemId.' },
+      )
+      .optional(),
+    // The menu subtotal the customer saw — refused if the menu changed since.
+    expectedMenuSubtotalAmount: z
+      .string()
+      .regex(EXPECTED_AMOUNT_PATTERN, {
+        message:
+          'expectedMenuSubtotalAmount must be a decimal string with exactly two decimals.',
+      })
+      .optional(),
+    expectedMenuCurrency: z
+      .string()
+      .regex(CURRENCY_CODE_PATTERN, {
+        message: 'expectedMenuCurrency must be a 3-letter currency code.',
+      })
+      .optional(),
+  })
+  .refine(
+    (item) =>
+      !item.menuSelections ||
+      (item.expectedMenuSubtotalAmount !== undefined &&
+        item.expectedMenuCurrency !== undefined),
+    {
+      message: 'A menu pre-order needs the subtotal the customer confirmed.',
+      path: ['expectedMenuSubtotalAmount'],
+    },
+  );
 
 const guestContactSnapshotSchema = z.object({
   fullName: z.string().trim().min(1).max(255),

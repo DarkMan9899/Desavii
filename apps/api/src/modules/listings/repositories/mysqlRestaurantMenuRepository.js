@@ -108,6 +108,38 @@ export class MySqlRestaurantMenuRepository {
     }));
   }
 
+  /**
+   * The restaurant's own orderable dishes among `itemIds`: an active item
+   * in an active menu of THIS listing. A dish of another restaurant, an
+   * inactive dish or menu, or a deleted one simply isn't returned — the
+   * caller reports every requested id it didn't get back. One query, read
+   * inside the booking transaction.
+   */
+  async findOrderableItems(listingId, itemIds, connection = this.#pool) {
+    if (itemIds.length === 0) return [];
+    const [rows] = await connection.query(
+      `SELECT rmi.id, rmi.title, rms.title AS section_title,
+              lang.code AS language_code, rmi.price_amount,
+              cur.code AS price_currency_code
+       FROM restaurant_menu_items rmi
+       JOIN restaurant_menu_sections rms ON rms.id = rmi.section_id
+       JOIN restaurant_menus rm ON rm.id = rms.menu_id
+       JOIN languages lang ON lang.id = rm.language_id
+       JOIN currencies cur ON cur.id = rmi.price_currency_id
+       WHERE rm.listing_id = ? AND rm.is_active = 1 AND rmi.is_active = 1
+         AND rmi.id IN (?)`,
+      [listingId, itemIds],
+    );
+    return rows.map((row) => ({
+      id: Number(row.id),
+      title: row.title,
+      sectionTitle: row.section_title,
+      languageCode: row.language_code,
+      priceAmount: String(row.price_amount),
+      currencyCode: row.price_currency_code,
+    }));
+  }
+
   async findMenuById(menuId, connection = this.#pool) {
     const [rows] = await connection.query(
       `SELECT rm.id, rm.listing_id, rm.language_id, lang.code AS language_code,

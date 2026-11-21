@@ -36,6 +36,24 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+/**
+ * Whether the browser's own Tab order stops on `element` — the trap must
+ * wrap from the real last stop, or focus escapes behind the dialog:
+ * - a `tabindex="-1"` control (a roving calendar day, a focus target) is
+ *   skipped;
+ * - a radio group is one stop: its checked radio, or its first radio when
+ *   none is checked (an unchecked radio of a checked group never is).
+ */
+function isTabbable(element, container) {
+  if (element.tabIndex < 0 || element.type === 'hidden') return false;
+  if (element.type !== 'radio' || !element.name) return true;
+  const group = Array.from(
+    container.querySelectorAll('input[type="radio"]'),
+  ).filter((radio) => radio.name === element.name && !radio.disabled);
+  const checked = group.find((radio) => radio.checked);
+  return element === (checked ?? group[0]);
+}
+
 export default function useFocusTrap({
   containerRef,
   isOpen,
@@ -58,7 +76,9 @@ export default function useFocusTrap({
     const container = containerRef.current;
 
     const getFocusable = () =>
-      Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR));
+      Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter(
+        (element) => isTabbable(element, container),
+      );
     const [firstFocusable] = getFocusable();
     (firstFocusable || container).focus();
 

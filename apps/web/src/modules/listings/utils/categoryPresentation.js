@@ -347,20 +347,10 @@ export function reorderSections(sections, group) {
     .map(({ section }) => section);
 }
 
-// Booking-CTA copy is the one place category identity should show up in
-// the reservation panel — "Reserve your vehicle" reads right for a car
-// rental, "Request to book" doesn't. Keyed by group, resolved via i18n
-// (`pages.listingDetail.reservation.requestToBook.{group}`) so this
-// module only ever returns a translation KEY, never literal copy.
-export function resolveBookingCtaKey(group) {
-  return `pages.listingDetail.reservation.requestToBookByGroup.${group}`;
-}
-
 export default {
   PRESENTATION_GROUPS,
   resolvePresentationGroup,
   CATEGORY_VISUAL_KEYS,
   resolveCategoryVisualKey,
   reorderSections,
-  resolveBookingCtaKey,
 };

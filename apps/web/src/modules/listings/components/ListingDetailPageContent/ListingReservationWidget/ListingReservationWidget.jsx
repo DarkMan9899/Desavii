@@ -57,23 +57,36 @@
  * other category (Tour time-slots, Vehicle rentals, plain single-unit
  * listings) is completely unaffected — `isAccommodationListing` gates all
  * of this on a real `bookable_unit_type`, never an inferred category.
+ *
+ * Category-aware rebuild (docs/BOOKING_WIDGET_REBUILD.md §4): the panel is
+ * one shell driven by the listing's booking flow (`bookingFlows.js`) —
+ * price, then the flow's own questions, then the summary, then the action.
+ * Each flow's questions live in their own component (`VehicleRentalFields`,
+ * `RestaurantReservationFields`, the stay/departure pickers here), the
+ * counts are `QuantityStepper`s labelled in the flow's own words (rooms,
+ * cars, travellers, party size), a car rental never asks for guests, an
+ * untimed departure asks for one date, and the action names what is booked.
+ * A restaurant with a published menu also offers a dish pre-order, chosen
+ * in a dialog (desktop) or an in-place step of the booking sheet (mobile).
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@desavii/ui/components/primitives';
 import {
   Select,
-  Input,
   DatePicker,
   ChipGroup,
 } from '@desavii/ui/components/form-controls';
 import { Section, Stack, Inline } from '@desavii/ui/components/layout';
-import { Spinner, ErrorState } from '@desavii/ui/components/feedback-overlays';
+import {
+  Spinner,
+  ErrorState,
+  Modal,
+} from '@desavii/ui/components/feedback-overlays';
 import Money from '../../../../../components/Money/Money.jsx';
-import PriceInCurrency from '../../../../../components/Money/PriceInCurrency.jsx';
 import { useAuth } from '../../../../../contexts/AuthContext.jsx';
 import { useToast } from '../../../../../contexts/ToastContext.jsx';
 import { formatTimeRange } from '../../../../../utils/formatTimeRange.js';
@@ -87,10 +100,21 @@ import {
 } from '../../../utils/reservationEstimate.js';
 import { getBusinessToday } from '../../../../../utils/businessDate.js';
 import {
-  resolveBookingCtaLabel,
   resolvePricingModelLabel,
   isPricingModelBookable,
 } from '../../../utils/reservationLabels.js';
+import {
+  BOOKING_FLOWS,
+  FLOW_CONFIG,
+  resolveBookingFlow,
+  resolveBookingCtaKey,
+} from '../../../utils/bookingFlows.js';
+import {
+  buildReservationTimes,
+  closingAfterMidnight,
+} from '../../../utils/restaurantTimeSlots.js';
+import { buildReservationSummaryRows } from '../../../utils/reservationSummaryRows.js';
+import useMenuPreorder from '../../../hooks/useMenuPreorder.js';
 import { formatBedConfiguration } from '../../../utils/bedConfigurationDisplay.js';
 import { resolveUnitPriceBasis } from '../../../utils/resolveBookableUnitProfile.js';
 import { resolveInitialReservationState } from '../../../utils/reservationSearchContext.js';
@@ -104,10 +128,7 @@ import {
   getIssueMessage,
 } from '../../../../../utils/apiErrorFeedback.js';
 import { SMALLINT_UNSIGNED_MAX } from '../../../../availability/index.js';
-import {
-  DEPARTURE_BOOKABLE_UNIT_TYPE,
-  resolveDeparturePeopleKey,
-} from '../../../../../utils/departurePeople.js';
+import { resolveDeparturePeopleKey } from '../../../../../utils/departurePeople.js';
 import {
   BOOKING_MODES,
   formatHour,
@@ -118,6 +139,12 @@ import { useListingHourlyAvailabilityQuery } from '../../../queries/useListingHo
 import StayModeSelector from './StayModeSelector.jsx';
 import HourlyStayFields from './HourlyStayFields.jsx';
 import UnitOptionContent from './UnitOptionContent.jsx';
+import QuantityStepper from './QuantityStepper.jsx';
+import VehicleRentalFields from './VehicleRentalFields.jsx';
+import RestaurantReservationFields from './RestaurantReservationFields.jsx';
+import MenuPreorderPicker from './MenuPreorderPicker.jsx';
+import ReservationSummary from './ReservationSummary.jsx';
+import { menusShape, weeklyHoursShape } from './reservationPropShapes.js';
 import useSelectTexts from '../../../../../hooks/useSelectTexts.js';
 import styles from './ListingReservationWidget.module.scss';
 
@@ -131,6 +158,7 @@ const BOOKING_CONTRACT_ISSUES = new Set([
   'INCOMPLETE_RENTAL_INTERVAL',
   'RETURN_NOT_AFTER_PICKUP',
   'RESERVATION_TIME_REQUIRED',
+  'RESERVATION_OUTSIDE_OPENING_HOURS',
   // Step L6.3B: the hourly-stay contract.
   'HOURLY_BOOKING_NOT_SUPPORTED',
   'HOURLY_TIME_INVALID',
@@ -144,7 +172,6 @@ const BOOKING_CONTRACT_ISSUES = new Set([
 export default function ListingReservationWidget({
   listingId,
   pricing = null,
-  bookingCtaKey = 'pages.listingDetail.reservation.requestToBook',
   location = null,
   selectedUnitId: controlledSelectedUnitId = undefined,
   onSelectUnit = undefined,
@@ -157,6 +184,13 @@ export default function ListingReservationWidget({
   // Step L6.2H3B: names a departure's people count (Attractions and
   // Entertainment Venues share one listing type).
   categorySlug = null,
+  // A restaurant's published menus (page locale) and weekly opening hours:
+  // the pre-order's dishes and the reservation times offered.
+  menus = [],
+  weeklyHours = null,
+  // `panel` (desktop sidebar) opens the menu in a dialog; `sheet` (the
+  // mobile booking sheet) shows it as an in-place step instead.
+  presentation = 'panel',
 }) {
   const selectTexts = useSelectTexts();
   const { t, i18n } = useTranslation();
@@ -252,56 +286,44 @@ export default function ListingReservationWidget({
   );
   const isTimeSlotListing = timeSlotUnits.length > 0;
 
-  // Sprint B: a real per-unit `bookable_unit_type === 'VEHICLE'` (never
-  // inferred from listing category) gates the pickup/return location+time
-  // UI, mirroring Sprint A's own `time_slot_start`-gates-the-time-slot-UI
-  // rule directly above.
-  const isVehicleListing = useMemo(
-    () => (units ?? []).some((unit) => unit.bookable_unit_type === 'VEHICLE'),
-    [units],
-  );
-
-  // Pass 6 (Restaurant vertical, owner issue #12/#13): a real per-unit
-  // `bookable_unit_type === 'RESTAURANT_TABLE'` gates a genuinely
-  // Restaurant-shaped flow — one date, one customer-chosen reservation
-  // time, and a party size (never a date RANGE or "Guests" hotel
-  // language) — mirroring `isVehicleListing`'s own "never inferred from
-  // listing category" rule exactly.
-  const isRestaurantListing = useMemo(
-    () =>
-      (units ?? []).some(
-        (unit) => unit.bookable_unit_type === 'RESTAURANT_TABLE',
-      ),
-    [units],
-  );
-
-  // Step L6.2H3B: a real per-unit TOUR_DEPARTURE (Tours, Attractions,
-  // Entertainment Venues) — its quantity IS the person count (Travelers /
-  // Visitors / Participants): seats consumed and the price multiplier. One
-  // count control replaces the separate Quantity + Guests pair.
-  const isDepartureListing = useMemo(
-    () =>
-      (units ?? []).some(
-        (unit) => unit.bookable_unit_type === DEPARTURE_BOOKABLE_UNIT_TYPE,
-      ),
-    [units],
-  );
+  // The booking flow follows the listing's real units, never its category
+  // (bookingFlows.js): a vehicle is a rental (pickup/return, no guests); a
+  // restaurant table is one reservation for one party (date, time, party
+  // size); a TOUR_DEPARTURE (Tours, Attractions, Entertainment Venues) is
+  // one date whose quantity IS the person count (Travelers / Visitors /
+  // Participants); a HOTEL_ROOM gets the server-authoritative stay
+  // range/price flow.
+  const flow = resolveBookingFlow(units);
+  const flowConfig = FLOW_CONFIG[flow];
+  const isVehicleListing = flow === BOOKING_FLOWS.VEHICLE;
+  const isRestaurantListing = flow === BOOKING_FLOWS.RESTAURANT;
+  const isDepartureListing = flow === BOOKING_FLOWS.DEPARTURE;
+  const isAccommodationListing = flow === BOOKING_FLOWS.STAY;
   const departurePeopleKey = resolveDeparturePeopleKey({
     categorySlug,
     listingType,
   });
 
-  // Sprint C-3 (Date-Range Room Availability): a real per-unit
-  // `bookable_unit_type === 'HOTEL_ROOM'` gates the stay-range
-  // availability/pricing flow, mirroring `isVehicleListing` above exactly
-  // — never inferred from listing category, and never applied to a
-  // PROPERTY_UNIT listing (whose existing flow is explicitly out of this
-  // sprint's scope and stays byte-for-byte unchanged).
-  const isAccommodationListing = useMemo(
-    () =>
-      (units ?? []).some((unit) => unit.bookable_unit_type === 'HOTEL_ROOM'),
-    [units],
-  );
+  // A restaurant's dish pre-order (docs/BOOKING_WIDGET_REBUILD.md §5).
+  const menuPreorder = useMenuPreorder(isRestaurantListing ? menus : []);
+  const [withPreorder, setWithPreorder] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const isPreorderChosen = withPreorder && menuPreorder.hasSelection;
+  const preorderBlockRef = useRef(null);
+  const menuStepHeadingRef = useRef(null);
+  const isMenuStep = presentation === 'sheet' && isMenuOpen;
+  // Entering the step focuses its heading; leaving it returns focus to the
+  // pre-order block it came from — in the same commit, so focus never rests
+  // on the page behind the sheet in between.
+  const wasMenuStepRef = useRef(false);
+  useEffect(() => {
+    if (isMenuStep) menuStepHeadingRef.current?.focus();
+    else if (wasMenuStepRef.current) preorderBlockRef.current?.focus();
+    wasMenuStepRef.current = isMenuStep;
+  }, [isMenuStep]);
+  function closeMenu() {
+    setIsMenuOpen(false);
+  }
 
   // Step L6.3B: hourly stays exist only for a room its Partner opened to
   // them — never inferred from the hotel or category.
@@ -378,17 +400,18 @@ export default function ListingReservationWidget({
   // `availabilityService.js#getPublicUnits`) — this is what lets the chip
   // row honestly exclude/disable a departure that's sold out on this
   // specific day, not just show every registered time unconditionally.
+  // Every departure (timed or not) reads its places for the chosen date.
   const { data: unitsForDate, isPending: isUnitsForDatePending } =
     useListingBookableUnitsQuery(listingId, {
-      date: isTimeSlotListing ? dateRange.start : undefined,
+      date: isDepartureListing ? dateRange.start : undefined,
     });
   const unitsForDateById = useMemo(() => {
     const map = new Map();
-    if (isTimeSlotListing) {
+    if (isDepartureListing) {
       (unitsForDate ?? []).forEach((unit) => map.set(unit.id, unit));
     }
     return map;
-  }, [unitsForDate, isTimeSlotListing]);
+  }, [unitsForDate, isDepartureListing]);
 
   // Sprint C-3: once BOTH check-in and check-out are chosen, re-fetch the
   // same public units read augmented with a real whole-stay availability/
@@ -567,6 +590,16 @@ export default function ListingReservationWidget({
 
   const pricingModelLabel = resolvePricingModelLabel(t, pricing, listingType);
 
+  // W-09: the times the restaurant is open on the chosen date (`null` when
+  // it has published no hours — then a free time field is offered).
+  const reservationTimes = isRestaurantListing
+    ? buildReservationTimes(weeklyHours, dateRange.start)
+    : null;
+  // §10: a window running past midnight continues on the next date.
+  const closesAfterMidnightAt = isRestaurantListing
+    ? closingAfterMidnight(weeklyHours, dateRange.start)
+    : null;
+
   // P2.2B: once a unit is selected, its own real base price (P2.2A rung 2
   // of the same date-override -> unit-base -> listing-fallback precedence
   // `bookingService.js#resolveItem` resolves server-side) replaces the
@@ -677,7 +710,8 @@ export default function ListingReservationWidget({
     !isStaySoldOut &&
     !isZeroNightStay &&
     !stayRuleIssue &&
-    (!isRestaurantListing || Boolean(reservationTime));
+    (!isRestaurantListing || Boolean(reservationTime)) &&
+    (!isPreorderChosen || Boolean(menuPreorder.preorder.subtotalAmount));
   const canSubmitHourly =
     Boolean(effectiveUnitId) &&
     Boolean(hourlyDate) &&
@@ -731,6 +765,17 @@ export default function ListingReservationWidget({
   function handleSelectDate(date) {
     setDateRange({ start: date, end: date });
     setSelectedUnitId(null);
+  }
+
+  // W-04: an untimed departure is one date — its option stays selected.
+  function handleSelectDepartureDate(date) {
+    setDateRange({ start: date, end: date });
+  }
+
+  // A new date needs a time the restaurant is open on THAT date.
+  function handleSelectRestaurantDate(date) {
+    handleSelectDate(date);
+    setReservationTime('');
   }
 
   // Sprint C-3: a new stay range hasn't been checked against the
@@ -846,7 +891,8 @@ export default function ListingReservationWidget({
             : BOOKING_MODES.NIGHTLY,
           // Step L6.2H3B: a departure's people count is its held quantity —
           // never a second, separate guest count.
-          guestCount: isDepartureListing ? null : guestCount,
+          // A car rental and a departure have no separate guest count.
+          guestCount: flowConfig.guests ? guestCount : null,
           departurePeopleKey: isDepartureListing ? departurePeopleKey : null,
           // Pass 6: lets checkout's generic order-summary row labels
           // (shared across every vertical) swap in Restaurant-appropriate
@@ -877,6 +923,9 @@ export default function ListingReservationWidget({
             returnTime,
             rentalLocationLabel,
           }),
+          // §5: the dishes and the subtotal the guest saw. Checkout sends
+          // only ids and quantities; the server re-prices every dish.
+          menuPreorder: isPreorderChosen ? menuPreorder.preorder : null,
         },
       });
     } catch (err) {
@@ -1066,12 +1115,21 @@ export default function ListingReservationWidget({
     );
   }
 
+  const datePickerTexts = {
+    today,
+    minDate: today,
+    maxDate: maxBookableDate,
+    locale: i18n.language,
+    previousMonthLabel: t('partner.listingWizard.datePicker.previousMonth'),
+    nextMonthLabel: t('partner.listingWizard.datePicker.nextMonth'),
+    placeholder: t('partner.listingWizard.datePicker.selectDate'),
+  };
+
   // Sprint C-3: rendered in one of two positions below depending on
   // `isAccommodationListing` — dates FIRST for a Hotel stay (the brief's
   // own "select check-in -> select check-out -> ... -> select room"
-  // order), unit-then-dates for every other category exactly as before.
-  // A single shared element (never two independently-authored copies)
-  // since only one position ever actually renders it for a given listing.
+  // order), unit-then-dates for every other range flow. A single shared
+  // element since only one position ever renders it for a given listing.
   const dateRangePicker = (
     <DatePicker
       mode="range"
@@ -1082,16 +1140,223 @@ export default function ListingReservationWidget({
       )}
       value={dateRange}
       onChange={isAccommodationListing ? handleChangeDateRange : setDateRange}
-      minDate={today}
-      today={today}
-      maxDate={maxBookableDate}
       disabledDates={disabledDates}
-      locale={i18n.language}
-      previousMonthLabel={t('partner.listingWizard.datePicker.previousMonth')}
-      nextMonthLabel={t('partner.listingWizard.datePicker.nextMonth')}
-      placeholder={t('partner.listingWizard.datePicker.selectDate')}
+      // eslint-disable-next-line react/jsx-props-no-spreading -- one shared set of calendar texts/bounds
+      {...datePickerTexts}
     />
   );
+
+  // W-06: the option list is named in the flow's own words.
+  const unitSelector = units.length > 1 && (
+    <Select
+      searchPlaceholder={selectTexts.searchPlaceholder}
+      noOptionsMessage={selectTexts.noOptionsMessage}
+      label={t(`pages.listingDetail.reservation.unitLabelByFlow.${flow}`)}
+      options={unitOptions}
+      value={selectedUnitId ?? ''}
+      onChange={(value) => handleSelectUnit(value)}
+      placeholder={t(
+        `pages.listingDetail.reservation.unitPlaceholderByFlow.${flow}`,
+      )}
+    />
+  );
+
+  function renderStayFields() {
+    return (
+      <>
+        {!isHourlyMode && dateRangePicker}
+        {unitSelector}
+        {bedConfigurationSummary && <p>{bedConfigurationSummary}</p>}
+        {canBookHourly && (
+          <StayModeSelector
+            value={bookingMode}
+            onChange={(mode) => handleChangeBookingMode(mode)}
+          />
+        )}
+        {isHourlyMode && (
+          <HourlyStayFields
+            unit={selectedUnit}
+            slots={hourlyAvailability?.slots ?? null}
+            isLoadingSlots={Boolean(hourlyDate) && isHourlySlotsPending}
+            date={hourlyDate}
+            startHour={hourlyStartHour}
+            endHour={hourlyEndHour}
+            today={today}
+            maxDate={maxBookableDate}
+            locale={i18n.language}
+            onChangeDate={(date) => {
+              setHourlyDate(date);
+              resetHourlySelection();
+            }}
+            onChangeStart={(hour) => {
+              setHourlyStartHour(hour);
+              setHourlyEndHour(null);
+            }}
+            onChangeEnd={setHourlyEndHour}
+          />
+        )}
+        {isHourlyMode && hourlyRemaining === 0 && (
+          <p role="status" className={styles.staySoldOut}>
+            {t('pages.listingDetail.reservation.hourlySoldOut')}
+          </p>
+        )}
+        {!isHourlyMode &&
+          hasValidStayRange &&
+          selectedUnit &&
+          isStaySoldOut && (
+            <p role="status" className={styles.staySoldOut}>
+              {t('pages.listingDetail.reservation.staySoldOut')}
+            </p>
+          )}
+      </>
+    );
+  }
+
+  function renderDepartureFields() {
+    if (isTimeSlotListing) {
+      return (
+        <>
+          <DatePicker
+            mode="single"
+            label={t('pages.listingDetail.reservation.dateLabel')}
+            value={dateRange.start}
+            onChange={(date) => handleSelectDate(date)}
+            // eslint-disable-next-line react/jsx-props-no-spreading -- one shared set of calendar texts/bounds
+            {...datePickerTexts}
+          />
+          {renderTimeSlotStep()}
+        </>
+      );
+    }
+    return (
+      <>
+        {unitSelector}
+        <DatePicker
+          mode="single"
+          label={t('pages.listingDetail.reservation.dateLabel')}
+          value={dateRange.start}
+          onChange={(date) => handleSelectDepartureDate(date)}
+          disabledDates={disabledDates}
+          // eslint-disable-next-line react/jsx-props-no-spreading -- one shared set of calendar texts/bounds
+          {...datePickerTexts}
+        />
+      </>
+    );
+  }
+
+  function renderFlowFields() {
+    if (isAccommodationListing) return renderStayFields();
+    if (isDepartureListing) return renderDepartureFields();
+    if (isRestaurantListing) {
+      return (
+        <>
+          {unitSelector}
+          <div
+            ref={preorderBlockRef}
+            tabIndex={-1}
+            className={styles.focusTarget}
+          >
+            <RestaurantReservationFields
+              date={dateRange.start}
+              onChangeDate={(date) => handleSelectRestaurantDate(date)}
+              today={today}
+              maxDate={maxBookableDate}
+              times={reservationTimes}
+              closesAfterMidnightAt={closesAfterMidnightAt}
+              time={reservationTime}
+              onChangeTime={setReservationTime}
+              partySize={guestCount}
+              onChangePartySize={(next) => handleChangeGuestCount(next)}
+              menuPreorder={menuPreorder}
+              withPreorder={withPreorder}
+              onChangeWithPreorder={setWithPreorder}
+              onOpenMenu={() => setIsMenuOpen(true)}
+              priceLocale={locale}
+            />
+          </div>
+        </>
+      );
+    }
+    return (
+      <>
+        {unitSelector}
+        {bedConfigurationSummary && <p>{bedConfigurationSummary}</p>}
+        {dateRangePicker}
+        {isVehicleListing && (
+          <VehicleRentalFields
+            locationLabel={rentalLocationLabel}
+            dateRange={dateRange}
+            pickupTime={pickupTime}
+            returnTime={returnTime}
+            onChangePickupTime={setPickupTime}
+            onChangeReturnTime={setReturnTime}
+            intervalIssue={rentalInterval.valid ? null : rentalInterval.reason}
+          />
+        )}
+      </>
+    );
+  }
+
+  const peopleLabel = t(`bookings.departurePeople.${departurePeopleKey}`);
+  // A table is never counted (capacity = concurrent reservations); a
+  // departure always shows its one people count — fixed at 1 when only one
+  // place exists; rooms and cars only when more than one can be taken.
+  const showsQuantity =
+    flowConfig.quantity !== null &&
+    Boolean(selectedUnit) &&
+    (isDepartureListing || selectedUnit.capacity > 1);
+  const showsGuests = flowConfig.guests === 'guests' && Boolean(selectedUnit);
+  const summaryRows = isHourlyMode
+    ? []
+    : buildReservationSummaryRows(
+        { flow, dateRange, quantity, peopleLabel },
+        t,
+      );
+  const ctaLabel = t(
+    resolveBookingCtaKey({
+      flow,
+      categorySlug,
+      listingType,
+      withPreorder: isPreorderChosen,
+    }),
+  );
+
+  const menuPicker = (
+    <MenuPreorderPicker
+      sections={menuPreorder.sections}
+      quantities={menuPreorder.quantities}
+      preorder={menuPreorder.preorder}
+      locale={locale}
+      onChangeQuantity={menuPreorder.setQuantity}
+      onClear={menuPreorder.clear}
+      onDone={() => closeMenu()}
+      headingLevel={presentation === 'sheet' ? 4 : 3}
+    />
+  );
+
+  // Mobile: the menu is a step of the booking sheet, never a dialog on top
+  // of it; "Back" returns to the untouched reservation form.
+  if (isMenuStep) {
+    return (
+      <Section spacing="none" className={styles.widget}>
+        <Stack gap="4">
+          <div className={styles.stepHeader}>
+            <Button variant="ghost" size="sm" onClick={() => closeMenu()}>
+              {t('pages.listingDetail.reservation.preorder.back')}
+            </Button>
+          </div>
+          <h3
+            ref={menuStepHeadingRef}
+            tabIndex={-1}
+            className={styles.stepTitle}
+          >
+            {t('pages.listingDetail.reservation.preorder.title')}
+          </h3>
+          {menuPicker}
+        </Stack>
+      </Section>
+    );
+  }
 
   return (
     <Section spacing="none" className={styles.widget}>
@@ -1105,218 +1370,28 @@ export default function ListingReservationWidget({
           />
         )}
 
-        {isTimeSlotListing ? (
-          <>
-            <DatePicker
-              mode="single"
-              label={t('pages.listingDetail.reservation.dateLabel')}
-              value={dateRange.start}
-              onChange={(date) => handleSelectDate(date)}
-              minDate={today}
-              today={today}
-              maxDate={maxBookableDate}
-              locale={i18n.language}
-              previousMonthLabel={t(
-                'partner.listingWizard.datePicker.previousMonth',
-              )}
-              nextMonthLabel={t('partner.listingWizard.datePicker.nextMonth')}
-              placeholder={t('partner.listingWizard.datePicker.selectDate')}
-            />
+        {renderFlowFields()}
 
-            {renderTimeSlotStep()}
-          </>
-        ) : (
-          <>
-            {isAccommodationListing && !isHourlyMode && dateRangePicker}
-
-            {units.length > 1 && (
-              <Select
-                searchPlaceholder={selectTexts.searchPlaceholder}
-                noOptionsMessage={selectTexts.noOptionsMessage}
-                label={t('pages.listingDetail.reservation.unitLabel')}
-                options={unitOptions}
-                value={selectedUnitId ?? ''}
-                onChange={(value) => handleSelectUnit(value)}
-                placeholder={t(
-                  'pages.listingDetail.reservation.unitPlaceholder',
-                )}
-              />
-            )}
-
-            {bedConfigurationSummary && <p>{bedConfigurationSummary}</p>}
-
-            {canBookHourly && (
-              <StayModeSelector
-                value={bookingMode}
-                onChange={(mode) => handleChangeBookingMode(mode)}
-              />
-            )}
-            {isHourlyMode && (
-              <HourlyStayFields
-                unit={selectedUnit}
-                slots={hourlyAvailability?.slots ?? null}
-                isLoadingSlots={Boolean(hourlyDate) && isHourlySlotsPending}
-                date={hourlyDate}
-                startHour={hourlyStartHour}
-                endHour={hourlyEndHour}
-                today={today}
-                maxDate={maxBookableDate}
-                locale={i18n.language}
-                onChangeDate={(date) => {
-                  setHourlyDate(date);
-                  resetHourlySelection();
-                }}
-                onChangeStart={(hour) => {
-                  setHourlyStartHour(hour);
-                  setHourlyEndHour(null);
-                }}
-                onChangeEnd={setHourlyEndHour}
-              />
-            )}
-            {isHourlyMode && hourlyRemaining === 0 && (
-              <p role="status" className={styles.staySoldOut}>
-                {t('pages.listingDetail.reservation.hourlySoldOut')}
-              </p>
-            )}
-
-            {!isHourlyMode &&
-              isAccommodationListing &&
-              hasValidStayRange &&
-              selectedUnit && (
-                <p
-                  role={isStaySoldOut ? 'status' : undefined}
-                  className={
-                    isStaySoldOut ? styles.staySoldOut : styles.stayNights
-                  }
-                >
-                  {isStaySoldOut
-                    ? t('pages.listingDetail.reservation.staySoldOut')
-                    : selectedUnitStayInfo?.night_count_for_stay != null &&
-                      t('pages.listingDetail.reservation.nightsCount', {
-                        count: selectedUnitStayInfo.night_count_for_stay,
-                      })}
-                </p>
-              )}
-
-            {isRestaurantListing ? (
-              <>
-                <DatePicker
-                  mode="single"
-                  label={t('pages.listingDetail.reservation.dateLabel')}
-                  value={dateRange.start}
-                  onChange={(date) => handleSelectDate(date)}
-                  minDate={today}
-                  today={today}
-                  maxDate={maxBookableDate}
-                  locale={i18n.language}
-                  previousMonthLabel={t(
-                    'partner.listingWizard.datePicker.previousMonth',
-                  )}
-                  nextMonthLabel={t(
-                    'partner.listingWizard.datePicker.nextMonth',
-                  )}
-                  placeholder={t('partner.listingWizard.datePicker.selectDate')}
-                />
-                <Input
-                  type="time"
-                  label={t(
-                    'pages.listingDetail.reservation.reservationTimeLabel',
-                  )}
-                  value={reservationTime}
-                  disabled={!dateRange.start}
-                  onChange={(event) => setReservationTime(event.target.value)}
-                />
-              </>
-            ) : (
-              !isAccommodationListing && dateRangePicker
-            )}
-
-            {isVehicleListing && (
-              <Stack gap="3">
-                <Stack gap="1" className={styles.rentalLeg}>
-                  <p className={styles.rentalLegLabel}>
-                    {t('pages.listingDetail.reservation.pickupLabel')}
-                  </p>
-                  <p className={styles.rentalLocation}>
-                    {rentalLocationLabel ??
-                      t('pages.listingDetail.reservation.locationUnavailable')}
-                  </p>
-                  <Input
-                    type="time"
-                    label={t('pages.listingDetail.reservation.pickupTimeLabel')}
-                    value={pickupTime}
-                    disabled={!dateRange.start}
-                    onChange={(event) => setPickupTime(event.target.value)}
-                  />
-                </Stack>
-
-                <Stack gap="1" className={styles.rentalLeg}>
-                  <p className={styles.rentalLegLabel}>
-                    {t('pages.listingDetail.reservation.returnLabel')}
-                  </p>
-                  <p className={styles.rentalLocation}>
-                    {rentalLocationLabel ??
-                      t('pages.listingDetail.reservation.locationUnavailable')}
-                  </p>
-                  <Input
-                    type="time"
-                    label={t('pages.listingDetail.reservation.returnTimeLabel')}
-                    value={returnTime}
-                    disabled={!dateRange.end}
-                    onChange={(event) => setReturnTime(event.target.value)}
-                  />
-                </Stack>
-
-                {!rentalInterval.valid &&
-                  rentalInterval.reason === 'RETURN_NOT_AFTER_PICKUP' && (
-                    <p role="alert" className={styles.rentalIntervalError}>
-                      {t(
-                        'pages.listingDetail.reservation.invalidRentalInterval',
-                      )}
-                    </p>
-                  )}
-              </Stack>
-            )}
-          </>
+        {showsQuantity && (
+          <QuantityStepper
+            label={
+              isDepartureListing
+                ? peopleLabel
+                : t(
+                    `pages.listingDetail.reservation.quantityByKind.${flowConfig.quantity}`,
+                  )
+            }
+            value={quantity}
+            min={1}
+            max={quantityMax}
+            disabled={isDepartureListing && quantityMax === 1}
+            onChange={(next) => handleChangeQuantity(next)}
+          />
         )}
 
-        {/* Pass 6: a restaurant table's `capacity` is how many CONCURRENT
-            reservations the dining room can hold, not a customer-facing
-            "how many tables would you like" choice — showing this
-            stepper to a diner would read as exactly the confusing
-            hotel-room language the brief calls out. Every other category
-            keeps this exactly as before. */}
-        {/* Step L6.2H3B: a departure always shows its one people count
-            (Travelers / Visitors / Participants) — fixed at 1 when only one
-            place exists — and never a separate Guests field. */}
-        {!isRestaurantListing &&
-          selectedUnit &&
-          (isDepartureListing || selectedUnit.capacity > 1) && (
-            <Input
-              type="number"
-              label={t(
-                isDepartureListing
-                  ? `bookings.departurePeople.${departurePeopleKey}`
-                  : 'pages.listingDetail.reservation.quantityLabel',
-              )}
-              value={quantity}
-              min={1}
-              max={quantityMax}
-              disabled={isDepartureListing && quantityMax === 1}
-              onChange={(event) =>
-                handleChangeQuantity(Number(event.target.value))
-              }
-            />
-          )}
-
-        {selectedUnit && !isDepartureListing && (
-          <Input
-            type="number"
-            label={t(
-              isRestaurantListing
-                ? 'pages.listingDetail.reservation.partySizeLabel'
-                : 'pages.listingDetail.reservation.guestsLabel',
-            )}
+        {showsGuests && (
+          <QuantityStepper
+            label={t('pages.listingDetail.reservation.guestsLabel')}
             value={guestCount}
             min={1}
             max={guestCountCeiling ?? undefined}
@@ -1327,25 +1402,16 @@ export default function ListingReservationWidget({
                   })
                 : undefined
             }
-            onChange={(event) =>
-              handleChangeGuestCount(Number(event.target.value))
-            }
+            onChange={(next) => handleChangeGuestCount(next)}
           />
         )}
 
-        {estimatedTotal && (
-          <PriceInCurrency
-            amount={estimatedTotal.amount}
-            currency={estimatedTotal.currency}
-            locale={locale}
-            suffix={t('pages.listingDetail.reservation.estimatedTotal')}
-          />
-        )}
-        {isRestaurantListing && (
-          <p className={styles.freeReservation}>
-            {t('bookings.freeReservation.label')}
-          </p>
-        )}
+        <ReservationSummary
+          rows={summaryRows}
+          estimatedTotal={estimatedTotal}
+          isFreeReservation={isRestaurantListing}
+          locale={locale}
+        />
 
         {isZeroNightStay && (
           <p role="status" className={styles.staySoldOut}>
@@ -1358,16 +1424,34 @@ export default function ListingReservationWidget({
           </p>
         )}
 
-        <Button
-          variant="primary"
-          size="lg"
-          disabled={!canSubmit}
-          loading={createHoldMutation.isPending}
-          onClick={() => handleRequestToBook()}
-        >
-          {resolveBookingCtaLabel(t, bookingCtaKey)}
-        </Button>
+        <Stack gap="2">
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            disabled={!canSubmit}
+            loading={createHoldMutation.isPending}
+            onClick={() => handleRequestToBook()}
+          >
+            {ctaLabel}
+          </Button>
+          <p className={styles.actionNote}>
+            {t('pages.listingDetail.reservation.noChargeNote')}
+          </p>
+        </Stack>
       </Stack>
+
+      {presentation === 'panel' && isRestaurantListing && (
+        <Modal
+          isOpen={isMenuOpen}
+          onClose={() => closeMenu()}
+          title={t('pages.listingDetail.reservation.preorder.title')}
+          closeLabel={t('common.close')}
+          size="md"
+        >
+          {menuPicker}
+        </Modal>
+      )}
     </Section>
   );
 }
@@ -1380,7 +1464,6 @@ ListingReservationWidget.propTypes = {
     pricing_model: PropTypes.string,
     is_model_supported: PropTypes.bool,
   }),
-  bookingCtaKey: PropTypes.string,
   location: PropTypes.shape({
     city_name: PropTypes.string,
     country_name: PropTypes.string,
@@ -1394,6 +1477,9 @@ ListingReservationWidget.propTypes = {
   onChangeDateRange: PropTypes.func,
   listingType: PropTypes.string,
   categorySlug: PropTypes.string,
+  menus: menusShape,
+  weeklyHours: weeklyHoursShape,
+  presentation: PropTypes.oneOf(['panel', 'sheet']),
   bookingRules: PropTypes.shape({
     minimum_stay_nights: PropTypes.number,
     maximum_stay_nights: PropTypes.number,

@@ -4,6 +4,45 @@
 
 import { isBookingPaymentRequired } from '../../../core/domain/bookingPaymentRequirement.js';
 import { resolveBookingMode } from '../../../core/domain/hourlyStay.js';
+import { Money } from '../../../core/domain/money.js';
+import { PREORDER_PAYMENT } from '../../../core/domain/restaurantPreorder.js';
+
+/**
+ * Restaurant menu pre-order (docs/BOOKING_WIDGET_REBUILD.md §5): the
+ * booking-time snapshot of every pre-ordered dish — its title, section and
+ * price as the customer accepted them, never re-read from today's menu.
+ * `null` for a reservation without a pre-order and for every other item.
+ * Paid at the restaurant: the subtotal is never part of the booking total.
+ */
+function toMenuPreorderResponse(lines = []) {
+  if (lines.length === 0) return null;
+  const { currencyCode } = lines[0];
+  const priced = lines.map((line) => {
+    const unitPrice = Money.fromDecimalString(
+      line.unitPriceAmount,
+      currencyCode,
+    );
+    return { line, lineTotal: unitPrice.multiply(line.quantity) };
+  });
+  const subtotal = priced.reduce(
+    (sum, { lineTotal }) => sum.add(lineTotal),
+    Money.zero(currencyCode),
+  );
+  return {
+    lines: priced.map(({ line, lineTotal }) => ({
+      menu_item_id: line.menuItemId,
+      title: line.title,
+      section_title: line.sectionTitle,
+      language_code: line.languageCode,
+      quantity: line.quantity,
+      unit_price_amount: line.unitPriceAmount,
+      line_total_amount: lineTotal.toDecimalString(),
+    })),
+    subtotal_amount: subtotal.toDecimalString(),
+    currency: currencyCode,
+    payment: PREORDER_PAYMENT.PAY_AT_VENUE,
+  };
+}
 
 function toBookingItemResponse(item) {
   return {
@@ -51,6 +90,7 @@ function toBookingItemResponse(item) {
       full_name: guest.fullName,
       document_number: guest.documentNumber,
     })),
+    menu_preorder: toMenuPreorderResponse(item.menuSelections),
   };
 }
 

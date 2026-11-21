@@ -181,3 +181,58 @@ describe('useFocusTrap — consumers that re-render while open', () => {
     expect(screen.getByText('closed after "42"')).toBeInTheDocument();
   });
 });
+
+// A radio group is one Tab stop (its checked radio) and a tabindex="-1"
+// control is no stop at all: wrapping from anything else lets focus escape
+// behind the dialog (the booking sheet's "Table only / with dishes" choice,
+// before its disabled action, was exactly that last stop).
+function RadioHarness({ checked = 'table' }) {
+  const containerRef = useRef(null);
+  useFocusTrap({ containerRef, isOpen: true, onClose: () => {} });
+  return (
+    <div ref={containerRef}>
+      <button type="button">First</button>
+      <input
+        type="radio"
+        name="mode"
+        aria-label="Table only"
+        defaultChecked={checked === 'table'}
+      />
+      <input
+        type="radio"
+        name="mode"
+        aria-label="With dishes"
+        defaultChecked={checked === 'dishes'}
+      />
+      <button type="button" tabIndex={-1}>
+        Roving
+      </button>
+      <button type="button" disabled>
+        Disabled action
+      </button>
+    </div>
+  );
+}
+
+RadioHarness.propTypes = { checked: PropTypes.oneOf(['table', 'dishes']) };
+
+describe('useFocusTrap — the real Tab stops', () => {
+  test.each([
+    ['table', 'Table only'],
+    ['dishes', 'With dishes'],
+  ])(
+    'Tab from the checked radio (%s), the last stop, wraps to the first',
+    (checked, label) => {
+      render(<RadioHarness checked={checked} />);
+      screen.getByRole('radio', { name: label }).focus();
+      fireEvent.keyDown(document, { key: 'Tab' });
+      expect(screen.getByRole('button', { name: 'First' })).toHaveFocus();
+    },
+  );
+
+  test('Shift+Tab from the first stop lands on the checked radio, never on a skipped control', () => {
+    render(<RadioHarness checked="dishes" />);
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(screen.getByRole('radio', { name: 'With dishes' })).toHaveFocus();
+  });
+});

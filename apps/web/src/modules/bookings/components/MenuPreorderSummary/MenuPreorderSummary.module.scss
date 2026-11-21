@@ -1,0 +1,75 @@
+// MenuPreorderSummary — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  padding: tokens.$space-3;
+  border: 1px solid tokens.$color-gray-200;
+  border-radius: tokens.$radius-md;
+  background-color: tokens.$color-gray-100;
+}
+
+.heading {
+  margin: 0;
+  font-family: tokens.$font-body;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  font-weight: 600;
+  color: tokens.$color-navy;
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: tokens.$space-3;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-900;
+}
+
+.lineTitle {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.quantity {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.lineAmount {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.subtotal {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: tokens.$space-3;
+  padding-top: tokens.$space-2;
+  border-top: 1px solid tokens.$color-gray-200;
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
+.payNote {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-success-strong;
+}

@@ -29,9 +29,9 @@ test.use({ reducedMotion: 'reduce' });
 
 // ListingReservationWidget's CTA is category-specific (see
 // inventory.spec.js's identical BOOK_CTA_PATTERN) — match any real label,
-// not just the GENERIC "Request to book" one.
+// whichever flow the listing runs (bookingFlows.js).
 const BOOK_CTA_PATTERN =
-  /Request to book|Check availability|Reserve your spot|Reserve this vehicle/;
+  /^(Reserve|Reserve a table|Reserve with pre-order|Book tour|Book visit|Book session|Rent this car|Request to book)$/;
 
 const API_BASE = 'http://localhost:4000/api/v1/';
 const VENDOR = { email: 'vendor@travelhub.dev', password: 'DevVendor!2024' };
@@ -378,7 +378,8 @@ test.describe('Phase 17 accessibility — Customer-facing availability UI', () =
     await expect(
       page.getByRole('button', { name: BOOK_CTA_PATTERN }),
     ).toBeVisible({ timeout: 15_000 });
-    await page.getByLabel('Dates').click();
+    // W-04: an untimed departure is one date, never a range.
+    await page.getByLabel('Date', { exact: true }).click();
 
     const target = new Date(`${iso}T00:00:00`);
     const now = new Date();
@@ -401,7 +402,6 @@ test.describe('Phase 17 accessibility — Customer-facing availability UI', () =
       exact: true,
     });
     await dayCell.click();
-    await dayCell.click(); // same-day range: start === end
 
     const loginCtx = await playwrightRequest.newContext({ baseURL: API_BASE });
     const loginRes = await loginCtx.post('auth/login', { data: VENDOR });

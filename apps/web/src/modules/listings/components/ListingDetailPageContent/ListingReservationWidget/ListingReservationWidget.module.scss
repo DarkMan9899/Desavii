@@ -15,7 +15,10 @@
   padding: tokens.$space-4;
   border-radius: tokens.$radius-xl;
   background-color: tokens.$color-white;
-  overflow: hidden;
+  // `clip`, not `hidden`: it trims the gold edge to the radius without
+  // becoming a scroll container, so the menu step's subtotal footer can
+  // stay sticky inside the booking sheet.
+  overflow: clip;
   @include tokens.elevation-4;
 
   &::before {
@@ -30,7 +33,8 @@
 // Sprint B (Car Rental Pickup/Return Interval) — Pickup and Return are two
 // visually distinct legs (never one dense row), each grouping its own
 // location display and time field, matching the "PICKUP: location / date /
-// time" hierarchy the product brief calls for.
+// time" hierarchy the product brief calls for. Sentence case, never
+// uppercase: an uppercased Armenian or Russian title reads as shouting (W-02).
 .rentalLeg {
   padding: tokens.$space-3;
   border-radius: tokens.$radius-md;
@@ -40,9 +44,7 @@
 .rentalLegLabel {
   font-size: tokens.$font-size-small;
   font-weight: 600;
-  color: tokens.$color-gray-600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: tokens.$color-navy;
 }
 
 .rentalLocation {
@@ -56,23 +58,11 @@
 }
 
 // Sprint C-3 (Date-Range Room Availability) — the selected room's
-// server-derived night count/sold-out state for the exact chosen stay.
-.stayNights {
-  font-size: tokens.$font-size-small;
-  color: tokens.$color-gray-600;
-}
-
+// sold-out state for the exact chosen stay.
 .staySoldOut {
   font-size: tokens.$font-size-small;
   color: tokens.$color-danger;
   font-weight: 600;
-}
-
-// Step L6.2H2B: a free restaurant reservation, in place of an estimated total.
-.freeReservation {
-  margin: 0;
-  font-size: tokens.$font-size-small;
-  color: tokens.$color-success-strong;
 }
 
 // Step L6.3B — "Stay overnight / Book by hour" for an hourly-enabled room:
@@ -99,6 +89,51 @@
 .hourlyHint {
   margin: 0;
   font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+  overflow-wrap: anywhere;
+}
+
+// Category-aware rebuild — what happens after the action, under it.
+.actionNote {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+  color: tokens.$color-gray-600;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+// Where focus lands when the guest returns from the menu step.
+.focusTarget:focus-visible {
+  outline: 2px solid tokens.$color-royal-blue;
+  outline-offset: 4px;
+  border-radius: tokens.$radius-sm;
+}
+
+// The booking sheet's menu step.
+.stepHeader {
+  display: flex;
+  align-items: center;
+}
+
+.stepTitle {
+  margin: 0;
+  font-family: tokens.$font-heading;
+  font-size: tokens.$font-size-h4;
+  line-height: tokens.$line-height-h4;
+  color: tokens.$color-navy;
+
+  &:focus-visible {
+    outline: 2px solid tokens.$color-royal-blue;
+    outline-offset: 2px;
+  }
+}
+
+// A restaurant window running past midnight: where the later times are.
+.timeHint {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
   color: tokens.$color-gray-600;
   overflow-wrap: anywhere;
 }

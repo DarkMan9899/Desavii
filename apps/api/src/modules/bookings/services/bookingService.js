@@ -38,6 +38,7 @@ import {
   ValidationError,
   NotFoundError,
   PriceChangedError,
+  MenuPriceChangedError,
 } from '../../../errors/AppError.js';
 import { isPartnerOwner } from '../../../infrastructure/database/repositories/partnerEmployeeRepository.js';
 import { isManagerAssignedToPartner } from '../../../infrastructure/database/repositories/managerAssignmentRepository.js';
@@ -45,6 +46,10 @@ import { findCurrencyByCode } from '../../../infrastructure/database/repositorie
 import { withTransaction } from '../../../infrastructure/database/transaction.js';
 import { Money } from '../../../core/domain/money.js';
 import { isAcceptedQuoteCurrent } from '../../../core/domain/bookingQuote.js';
+import {
+  pricePreorder,
+  isAcceptedMenuSubtotalCurrent,
+} from '../../../core/domain/restaurantPreorder.js';
 import { UNIT_RANGE_PRICE_ISSUES } from '../../../core/domain/unitRangePrice.js';
 import {
   isDepartureUnitType,
@@ -167,6 +172,8 @@ export class BookingService {
 
   #exchangeRateService;
 
+  #restaurantMenuService;
+
   constructor({
     bookingRepository,
     availabilityService,
@@ -176,6 +183,10 @@ export class BookingService {
     // shape as `partnerService` above: `createBooking` only ever needs it
     // when a caller actually supplies `displayCurrencyCode`.
     exchangeRateService = null,
+    // Restaurant menu pre-order: the Listings module's public menu Service
+    // (never a second Repository over its menu tables). Optional like
+    // `partnerService`: only a booking that carries a pre-order needs it.
+    restaurantMenuService = null,
     permissionResolver,
     auditLogger,
     eventBus = createNoOpEventBus(),
@@ -185,6 +196,7 @@ export class BookingService {
     this.#listingService = listingService;
     this.#partnerService = partnerService;
     this.#exchangeRateService = exchangeRateService;
+    this.#restaurantMenuService = restaurantMenuService;
     this.#permissionResolver = permissionResolver;
     this.#auditLogger = auditLogger;
     this.#eventBus = eventBus;
@@ -400,6 +412,13 @@ export class BookingService {
       ]);
     }
 
+    const preorder = await this.#resolvePreorder(
+      item,
+      unit,
+      isRestaurant,
+      connection,
+    );
+
     // Step L6.2H2B: a restaurant reservation is free — its PER_PERSON
     // listing price is average-spend metadata, so its listing (and price)
     // is never read for pricing; `quoteUnitRange` charges zero.
@@ -479,7 +498,70 @@ export class BookingService {
       // for hourly hotel stays (their detail shows the guests). Every other
       // item keeps its current (unpersisted) guest-count semantics.
       guestCount: isRestaurant || isHourly ? (item.guestCount ?? null) : null,
+      preorder,
     };
+  }
+
+  /**
+   * Restaurant menu pre-order (docs/BOOKING_WIDGET_REBUILD.md §5): prices
+   * the requested dishes against THIS restaurant's current active menu,
+   * inside the booking transaction. Only dish ids and portions come from
+   * the client; titles and prices come from the menu. Refused when the
+   * item is not a restaurant reservation, when any dish is not the
+   * restaurant's own active dish (another restaurant's, inactive, deleted —
+   * each named, so the customer can drop it and keep the reservation), or
+   * when the subtotal the customer confirmed is no longer current. Any
+   * refusal rolls back, so the holds stay active.
+   */
+  async #resolvePreorder(item, unit, isRestaurant, connection) {
+    if (!item.menuSelections) return null;
+    if (!isRestaurant || !this.#restaurantMenuService) {
+      throw new ValidationError(
+        'Only a restaurant reservation can include a menu pre-order.',
+        [{ field: 'items', issue: 'MENU_PREORDER_NOT_SUPPORTED' }],
+      );
+    }
+    const orderable =
+      await this.#restaurantMenuService.findOrderableItemsSystemInternal(
+        unit.listingId,
+        item.menuSelections.map((selection) => selection.menuItemId),
+        connection,
+      );
+    const priced = pricePreorder(item.menuSelections, orderable);
+    if (priced.unavailableIds.length > 0) {
+      throw new ValidationError(
+        'Some dishes can no longer be pre-ordered.',
+        priced.unavailableIds.map((menuItemId) => ({
+          field: 'items',
+          issue: 'MENU_ITEM_UNAVAILABLE',
+          menuItemId,
+        })),
+      );
+    }
+    if (priced.mixedCurrency) {
+      throw new ValidationError("These dishes can't be pre-ordered together.", [
+        { field: 'items', issue: 'MENU_CURRENCY_MISMATCH' },
+      ]);
+    }
+    const accepted = {
+      amount: item.expectedMenuSubtotalAmount,
+      currency: item.expectedMenuCurrency,
+    };
+    if (!isAcceptedMenuSubtotalCurrent(accepted, priced.subtotal)) {
+      throw new MenuPriceChangedError({
+        lines: priced.lines.map((line) => ({
+          menu_item_id: line.menuItemId,
+          title: line.title,
+          quantity: line.quantity,
+          unit_price_amount: line.unitPrice.toDecimalString(),
+          line_total_amount: line.lineTotal.toDecimalString(),
+          currency: line.unitPrice.currency,
+        })),
+        subtotal_amount: priced.subtotal.toDecimalString(),
+        currency: priced.subtotal.currency,
+      });
+    }
+    return priced;
   }
 
   /**
@@ -769,6 +851,19 @@ export class BookingService {
           },
           connection,
         );
+        if (resolved.preorder) {
+          // eslint-disable-next-line no-await-in-loop -- one pre-order per item, inside the booking transaction.
+          const preorderCurrency = await findCurrencyByCode(
+            resolved.preorder.subtotal.currency,
+            connection,
+          );
+          // eslint-disable-next-line no-await-in-loop
+          await this.#bookingRepository.createMenuSelections(
+            bookingItemId,
+            { lines: resolved.preorder.lines, currencyId: preorderCurrency.id },
+            connection,
+          );
+        }
         // Step L6.3B: the hourly hold's timed rooms now belong to this item.
         if (resolved.bookingMode === BOOKING_MODES.HOURLY) {
           // eslint-disable-next-line no-await-in-loop
@@ -843,10 +938,14 @@ export class BookingService {
       booking.id,
       connection,
     );
-    const guests = await this.#bookingRepository.findGuestsForBookingItems(
-      items.map((item) => item.id),
-      connection,
-    );
+    const itemIds = items.map((item) => item.id);
+    const [guests, menuSelections] = await Promise.all([
+      this.#bookingRepository.findGuestsForBookingItems(itemIds, connection),
+      this.#bookingRepository.findMenuSelectionsForBookingItems(
+        itemIds,
+        connection,
+      ),
+    ]);
     // Resolves who a customer can message about this booking (the
     // partner's owner/primary user — see `partnerService.getOwnerUserId`,
     // already used server-side by the notifications listener). Read-only,
@@ -863,6 +962,9 @@ export class BookingService {
       items: items.map((item) => ({
         ...item,
         guests: guests.filter((guest) => guest.bookingItemId === item.id),
+        menuSelections: menuSelections.filter(
+          (line) => line.bookingItemId === item.id,
+        ),
       })),
     };
   }

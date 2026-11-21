@@ -36,7 +36,6 @@ import RouterLink from '../../../../components/RouterLink.jsx';
 import ScrollReveal from '../../../../components/ScrollRevealLite/ScrollRevealLite.jsx';
 import useListingDetail from '../../hooks/useListingDetail.js';
 import useListingDetailSeo from '../../hooks/useListingDetailSeo.js';
-import { resolveBookingCtaKey } from '../../utils/categoryPresentation.js';
 import { SECTION_IDS } from '../../utils/listingDetailSections.js';
 import { resolveDetailEmphasisSectionId } from '../../../../utils/categoryMotionConfig.js';
 import { trackListingViewed } from '../../../../analytics/index.js';
@@ -98,12 +97,10 @@ export default function ListingDetailPageContent() {
   }
 
   const { categoryVisualKey, sections, reservation } = model;
-  const bookingCtaKey = resolveBookingCtaKey(categoryVisualKey);
   const emphasisSectionId = resolveDetailEmphasisSectionId(categoryVisualKey);
   const reservationProps = {
     listingId: listing.id,
     pricing: listing.pricing,
-    bookingCtaKey,
     location: model.location,
     selectedUnitId: reservation.selectedUnitId,
     onSelectUnit: reservation.onSelectUnit,
@@ -112,6 +109,9 @@ export default function ListingDetailPageContent() {
     listingType: listing.listing_type,
     bookingRules: listing.booking_rules,
     categorySlug: model.category?.slug ?? null,
+    // A restaurant's menus and hours: its pre-order and reservation times.
+    menus: model.menus,
+    weeklyHours: model.weeklyHours,
   };
 
   return (

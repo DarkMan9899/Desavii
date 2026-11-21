@@ -5,7 +5,6 @@ import {
   CATEGORY_VISUAL_KEYS,
   resolveCategoryVisualKey,
   reorderSections,
-  resolveBookingCtaKey,
 } from './categoryPresentation.js';
 
 describe('categoryPresentation', () => {
@@ -184,17 +183,6 @@ describe('categoryPresentation', () => {
         'guestNotes',
         'faq',
       ]);
-    });
-  });
-
-  describe('resolveBookingCtaKey', () => {
-    test('returns a group-scoped i18n key, never literal copy', () => {
-      expect(resolveBookingCtaKey(PRESENTATION_GROUPS.ACCOMMODATION)).toBe(
-        'pages.listingDetail.reservation.requestToBookByGroup.ACCOMMODATION',
-      );
-      expect(resolveBookingCtaKey(PRESENTATION_GROUPS.TRANSPORT)).toBe(
-        'pages.listingDetail.reservation.requestToBookByGroup.TRANSPORT',
-      );
     });
   });
 

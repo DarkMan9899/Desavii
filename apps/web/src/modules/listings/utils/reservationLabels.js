@@ -1,16 +1,10 @@
 /**
  * reservationLabels — tiny shared label resolvers for anything that
- * shows a listing's booking CTA copy or pricing-model suffix.
+ * shows a listing's pricing-model suffix.
  * `ListingReservationWidget` (desktop sidebar) and `MobileBookingBar`
  * (Phase 18.11) both need the exact same two lookups; extracted here so
  * neither duplicates the other's i18n fallback chain.
  */
-
-export function resolveBookingCtaLabel(t, bookingCtaKey) {
-  return t(bookingCtaKey, {
-    defaultValue: t('pages.listingDetail.reservation.requestToBook'),
-  });
-}
 
 /**
  * Step L6.2H2B: a restaurant's price is average spend per person — display

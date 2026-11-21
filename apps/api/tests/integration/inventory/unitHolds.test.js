@@ -20,6 +20,7 @@ import {
 import { closeRedisConnection } from '../../../src/infrastructure/cache/redisClient.js';
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { markListingBookable } from '../helpers/markListingBookable.js';
 
 let pool;
 let vendor;
@@ -35,7 +36,7 @@ async function login(email, password) {
   return { accessToken: res.body.data.access_token };
 }
 
-async function createListing(title) {
+async function createListing(title, { bookable = true } = {}) {
   const res = await request(app)
     .post('/api/v1/listings')
     .set('Authorization', `Bearer ${vendor.accessToken}`)
@@ -44,6 +45,7 @@ async function createListing(title) {
       listingType: 'HOTEL',
       translations: [{ languageId, title }],
     });
+  if (bookable) await markListingBookable(res.body.data.id);
   return res.body.data.id;
 }
 
@@ -151,7 +153,10 @@ describe('GET /availability/units/:id/holds', () => {
   });
 
   test('a customer with no relationship to the (still-draft) listing is rejected — 404, never leaking existence', async () => {
-    const listingId = await createListing(`Holds RBAC Test ${Date.now()}`);
+    // Left a draft: a stranger must not learn it exists.
+    const listingId = await createListing(`Holds RBAC Test ${Date.now()}`, {
+      bookable: false,
+    });
     const unitId = await registerUnit(listingId, 1);
 
     const res = await request(app)

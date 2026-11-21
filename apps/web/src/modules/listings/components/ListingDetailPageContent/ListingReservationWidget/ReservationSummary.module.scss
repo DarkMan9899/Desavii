@@ -1,0 +1,61 @@
+// ReservationSummary — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-2;
+  padding-top: tokens.$space-3;
+  border-top: 1px solid tokens.$color-gray-200;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: tokens.$space-1;
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: tokens.$space-3;
+  font-size: tokens.$font-size-small;
+  line-height: tokens.$line-height-small;
+
+  dt {
+    min-width: 0;
+    color: tokens.$color-gray-600;
+    overflow-wrap: anywhere;
+  }
+
+  dd {
+    margin: 0;
+    flex-shrink: 0;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: tokens.$color-gray-900;
+  }
+}
+
+.total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: tokens.$space-1 tokens.$space-3;
+}
+
+.totalLabel {
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+}
+
+.free {
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-success-strong;
+}

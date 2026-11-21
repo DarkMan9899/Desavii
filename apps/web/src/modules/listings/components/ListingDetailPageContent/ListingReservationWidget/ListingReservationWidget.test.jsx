@@ -317,7 +317,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     renderWidget();
     expect(screen.queryByText('Միավոր')).not.toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
+      screen.getByRole('button', { name: 'Ամրագրել' }),
     ).toBeInTheDocument();
   });
 
@@ -328,7 +328,8 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       isError: false,
     });
     renderWidget();
-    expect(screen.getByText('Միավոր')).toBeInTheDocument();
+    // W-06: a hotel's options are room types, named as such.
+    expect(screen.getByText('Սենյակի տեսակ')).toBeInTheDocument();
   });
 
   test('the Request to Book button is disabled until dates are selected', () => {
@@ -338,9 +339,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       isError: false,
     });
     renderWidget();
-    expect(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Ամրագրել' })).toBeDisabled();
   });
 
   test('selecting dates enables submit and shows a checkout-exclusive estimated total', async () => {
@@ -358,9 +357,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
 
-    expect(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    ).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Ամրագրել' })).toBeEnabled();
     // P2.2B: SINGLE_UNIT is a PROPERTY_UNIT (accommodation) — the picked
     // range (2027-08-01 -> 2027-08-02) is a genuine 1-night stay, so only
     // the check-in day's price (100) is charged, matching the backend's
@@ -506,7 +503,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     // 2 max_guests x 1 (default) quantity.
     expect(guestsInput).toHaveValue(2);
 
-    const quantityInput = screen.getByLabelText('Քանակ');
+    const quantityInput = screen.getByLabelText('Սենյակներ');
     fireEvent.change(quantityInput, { target: { value: '3' } });
     expect(quantityInput).toHaveValue(3);
 
@@ -549,9 +546,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     renderWidget();
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
-    await user.click(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Ամրագրել' }));
 
     expect(mutateAsync).not.toHaveBeenCalled();
     expect(mockNavigate).toHaveBeenCalledWith(
@@ -576,9 +571,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     renderWidget();
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
-    await user.click(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Ամրագրել' }));
 
     expect(mutateAsync).toHaveBeenCalledWith([
       {
@@ -623,16 +616,14 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     const user = userEvent.setup();
     renderWidget();
 
-    const quantityInput = screen.getByLabelText('Քանակ');
+    const quantityInput = screen.getByLabelText('Սենյակներ');
     fireEvent.change(quantityInput, { target: { value: '2' } });
 
     const guestsInput = screen.getByLabelText('Հյուրեր');
     fireEvent.change(guestsInput, { target: { value: '3' } });
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
-    await user.click(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Ամրագրել' }));
 
     expect(mutateAsync).toHaveBeenCalledWith([
       {
@@ -752,9 +743,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     renderWidget();
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
-    await user.click(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Ամրագրել' }));
 
     expect(
       await screen.findByText(
@@ -784,17 +773,13 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       expect(
         screen.getByText('Ընտրեք մուտքի ամսաթվից ուշ ելքի ամսաթիվ։'),
       ).toBeInTheDocument();
-      expect(
-        screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-      ).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Ամրագրել' })).toBeDisabled();
 
       await user.click(screen.getByRole('button', { name: 'pick dates' }));
       expect(
         screen.queryByText('Ընտրեք մուտքի ամսաթվից ուշ ելքի ամսաթիվ։'),
       ).not.toBeInTheDocument();
-      expect(
-        screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-      ).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Ամրագրել' })).toBeEnabled();
     });
 
     test.each([
@@ -824,9 +809,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
         renderWidget();
 
         await user.click(screen.getByRole('button', { name: 'pick dates' }));
-        await user.click(
-          screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-        );
+        await user.click(screen.getByRole('button', { name: 'Ամրագրել' }));
 
         expect(await screen.findByText(message)).toBeInTheDocument();
         expect(
@@ -866,9 +849,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       expect(
         screen.getByText('Նվազագույն մնալու տևողությունը 2 գիշեր է։'),
       ).toBeInTheDocument();
-      expect(
-        screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-      ).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Ամրագրել' })).toBeDisabled();
     });
 
     test('a stay within the rules is requestable', async () => {
@@ -886,9 +867,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       await user.click(screen.getByRole('button', { name: 'pick dates' }));
 
       expect(screen.queryByText(/մնալու տևողությունը/)).not.toBeInTheDocument();
-      expect(
-        screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-      ).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Ամրագրել' })).toBeEnabled();
     });
 
     test('a car rental counts inclusive rental days, worded as days', async () => {
@@ -967,9 +946,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     renderWidget();
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
-    await user.click(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Ամրագրել' }));
 
     expect(
       await screen.findByText(
@@ -1036,9 +1013,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     renderWidget();
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
-    await user.click(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Ամրագրել' }));
 
     expect(
       await screen.findByText(
@@ -1047,23 +1022,60 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
     ).toBeInTheDocument();
   });
 
-  test('renders the group-scoped booking CTA copy when a category-specific bookingCtaKey is passed', () => {
+  // W-03: the action names what is booked, from the listing's real units
+  // (and, for a departure, its category) — never one generic label.
+  test.each([
+    [
+      'a hotel room',
+      [{ id: 1, bookable_unit_type: 'HOTEL_ROOM', capacity: 1 }],
+      {},
+      'Ամրագրել',
+    ],
+    ['a whole property', SINGLE_UNIT, {}, 'Ամրագրել'],
+    [
+      'a car',
+      [{ id: 1, bookable_unit_type: 'VEHICLE', capacity: 1 }],
+      {},
+      'Վարձակալել մեքենան',
+    ],
+    [
+      'a restaurant table',
+      [{ id: 1, bookable_unit_type: 'RESTAURANT_TABLE', capacity: 4 }],
+      {},
+      'Ամրագրել սեղան',
+    ],
+    [
+      'a tour',
+      [{ id: 1, bookable_unit_type: 'TOUR_DEPARTURE', capacity: 9 }],
+      { categorySlug: 'tours' },
+      'Ամրագրել տուրը',
+    ],
+    [
+      'an attraction',
+      [{ id: 1, bookable_unit_type: 'TOUR_DEPARTURE', capacity: 9 }],
+      { categorySlug: 'attractions' },
+      'Ամրագրել այցը',
+    ],
+    [
+      'an entertainment venue',
+      [{ id: 1, bookable_unit_type: 'TOUR_DEPARTURE', capacity: 9 }],
+      { categorySlug: 'entertainment-venues' },
+      'Ամրագրել սեանսը',
+    ],
+  ])('the action for %s reads "%s"', (_name, units, props, label) => {
     useListingBookableUnitsQuery.mockReturnValue({
-      data: SINGLE_UNIT,
+      data: units,
       isPending: false,
       isError: false,
     });
-    renderWidget({
-      bookingCtaKey:
-        'pages.listingDetail.reservation.requestToBookByGroup.EXPERIENCE',
-    });
+    renderWidget(props);
 
+    expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Ամրագրել ձեր տեղը' }),
+      screen.getByText(
+        'Հիմա ոչինչ չի գանձվում․ նախ գործընկերը կհաստատի ձեր հայտը։',
+      ),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    ).not.toBeInTheDocument();
   });
 
   describe("P2.2D: initializes from the search page's own URL context", () => {
@@ -1081,9 +1093,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       // dateRange is already valid without ever clicking the (mocked)
       // date picker — proven by the submit button being enabled from the
       // very first render, since `canSubmit` requires a real start/end.
-      expect(
-        screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-      ).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Ամրագրել' })).toBeEnabled();
       expect(screen.getByLabelText('Հյուրեր')).toHaveValue(2);
     });
 
@@ -1095,9 +1105,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
       });
       renderWidget({}, '/en/listings/10');
 
-      expect(
-        screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-      ).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Ամրագրել' })).toBeDisabled();
       expect(screen.getByLabelText('Հյուրեր')).toHaveValue(1);
     });
 
@@ -1125,9 +1133,7 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
         isError: false,
       });
       renderWidget({}, entry);
-      expect(
-        screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-      ).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Ամրագրել' })).toBeDisabled();
     });
 
     test.each([
@@ -1192,22 +1198,22 @@ describe('ListingReservationWidget (Listing Details, Phase 7)', () => {
 
       await user.click(screen.getByTestId('select-trigger'));
       await user.click(unitOption('Standard Room'));
-      expect(
-        screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-      ).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Ամրագրել' })).toBeEnabled();
       expect(screen.getByLabelText('Հյուրեր')).toHaveValue(2);
 
       await user.click(screen.getByTestId('select-trigger'));
       await user.click(unitOption('Deluxe Suite'));
-      expect(
-        screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-      ).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Ամրագրել' })).toBeDisabled();
       expect(screen.getByLabelText('Հյուրեր')).toHaveValue(1);
     });
   });
 });
 
 describe('ListingReservationWidget — Sprint A (Time-Aware Booking Foundation)', () => {
+  // These departures carry no category or listing type: the action stays
+  // the neutral "Request to book", never a guessed "Book tour".
+  const GENERIC_CTA = 'Ուղարկել ամրագրման հայտ';
+
   beforeEach(() => {
     mockNavigate.mockReset();
     useAuth.mockReturnValue({ isAuthenticated: true });
@@ -1368,20 +1374,14 @@ describe('ListingReservationWidget — Sprint A (Time-Aware Booking Foundation)'
     const user = userEvent.setup();
     renderWidget();
 
-    expect(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: GENERIC_CTA })).toBeDisabled();
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
     await user.click(screen.getByRole('button', { name: '14:00–16:30' }));
 
-    expect(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    ).toBeEnabled();
+    expect(screen.getByRole('button', { name: GENERIC_CTA })).toBeEnabled();
 
-    await user.click(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    );
+    await user.click(screen.getByRole('button', { name: GENERIC_CTA }));
 
     expect(mutateAsync).toHaveBeenCalledWith([
       {
@@ -1432,9 +1432,7 @@ describe('ListingReservationWidget — Sprint A (Time-Aware Booking Foundation)'
       'aria-pressed',
       'false',
     );
-    expect(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: GENERIC_CTA })).toBeDisabled();
   });
 });
 
@@ -1491,7 +1489,7 @@ describe('ListingReservationWidget — Sprint B (Car Rental Pickup/Return Interv
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
     expect(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
+      screen.getByRole('button', { name: 'Վարձակալել մեքենան' }),
     ).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText('Ստացման ժամը'), {
@@ -1499,7 +1497,7 @@ describe('ListingReservationWidget — Sprint B (Car Rental Pickup/Return Interv
     });
     // Only pickup time entered so far — still incomplete.
     expect(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
+      screen.getByRole('button', { name: 'Վարձակալել մեքենան' }),
     ).toBeDisabled();
   });
 
@@ -1522,7 +1520,7 @@ describe('ListingReservationWidget — Sprint B (Car Rental Pickup/Return Interv
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
+      screen.getByRole('button', { name: 'Վարձակալել մեքենան' }),
     ).toBeDisabled();
   });
 
@@ -1546,11 +1544,11 @@ describe('ListingReservationWidget — Sprint B (Car Rental Pickup/Return Interv
     });
 
     expect(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
+      screen.getByRole('button', { name: 'Վարձակալել մեքենան' }),
     ).toBeEnabled();
 
     await user.click(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
+      screen.getByRole('button', { name: 'Վարձակալել մեքենան' }),
     );
 
     expect(mutateAsync).toHaveBeenCalledWith([
@@ -1695,7 +1693,7 @@ describe('ListingReservationWidget — Sprint C-3 (Date-Range Room Availability)
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
     await user.click(screen.getByTestId('select-trigger'));
     await user.click(unitOption('Standard Room'));
-    const rooms = screen.getByLabelText('Quantity');
+    const rooms = screen.getByLabelText('Rooms');
     await user.clear(rooms);
     await user.type(rooms, '2');
 
@@ -1734,9 +1732,7 @@ describe('ListingReservationWidget — Sprint C-3 (Date-Range Room Availability)
     expect(
       screen.getByText('This room is sold out for the selected dates.'),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Request to book' }),
-    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Reserve' })).toBeDisabled();
   });
 
   test('changing the stay dates after picking a room clears the room selection — a new range has not been checked against it yet', async () => {
@@ -1750,7 +1746,7 @@ describe('ListingReservationWidget — Sprint C-3 (Date-Range Room Availability)
 
     await user.click(screen.getByTestId('select-trigger'));
     await user.click(unitOption('Standard Room'));
-    expect(screen.getByLabelText('Quantity')).toBeInTheDocument();
+    expect(screen.getByLabelText('Rooms')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
 
@@ -1765,9 +1761,7 @@ describe('ListingReservationWidget — Sprint C-3 (Date-Range Room Availability)
     });
     renderWidget();
 
-    expect(
-      screen.getByRole('button', { name: 'Request to book' }),
-    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Reserve' })).toBeDisabled();
     expect(screen.queryByText(/sold out/i)).not.toBeInTheDocument();
   });
 });
@@ -1929,15 +1923,14 @@ describe('ListingReservationWidget — departure people count (Step L6.2H3B)', (
 
     expect(screen.getByLabelText('Ճանապարհորդներ')).toHaveValue(4);
     await user.click(screen.getByRole('button', { name: 'pick dates' }));
-    await user.click(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Ամրագրել տուրը' }));
 
+    // W-04: an untimed departure is ONE date, never a range.
     expect(mutateAsync).toHaveBeenCalledWith([
       {
         bookableUnitId: 1,
         dateFrom: '2027-08-01',
-        dateTo: '2027-08-02',
+        dateTo: '2027-08-01',
         quantity: 4,
       },
     ]);

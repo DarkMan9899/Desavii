@@ -208,3 +208,80 @@ describe('toBookingSummaryResponse', () => {
     expect(response.date_to).toBeNull();
   });
 });
+
+describe('toBookingResponse — restaurant menu pre-order', () => {
+  const base = {
+    id: 1,
+    bookingReference: 'BK-20260101-ABCDEF23',
+    bookingTypeCode: 'RESTAURANT_RESERVATION',
+    currencyCode: 'AMD',
+    totalAmount: '0.00',
+  };
+
+  test('a reservation alone has no pre-order', () => {
+    const response = toBookingResponse({
+      ...base,
+      items: [{ id: 3, quantity: 1, menuSelections: [] }],
+    });
+    expect(response.items[0].menu_preorder).toBeNull();
+  });
+
+  test('a pre-order reads its own snapshot lines, line totals and subtotal, paid at the venue', () => {
+    const response = toBookingResponse({
+      ...base,
+      items: [
+        {
+          id: 3,
+          quantity: 1,
+          menuSelections: [
+            {
+              menuItemId: 7,
+              title: 'Khorovats',
+              sectionTitle: 'Grill',
+              languageCode: 'hy',
+              quantity: 2,
+              unitPriceAmount: '12000.00',
+              currencyCode: 'AMD',
+            },
+            {
+              menuItemId: null,
+              title: 'Gata',
+              sectionTitle: null,
+              languageCode: 'hy',
+              quantity: 1,
+              unitPriceAmount: '1500.00',
+              currencyCode: 'AMD',
+            },
+          ],
+        },
+      ],
+    });
+    expect(response.items[0].menu_preorder).toEqual({
+      lines: [
+        {
+          menu_item_id: 7,
+          title: 'Khorovats',
+          section_title: 'Grill',
+          language_code: 'hy',
+          quantity: 2,
+          unit_price_amount: '12000.00',
+          line_total_amount: '24000.00',
+        },
+        {
+          menu_item_id: null,
+          title: 'Gata',
+          section_title: null,
+          language_code: 'hy',
+          quantity: 1,
+          unit_price_amount: '1500.00',
+          line_total_amount: '1500.00',
+        },
+      ],
+      subtotal_amount: '25500.00',
+      currency: 'AMD',
+      payment: 'PAY_AT_VENUE',
+    });
+    // Never part of what the booking charges.
+    expect(response.total_amount).toBe('0.00');
+  });
+});

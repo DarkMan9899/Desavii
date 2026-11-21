@@ -1019,11 +1019,12 @@ export class ListingService {
    * only rejects a listing whose publication period has already expired
    * (frozen by the sweep, or past `expires_at` even if the sweep hasn't
    * run yet — same DB-time, not-scheduler-time rule `isPubliclyVisible`
-   * uses). It never re-checks DRAFT/UNPUBLISHED/moderation status — those
-   * are `getListing`'s existing, unrelated concern, and every caller of
-   * this method already reached the listing through an authorized path
-   * (a hold/booking can only be created against a resolvable
-   * `bookableUnitId`/`listingId`). Never takes a `principal` — booking
+   * uses). Booking-widget closure (docs/BOOKING_WIDGET_REBUILD.md §12): a
+   * listing that is not PUBLISHED (draft, unpublished, rejected) is not
+   * bookable either. A hold names a raw `bookableUnitId`, so without this a
+   * customer could reserve a non-public listing's inventory by its id; it
+   * answers 404, exactly as the public detail read does, so the listing's
+   * existence is not revealed. Never takes a `principal` — booking
    * eligibility applies uniformly, with no owner/admin exception: nobody
    * can create a NEW booking against an expired listing, including its
    * own partner. Step L6.2H1 adds the one pricing-model rule: a legacy
@@ -1040,6 +1041,9 @@ export class ListingService {
         'This listing is no longer accepting new bookings.',
         'LISTING_NOT_BOOKABLE',
       );
+    }
+    if (listing.statusCode !== 'PUBLISHED') {
+      throw new NotFoundError('Listing not found.');
     }
     // Step L6.2H1: a legacy pricing model its category no longer offers
     // (PER_HOUR) cannot be charged correctly — booking would silently bill

@@ -171,14 +171,19 @@ export function getListingCalendar(listingId, { from, to, unitId } = {}) {
  * `stay_total_currency` — the true minimum across every occupied night,
  * never a per-day figure. This is what the Rooms section/Reservation
  * widget use once the customer has picked a check-in and check-out date.
+ *
+ * `signal` (the query's AbortSignal) cancels a read the customer's newer
+ * selection has already superseded (docs/BOOKING_WIDGET_REBUILD.md §6).
  */
 export function getListingBookableUnits(
   listingId,
   { date, checkIn, checkOut } = {},
+  { signal } = {},
 ) {
   return apiClient
     .get(`/availability/${listingId}/units`, {
       params: { date, checkIn, checkOut },
+      signal,
     })
     .then((response) => response.data);
 }

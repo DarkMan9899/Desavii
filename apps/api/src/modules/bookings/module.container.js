@@ -22,6 +22,8 @@ export default function createBookingsContainer({
   // Service interface only — never a second Repository over
   // `exchange_rates` (BACKEND_ARCHITECTURE.md §4's cross-module rule).
   exchangeRateService,
+  // Restaurant menu pre-order: the Listings module's public menu Service.
+  restaurantMenuService,
   permissionResolver,
   auditLogger,
   eventBus,
@@ -33,6 +35,7 @@ export default function createBookingsContainer({
     listingService,
     partnerService,
     exchangeRateService,
+    restaurantMenuService,
     permissionResolver,
     auditLogger,
     eventBus,

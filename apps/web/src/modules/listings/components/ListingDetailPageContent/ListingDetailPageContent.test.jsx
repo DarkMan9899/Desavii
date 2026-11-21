@@ -360,7 +360,7 @@ describe('ListingDetailPageContent (Listing Details, Phase 18)', () => {
     // The precise singular category the cards use, never the plural name.
     expect(screen.getByText('Վիլլա')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Ուղարկել ամրագրման հայտ' }),
+      screen.getByRole('button', { name: 'Ամրագրել' }),
     ).toBeInTheDocument();
     // Step A3 (Listing → Company Linking): the shared `CompanyAttribution`
     // block, wired from `listing.company`, links to the real company's

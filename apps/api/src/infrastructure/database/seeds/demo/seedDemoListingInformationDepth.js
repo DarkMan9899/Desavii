@@ -17,6 +17,12 @@
  * from its own description. Only attributes the earlier layers left
  * empty are written (`cli/seedDemo.js` runs this after them, on a freshly
  * reset database), so nothing is duplicated.
+ *
+ * Restaurant menu pre-order (docs/BOOKING_WIDGET_REBUILD.md §7): the
+ * representative restaurant also gets its Armenian and Russian menus — the
+ * same dishes and prices as its English one, written per language as a
+ * partner authors them — and one seasonal dish the partner has switched
+ * off in each language, so the pre-order's "not available" state is real.
  */
 
 import {
@@ -24,6 +30,7 @@ import {
   insertLocalizedRows,
   insertPolicyValue,
 } from './seedDemoListingRichContent.js';
+import { insertRestaurantMenu } from './seedDemoSprintJCatalog.js';
 
 const LANGUAGES = ['en', 'hy', 'ru'];
 
@@ -274,6 +281,180 @@ const REPRESENTATIVES = [
   },
 ];
 
+const MENU_RESTAURANT_SLUG = 'sprintj-toros-armenian-kitchen';
+
+const SEASONAL_DISH = {
+  en: {
+    title: 'Ghapama (seasonal)',
+    description: 'Pumpkin stuffed with rice and dried fruit — autumn only.',
+  },
+  hy: {
+    title: 'Ղափամա (սեզոնային)',
+    description: 'Դդում՝ լցոնված բրնձով և չրերով․ միայն աշնանը։',
+  },
+  ru: {
+    title: 'Гапама (сезонное)',
+    description: 'Тыква с рисом и сухофруктами — только осенью.',
+  },
+};
+const SEASONAL_DISH_PRICE = 7500;
+
+const LOCALIZED_MENUS = {
+  hy: {
+    name: 'Ընթրիքի մենյու',
+    description: 'Մատուցվում է ամեն օր․ խոհանոցը փակվում է 30 րոպե շուտ։',
+    sections: [
+      {
+        title: 'Նախուտեստներ',
+        items: [
+          {
+            title: 'Տոլմա (6 հատ)',
+            description:
+              'Խաղողի տերևի մեջ ձեռքով փաթաթված համեմված գառան միս և բրինձ։',
+            priceAmount: 2800,
+          },
+          {
+            title: 'Լավաշ պանրով և կանաչիով',
+            description: 'Թոնրի լավաշ, չեչիլ պանիր, թարմ կանաչի։',
+            priceAmount: 1800,
+          },
+        ],
+      },
+      {
+        title: 'Խորոված',
+        items: [
+          {
+            title: 'Խոզի խորոված',
+            description: 'Մարինացված խոզի փափկամիս՝ խորովված պատվերով։',
+            priceAmount: 5500,
+          },
+          {
+            title: 'Հավի խորոված',
+            description: 'Մարինացված հավի ազդր՝ խորովված պատվերով։',
+            priceAmount: 4800,
+          },
+          {
+            title: 'Գառան խորոված',
+            description: 'Մարինացված գառան ազդր՝ խորովված պատվերով։',
+            priceAmount: 6800,
+          },
+          {
+            ...SEASONAL_DISH.hy,
+            priceAmount: SEASONAL_DISH_PRICE,
+            isActive: false,
+          },
+        ],
+      },
+      {
+        title: 'Ըմպելիքներ',
+        items: [
+          { title: 'Տնական կոմպոտ', priceAmount: 900 },
+          { title: 'Հայկական սուրճ', priceAmount: 700 },
+        ],
+      },
+    ],
+  },
+  ru: {
+    name: 'Ужин',
+    description:
+      'Подаётся ежедневно, кухня закрывается за 30 минут до закрытия.',
+    sections: [
+      {
+        title: 'Закуски',
+        items: [
+          {
+            title: 'Толма (6 шт.)',
+            description:
+              'Виноградные листья, завёрнутые вручную, с пряной бараниной и рисом.',
+            priceAmount: 2800,
+          },
+          {
+            title: 'Лаваш с сыром и зеленью',
+            description: 'Лаваш из тонира, сыр чечил, свежая зелень.',
+            priceAmount: 1800,
+          },
+        ],
+      },
+      {
+        title: 'Хоровац',
+        items: [
+          {
+            title: 'Хоровац из свинины',
+            description: 'Маринованная свиная корейка, на гриле под заказ.',
+            priceAmount: 5500,
+          },
+          {
+            title: 'Хоровац из курицы',
+            description: 'Маринованное куриное бедро, на гриле под заказ.',
+            priceAmount: 4800,
+          },
+          {
+            title: 'Хоровац из баранины',
+            description: 'Маринованная баранья нога, на гриле под заказ.',
+            priceAmount: 6800,
+          },
+          {
+            ...SEASONAL_DISH.ru,
+            priceAmount: SEASONAL_DISH_PRICE,
+            isActive: false,
+          },
+        ],
+      },
+      {
+        title: 'Напитки',
+        items: [
+          { title: 'Домашний компот', priceAmount: 900 },
+          { title: 'Армянский кофе', priceAmount: 700 },
+        ],
+      },
+    ],
+  },
+};
+
+/**
+ * The representative restaurant's HY/RU menus, and the English menu's
+ * seasonal dish (switched off) in its grill section.
+ */
+async function insertRestaurantMenus(connection, languageIds) {
+  const [[listing]] = await connection.query(
+    `SELECT l.id, l.created_by AS user_id,
+            (SELECT id FROM currencies WHERE code = 'AMD') AS currency_id
+     FROM listings l WHERE l.slug = ?`,
+    [MENU_RESTAURANT_SLUG],
+  );
+  // eslint-disable-next-line no-restricted-syntax -- seeding must run in a stable, readable order
+  for (const [language, menu] of Object.entries(LOCALIZED_MENUS)) {
+    // eslint-disable-next-line no-await-in-loop -- sequential by design
+    await insertRestaurantMenu(connection, {
+      listingId: listing.id,
+      languageId: languageIds.get(language),
+      currencyId: listing.currency_id,
+      userId: listing.user_id,
+      ...menu,
+    });
+  }
+  const [[grill]] = await connection.query(
+    `SELECT rms.id FROM restaurant_menu_sections rms
+     JOIN restaurant_menus rm ON rm.id = rms.menu_id
+     WHERE rm.listing_id = ? AND rm.language_id = ? AND rms.title LIKE 'Khorovats%'`,
+    [listing.id, languageIds.get('en')],
+  );
+  await connection.query(
+    `INSERT INTO restaurant_menu_items
+       (section_id, title, description, price_amount, price_currency_id, is_active, sort_order, created_by, updated_by)
+     VALUES (?, ?, ?, ?, ?, 0, 99, ?, ?)`,
+    [
+      grill.id,
+      SEASONAL_DISH.en.title,
+      SEASONAL_DISH.en.description,
+      SEASONAL_DISH_PRICE,
+      listing.currency_id,
+      listing.user_id,
+      listing.user_id,
+    ],
+  );
+}
+
 async function findListingId(connection, slug) {
   const [[row]] = await connection.query(
     'SELECT id FROM listings WHERE slug = ?',
@@ -386,5 +567,9 @@ export default async function seedDemoListingInformationDepth(connection) {
     }
     enriched.push(listing.slug);
   }
-  return { enrichedListingSlugs: enriched };
+  await insertRestaurantMenus(connection, languageIds);
+  return {
+    enrichedListingSlugs: enriched,
+    localizedMenus: MENU_RESTAURANT_SLUG,
+  };
 }

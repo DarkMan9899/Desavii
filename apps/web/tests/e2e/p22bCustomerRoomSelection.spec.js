@@ -20,6 +20,22 @@ import { YEREVAN_CITY_ID } from './seededCities.js';
 
 const API_BASE = 'http://localhost:4000/api/v1/';
 const VENDOR = { email: 'vendor@travelhub.dev', password: 'DevVendor!2024' };
+const ADMIN = { email: 'admin@travelhub.dev', password: 'DevAdmin!2024' };
+
+/**
+ * Publishes a fixture listing the way the platform does — an admin action
+ * (a vendor's own publish is 403). Only a PUBLISHED listing can be held or
+ * booked (docs/BOOKING_WIDGET_REBUILD.md §12).
+ */
+async function publishAsAdmin(ctx, listingId) {
+  const adminLogin = await ctx.post('auth/login', { data: ADMIN });
+  const { access_token: adminToken } = (await adminLogin.json()).data;
+  const res = await ctx.post(`listings/${listingId}/publish`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+    data: { publicationPeriodDays: 90 },
+  });
+  expect(res.status()).toBe(200);
+}
 const CUSTOMER = {
   email: 'customer@travelhub.dev',
   password: 'DevCustomer!2024',
@@ -166,7 +182,7 @@ async function createThrowawayListing(listingType, units, priceWindow) {
     }
   }
 
-  await ctx.post(`listings/${listing.id}/publish`, { headers: authHeaders });
+  await publishAsAdmin(ctx, listing.id);
   await ctx.dispose();
   return { listingId: listing.id, unitIds, accessToken };
 }
@@ -227,7 +243,7 @@ test.describe('P2.2B — HOTEL customer room selection, guest capacity, and chec
     await login(page, CUSTOMER, /\/en\/account$/);
     await page.goto(`/en/listings/${listingId}`);
     await expect(
-      page.getByRole('button', { name: 'Check availability' }),
+      page.getByRole('button', { name: 'Reserve', exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
     // Sprint C-3 (Date-Range Room Availability): for a HOTEL_ROOM listing,
@@ -241,7 +257,7 @@ test.describe('P2.2B — HOTEL customer room selection, guest capacity, and chec
 
     // Real labels + known max guests, never a generic "Type #N" ordinal:
     // each option leads with the room's name, its guests a separate fact.
-    await page.getByLabel('Unit').click();
+    await page.getByLabel('Room type').click();
     const standardRoom = page.getByRole('option', { name: /^Standard Room/ });
     const deluxeSuite = page.getByRole('option', { name: /^Deluxe Suite/ });
     await expect(standardRoom).toContainText('Sleeps 2');
@@ -257,12 +273,14 @@ test.describe('P2.2B — HOTEL customer room selection, guest capacity, and chec
     // product bug — see `getByRole('complementary')`'s established use
     // for this same scoping in `publicRoomsAccessibility.spec.js`).
     const sidebar = page.getByRole('complementary');
-    await expect(sidebar.getByText(/55,000/)).toBeVisible();
-    await expect(sidebar.getByText(/1 × King/)).toBeVisible();
+    // Shown in the visitor's display currency (English defaults to USD at
+    // the demo's 400 AMD/USD): 55,000 AMD reads as $137.50.
+    await expect(sidebar.getByText(/55,000|\$137\.50/)).toBeVisible();
+    await expect(sidebar.getByText(/^1 king/i)).toBeVisible();
 
     // Guest count is clamped to max_guests x quantity (Deluxe Suite:
     // capacity 1, so no quantity stepper — cap is 4 x 1 = 4).
-    const guestsInput = page.getByLabel('Guests');
+    const guestsInput = page.getByLabel('Guests', { exact: true });
     await guestsInput.fill('99');
     await expect(guestsInput).toHaveValue('4');
 
@@ -270,19 +288,21 @@ test.describe('P2.2B — HOTEL customer room selection, guest capacity, and chec
     // (Sprint C-3), checkout-exclusive not 4 nights (220,000). Scoped to
     // the widget for the same reason as the headline price above — the
     // Rooms section's own Deluxe Suite card shows this identical figure.
-    await expect(sidebar.getByText(/165,000/)).toBeVisible();
+    // In the display currency, as above: 165,000 AMD reads as $412.50.
+    await expect(sidebar.getByText(/165,000|\$412\.50/)).toBeVisible();
 
-    await page.getByRole('button', { name: 'Check availability' }).click();
+    await page.getByRole('button', { name: 'Reserve', exact: true }).click();
     await expect(page).toHaveURL(/\/en\/booking\/checkout$/);
 
-    await expect(page.getByText('Room / unit type')).toBeVisible();
-    await expect(page.getByText('Deluxe Suite')).toBeVisible();
-    await expect(page.getByText('Nights')).toBeVisible();
+    // Scoped to checkout's summary values: during the route change the
+    // listing page's room card and selector briefly carry the same name.
+    await expect(page.locator('dt', { hasText: 'Room type' })).toBeVisible();
+    await expect(page.locator('dd', { hasText: 'Deluxe Suite' })).toBeVisible();
+    await expect(page.locator('dt', { hasText: 'Nights' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Confirm booking request' }).click();
     await expect(page).toHaveURL(/\/en\/account\/bookings\/\d+$/);
-    await expect(page.getByText('Room / unit type')).toBeVisible();
-    await expect(page.getByText('Deluxe Suite')).toBeVisible();
+    await expect(page.getByText(/Room type:?\s*Deluxe Suite/)).toBeVisible();
   });
 
   test('the backend independently rejects a guest count over max_guests × quantity, even bypassing the client-side clamp', async () => {
@@ -395,22 +415,22 @@ test.describe('P2.2B — single-unit PROPERTY regression', () => {
         capacity: 1,
       },
     });
-    await ctx.post(`listings/${listing.id}/publish`, { headers: authHeaders });
+    await publishAsAdmin(ctx, listing.id);
     await ctx.dispose();
 
     await login(page, CUSTOMER, /\/en\/account$/);
     await page.goto(`/en/listings/${listingId}`);
     await expect(
-      page.getByRole('button', { name: 'Check availability' }),
+      page.getByRole('button', { name: 'Reserve', exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
     // Single unit auto-selected — no selector, no quantity stepper.
-    await expect(page.getByLabel('Unit')).not.toBeVisible();
-    await expect(page.getByLabel('Quantity')).not.toBeVisible();
+    await expect(page.getByLabel('Room type')).not.toBeVisible();
+    await expect(page.getByLabel('Rooms', { exact: true })).not.toBeVisible();
 
     // Guest count is still offered, but with no max_guests to enforce, a
     // large value is accepted as-is — never an invented limit.
-    const guestsInput = page.getByLabel('Guests');
+    const guestsInput = page.getByLabel('Guests', { exact: true });
     await expect(guestsInput).toBeVisible();
     await guestsInput.fill('12');
     await expect(guestsInput).toHaveValue('12');
@@ -418,7 +438,7 @@ test.describe('P2.2B — single-unit PROPERTY regression', () => {
     await pickDateRange(page, futureDate(140), futureDate(141));
 
     await expect(
-      page.getByRole('button', { name: 'Check availability' }),
+      page.getByRole('button', { name: 'Reserve', exact: true }),
     ).toBeEnabled();
   });
 });

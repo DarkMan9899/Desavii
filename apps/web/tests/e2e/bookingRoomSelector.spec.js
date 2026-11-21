@@ -44,7 +44,7 @@ const HY_ROOM =
   'Լյուքս համար Արարատի և Մասիսի համայնապատկերով, առանձին պատշգամբով';
 const RU_ROOM = 'Семейный номер с видом на Арарат и отдельной гостиной зоной';
 const GARDEN_ROOM = 'Garden Room';
-const BOOK_CTA = 'Request to book';
+const BOOK_CTA = 'Reserve';
 const ONE_PX_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
   'base64',
@@ -284,7 +284,9 @@ test.describe('Reservation widget — room selector', () => {
       const drawer = await openDrawer(page);
       await pickStay(page, drawer, checkIn, checkOut);
 
-      await drawer.getByRole('combobox', { name: 'Unit', exact: true }).tap();
+      await drawer
+        .getByRole('combobox', { name: 'Room type', exact: true })
+        .tap();
       await expectEveryOptionReachable(page);
       const room = page.getByRole('option', {
         name: new RegExp(`^${HY_ROOM}`),
@@ -298,7 +300,7 @@ test.describe('Reservation widget — room selector', () => {
 
       await room.tap();
       await expect(
-        drawer.getByRole('combobox', { name: 'Unit', exact: true }),
+        drawer.getByRole('combobox', { name: 'Room type', exact: true }),
       ).toHaveText(HY_ROOM);
 
       const holdResponse = page.waitForResponse(
@@ -327,7 +329,9 @@ test.describe('Reservation widget — room selector', () => {
       const drawer = await openDrawer(page);
       await drawer.getByText('Book by hour', { exact: true }).tap();
 
-      await drawer.getByRole('combobox', { name: 'Unit', exact: true }).tap();
+      await drawer
+        .getByRole('combobox', { name: 'Room type', exact: true })
+        .tap();
       await expectEveryOptionReachable(page);
       const hourlyRoom = page.getByRole('option', {
         name: new RegExp(`^${RU_ROOM}`),
@@ -377,7 +381,7 @@ test.describe('Reservation widget — room selector', () => {
       await page.goto(`/en/listings/${listingId}`);
       const drawer = await openDrawer(page);
       const trigger = drawer.getByRole('combobox', {
-        name: 'Unit',
+        name: 'Room type',
         exact: true,
       });
       await trigger.tap();
@@ -395,15 +399,15 @@ test.describe('Reservation widget — room selector', () => {
     [
       {
         locale: 'hy',
-        cta: 'Ուղարկել ամրագրման հայտ',
-        unitLabel: 'Միավոր',
+        cta: 'Ամրագրել',
+        unitLabel: 'Սենյակի տեսակ',
         roomName: HY_ROOM,
         guests: 'Ընդունում է 2 հյուր',
       },
       {
         locale: 'ru',
-        cta: 'Отправить запрос на бронирование',
-        unitLabel: 'Единица',
+        cta: 'Забронировать',
+        unitLabel: 'Тип номера',
         roomName: RU_ROOM,
         guests: 'Вмещает 4',
       },
@@ -444,7 +448,7 @@ test.describe('Reservation widget — room selector', () => {
       const sidebar = page.getByRole('complementary');
       await expect(sidebar).toBeVisible();
       const trigger = sidebar.getByRole('combobox', {
-        name: 'Unit',
+        name: 'Room type',
         exact: true,
       });
       await trigger.click();

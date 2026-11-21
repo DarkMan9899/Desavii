@@ -90,6 +90,22 @@ export class PriceChangedError extends AppError {
   }
 }
 
+/**
+ * Restaurant menu pre-order — the menu subtotal the customer confirmed no
+ * longer matches the restaurant's current menu (409). `details` is the
+ * current pre-order (every line with its current price, and the subtotal)
+ * so the customer can review it and confirm again. No booking was created;
+ * the holds stay active.
+ */
+export class MenuPriceChangedError extends AppError {
+  constructor(
+    details,
+    message = 'The menu prices changed while you were booking.',
+  ) {
+    super(message, { code: 'MENU_PRICE_CHANGED', httpStatus: 409, details });
+  }
+}
+
 export class LockedError extends AppError {
   constructor(
     message = 'This account is temporarily locked. Please try again later.',

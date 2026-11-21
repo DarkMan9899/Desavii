@@ -32,7 +32,7 @@ const SLUGS = {
 };
 const CURRENCY_PREFERENCE_KEY = 'desavii:currency:v1';
 const BOOK_CTA_PATTERN =
-  /Request to book|Check availability|Reserve your spot|Reserve this vehicle/;
+  /^(Reserve|Reserve a table|Reserve with pre-order|Book tour|Book visit|Book session|Rent this car|Request to book)$/;
 const SUBMIT_LABEL = 'Confirm booking request';
 const RUN_SALT_DAYS = Date.now() % 120;
 
@@ -173,7 +173,8 @@ test.describe('Step L6.2H4 — booking price integrity', () => {
     ).toBeVisible({
       timeout: 15_000,
     });
-    await widget.getByLabel('Dates').click();
+    // W-04: an untimed departure is one date, never a range.
+    await widget.getByLabel('Date', { exact: true }).click();
     for (let i = 0; i < monthsFromToday(iso); i += 1) {
       // eslint-disable-next-line no-await-in-loop -- one month per click.
       await page.getByRole('button', { name: 'Next month' }).click();
@@ -182,7 +183,6 @@ test.describe('Step L6.2H4 — booking price integrity', () => {
       name: accessibleDayName(iso),
       exact: true,
     });
-    await dayCell.click();
     await dayCell.click();
     const holdResponse = page.waitForResponse(
       (res) =>

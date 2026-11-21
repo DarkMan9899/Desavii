@@ -20,6 +20,7 @@ import { closeRedisConnection } from '../../../src/infrastructure/cache/redisCli
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { markListingBookable } from '../helpers/markListingBookable.js';
 
 let vendor;
 let customer;
@@ -40,7 +41,7 @@ async function login(email, password) {
   };
 }
 
-async function createListing(title) {
+async function createListing(title, { bookable = true } = {}) {
   const res = await request(app)
     .post('/api/v1/listings')
     .set('Authorization', `Bearer ${vendor.accessToken}`)
@@ -49,6 +50,7 @@ async function createListing(title) {
       listingType: 'HOTEL',
       translations: [{ languageId, title }],
     });
+  if (bookable) await markListingBookable(res.body.data.id);
   return res.body.data.id;
 }
 
@@ -150,7 +152,10 @@ describe('POST /availability/blocks — manual blocks are quantity-aware and NOT
     // existing 404-masking for non-owners (the same precedent every other
     // management method in this file already relies on) means a stranger
     // gets a plain 404, not a 403 that would confirm the listing exists.
-    const listingId = await createListing(`Block RBAC Test ${Date.now()}`);
+    // Left a draft: a stranger must not learn it exists.
+    const listingId = await createListing(`Block RBAC Test ${Date.now()}`, {
+      bookable: false,
+    });
     const unitId = await registerUnit(listingId, 2);
 
     const res = await request(app)

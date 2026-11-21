@@ -946,16 +946,18 @@ const LISTINGS = [
       { code: 'price_tier', optionCodes: ['$$'] },
     ],
     // Sunday brunch-to-dinner hours, closed Monday, standard evening
-    // hours the rest of the week — a real, differentiated week, not a
-    // uniform "open every day 9-9" default.
+    // hours midweek, and a late-night service on Friday and Saturday that
+    // runs past midnight (until 02:00) — a real, differentiated week, not a
+    // uniform "open every day 9-9" default, and the demo's overnight
+    // opening-hours case (docs/BOOKING_WIDGET_REBUILD.md §10).
     openingHours: [
       { dayOfWeek: 0, opensAt: '12:00', closesAt: '22:00' },
       { dayOfWeek: 1, isClosed: true },
       { dayOfWeek: 2, opensAt: '11:00', closesAt: '23:00' },
       { dayOfWeek: 3, opensAt: '11:00', closesAt: '23:00' },
       { dayOfWeek: 4, opensAt: '11:00', closesAt: '23:00' },
-      { dayOfWeek: 5, opensAt: '11:00', closesAt: '23:59' },
-      { dayOfWeek: 6, opensAt: '11:00', closesAt: '23:59' },
+      { dayOfWeek: 5, opensAt: '11:00', closesAt: '02:00' },
+      { dayOfWeek: 6, opensAt: '11:00', closesAt: '02:00' },
     ],
     menu: {
       name: 'Dinner Menu',
@@ -1995,7 +1997,7 @@ export async function createPartner(
  * per-language-menu design: HY/RU simply have no menu authored yet here,
  * never a machine-translated stand-in.
  */
-async function insertRestaurantMenu(
+export async function insertRestaurantMenu(
   connection,
   { listingId, languageId, currencyId, userId, name, description, sections },
 ) {
@@ -2022,8 +2024,8 @@ async function insertRestaurantMenu(
       // eslint-disable-next-line no-await-in-loop -- sequential by design
       await connection.query(
         `INSERT INTO restaurant_menu_items
-           (section_id, title, description, price_amount, price_currency_id, dietary_markers, sort_order, created_by, updated_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (section_id, title, description, price_amount, price_currency_id, dietary_markers, is_active, sort_order, created_by, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           sectionId,
           item.title,
@@ -2031,6 +2033,8 @@ async function insertRestaurantMenu(
           item.priceAmount,
           currencyId,
           item.dietaryMarkers ? JSON.stringify(item.dietaryMarkers) : null,
+          // A dish the partner switched off (e.g. out of season).
+          item.isActive === false ? 0 : 1,
           itemIndex,
           userId,
           userId,

@@ -1,0 +1,113 @@
+// QuantityStepper — tokens only, consumed from @desavii/ui.
+
+@use 'tokens' as tokens;
+
+.field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: tokens.$space-2 tokens.$space-3;
+}
+
+// A dish row's stepper: the label is the dish itself, read by assistive
+// technology only.
+.compact {
+  display: flex;
+  align-items: center;
+
+  .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+.label {
+  min-width: 0;
+  font-size: tokens.$font-size-small;
+  font-weight: 600;
+  color: tokens.$color-gray-900;
+  overflow-wrap: anywhere;
+}
+
+.control {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid tokens.$color-gray-200;
+  border-radius: tokens.$radius-full;
+  background-color: tokens.$color-white;
+}
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: tokens.$button-height-sm;
+  height: tokens.$button-height-sm;
+  padding: 0;
+  border: 0;
+  border-radius: tokens.$radius-full;
+  background: transparent;
+  color: tokens.$color-navy;
+  font-size: tokens.$font-size-body-large;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color tokens.$motion-micro tokens.$ease-out;
+
+  &:hover:not(:disabled) {
+    background-color: tokens.$color-gray-100;
+  }
+
+  &:focus-visible {
+    outline: 2px solid tokens.$color-royal-blue;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    color: tokens.$color-gray-400;
+    cursor: not-allowed;
+  }
+
+  @include tokens.reduced-motion-safe;
+}
+
+.input {
+  width: tokens.$space-12;
+  height: tokens.$button-height-sm;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: tokens.$color-gray-900;
+  font-size: tokens.$font-size-body;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  appearance: textfield;
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    margin: 0;
+    appearance: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid tokens.$color-royal-blue;
+    outline-offset: 2px;
+    border-radius: tokens.$radius-sm;
+  }
+
+  &:disabled {
+    color: tokens.$color-gray-600;
+  }
+}
+
+.helper {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: tokens.$font-size-small;
+  color: tokens.$color-gray-600;
+}

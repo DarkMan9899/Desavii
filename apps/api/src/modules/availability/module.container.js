@@ -33,6 +33,7 @@ import { createStorageProvider } from '../../infrastructure/storage/createStorag
 
 export default function createAvailabilityContainer({
   listingService,
+  openingHoursService = null,
   permissionResolver,
   auditLogger,
   eventBus,
@@ -69,6 +70,7 @@ export default function createAvailabilityContainer({
     bookableUnitService,
     blackoutService,
     listingService,
+    openingHoursService,
     permissionResolver,
     auditLogger,
     inventoryLedgerRepository,

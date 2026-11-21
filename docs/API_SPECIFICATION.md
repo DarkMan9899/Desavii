@@ -1399,7 +1399,13 @@ any capacity is reserved; each rejection is `422 VALIDATION_FAILED` with
 | `INCOMPLETE_RENTAL_INTERVAL` | a `VEHICLE` hold without both `startTime` (pickup) and `endTime` (return) |
 | `RETURN_NOT_AFTER_PICKUP` | a `VEHICLE` return not after its pickup |
 | `RESERVATION_TIME_REQUIRED` | a `RESTAURANT_TABLE` hold without `startTime` |
+| `RESERVATION_OUTSIDE_OPENING_HOURS` | a `RESTAURANT_TABLE` hold whose `dateFrom` + `startTime` is outside the listing's published weekly hours. A window is `[opensAt, closesAt)`; one with `closesAt <= opensAt` runs past midnight, so its tail belongs to the next calendar date (Friday 18:00–02:00 accepts Saturday 01:30, not Saturday 02:00). A restaurant with no published hours is not restricted (docs/BOOKING_WIDGET_REBUILD.md §10) |
 | `BOOKING_IN_PAST` | the booking starts before now, in Asia/Yerevan business time on the DB clock — a timed start (pickup, reservation time, a departure's `time_slot_start`) against the current time, a date-only start (lodging, untimed departures) only once its date is before today's Asia/Yerevan date |
+
+Only a **published** listing's units can be held or booked: a unit of a
+draft, unpublished or rejected listing answers `404 NOT_FOUND`, exactly as
+its public detail does, so its existence is not revealed. An expired listing
+keeps its `409 LISTING_NOT_BOOKABLE` (docs/BOOKING_WIDGET_REBUILD.md §12).
 
 Untimed tour/attraction departures stay date-only. `expires_at` is DB UTC
 (`UTC_TIMESTAMP(3)`) plus the configured hold TTL, independent of the API
@@ -1493,6 +1499,38 @@ currency equal the accepted quote exactly. Otherwise:
 - Holds are consumed and expiry is checked before prices, and listing
   bookability before the comparison, so an expired hold or unbookable listing
   answers with its own error rather than a re-quote.
+
+**Restaurant menu pre-order (docs/BOOKING_WIDGET_REBUILD.md §5):** a
+`RESTAURANT_TABLE` item may carry dishes from the restaurant's own menu,
+paid at the restaurant and never charged on the platform:
+
+| Field | Rule (`422` when broken) |
+|---|---|
+| `items[].menuSelections` | optional; 1–30 lines of `{ menuItemId: positive int, quantity: int 1–20 }`, no dish twice |
+| `items[].expectedMenuSubtotalAmount` | required with `menuSelections`; the two-decimal string the customer saw |
+| `items[].expectedMenuCurrency` | required with `menuSelections`; 3-letter code |
+
+Inside the booking transaction every dish is read again from the listing's
+active menus and active dishes and priced from the menu; client titles or
+prices do not exist in the contract.
+
+- `422 MENU_PREORDER_NOT_SUPPORTED` — the item is not a restaurant table.
+- `422 MENU_ITEM_UNAVAILABLE` — one detail per dish
+  (`{ "field": "items", "issue": "MENU_ITEM_UNAVAILABLE", "menuItemId": 7 }`):
+  inactive, in an inactive menu, deleted, or another restaurant's dish.
+- `422 MENU_CURRENCY_MISMATCH` — the dishes are priced in different currencies.
+- `409 MENU_PRICE_CHANGED` — the menu subtotal or currency differs from the
+  confirmed one; `details` is `{ lines: [{ menu_item_id, title, quantity,
+  unit_price_amount, line_total_amount, currency }], subtotal_amount,
+  currency }`. Nothing is written and the holds stay; the customer accepts
+  the current lines and submits again.
+
+The booking's total is unchanged (a free reservation stays `0.00`,
+`payment_required: false`). Every booking item response gains
+`menu_preorder` — `null`, or `{ lines: [{ menu_item_id (null once the dish
+is deleted), title, section_title, language_code, quantity,
+unit_price_amount, line_total_amount }], subtotal_amount, currency,
+payment: "PAY_AT_VENUE" }` — an immutable snapshot taken at booking time.
 
 **One hold, one winner (Step L6.2H4):** booking conversion, customer release
 (`DELETE /booking-holds`) and the expiry sweep each row-lock the hold rows

@@ -17,6 +17,9 @@ export { default as BookingStatusBadge } from './components/BookingStatusBadge/B
 // Step L6.2H2B: a booking's total, or free-reservation wording.
 export { default as BookingTotal } from './components/BookingTotal/BookingTotal.jsx';
 export { resolvePartySize } from './utils/restaurantReservation.js';
+// Restaurant pre-order (docs/BOOKING_WIDGET_REBUILD.md §5): table only or
+// table + dishes, and the stored dish snapshot, on every booking detail.
+export { default as BookingItemMenuPreorder } from './components/BookingItemMenuPreorder/BookingItemMenuPreorder.jsx';
 export { useMyBookingsQuery } from './queries/useMyBookingsQuery.js';
 
 // Phase 9 (Partner Dashboard).

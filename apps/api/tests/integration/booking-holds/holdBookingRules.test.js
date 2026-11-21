@@ -32,6 +32,7 @@ import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { toBusinessDateTime } from '../../../src/core/domain/bookingTimebase.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
 import { YEREVAN_CITY_ID } from '../helpers/seededCities.js';
+import { markListingBookable } from '../helpers/markListingBookable.js';
 
 const UNIT_TYPE_BY_LISTING_TYPE = {
   HOTEL: 'HOTEL_ROOM',
@@ -72,7 +73,12 @@ async function setRules(listingId, bookingRules) {
 }
 
 /** A listing of `listingType` with its rules and one unit (base-priced, so it can be booked). */
-async function createBookable(listingType, rules, unitExtra = {}) {
+async function createBookable(
+  listingType,
+  rules,
+  unitExtra = {},
+  { bookable = true } = {},
+) {
   const listingRes = await request(app)
     .post('/api/v1/listings')
     .set('Authorization', `Bearer ${vendor}`)
@@ -97,6 +103,8 @@ async function createBookable(listingType, rules, unitExtra = {}) {
       ...unitExtra,
     });
   expect(unitRes.status).toBe(201);
+  // Published last: a published listing's rules can no longer be edited.
+  if (bookable) await markListingBookable(listingId);
   return { listingId, unitId: unitRes.body.data.id };
 }
 
@@ -458,9 +466,13 @@ describe('Partner inventory writes bypass customer booking rules', () => {
 
 describe('active holds keep the rules they were granted under', () => {
   test('a rule tightened after the hold does not block its checkout; a new hold is judged by the new rule', async () => {
-    const { listingId, unitId } = await createBookable('HOTEL', {
-      maximumStayNights: 5,
-    });
+    // Published below through the real admin path.
+    const { listingId, unitId } = await createBookable(
+      'HOTEL',
+      { maximumStayNights: 5 },
+      {},
+      { bookable: false },
+    );
     // A customer can only book a published listing, and a Partner edits a
     // published listing's rules the only way the platform allows: unpublish,
     // edit, get it published again.

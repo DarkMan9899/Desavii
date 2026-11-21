@@ -82,9 +82,12 @@ describe('useListingBookableUnitsQuery (apps/web/src/modules/listings)', () => {
       expect(screen.getByTestId('status')).toHaveTextContent('success'),
     );
     expect(screen.getByTestId('count')).toHaveTextContent('1');
-    expect(getListingBookableUnits).toHaveBeenCalledWith(10, {
-      date: undefined,
-    });
+    expect(getListingBookableUnits).toHaveBeenCalledWith(
+      10,
+      { date: undefined },
+      // A superseded selection's read is cancelled through this signal.
+      { signal: expect.any(AbortSignal) },
+    );
   });
 
   test('a date not chosen yet (null) shares the date-less read — one request, not two', async () => {
@@ -134,8 +137,10 @@ describe('useListingBookableUnitsQuery (apps/web/src/modules/listings)', () => {
     await waitFor(() =>
       expect(screen.getByTestId('status')).toHaveTextContent('success'),
     );
-    expect(getListingBookableUnits).toHaveBeenCalledWith(10, {
-      date: '2027-04-10',
-    });
+    expect(getListingBookableUnits).toHaveBeenCalledWith(
+      10,
+      { date: '2027-04-10' },
+      { signal: expect.any(AbortSignal) },
+    );
   });
 });

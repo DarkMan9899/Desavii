@@ -21,6 +21,7 @@ import { closeRedisConnection } from '../../../src/infrastructure/cache/redisCli
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { markListingBookable } from '../helpers/markListingBookable.js';
 
 let vendor;
 let customer;
@@ -51,6 +52,7 @@ async function createListing(title) {
       listingType: 'HOTEL',
       translations: [{ languageId, title }],
     });
+  await markListingBookable(res.body.data.id);
   return res.body.data.id;
 }
 

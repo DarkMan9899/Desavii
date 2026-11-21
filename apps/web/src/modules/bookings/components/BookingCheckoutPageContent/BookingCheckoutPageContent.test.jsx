@@ -522,6 +522,218 @@ describe('BookingCheckoutPageContent (apps/web/src/modules/bookings)', () => {
 
   // Step L6.2H3B — a departure shows only its one people count (the held
   // quantity), named by category, and sends no separate guest count.
+  // docs/BOOKING_WIDGET_REBUILD.md §5 — the restaurant's dish pre-order.
+  describe('restaurant menu pre-order', () => {
+    const SUBMIT = 'Հաստատել ամրագրման հայտը';
+    const PREORDER = {
+      lines: [
+        {
+          menuItemId: 101,
+          title: 'Khorovats',
+          sectionTitle: 'Grill',
+          quantity: 2,
+          unitPriceAmount: '5500.00',
+          lineTotalAmount: '11000.00',
+          currency: 'AMD',
+        },
+        {
+          menuItemId: 102,
+          title: 'Gata',
+          sectionTitle: 'Desserts',
+          quantity: 1,
+          unitPriceAmount: '1500.00',
+          lineTotalAmount: '1500.00',
+          currency: 'AMD',
+        },
+      ],
+      subtotalAmount: '12500.00',
+      currency: 'AMD',
+    };
+    const STATE = {
+      ...HOLD_STATE,
+      isRestaurantReservation: true,
+      bookableUnitType: 'RESTAURANT_TABLE',
+      guestCount: 2,
+      menuPreorder: PREORDER,
+      holdBatch: {
+        ...HOLD_STATE.holdBatch,
+        items: [
+          {
+            ...HOLD_STATE.holdBatch.items[0],
+            quote: {
+              unit_price_amount: '0.00',
+              total_amount: '0.00',
+              currency: 'AMD',
+            },
+          },
+        ],
+      },
+    };
+
+    test('shows the dishes, the subtotal and that it is paid at the restaurant', () => {
+      renderPage(STATE);
+      expect(screen.getByText('Ճաշատեսակների նախապատվեր')).toBeInTheDocument();
+      expect(screen.getByText('Khorovats')).toBeInTheDocument();
+      expect(screen.getByText('Նախապատվերի գումար')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'Վճարվում է ռեստորանում․ Desavii-ում ոչինչ չի գանձվում։',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    test('sends only dish ids, quantities and the subtotal the guest saw', async () => {
+      const mutateAsync = vi.fn().mockResolvedValue({ data: { id: 42 } });
+      useCreateBookingMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      });
+      const user = userEvent.setup();
+      renderPage(STATE);
+
+      await user.click(screen.getByRole('button', { name: SUBMIT }));
+
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+      const [item] = mutateAsync.mock.calls[0][0].items;
+      expect(item).toEqual(
+        expect.objectContaining({
+          menuSelections: [
+            { menuItemId: 101, quantity: 2 },
+            { menuItemId: 102, quantity: 1 },
+          ],
+          expectedMenuSubtotalAmount: '12500.00',
+          expectedMenuCurrency: 'AMD',
+        }),
+      );
+      expect(JSON.stringify(item)).not.toContain('Khorovats');
+    });
+
+    test('an unavailable dish is taken out, named, and the table stays — the guest confirms again', async () => {
+      const mutateAsync = vi
+        .fn()
+        .mockRejectedValueOnce(
+          Object.assign(new Error('Unavailable'), {
+            code: 'VALIDATION_FAILED',
+            status: 422,
+            details: [
+              {
+                field: 'items',
+                issue: 'MENU_ITEM_UNAVAILABLE',
+                menuItemId: 102,
+              },
+            ],
+          }),
+        )
+        .mockResolvedValueOnce({ data: { id: 43 } });
+      useCreateBookingMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      });
+      const user = userEvent.setup();
+      renderPage(STATE);
+
+      await user.click(screen.getByRole('button', { name: SUBMIT }));
+
+      expect(
+        await screen.findByText(/«Gata» ճաշատեսակն այլևս հասանելի չէ/),
+      ).toBeInTheDocument();
+      expect(mockNavigate).toHaveBeenCalledWith(
+        '/en/booking/checkout',
+        expect.objectContaining({
+          replace: true,
+          state: expect.objectContaining({
+            menuPreorder: expect.objectContaining({
+              subtotalAmount: '11000.00',
+            }),
+          }),
+        }),
+      );
+      await user.click(screen.getByRole('button', { name: SUBMIT }));
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(2));
+      expect(mutateAsync.mock.calls[1][0].items[0]).toEqual(
+        expect.objectContaining({
+          menuSelections: [{ menuItemId: 101, quantity: 2 }],
+          expectedMenuSubtotalAmount: '11000.00',
+        }),
+      );
+    });
+
+    test('changed dish prices must be accepted explicitly; booking stays disabled until then', async () => {
+      const mutateAsync = vi
+        .fn()
+        .mockRejectedValueOnce(
+          Object.assign(new Error('Menu price changed'), {
+            code: 'MENU_PRICE_CHANGED',
+            status: 409,
+            details: {
+              lines: [
+                {
+                  menu_item_id: 101,
+                  title: 'Khorovats',
+                  quantity: 2,
+                  unit_price_amount: '6000.00',
+                  line_total_amount: '12000.00',
+                  currency: 'AMD',
+                },
+              ],
+              subtotal_amount: '12000.00',
+              currency: 'AMD',
+            },
+          }),
+        )
+        .mockResolvedValueOnce({ data: { id: 44 } });
+      useCreateBookingMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      });
+      const user = userEvent.setup();
+      renderPage(STATE);
+
+      await user.click(screen.getByRole('button', { name: SUBMIT }));
+
+      expect(
+        await screen.findByText(
+          'Ճաշատեսակների գները փոխվել են, մինչ դուք ամրագրում էիք։',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: SUBMIT })).toBeDisabled();
+      expect(mutateAsync).toHaveBeenCalledTimes(1);
+
+      await user.click(
+        screen.getByRole('button', { name: 'Ընդունել ընթացիկ գները' }),
+      );
+      await user.click(screen.getByRole('button', { name: SUBMIT }));
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(2));
+      expect(mutateAsync.mock.calls[1][0].items[0]).toEqual(
+        expect.objectContaining({
+          menuSelections: [{ menuItemId: 101, quantity: 2 }],
+          expectedMenuSubtotalAmount: '12000.00',
+        }),
+      );
+    });
+
+    test('the guest can drop the pre-order and reserve the table alone', async () => {
+      const mutateAsync = vi.fn().mockResolvedValue({ data: { id: 45 } });
+      useCreateBookingMutation.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      });
+      const user = userEvent.setup();
+      renderPage(STATE);
+
+      await user.click(
+        screen.getByRole('button', { name: 'Հեռացնել նախապատվերը' }),
+      );
+      expect(screen.queryByText('Khorovats')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: SUBMIT }));
+
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+      expect(mutateAsync.mock.calls[0][0].items[0]).not.toHaveProperty(
+        'menuSelections',
+      );
+    });
+  });
+
   describe('departure people count (Step L6.2H3B)', () => {
     const DEPARTURE_STATE = {
       ...HOLD_STATE,

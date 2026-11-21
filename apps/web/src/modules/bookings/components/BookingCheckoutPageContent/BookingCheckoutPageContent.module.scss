@@ -181,3 +181,10 @@
   border-top: 1px solid tokens.$color-gray-200;
   color: tokens.$color-success-strong;
 }
+
+// Restaurant pre-order: accept the new dish prices, or keep the table alone.
+.preorderActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: tokens.$space-2;
+}

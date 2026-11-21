@@ -131,6 +131,7 @@ const DOMAIN_ISSUE_KEYS = {
   INCOMPLETE_RENTAL_INTERVAL: 'rentalTimesRequired',
   RETURN_NOT_AFTER_PICKUP: 'returnNotAfterPickup',
   RESERVATION_TIME_REQUIRED: 'reservationTimeRequired',
+  RESERVATION_OUTSIDE_OPENING_HOURS: 'reservationOutsideOpeningHours',
   // Step L6.3B: optional hourly hotel stays — the customer request and the
   // Partner's hourly room configuration.
   HOURLY_BOOKING_NOT_SUPPORTED: 'hourlyNotSupported',

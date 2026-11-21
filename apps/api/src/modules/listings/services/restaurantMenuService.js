@@ -125,6 +125,23 @@ export class RestaurantMenuService {
    * real authenticated user for the Partner authoring UI calling this
    * exact same route.
    */
+  /**
+   * Restaurant menu pre-order (BookingService only, inside its booking
+   * transaction, after its own authorization): the listing's own orderable
+   * dishes among `itemIds`, keyed by id. Never authorizes on its own —
+   * hence `SystemInternal`, the codebase's suffix for such calls.
+   *
+   * @returns {Promise<Map<number, object>>}
+   */
+  async findOrderableItemsSystemInternal(listingId, itemIds, connection) {
+    const items = await this.#restaurantMenuRepository.findOrderableItems(
+      listingId,
+      itemIds,
+      connection,
+    );
+    return new Map(items.map((item) => [item.id, item]));
+  }
+
   async getMenusForListing(principal, listingId, localeCode) {
     await this.#listingService.getListing(principal, listingId);
     const { localeId } = await resolveLocaleIds(localeCode);

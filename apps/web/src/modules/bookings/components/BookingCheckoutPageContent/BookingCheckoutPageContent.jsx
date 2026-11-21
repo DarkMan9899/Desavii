@@ -45,6 +45,13 @@
  * rate. After that, the booking's own stored snapshot is what every later
  * view shows, never a fresh live conversion (see
  * `resolveBookingDisplayAmount.js`).
+ *
+ * Restaurant pre-order (docs/BOOKING_WIDGET_REBUILD.md §5): the dishes
+ * chosen on the listing ride along with the hold (`useCheckoutPreorder`).
+ * They are shown in the summary with their subtotal and "paid at the
+ * restaurant"; a dish that is no longer offered is taken out (the guest is
+ * told which) and a changed dish price must be accepted explicitly — the
+ * held table is never lost to either.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -73,6 +80,8 @@ import { resolveUnitNounKey } from '../../utils/resolveUnitNounKey.js';
 import { useCreateBookingMutation } from '../../mutations/useCreateBookingMutation.js';
 import { useReleaseBookingHoldMutation } from '../../mutations/useReleaseBookingHoldMutation.js';
 import { useCheckoutQuote } from '../../hooks/useCheckoutQuote.js';
+import useCheckoutPreorder from '../../hooks/useCheckoutPreorder.js';
+import MenuPreorderSummary from '../MenuPreorderSummary/MenuPreorderSummary.jsx';
 import { toAcceptedQuoteFields } from '../../utils/bookingQuote.js';
 import PriceInCurrency from '../../../../components/Money/PriceInCurrency.jsx';
 import styles from './BookingCheckoutPageContent.module.scss';
@@ -118,12 +127,28 @@ export default function BookingCheckoutPageContent() {
     handleBookingError,
     acceptChangedQuote,
   } = useCheckoutQuote(holdState);
+  const {
+    preorder,
+    changedPreorder,
+    removedTitles,
+    payloadFields: preorderFields,
+    handlePreorderError,
+    acceptChangedPreorder,
+    removePreorder,
+  } = useCheckoutPreorder(holdState);
   const priceChangedRef = useRef(null);
+  const preorderNoticeRef = useRef(null);
   // Step L6.2H4: a changed price moves focus to its warning, so keyboard
   // and screen-reader users land on it (and its accept action) at once.
   useEffect(() => {
     if (changedQuote) priceChangedRef.current?.focus();
   }, [changedQuote]);
+  // The same for a changed or shortened pre-order.
+  useEffect(() => {
+    if (changedPreorder || removedTitles.length > 0) {
+      preorderNoticeRef.current?.focus();
+    }
+  }, [changedPreorder, removedTitles]);
   // P2.2B: `ListingReservationWidget`'s own real-label resolution and the
   // customer's entered guest count, both carried through router state —
   // ephemeral, display/payload-only hand-offs (the persisted, authoritative
@@ -251,6 +276,8 @@ export default function BookingCheckoutPageContent() {
               : (guestCount ?? undefined),
             // Step L6.2H4: the server quote the customer is accepting.
             ...toAcceptedQuoteFields(acceptedQuote),
+            // §5: dish ids, quantities and the subtotal the guest saw.
+            ...preorderFields,
           },
         ],
         guestContactSnapshot: {
@@ -278,6 +305,7 @@ export default function BookingCheckoutPageContent() {
       // conflict state (not just a toast) so the customer can't retry
       // into the same wall.
       if (handleBookingError(err)) return;
+      if (handlePreorderError(err)) return;
       if (err?.code === 'HOLD_EXPIRED') {
         setBookingConflict(true);
       } else {
@@ -299,7 +327,15 @@ export default function BookingCheckoutPageContent() {
     .toString()
     .padStart(2, '0');
   const isBlocked = bookingConflict || isExpired;
-  const canSubmit = !isBlocked && Boolean(acceptedQuote) && !changedQuote;
+  const canSubmit =
+    !isBlocked && Boolean(acceptedQuote) && !changedQuote && !changedPreorder;
+  const toSummaryLines = (lines) =>
+    lines.map((line) => ({
+      key: line.menuItemId,
+      title: line.title,
+      quantity: line.quantity,
+      lineTotalAmount: line.lineTotalAmount,
+    }));
   const isUrgent =
     !isBlocked && remainingMs > 0 && remainingMs <= URGENT_THRESHOLD_MS;
 
@@ -390,6 +426,48 @@ export default function BookingCheckoutPageContent() {
                   </div>
                 </Stack>
               </Alert>
+            </div>
+          )}
+          {!isBlocked && (changedPreorder || removedTitles.length > 0) && (
+            <div
+              ref={preorderNoticeRef}
+              tabIndex={-1}
+              className={styles.priceChanged}
+            >
+              {changedPreorder ? (
+                <Alert
+                  variant="warning"
+                  title={t('bookings.checkout.menuPreorder.priceChangedTitle')}
+                >
+                  <Stack gap="3">
+                    <p>
+                      {t('bookings.checkout.menuPreorder.priceChangedBody')}
+                    </p>
+                    <MenuPreorderSummary
+                      lines={toSummaryLines(changedPreorder.lines)}
+                      subtotalAmount={changedPreorder.subtotalAmount}
+                      currency={changedPreorder.currency}
+                      locale={locale}
+                      headingLevel={3}
+                    />
+                    <div className={styles.preorderActions}>
+                      <Button variant="primary" onClick={acceptChangedPreorder}>
+                        {t('bookings.checkout.menuPreorder.acceptNewPrices')}
+                      </Button>
+                      <Button variant="ghost" onClick={removePreorder}>
+                        {t('bookings.checkout.menuPreorder.tableOnly')}
+                      </Button>
+                    </div>
+                  </Stack>
+                </Alert>
+              ) : (
+                <Alert variant="warning">
+                  {t('bookings.checkout.menuPreorder.dishesRemoved', {
+                    count: removedTitles.length,
+                    dishes: removedTitles.join(', '),
+                  })}
+                </Alert>
+              )}
             </div>
           )}
           {!isBlocked && !acceptedQuote && (
@@ -658,6 +736,22 @@ export default function BookingCheckoutPageContent() {
                   </div>
                 )}
               </dl>
+              {preorder?.subtotalAmount && (
+                <Stack gap="2">
+                  <MenuPreorderSummary
+                    lines={toSummaryLines(preorder.lines)}
+                    subtotalAmount={preorder.subtotalAmount}
+                    currency={preorder.currency}
+                    locale={locale}
+                    headingLevel={3}
+                  />
+                  {!changedPreorder && (
+                    <Button variant="ghost" size="sm" onClick={removePreorder}>
+                      {t('bookings.checkout.menuPreorder.remove')}
+                    </Button>
+                  )}
+                </Stack>
+              )}
               {/* Step L6.2H2B: a restaurant reservation is free — the
                   summary says so instead of showing a monetary total. */}
               {isRestaurantReservation ? (

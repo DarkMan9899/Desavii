@@ -117,11 +117,11 @@ test.describe('Phase 18.11 — mobile sticky booking bar and drawer', () => {
 
     // The sidebar's own copy of the same reservation widget also exists
     // in the DOM (hidden below the `laptop` breakpoint via CSS), so two
-    // elements share the "Check availability" accessible name here —
+    // elements share the "Reserve" accessible name here —
     // `:visible` narrows to the one real entry point at this viewport,
     // the fixed mobile bar's own CTA.
     const mobileCta = page
-      .getByRole('button', { name: 'Check availability' })
+      .getByRole('button', { name: 'Reserve', exact: true })
       .and(page.locator(':visible'));
     await expect(mobileCta).toBeVisible({ timeout: 10_000 });
     // The bar also shows the listing's real price alongside the CTA.
@@ -132,15 +132,17 @@ test.describe('Phase 18.11 — mobile sticky booking bar and drawer', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await expect(
-      dialog.getByRole('heading', { name: 'Check availability' }),
+      dialog.getByRole('heading', { name: 'Reserve', exact: true }),
     ).toBeVisible();
     // The full `ListingReservationWidget` renders inside the drawer: unit
     // selector (this hotel has 2 real bookable units — Standard Room and
     // Deluxe Suite), date picker, and its own submit button.
-    await expect(dialog.getByRole('combobox', { name: 'Unit' })).toBeVisible();
+    await expect(
+      dialog.getByRole('combobox', { name: 'Room type' }),
+    ).toBeVisible();
     await expect(dialog.getByLabel('Dates')).toBeVisible();
     await expect(
-      dialog.getByRole('button', { name: 'Check availability' }),
+      dialog.getByRole('button', { name: 'Reserve', exact: true }),
     ).toBeVisible();
   });
 });
@@ -156,17 +158,19 @@ test.describe('Phase 18.11 — desktop sidebar reservation widget', () => {
 
     const sidebar = page.getByRole('complementary');
     await expect(sidebar).toBeVisible({ timeout: 10_000 });
-    await expect(sidebar.getByRole('combobox', { name: 'Unit' })).toBeVisible();
     await expect(
-      sidebar.getByRole('button', { name: 'Check availability' }),
+      sidebar.getByRole('combobox', { name: 'Room type' }),
+    ).toBeVisible();
+    await expect(
+      sidebar.getByRole('button', { name: 'Reserve', exact: true }),
     ).toBeVisible();
 
-    // Exactly one "Check availability" control is visible at this
+    // Exactly one "Reserve" control is visible at this
     // viewport — the sidebar's — proving the fixed mobile bar's own copy
     // (present in the DOM, hidden via CSS at this width) is not a second
     // active entry point.
     const visibleCtas = page
-      .getByRole('button', { name: 'Check availability' })
+      .getByRole('button', { name: 'Reserve', exact: true })
       .and(page.locator(':visible'));
     await expect(visibleCtas).toHaveCount(1);
   });

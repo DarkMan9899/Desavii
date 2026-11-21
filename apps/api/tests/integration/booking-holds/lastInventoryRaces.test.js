@@ -19,6 +19,7 @@ import { closeRedisConnection } from '../../../src/infrastructure/cache/redisCli
 import { resetRateLimits } from '../helpers/resetRateLimits.js';
 import { addIsoDays, businessNow } from '../helpers/isoDates.js';
 import { DEV_CREDENTIALS } from '../../../src/infrastructure/database/seeds/005_dev_accounts.js';
+import { markListingBookable } from '../helpers/markListingBookable.js';
 
 const RESERVATION_TIME = '19:00';
 
@@ -47,6 +48,7 @@ async function createUnit(listingType, bookableUnitType, capacity) {
         { languageId, title: `Last ${listingType} race ${Date.now()}` },
       ],
     });
+  await markListingBookable(listing.body.data.id);
   const unit = await request(app)
     .post('/api/v1/availability/units')
     .set('Authorization', `Bearer ${vendor}`)

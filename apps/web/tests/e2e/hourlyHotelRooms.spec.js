@@ -41,7 +41,7 @@ const CUSTOMER = {
 };
 const CURRENCY_PREFERENCE_KEY = 'desavii:currency:v1';
 const SUBMIT_LABEL = 'Confirm booking request';
-const BOOK_CTA = 'Request to book';
+const BOOK_CTA = 'Reserve';
 const ONE_PX_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
   'base64',
@@ -369,7 +369,7 @@ test.describe('Step L6.3B — optional hourly hotel room booking', () => {
     await pickDay(page, checkIn);
     await pickDay(page, checkOut);
     await page.getByRole('button', { name: `Select ${NIGHT_ROOM}` }).click();
-    await expect(widget.getByLabel('Unit')).toContainText(NIGHT_ROOM);
+    await expect(widget.getByLabel('Room type')).toContainText(NIGHT_ROOM);
     await expect(
       widget.getByRole('radio', { name: 'Book by hour' }),
     ).toHaveCount(0);
@@ -417,8 +417,8 @@ test.describe('Step L6.3B — optional hourly hotel room booking', () => {
     await chooseOption(widget, page, 'End time', '17:00');
     await expect(widget.getByText('Duration: 3 hours')).toBeVisible();
     // Two rooms for three guests (Day Room sleeps 2 per room).
-    await widget.getByLabel('Quantity').fill('2');
-    await widget.getByLabel('Guests').fill('3');
+    await widget.getByLabel('Rooms', { exact: true }).fill('2');
+    await widget.getByLabel('Guests', { exact: true }).fill('3');
 
     const holdResponse = page.waitForResponse(
       (res) =>
@@ -702,7 +702,7 @@ test.describe('Step L6.3B — optional hourly hotel room booking', () => {
 
     await login(page, CUSTOMER, /\/en\/account$/);
     const widget = await openRoom(page, hotel.listingId, DAY_ROOM);
-    await expect(widget.getByLabel('Unit')).toContainText(DAY_ROOM);
+    await expect(widget.getByLabel('Room type')).toContainText(DAY_ROOM);
     await expect(
       widget.getByRole('radio', { name: 'Book by hour' }),
     ).toHaveCount(0);

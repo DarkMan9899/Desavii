@@ -134,7 +134,7 @@ const OVERNIGHT = 'Գիշերակաց';
 const BY_HOUR = 'Ամրագրել ժամերով';
 const START = 'Սկիզբ';
 const END = 'Ավարտ';
-const CTA = 'Ուղարկել ամրագրման հայտ';
+const CTA = 'Ամրագրել';
 
 function RouteScopedWidget(props) {
   const { locale } = useParams();

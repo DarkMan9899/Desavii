@@ -93,6 +93,7 @@ import {
   isRestaurantUnitType,
   validateRentalInterval,
 } from '../../../core/domain/rentalIntervalValidation.js';
+import { isWithinOpeningHours } from '../../../core/domain/openingHours.js';
 import { createDomainEvent } from '../../../core/events/createDomainEvent.js';
 import { EVENT_TYPES } from '../../../core/events/eventTypes.js';
 import { createNoOpEventBus } from '../../../core/events/domainEventBus.js';
@@ -314,6 +315,8 @@ export class AvailabilityService {
 
   #listingService;
 
+  #openingHoursService;
+
   #permissionResolver;
 
   #auditLogger;
@@ -336,6 +339,7 @@ export class AvailabilityService {
     bookableUnitService,
     blackoutService,
     listingService,
+    openingHoursService = null,
     permissionResolver,
     auditLogger,
     inventoryLedgerRepository,
@@ -350,6 +354,7 @@ export class AvailabilityService {
     this.#bookableUnitService = bookableUnitService;
     this.#blackoutService = blackoutService;
     this.#listingService = listingService;
+    this.#openingHoursService = openingHoursService;
     this.#permissionResolver = permissionResolver;
     this.#auditLogger = auditLogger;
     this.#inventoryLedgerRepository = inventoryLedgerRepository;
@@ -2023,6 +2028,25 @@ export class AvailabilityService {
       throw new ValidationError('A reservation needs a reservation time.', [
         { field: 'items', issue: 'RESERVATION_TIME_REQUIRED' },
       ]);
+    }
+    // A reservation must fall inside the restaurant's published hours,
+    // overnight windows included (`openingHours.js`). A restaurant that has
+    // published no hours at all is not restricted.
+    if (isRestaurant && this.#openingHoursService) {
+      const weeklyHours =
+        await this.#openingHoursService.findWeeklyHoursSystemInternal(
+          unit.listingId,
+          connection,
+        );
+      if (
+        weeklyHours.length > 0 &&
+        !isWithinOpeningHours(weeklyHours, dateFrom, resolvedStartTime)
+      ) {
+        throw new ValidationError(
+          'The restaurant is not open at this reservation time.',
+          [{ field: 'items', issue: 'RESERVATION_OUTSIDE_OPENING_HOURS' }],
+        );
+      }
     }
     // Step L6.2H2B: a restaurant booking item is exactly one reservation —
     // capacity counts concurrent reservations, never diners, and the party

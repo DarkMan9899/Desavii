@@ -37,12 +37,15 @@ export function useListingBookableUnitsQuery(listingId, options = {}) {
   const checkOut = options.checkOut ?? undefined;
   return useQuery({
     queryKey: listingKeys.bookableUnits(listingId, date, checkIn, checkOut),
-    queryFn: async () => {
-      const { data } = await getListingBookableUnits(listingId, {
-        date,
-        checkIn,
-        checkOut,
-      });
+    // Each date / stay range is its own cache entry, so a late answer for
+    // an earlier selection can never overwrite the current one; the signal
+    // also cancels that superseded request.
+    queryFn: async ({ signal }) => {
+      const { data } = await getListingBookableUnits(
+        listingId,
+        { date, checkIn, checkOut },
+        { signal },
+      );
       return data;
     },
     enabled: Boolean(listingId),

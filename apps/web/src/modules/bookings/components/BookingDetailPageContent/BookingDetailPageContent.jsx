@@ -40,6 +40,7 @@ import { useCancelBookingMutation } from '../../mutations/useCancelBookingMutati
 import BookingStatusBadge from '../BookingStatusBadge/BookingStatusBadge.jsx';
 import BookingTotal from '../BookingTotal/BookingTotal.jsx';
 import { resolvePartySize } from '../../utils/restaurantReservation.js';
+import BookingItemMenuPreorder from '../BookingItemMenuPreorder/BookingItemMenuPreorder.jsx';
 import {
   resolveDeparturePeopleKey,
   resolveDeparturePeopleCount,
@@ -364,6 +365,11 @@ export default function BookingDetailPageContent() {
                         </span>
                       </p>
                     )}
+                    <BookingItemMenuPreorder
+                      bookingType={booking.booking_type}
+                      item={item}
+                      locale={locale}
+                    />
                     {nights !== null && (
                       <p className={styles.metaLine}>
                         <Moon aria-hidden="true" focusable="false" />

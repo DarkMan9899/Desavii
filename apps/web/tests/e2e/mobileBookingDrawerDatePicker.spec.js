@@ -38,7 +38,7 @@ const CUSTOMER = {
 };
 const PHONE_VIEWPORT = { width: 390, height: 844 };
 const PUBLICATION_PERIOD_DAYS = 90;
-const BOOK_CTA = 'Request to book';
+const BOOK_CTA = 'Reserve';
 const NIGHT_ROOM = 'Night Room';
 const HOURLY_ROOM = 'Hourly Room';
 const CHECK_IN_DAYS_AHEAD = 10;
@@ -307,10 +307,10 @@ test.describe('Mobile booking drawer — date pickers are tappable', () => {
     await expect(drawer).toBeVisible();
 
     // Room selection stays usable in the drawer, and booking can continue.
-    await tapOption(page, drawer, 'Unit', new RegExp(`^${NIGHT_ROOM}`));
-    await expect(drawer.getByRole('combobox', { name: 'Unit' })).toContainText(
-      NIGHT_ROOM,
-    );
+    await tapOption(page, drawer, 'Room type', new RegExp(`^${NIGHT_ROOM}`));
+    await expect(
+      drawer.getByRole('combobox', { name: 'Room type' }),
+    ).toContainText(NIGHT_ROOM);
     await expect(
       drawer.getByRole('button', { name: BOOK_CTA, exact: true }),
     ).toBeEnabled();
@@ -338,8 +338,8 @@ test.describe('Mobile booking drawer — date pickers are tappable', () => {
     await tapOption(page, drawer, 'Start time', '10:00');
     await tapOption(page, drawer, 'End time', '13:00');
     await expect(drawer.getByText('Duration: 3 hours')).toBeVisible();
-    await drawer.getByLabel('Quantity').fill('2');
-    await drawer.getByLabel('Guests').fill('3');
+    await drawer.getByLabel('Rooms', { exact: true }).fill('2');
+    await drawer.getByLabel('Guests', { exact: true }).fill('3');
     const overflowX = await page.evaluate(
       () =>
         document.documentElement.scrollWidth -

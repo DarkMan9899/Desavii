@@ -1,4 +1,4 @@
-import { describe, test, expect, vi } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PropTypes from 'prop-types';
@@ -6,6 +6,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom';
 import MobileBookingBar from './MobileBookingBar.jsx';
 import CurrencyProvider from '../../../../../providers/CurrencyProvider.jsx';
+import { useListingBookableUnitsQuery } from '../../../queries/useListingBookableUnitsQuery.js';
+
+// The bar names its action from the listing's units (the same cached read
+// the panel uses) — mocked so each test chooses the flow.
+vi.mock('../../../queries/useListingBookableUnitsQuery.js', () => ({
+  useListingBookableUnitsQuery: vi.fn(),
+  default: vi.fn(),
+}));
 
 vi.mock('../../../../../api/fx.js', () => ({
   getRates: vi.fn().mockResolvedValue({
@@ -26,9 +34,9 @@ vi.mock('../../../../../api/fx.js', () => ({
 // widget's own booking logic is already covered by
 // ListingReservationWidget.test.jsx.
 vi.mock('../ListingReservationWidget/ListingReservationWidget.jsx', () => ({
-  default: ({ listingId, bookingCtaKey, location }) => (
+  default: ({ listingId, presentation, location }) => (
     <div data-testid="reservation-widget">
-      {`widget for listing ${listingId} (${bookingCtaKey})`}
+      {`widget for listing ${listingId} (${presentation})`}
       {location && ` — ${location.city_name}, ${location.country_name}`}
     </div>
   ),
@@ -38,7 +46,6 @@ vi.mock('../ListingReservationWidget/ListingReservationWidget.jsx', () => ({
 // the exact locale-string convention every other component test in this
 // module already uses, rather than English.
 const REQUEST_TO_BOOK = 'Ուղարկել ամրագրման հայտ';
-const RESERVE_YOUR_SPOT = 'Ամրագրել ձեր տեղը';
 const NO_UNITS_AVAILABLE =
   'Այս հայտարարությունը դեռ հասանելի չէ առցանց ամրագրման համար։';
 
@@ -50,8 +57,8 @@ const PRICING = { amount: 120, currency: 'AMD', pricing_model: 'PER_NIGHT' };
 function RouteScopedBar({
   listingId,
   pricing = null,
-  bookingCtaKey,
   location = null,
+  categorySlug = null,
 }) {
   const { locale } = useParams();
   return (
@@ -59,8 +66,8 @@ function RouteScopedBar({
       <MobileBookingBar
         listingId={listingId}
         pricing={pricing}
-        bookingCtaKey={bookingCtaKey}
         location={location}
+        categorySlug={categorySlug}
       />
     </CurrencyProvider>
   );
@@ -69,12 +76,12 @@ RouteScopedBar.propTypes = {
   listingId: PropTypes.number.isRequired,
   // eslint-disable-next-line react/forbid-prop-types -- test-only pass-through
   pricing: PropTypes.object,
-  bookingCtaKey: PropTypes.string.isRequired,
   // eslint-disable-next-line react/forbid-prop-types -- test-only pass-through
   location: PropTypes.object,
+  categorySlug: PropTypes.string,
 };
 
-function renderBar({ listingId, pricing, bookingCtaKey, location }) {
+function renderBar({ listingId, pricing, location, categorySlug }) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -88,8 +95,8 @@ function renderBar({ listingId, pricing, bookingCtaKey, location }) {
               <RouteScopedBar
                 listingId={listingId}
                 pricing={pricing}
-                bookingCtaKey={bookingCtaKey}
                 location={location}
+                categorySlug={categorySlug}
               />
             }
           />
@@ -100,11 +107,14 @@ function renderBar({ listingId, pricing, bookingCtaKey, location }) {
 }
 
 describe('MobileBookingBar', () => {
+  beforeEach(() => {
+    useListingBookableUnitsQuery.mockReturnValue({ data: undefined });
+  });
+
   test('renders the price and CTA button, with the drawer closed by default', () => {
     renderBar({
       listingId: 7,
       pricing: PRICING,
-      bookingCtaKey: 'pages.listingDetail.reservation.requestToBook',
     });
     expect(screen.getByText(/120/)).toBeInTheDocument();
     expect(
@@ -117,7 +127,6 @@ describe('MobileBookingBar', () => {
     renderBar({
       listingId: 7,
       pricing: null,
-      bookingCtaKey: 'pages.listingDetail.reservation.requestToBook',
     });
     expect(screen.getByText(NO_UNITS_AVAILABLE)).toBeInTheDocument();
   });
@@ -131,7 +140,6 @@ describe('MobileBookingBar', () => {
         pricing_model: 'PER_HOUR',
         is_model_supported: false,
       },
-      bookingCtaKey: 'pages.listingDetail.reservation.requestToBook',
     });
     expect(
       screen.getByText(
@@ -155,7 +163,6 @@ describe('MobileBookingBar', () => {
                   <MobileBookingBar
                     listingId={7}
                     pricing={{ ...PRICING, pricing_model: 'PER_PERSON' }}
-                    bookingCtaKey="pages.listingDetail.reservation.requestToBook"
                     listingType="RESTAURANT"
                   />
                 </CurrencyProvider>
@@ -173,26 +180,28 @@ describe('MobileBookingBar', () => {
     renderBar({
       listingId: 7,
       pricing: PRICING,
-      bookingCtaKey: 'pages.listingDetail.reservation.requestToBook',
     });
 
     await user.click(screen.getByRole('button', { name: REQUEST_TO_BOOK }));
 
+    // The sheet shows the menu pre-order as a step, never a dialog on top.
     expect(screen.getByTestId('reservation-widget')).toHaveTextContent(
-      'widget for listing 7',
+      'widget for listing 7 (sheet)',
     );
   });
 
-  test('uses the group-scoped booking CTA copy when a category-specific key is passed', () => {
-    renderBar({
-      listingId: 7,
-      pricing: PRICING,
-      bookingCtaKey:
-        'pages.listingDetail.reservation.requestToBookByGroup.EXPERIENCE',
+  // W-03: the bar names the same action as the panel, by the listing's flow.
+  test.each([
+    ['VEHICLE', null, 'Վարձակալել մեքենան'],
+    ['RESTAURANT_TABLE', null, 'Ամրագրել սեղան'],
+    ['TOUR_DEPARTURE', 'attractions', 'Ամրագրել այցը'],
+    ['HOTEL_ROOM', null, 'Ամրագրել'],
+  ])('a %s listing (%s) shows "%s"', (type, categorySlug, label) => {
+    useListingBookableUnitsQuery.mockReturnValue({
+      data: [{ id: 1, bookable_unit_type: type, capacity: 1 }],
     });
-    expect(
-      screen.getByRole('button', { name: RESERVE_YOUR_SPOT }),
-    ).toBeInTheDocument();
+    renderBar({ listingId: 7, pricing: PRICING, categorySlug });
+    expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
   });
 
   test('Sprint B (Car Rental Pickup/Return Interval): forwards the listing location through to the reservation widget', async () => {
@@ -200,7 +209,6 @@ describe('MobileBookingBar', () => {
     renderBar({
       listingId: 7,
       pricing: PRICING,
-      bookingCtaKey: 'pages.listingDetail.reservation.requestToBook',
       location: { city_name: 'Yerevan', country_name: 'Armenia' },
     });
 

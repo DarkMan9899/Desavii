@@ -682,17 +682,19 @@ test.describe('Phase 18 accessibility', () => {
     const hotelId = await resolveListingId(PHASE_18_FLAGSHIP_SLUGS.hotel);
     await page.goto(`/en/listings/${hotelId}`);
 
-    // Two elements share the "Check availability" accessible name at this
+    // Two elements share the "Reserve" accessible name at this
     // viewport (the sidebar's hidden copy of the reservation widget and
     // the fixed mobile bar's own CTA) — `:visible` narrows to the real,
     // interactive one.
     const mobileCta = page
-      .getByRole('button', { name: 'Check availability' })
+      .getByRole('button', { name: 'Reserve', exact: true })
       .and(page.locator(':visible'));
     await expect(mobileCta).toBeVisible({ timeout: 10_000 });
     await mobileCta.click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Unit' })).toBeVisible();
+    await expect(
+      page.getByRole('combobox', { name: 'Room type' }),
+    ).toBeVisible();
     // The drawer's shared Overlay backdrop fades in over
     // `$motion-transition` (300ms, Overlay.module.scss's own
     // `overlay-backdrop-in` keyframe) — scanning mid-fade briefly drops
@@ -781,7 +783,7 @@ test.describe('Phase 18 accessibility', () => {
     await page.goto(`/en/listings/${tourId}`);
 
     const reserveCta = page
-      .getByRole('button', { name: 'Reserve your spot' })
+      .getByRole('button', { name: 'Book tour', exact: true })
       .and(page.locator(':visible'));
     await expect(reserveCta).toBeVisible({ timeout: 10_000 });
     await reserveCta.click();
@@ -790,7 +792,7 @@ test.describe('Phase 18 accessibility', () => {
     // Single-date picker, not the generic Unit selector or a date-range
     // field — the core UX change this sprint makes.
     await expect(page.getByRole('button', { name: 'Date' })).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Unit' })).toHaveCount(0);
+    await expect(page.getByRole('combobox', { name: 'Option' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Date' }).click();
     await expect(page.getByRole('grid')).toBeVisible();
     // Day cells' accessible names are full dates ("Sep 10, 2026" —

@@ -85,6 +85,16 @@ export class OpeningHoursService {
     return this.#openingHoursRepository.findByListingId(listingId);
   }
 
+  /**
+   * The listing's authored weekly hours with no visibility check — for the
+   * booking path only (a restaurant reservation must fall inside them,
+   * `AvailabilityService#reserveCapacity`), which has already resolved a
+   * bookable listing.
+   */
+  async findWeeklyHoursSystemInternal(listingId, connection) {
+    return this.#openingHoursRepository.findByListingId(listingId, connection);
+  }
+
   async replaceOpeningHours(principal, listingId, days) {
     const listing = await this.#getListingOrThrow(listingId);
     await this.#assertOwnerOrPermission(principal, listing.partnerId);

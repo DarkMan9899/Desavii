@@ -454,7 +454,16 @@
         "newTotal": "New total",
         "accept": "Accept new price"
       },
-      "quoteUnavailable": "We can't confirm a price for this booking right now. Release the hold and try again later."
+      "quoteUnavailable": "We can't confirm a price for this booking right now. Release the hold and try again later.",
+      "menuPreorder": {
+        "priceChangedTitle": "Dish prices changed while you were booking.",
+        "priceChangedBody": "Nothing has been booked yet and your table is still held. Review the current pre-order and accept it, or reserve the table alone.",
+        "acceptNewPrices": "Accept current prices",
+        "tableOnly": "Reserve the table only",
+        "remove": "Remove pre-order",
+        "dishesRemoved_one": "{{dishes}} is no longer available and was removed from your pre-order. Your table is still held — confirm again.",
+        "dishesRemoved_other": "These dishes are no longer available and were removed from your pre-order: {{dishes}}. Your table is still held — confirm again."
+      }
     },
     "unitLabels": {
       "HOTEL_ROOM": "Room type",
@@ -483,6 +492,16 @@
       "hoursCount_other": "{{count}} hours",
       "rooms": "Rooms",
       "guests": "Guests"
+    },
+    "menuPreorder": {
+      "heading": "Dish pre-order",
+      "quantity_one": "{{count}} ×",
+      "quantity_other": "{{count}} ×",
+      "subtotal": "Pre-order subtotal",
+      "payAtVenue": "Paid at the restaurant — nothing is charged on Desavii.",
+      "reservationType": "Reservation",
+      "tableOnly": "Table only",
+      "withPreorder": "Table with dish pre-order"
     }
   },
   "payments": {
@@ -880,7 +899,8 @@
       "CITY_REQUIRED": "Choose the listing's city before publishing.",
       "unknownCity": "Choose a city from the list.",
       "attributeNotApplicable": "This doesn't apply with the answer chosen above it.",
-      "dateSpanTooLong": "Choose a range of at most {{maximum}} days."
+      "dateSpanTooLong": "Choose a range of at most {{maximum}} days.",
+      "reservationOutsideOpeningHours": "The restaurant isn't open at that time. Choose one of its reservation times."
     },
     "codes": {
       "PARTNER_NOT_VERIFIED": "Your company must be verified before it can create listings.",
@@ -4259,14 +4279,11 @@
         "noPhotos": "No photos yet"
       },
       "reservation": {
-        "unitLabel": "Unit",
-        "unitPlaceholder": "Select a unit",
         "datesLabel": "Dates",
         "dateLabel": "Date",
         "timeLabel": "Time",
         "loadingTimes": "Loading available times…",
         "noTimesForDate": "No times available for this date. Please choose another date.",
-        "quantityLabel": "Quantity",
         "guestsLabel": "Guests",
         "partySizeLabel": "Party size",
         "guestsHint": "Up to {{max}} guests for the selected room(s)",
@@ -4279,20 +4296,10 @@
         "locationUnavailable": "Location not available",
         "invalidRentalInterval": "Return must be after pickup. Please check the selected dates and times.",
         "vehicleUnavailableForInterval": "This vehicle is unavailable for the selected pickup and return times.",
-        "estimatedTotal": "estimated total",
-        "requestToBook": "Request to book",
-        "requestToBookByGroup": {
-          "ACCOMMODATION": "Check availability",
-          "EXPERIENCE": "Reserve your spot",
-          "TRANSPORT": "Reserve this vehicle",
-          "DINING": "Reserve a table",
-          "GENERIC": "Request to book"
-        },
         "noUnitsAvailable": "This listing isn't bookable online yet.",
         "holdError": "We couldn't hold these dates. Please try again.",
         "availabilityConflict": "These dates are no longer available. Please choose different dates.",
         "staySoldOut": "This room is sold out for the selected dates.",
-        "nightsCount": "{{count}}-night stay",
         "pricingUnavailable": "Online booking isn't available for this listing right now — the host is updating its pricing.",
         "averageSpendPerPerson": "Average spend per person",
         "stayModeLabel": "How would you like to stay?",
@@ -4304,7 +4311,72 @@
         "hourlyDuration_other": "Duration: {{count}} hours",
         "hourlyHint": "Same-day stay between {{from}} and {{until}}, on the hour (Armenia time).",
         "noHourlyTimesForDate": "No hourly times are left on this date. Choose another date.",
-        "hourlySoldOut": "Not enough rooms are free for these hours. Choose other times or fewer rooms."
+        "hourlySoldOut": "Not enough rooms are free for these hours. Choose other times or fewer rooms.",
+        "cta": {
+          "stay": "Reserve",
+          "restaurant": "Reserve a table",
+          "restaurantPreorder": "Reserve with pre-order",
+          "tour": "Book tour",
+          "attraction": "Book visit",
+          "entertainment": "Book session",
+          "vehicle": "Rent this car",
+          "generic": "Request to book"
+        },
+        "noChargeNote": "You won't be charged now — the partner confirms your request first.",
+        "stepper": {
+          "decrease": "Decrease {{label}}",
+          "increase": "Increase {{label}}"
+        },
+        "quantityByKind": {
+          "rooms": "Rooms",
+          "vehicles": "Cars",
+          "units": "Quantity"
+        },
+        "unitLabelByFlow": {
+          "STAY": "Room type",
+          "HOME": "Accommodation",
+          "DEPARTURE": "Option",
+          "VEHICLE": "Car",
+          "RESTAURANT": "Dining area",
+          "GENERIC": "Unit"
+        },
+        "unitPlaceholderByFlow": {
+          "STAY": "Choose a room type",
+          "HOME": "Choose accommodation",
+          "DEPARTURE": "Choose an option",
+          "VEHICLE": "Choose a car",
+          "RESTAURANT": "Choose a dining area",
+          "GENERIC": "Select a unit"
+        },
+        "summary": {
+          "estimatedTotal": "Estimated total",
+          "nights": "Nights",
+          "days": "Rental days",
+          "rooms": "Rooms",
+          "vehicles": "Cars"
+        },
+        "restaurant": {
+          "noTimes": "No reservation times are left on this date. Choose another date.",
+          "timePlaceholder": "Choose a time",
+          "modeLabel": "Your reservation",
+          "tableOnly": "Table only",
+          "withPreorder": "Table + dish pre-order",
+          "preorderEmpty": "Choose dishes from the menu — they're prepared for your arrival and paid at the restaurant.",
+          "chooseDishes": "Choose dishes",
+          "editDishes": "Edit dishes",
+          "overnightHint": "Open until {{time}} — times after midnight are on the next date."
+        },
+        "preorder": {
+          "title": "Pre-order dishes",
+          "intro": "Prices are the restaurant's current menu prices. Up to {{max}} of each dish.",
+          "dishCount_one": "{{count}} dish selected",
+          "dishCount_other": "{{count}} dishes selected",
+          "lineLimit": "You can pre-order up to {{max}} different dishes.",
+          "payAtVenue": "Paid at the restaurant — nothing is charged on Desavii.",
+          "clear": "Clear",
+          "done": "Done",
+          "back": "Back to reservation"
+        }
       },
       "rooms": {
         "heading": "Rooms",

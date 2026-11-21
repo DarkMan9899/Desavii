@@ -147,14 +147,14 @@ async function remainingOn(listingId, iso) {
 }
 
 // ListingReservationWidget's CTA is category-specific
-// (requestToBookByGroup: ACCOMMODATION "Check availability", EXPERIENCE
-// "Reserve your spot", TRANSPORT "Reserve this vehicle", GENERIC
-// "Request to book") — this suite covers listings across several of
+// (bookingFlows.js: "Reserve" for a stay, "Book tour" / "Book visit" /
+// "Book session" for a departure, "Rent this car", "Reserve a table") —
+// this suite covers listings across several of
 // those groups (hotels, tours, the car-rental fleet), so every locator
 // for this button must match any of the real labels, not just the
 // GENERIC one.
 const BOOK_CTA_PATTERN =
-  /Request to book|Check availability|Reserve your spot|Reserve this vehicle/;
+  /^(Reserve|Reserve a table|Reserve with pre-order|Book tour|Book visit|Book session|Rent this car|Request to book)$/;
 
 /** Opens the customer-facing listing detail page and its reservation widget. */
 async function gotoListingDetail(page, listingId) {
@@ -349,7 +349,8 @@ test.describe('Phase 17 — Inventory flow D: stale checkout is rejected', () =>
     // session that goes stale.
     await login(page, CUSTOMER, /\/en\/account$/);
     await gotoListingDetail(page, guideListingId);
-    await page.getByLabel('Dates').click();
+    // W-04: an untimed departure is one date, never a range.
+    await page.getByLabel('Date', { exact: true }).click();
     await clickNextMonthUntil(page, iso, monthsFromToday(iso));
     const dayCell = page.getByRole('gridcell', {
       name: accessibleDayName(iso),
@@ -357,7 +358,6 @@ test.describe('Phase 17 — Inventory flow D: stale checkout is rejected', () =>
     });
     await expect(dayCell).toBeEnabled();
     await dayCell.click();
-    await dayCell.click(); // same-day range: start === end
 
     // Meanwhile the partner consumes the last unit for that exact date
     // via a real API call (deterministic test setup — the point under
@@ -739,20 +739,22 @@ test.describe('Step L6.2H3B — departure people count, search to checkout', () 
       page.getByRole('button', { name: BOOK_CTA_PATTERN }),
     ).toBeVisible({ timeout: 15_000 });
 
-    const visitors = page.getByRole('complementary').getByLabel('Visitors');
+    const visitors = page
+      .getByRole('complementary')
+      .getByLabel('Visitors', { exact: true });
     await expect(visitors).toHaveValue('4');
     await expect(
-      page.getByRole('complementary').getByLabel('Guests'),
+      page.getByRole('complementary').getByLabel('Guests', { exact: true }),
     ).toHaveCount(0);
 
-    await page.getByRole('complementary').getByLabel('Dates').click();
+    // W-04: an untimed departure is one date, never a range.
+    await page.getByRole('complementary').getByLabel('Date').click();
     await clickNextMonthUntil(page, iso, monthsFromToday(iso));
     const dayCell = page.getByRole('gridcell', {
       name: accessibleDayName(iso),
       exact: true,
     });
     await dayCell.click();
-    await dayCell.click(); // same-day range: start === end
     await page
       .getByRole('complementary')
       .getByRole('button', { name: BOOK_CTA_PATTERN })

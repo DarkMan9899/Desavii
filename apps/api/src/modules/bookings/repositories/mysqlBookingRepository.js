@@ -559,6 +559,64 @@ export class MySqlBookingRepository {
     return rows.map(toGuestDomain);
   }
 
+  // --- booking_item_menu_selections (restaurant menu pre-order) ---
+
+  /** One insert for the whole pre-order: immutable booking-time snapshots. */
+  async createMenuSelections(
+    bookingItemId,
+    { lines, currencyId },
+    connection = this.#pool,
+  ) {
+    if (lines.length === 0) return;
+    await connection.query(
+      `INSERT INTO booking_item_menu_selections
+         (booking_item_id, menu_item_id, item_title_snapshot, section_title_snapshot,
+          language_code_snapshot, quantity, unit_price_amount, currency_id, sort_order)
+       VALUES ?`,
+      [
+        lines.map((line) => [
+          bookingItemId,
+          line.menuItemId,
+          line.title,
+          line.sectionTitle,
+          line.languageCode,
+          line.quantity,
+          line.unitPrice.toDecimalString(),
+          currencyId,
+          line.sortOrder,
+        ]),
+      ],
+    );
+  }
+
+  /** Every pre-order line of these booking items, in one query. */
+  async findMenuSelectionsForBookingItems(
+    bookingItemIds,
+    connection = this.#pool,
+  ) {
+    if (bookingItemIds.length === 0) return [];
+    const [rows] = await connection.query(
+      `SELECT s.booking_item_id, s.menu_item_id, s.item_title_snapshot,
+              s.section_title_snapshot, s.language_code_snapshot, s.quantity,
+              s.unit_price_amount, cur.code AS currency_code
+       FROM booking_item_menu_selections s
+       JOIN currencies cur ON cur.id = s.currency_id
+       WHERE s.booking_item_id IN (?)
+       ORDER BY s.booking_item_id ASC, s.sort_order ASC, s.id ASC`,
+      [bookingItemIds],
+    );
+    return rows.map((row) => ({
+      bookingItemId: Number(row.booking_item_id),
+      menuItemId: row.menu_item_id === null ? null : Number(row.menu_item_id),
+      title: row.item_title_snapshot,
+      sectionTitle: row.section_title_snapshot,
+      languageCode: row.language_code_snapshot,
+      quantity: Number(row.quantity),
+      unitPriceAmount: String(row.unit_price_amount),
+      currencyCode: row.currency_code,
+    }));
+  }
+
   // --- booking_status_history ---
 
   async createStatusHistory(
